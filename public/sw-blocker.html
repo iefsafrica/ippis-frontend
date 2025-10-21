@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Service Worker Blocker</title>
+  <script>
+    // Unregister all service workers
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (let registration of registrations) {
+          registration.unregister();
+        }
+      });
+      
+      // Replace the serviceWorker object
+      Object.defineProperty(navigator, 'serviceWorker', {
+        value: null,
+        configurable: true,
+        enumerable: true,
+        writable: false
+      });
+    }
+    
+    // Redirect back to the application
+    window.location.href = '/';
+  </script>
+</head>
+<body>
+  <p>Disabling service workers...</p>
+</body>
+</html>
