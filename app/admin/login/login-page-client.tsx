@@ -39,8 +39,11 @@ export default function LoginPageClient() {
 
         <div className="mt-6 text-center text-xs text-gray-500">
           <p>Protected by Federal Government of Nigeria security protocols</p>
-          <p className="mt-2">© 2023 IPPIS Nigeria. - All rights reserved.</p>
+          <p className="mt-2">
+            © {new Date().getFullYear()} IPPIS Nigeria - All rights reserved.
+          </p>
         </div>
+
       </div>
     </div>
   )
