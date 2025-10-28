@@ -1,0 +1,1 @@
+export const DASHBOARD_STATS = "dashboard-stats";
