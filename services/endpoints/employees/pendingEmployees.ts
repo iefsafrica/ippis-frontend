@@ -5,7 +5,6 @@ import {
   AllDocumentsResponse
 } from "@/types/employees/pending-employees";
 
-// Fetch pending employees
 export const getPendingEmployees = async (
   page: number = 1,
   limit: number = 10
