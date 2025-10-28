@@ -1,9 +1,10 @@
 import axios, { AxiosRequestConfig } from "axios";
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000/api/admin",
-  withCredentials: true, 
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "https://ippis-backend.onrender.com/api",
+  withCredentials: true,
 });
+
 api.interceptors.request.use(
   (config) => {
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -15,7 +16,6 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -23,8 +23,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-
 
 export const get = async <T>(url: string, params?: object): Promise<T> => {
   const response = await api.get(url, { params });
