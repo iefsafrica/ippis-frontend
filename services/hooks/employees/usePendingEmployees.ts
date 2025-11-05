@@ -7,7 +7,7 @@ import {
 import { 
   PENDING_DOCUMENTS, 
   PENDING_EMPLOYEES 
-} from "@/services/constants/employment";
+} from "@/services/constants/employees";
 import { 
   PendingEmployeesResponse, 
   PendingEmployeeResponse,
