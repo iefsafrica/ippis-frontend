@@ -989,7 +989,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Approve Confirmation Dialog */}
+
       <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
