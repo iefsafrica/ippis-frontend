@@ -1585,7 +1585,7 @@ export default function EmployeesContent() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Created At</Label>
+                  <Label className="text-sm font-medium">Created On</Label>
                   <div className="text-sm p-2 bg-gray-50 rounded-md">
                     {formatDate(selectedEmployee.created_at)}
                   </div>
@@ -1594,13 +1594,13 @@ export default function EmployeesContent() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Updated At</Label>
+                  <Label className="text-sm font-medium">Updated On</Label>
                   <div className="text-sm p-2 bg-gray-50 rounded-md">
                     {formatDate(selectedEmployee.updated_at)}
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Created At (System)</Label>
+                  <Label className="text-sm font-medium">Created On (System)</Label>
                   <div className="text-sm p-2 bg-gray-50 rounded-md">
                     {formatDate(selectedEmployee.createdAt)}
                   </div>
@@ -1608,7 +1608,7 @@ export default function EmployeesContent() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Updated At (System)</Label>
+                <Label className="text-sm font-medium">Updated On (System)</Label>
                 <div className="text-sm p-2 bg-gray-50 rounded-md">
                   {formatDate(selectedEmployee.updatedAt)}
                 </div>
