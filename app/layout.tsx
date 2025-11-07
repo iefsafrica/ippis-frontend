@@ -1,5 +1,3 @@
-
-
 import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
@@ -9,10 +7,9 @@ import ClientErrorHandler from "./client-error-handler"
 import Image from "next/image"
 import GlobalErrorHandler from "./global-error-handler"
 import Script from "next/script"
-
+import { Toaster } from "sonner" // ADD THIS IMPORT
 
 import Providers from "./providers"
-
 
 const inter = Inter({
   subsets: ["latin"],
@@ -150,34 +147,52 @@ export default function RootLayout({
         `}</Script>
       </head>
       <body className={inter.className}>
-        {/* ✅ Wrap everything with React Query Provider */}
-        <Providers>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="light"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <GlobalErrorHandler />
-            <ClientErrorHandler />
-            {children}
-            <footer className="bg-white border-t border-gray-200 py-4">
-              <div className="container mx-auto flex items-center justify-center">
-                <Image
-                  src="/images/ippis-logo.jpeg"
-                  alt="IPPIS Logo"
-                  width={60}
-                  height={60}
-                  className="mr-3"
-                  priority
-                />
-                <p className="text-sm text-gray-600">
-                  © {new Date().getFullYear()} IPPIS Nigeria. All rights reserved.
-                </p>
-              </div>
-            </footer>
-          </ThemeProvider>
-        </Providers>
+      <Providers>
+  <ThemeProvider
+    attribute="class"
+    defaultTheme="light"
+    enableSystem
+    disableTransitionOnChange
+  >
+    <GlobalErrorHandler />
+    <ClientErrorHandler />
+    {children}
+
+    {/* ✅ Updated Sonner Toaster */}
+    <Toaster
+      position="bottom-right"
+      theme="light" // must be "light", "dark", or "system"
+      richColors
+      closeButton
+      expand={false}
+      duration={4000}
+      toastOptions={{
+        style: {
+          borderLeft: '4px solid #22c55e', // Tailwind green-500
+          background: '#f0fdf4', // subtle green background
+          color: '#166534', // deep green text
+        },
+      }}
+    />
+
+    <footer className="bg-white border-t border-gray-200 py-4">
+      <div className="container mx-auto flex items-center justify-center">
+        <Image
+          src="/images/ippis-logo.jpeg"
+          alt="IPPIS Logo"
+          width={60}
+          height={60}
+          className="mr-3"
+          priority
+        />
+        <p className="text-sm text-gray-600">
+          © {new Date().getFullYear()} IPPIS Nigeria. All rights reserved.
+        </p>
+      </div>
+    </footer>
+  </ThemeProvider>
+</Providers>
+
       </body>
     </html>
   )

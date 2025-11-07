@@ -40,3 +40,34 @@ export interface EmployeesData {
     totalPages: number;
   };
 }
+
+// Add Employee Types
+export interface AddEmployeePayload {
+  surname: string;
+  firstname: string;
+  email: string;
+  department: string;
+  position: string;
+  status: 'pending' | 'active' | 'inactive';
+}
+
+export interface AddEmployeeResponse {
+  success: boolean;
+  message: string;
+  data: {
+    id: number;
+    registration_id: string;
+    surname: string;
+    firstname: string;
+    email: string;
+    department: string;
+    position: string;
+    status: 'pending' | 'active' | 'inactive';
+    source: string;
+    submission_date: string;
+    created_at: string;
+    updated_at: string;
+    missing_fields: any;
+    metadata: any;
+  };
+}
