@@ -34,6 +34,7 @@ export function HelpCleanupButton() {
       } else {
         setResult({
           success: false,
+          //@ts-expect-error
           error: response.error || "Failed to remove help database tables",
         })
       }

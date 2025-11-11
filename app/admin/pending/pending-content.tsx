@@ -29,7 +29,11 @@ import {
 } from "lucide-react"
 import { ClearPendingEmployeesButton } from "../components/clear-pending-employees-button"
 import { toast } from "sonner"
-import { usePendingEmployees, useUpdateEmployeeStatus } from "@/services/hooks/employees/usePendingEmployees"
+import { 
+  usePendingEmployees, 
+  useUpdateEmployeeStatus,
+  useApprovePendingEmployee 
+} from "@/services/hooks/employees/usePendingEmployees"
 import { Employee3 } from "@/types/employees/pending-employees" 
 import {
   DropdownMenu,
@@ -89,6 +93,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
   // Use the hooks
   const { data, isLoading, error, refetch } = usePendingEmployees(currentPage, 10)
   const updateEmployeeStatusMutation = useUpdateEmployeeStatus()
+  const approvePendingEmployeeMutation = useApprovePendingEmployee()
  
   // @ts-expect-error axios response mismatch
   const pendingEmployees: Employee3[] = data?.employees || []
@@ -237,7 +242,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
     setIsDeleteDialogOpen(true)
   }
 
-  // Handle approve submission using the mutation hook
+  // Handle approve submission using the new approvePendingEmployee hook
   const handleApprove = async () => {
     if (!selectedEmployee) return
 
@@ -248,9 +253,57 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
     const loadingToast = toast.loading(`Approving ${getFullName(selectedEmployee)}...`)
 
     try {
-      // Use the mutation hook to update employee status to "active"
+      console.log("Approving employee:", {
+        registrationId: selectedEmployee.registration_id,
+        id: selectedEmployee.id.toString()
+      })
+
+      // Use the new approvePendingEmployee mutation hook with PATCH method
+      const result = await approvePendingEmployeeMutation.mutateAsync({
+        registrationId: selectedEmployee.registration_id,
+        id: selectedEmployee.id.toString()
+      })
+
+      // Dismiss loading toast and show success
+      toast.dismiss(loadingToast)
+      toast.success("Employee Approved", {
+        description: `${getFullName(selectedEmployee)} has been approved successfully and is now active.`,
+      })
+      
+      // Refresh the data
+      handleRefresh()
+    } catch (error: any) {
+      console.error("Error approving employee:", error)
+      // Dismiss loading toast and show error
+      toast.dismiss(loadingToast)
+      
+      let errorMessage = "Failed to approve employee. Please try again."
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
+      toast.error("Error", {
+        description: errorMessage,
+      })
+    }
+  }
+
+  // Alternative method using updateEmployeeStatus if needed
+  const handleApproveWithStatusUpdate = async () => {
+    if (!selectedEmployee) return
+
+    // Close the dialog first
+    setIsApproveDialogOpen(false)
+
+    // Show loading toast
+    const loadingToast = toast.loading(`Approving ${getFullName(selectedEmployee)}...`)
+
+    try {
+      // Use the updateEmployeeStatus mutation hook as fallback
       const result = await updateEmployeeStatusMutation.mutateAsync({
-        id: selectedEmployee.id.toString(), // Convert to string if needed
+        id: selectedEmployee.id.toString(),
         status: "active"
       })
 
@@ -262,12 +315,20 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
       
       // Refresh the data
       handleRefresh()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error approving employee:", error)
       // Dismiss loading toast and show error
       toast.dismiss(loadingToast)
+      
+      let errorMessage = "Failed to approve employee. Please try again."
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
       toast.error("Error", {
-        description: "Failed to approve employee. Please try again.",
+        description: errorMessage,
       })
     }
   }
@@ -281,6 +342,9 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
     })
     setIsDeleteDialogOpen(false)
   }
+
+  // Determine which mutation is currently pending for loading states
+  const isApprovePending = approvePendingEmployeeMutation.isPending || updateEmployeeStatusMutation.isPending
 
   // Show loading state
   if (isLoading) {
@@ -507,9 +571,10 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
                                   <DropdownMenuItem
                                     onClick={() => handleApproveClick(emp)}
                                     className="flex items-center cursor-pointer text-green-600 focus:text-green-600"
+                                    disabled={isApprovePending}
                                   >
                                     <CheckCircle className="mr-2 h-4 w-4" />
-                                    Approve Employee
+                                    {isApprovePending ? "Approving..." : "Approve Employee"}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={() => handleDeleteClick(emp)}
@@ -636,9 +701,10 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
                                   <DropdownMenuItem
                                     onClick={() => handleApproveClick(employee)}
                                     className="flex items-center cursor-pointer text-green-600 focus:text-green-600"
+                                    disabled={isApprovePending}
                                   >
                                     <CheckCircle className="mr-2 h-4 w-4" />
-                                    Approve
+                                    {isApprovePending ? "Approving..." : "Approve"}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={() => handleDeleteClick(employee)}
@@ -661,7 +727,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
         </CardContent>
       </Card>
 
-      {/* View Details Dialog - FIXED SCROLLABLE VERSION */}
+      {/* View Details Dialog */}
       <Dialog open={isViewDetailsOpen} onOpenChange={setIsViewDetailsOpen}>
         <DialogContent className="max-w-4xl h-[90vh] w-full p-0 flex flex-col">
           <DialogHeader className="px-6 py-4 border-b shrink-0">
@@ -980,9 +1046,12 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
           <DialogFooter className="px-6 py-4 border-t shrink-0">
             <Button variant="outline" onClick={() => setIsViewDetailsOpen(false)}>Close</Button>
             {selectedEmployee && (
-              <Button onClick={() => handleApproveClick(selectedEmployee)}>
+              <Button 
+                onClick={() => handleApproveClick(selectedEmployee)}
+                disabled={isApprovePending}
+              >
                 <CheckCircle className="mr-2 h-4 w-4" />
-                Approve Employee
+                {isApprovePending ? "Approving..." : "Approve Employee"}
               </Button>
             )}
           </DialogFooter>
@@ -1022,17 +1091,17 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
               variant="outline" 
               onClick={() => setIsApproveDialogOpen(false)}
               className="px-6"
-              disabled={updateEmployeeStatusMutation.isPending}
+              disabled={isApprovePending}
             >
               Cancel
             </Button>
             <Button 
               type="button" 
               onClick={handleApprove}
-              disabled={updateEmployeeStatusMutation.isPending}
+              disabled={isApprovePending}
               className="bg-green-600 hover:bg-green-700 px-6"
             >
-              {updateEmployeeStatusMutation.isPending ? (
+              {isApprovePending ? (
                 <>
                   <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                   Approving...
