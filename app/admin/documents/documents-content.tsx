@@ -583,19 +583,25 @@ export default function DocumentsContent() {
                                         <span className="sr-only">Open menu</span>
                                       </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
+                                    <DropdownMenuContent align="end" className="w-48">
                                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                       {url ? (
                                         <>
-                                          <DropdownMenuItem onClick={() => handlePreviewDocument(document, type)}>
+                                          <DropdownMenuItem 
+                                            onClick={() => handlePreviewDocument(document, type)}
+                                            className="cursor-pointer"
+                                          >
                                             <Eye className="h-4 w-4 mr-2" />
                                             Preview Document
                                           </DropdownMenuItem>
-                                          <DropdownMenuItem onClick={() => handleViewDetails(document, type)}>
+                                          <DropdownMenuItem 
+                                            onClick={() => handleViewDetails(document, type)}
+                                            className="cursor-pointer"
+                                          >
                                             <Info className="h-4 w-4 mr-2" />
                                             View Details
                                           </DropdownMenuItem>
-                                          <DropdownMenuItem>
+                                          <DropdownMenuItem className="cursor-pointer">
                                             <Download className="h-4 w-4 mr-2" />
                                             Download
                                           </DropdownMenuItem>
@@ -603,14 +609,14 @@ export default function DocumentsContent() {
                                           {document.status === "pending" && (
                                             <>
                                               <DropdownMenuItem
-                                                className="text-green-600"
+                                                className="text-green-600 cursor-pointer"
                                                 onClick={() => handleOpenApproveDialog(document, type)}
                                               >
                                                 <CheckCircle className="h-4 w-4 mr-2" />
                                                 Approve
                                               </DropdownMenuItem>
                                               <DropdownMenuItem
-                                                className="text-red-600"
+                                                className="text-red-600 cursor-pointer"
                                                 onClick={() => handleOpenRejectDialog(document, type)}
                                               >
                                                 <AlertTriangle className="h-4 w-4 mr-2" />
@@ -620,7 +626,7 @@ export default function DocumentsContent() {
                                           )}
                                         </>
                                       ) : (
-                                        <DropdownMenuItem disabled>
+                                        <DropdownMenuItem disabled className="cursor-not-allowed">
                                           <File className="h-4 w-4 mr-2" />
                                           Document not uploaded
                                         </DropdownMenuItem>
@@ -754,7 +760,7 @@ export default function DocumentsContent() {
               Document Details
             </DialogTitle>
             <DialogDescription>
-              Detailed information about the document and its verification status
+              Detailed information about {selectedDocumentType && getDocumentTypeName(selectedDocumentType)}
             </DialogDescription>
           </DialogHeader>
 
