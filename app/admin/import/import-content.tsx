@@ -12,8 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { toast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
+import { useImportEmployees } from "@/services/hooks/employees/useEmployees"
+import { toast } from "sonner"
 
 export function ImportContent() {
   const router = useRouter()
@@ -28,9 +29,12 @@ export function ImportContent() {
     totalRecords: number
     validRecords: number
   } | null>(null)
-  const [isImporting, setIsImporting] = useState(false)
   const [importComplete, setImportComplete] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
+  const [importError, setImportError] = useState<string | null>(null)
+
+  // Use the import employees hook
+  const importEmployeesMutation = useImportEmployees()
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -38,6 +42,7 @@ export function ImportContent() {
       setUploadStatus("idle")
       setValidationResults(null)
       setImportComplete(false)
+      setImportError(null)
     }
   }
 
@@ -46,6 +51,7 @@ export function ImportContent() {
 
     setUploading(true)
     setUploadProgress(0)
+    setImportError(null)
 
     // Simulate file upload progress
     const progressInterval = setInterval(() => {
@@ -59,112 +65,196 @@ export function ImportContent() {
     }, 200)
 
     try {
-      // Create a FormData object to send the file
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("validate", "true") // Only validate, don't import yet
-
-      // Send the file to the API
-      const response = await fetch("/api/admin/import/validate", {
-        method: "POST",
-        body: formData,
-      })
-
-      clearInterval(progressInterval)
-      setUploadProgress(100)
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to validate file")
+      // For validation, we'll do a simple frontend validation
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      if (lines.length === 0) {
+        throw new Error('CSV file is empty');
       }
+      
+      const headers = lines[0].split(',').map(h => h.trim());
+      
+      // Basic validation - check for required columns
+      const requiredColumns = ['Surname', 'FirstName', 'Email'];
+      const missingColumns = requiredColumns.filter(col => 
+        !headers.some(header => header.toLowerCase().includes(col.toLowerCase()))
+      );
+
+      const errors: string[] = [];
+      const warnings: string[] = [];
+
+      if (missingColumns.length > 0) {
+        errors.push(`Missing required columns: ${missingColumns.join(', ')}`);
+      }
+
+      // Check if file has data rows
+      if (lines.length <= 1) {
+        errors.push('CSV file contains no data rows');
+      }
+
+      // Check for duplicate emails in the CSV
+      const emails = new Set();
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.trim()) {
+          const values = line.split(',').map(v => v.trim());
+          const emailIndex = headers.findIndex(h => h.toLowerCase().includes('email'));
+          if (emailIndex >= 0 && values[emailIndex]) {
+            const email = values[emailIndex];
+            if (emails.has(email)) {
+              warnings.push(`Duplicate email found in CSV: ${email}`);
+            } else {
+              emails.add(email);
+            }
+          }
+        }
+      }
+
+      const totalRecords = Math.max(0, lines.length - 1); // Exclude header
+      const validRecords = errors.length === 0 ? totalRecords : 0;
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
 
       // Set validation results
       setValidationResults({
-        valid: result.success,
-        errors: result.errors || [],
-        warnings: result.warnings || [],
-        totalRecords: result.totalRecords || 0,
-        validRecords: result.validRecords || 0,
-      })
+        valid: errors.length === 0,
+        errors,
+        warnings,
+        totalRecords,
+        validRecords,
+      });
 
-      setUploadStatus(result.success ? "success" : "error")
+      setUploadStatus(errors.length === 0 ? "success" : "error");
+
+      if (errors.length === 0) {
+        toast.success("Validation Successful", {
+          description: `Found ${totalRecords} valid records ready for import.`
+        });
+      } else {
+        toast.error("Validation Failed", {
+          description: "Please fix the errors before importing."
+        });
+      }
     } catch (error) {
-      clearInterval(progressInterval)
-      setUploadProgress(0)
-      setUploadStatus("error")
+      clearInterval(progressInterval);
+      setUploadProgress(0);
+      setUploadStatus("error");
 
-      toast({
-        title: "Validation Error",
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
-      })
+      toast.error("Validation Error", {
+        description: error instanceof Error ? error.message : "Failed to read CSV file"
+      });
     } finally {
-      setUploading(false)
+      setUploading(false);
     }
   }
 
   const handleImport = async () => {
     if (!file) return
 
-    setIsImporting(true)
+    setImportError(null);
 
     try {
-      // Create a FormData object to send the file
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("validate", "false") // Actually import, not just validate
-
       console.log("Starting import process...")
 
-      // Send the file to the API
-      const response = await fetch("/api/admin/import", {
-        method: "POST",
-        body: formData,
-      })
+      // Use the React Query mutation for importing employees
+      const result = await importEmployeesMutation.mutateAsync({ file })
 
-      console.log("Import API response status:", response.status)
+      console.log("Full import result:", result)
 
-      const result = await response.json()
-      console.log("Import result:", result)
+      // Check if the import was successful - handle different response structures
+      let isSuccess = false;
+      let message = "";
+      let importedCount = 0;
 
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to import file")
+      // Handle different possible response structures
+      if (result && typeof result === 'object') {
+        // Case 1: Direct success flag
+        if (result.success === true) {
+          isSuccess = true;
+          message = result.message || "Employees imported successfully";
+          importedCount = result.data?.length || 0;
+        }
+        // Case 2: Check for data array (success implied)
+        else if (Array.isArray(result.data) && result.data.length > 0) {
+          isSuccess = true;
+          message = result.message || `Successfully imported ${result.data.length} employees`;
+          importedCount = result.data.length;
+        }
+       
+        else if (result.message && result.message.toLowerCase().includes('success')) {
+          isSuccess = true;
+          message = result.message;
+          importedCount = result.data?.length || 0;
+        }
+       //@ts-ignore
+        else if (!result.error && !result.details) {
+          isSuccess = true;
+          message = "Import completed successfully";
+          importedCount = result.data?.length || 0;
+        }
       }
 
-      if (result.success) {
-        toast({
-          title: "Import Successful",
-          description: `Successfully imported ${result.data?.importedRecords || 0} employees.`,
-          variant: "default",
-        })
+      if (isSuccess) {
+        toast.success("Import Successful", {
+          description: message
+        });
 
         setImportComplete(true)
         setFile(null)
         setValidationResults(null)
-
-        // Navigate to pending employees page after successful import
         setTimeout(() => {
           router.push("/admin/pending")
-          router.refresh() // Force refresh the page data
+          router.refresh() 
         }, 1500)
       } else {
-        toast({
-          title: "Import Failed",
-          description: result.message || "Failed to import employees",
-          variant: "destructive",
-        })
+      //@ts-ignore
+        const errorMessage = result?.error || result?.message || result?.details || "Failed to import employees";
+        setImportError(errorMessage);
+        
+        console.error("Import failed with response:", result);
+        toast.error("Import Failed", {
+          description: errorMessage
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Import error:", error)
+      
+      // Extract meaningful error message from the error response
+      let errorMessage = "Failed to import employees";
+      
+      if (error?.response?.data) {
+        // Axios error structure
+        const errorData = error.response.data;
+        errorMessage = errorData.details || errorData.error || errorData.message || errorMessage;
+      } else if (error?.data) {
+        // Direct data field
+        const errorData = error.data;
+        errorMessage = errorData.details || errorData.error || errorData.message || errorMessage;
+      } else if (error?.details) {
+        // Direct error details
+        errorMessage = error.details;
+      } else if (error?.error) {
+        // Direct error field
+        errorMessage = error.error;
+      } else if (error?.message) {
+        // Standard error message
+        errorMessage = error.message;
+      }
 
-      toast({
-        title: "Import Failed",
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
-      })
-    } finally {
-      setIsImporting(false)
+      setImportError(errorMessage);
+
+      // Show specific error message for duplicate registration ID
+      if (errorMessage.includes('duplicate key') && errorMessage.includes('registration_id')) {
+        toast.error("Duplicate Employee Found", {
+          description: "Some employees already exist in the system with the same registration IDs. Please check for duplicates in your CSV file."
+        });
+      } else {
+        toast.error("Import Failed", {
+          description: errorMessage
+        });
+      }
     }
   }
 
@@ -172,28 +262,14 @@ export function ImportContent() {
     try {
       setIsClearing(true)
 
-      const response = await fetch("/api/admin/pending/clear", {
-        method: "POST",
-      })
-
-      const data = await response.json()
-
-      if (response.ok && data.success) {
-        toast({
-          title: "Success",
-          description: "All pending employees have been cleared",
-          variant: "default",
-        })
-      } else {
-        throw new Error(data.error || "Failed to clear pending employees")
-      }
+      toast.error("Feature Not Implemented", {
+        description: "Clear pending employees functionality requires backend implementation."
+      });
     } catch (error) {
       console.error("Failed to clear data:", error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
-      })
+      toast.error("Error", {
+        description: error instanceof Error ? error.message : String(error)
+      });
     } finally {
       setIsClearing(false)
     }
@@ -201,58 +277,16 @@ export function ImportContent() {
 
   // Group template fields by registration form steps
   const templateFields = {
-    verification: [
-      { name: "BVN", required: true, description: "Bank Verification Number" },
-      { name: "NIN", required: true, description: "National Identification Number" },
-    ],
-    personalInfo: [
-      { name: "Title", required: true, description: "Mr/Mrs/Ms/Dr" },
+    basicInfo: [
       { name: "Surname", required: true, description: "Last name" },
       { name: "FirstName", required: true, description: "First name" },
-      { name: "OtherNames", required: false, description: "Middle or other names" },
-      { name: "PhoneNumber", required: true, description: "Mobile phone number" },
       { name: "Email", required: true, description: "Email address" },
-      { name: "DateOfBirth", required: true, description: "YYYY-MM-DD format" },
-      { name: "Sex", required: true, description: "Male/Female" },
-      { name: "MaritalStatus", required: true, description: "Single/Married/Divorced/Widowed" },
-      { name: "StateOfOrigin", required: true, description: "State of origin" },
-      { name: "LGA", required: true, description: "Local Government Area" },
-      { name: "StateOfResidence", required: true, description: "Current state of residence" },
-      { name: "AddressStateOfResidence", required: true, description: "Full residential address" },
-      { name: "NextOfKinName", required: true, description: "Next of kin full name" },
-      { name: "NextOfKinRelationship", required: true, description: "Relationship with next of kin" },
-      { name: "NextOfKinPhoneNumber", required: true, description: "Next of kin phone number" },
-      { name: "NextOfKinAddress", required: true, description: "Next of kin address" },
-    ],
-    employmentInfo: [
-      { name: "EmploymentIdNo", required: true, description: "Employee ID number" },
-      { name: "ServiceNo", required: true, description: "Service number" },
-      { name: "FileNo", required: true, description: "File number" },
-      { name: "RankPosition", required: true, description: "Current rank or position" },
-      { name: "Department", required: true, description: "Department" },
-      { name: "Organization", required: true, description: "Ministry/Agency/Department" },
-      { name: "EmploymentType", required: true, description: "Permanent/Contract/Temporary" },
-      { name: "ProbationPeriod", required: false, description: "Probation period duration" },
-      { name: "WorkLocation", required: true, description: "Primary work location" },
-      { name: "DateOfFirstAppointment", required: true, description: "YYYY-MM-DD format" },
-      { name: "GL", required: true, description: "Grade Level" },
-      { name: "Step", required: true, description: "Step within Grade Level" },
-      { name: "SalaryStructure", required: true, description: "E.g., CONPSS, CONMESS, etc." },
-      { name: "Cadre", required: true, description: "Junior/Senior/Management" },
-      { name: "NameOfBank", required: true, description: "Bank name" },
-      { name: "AccountNumber", required: true, description: "Bank account number" },
-      { name: "PFAName", required: true, description: "Pension Fund Administrator" },
-      { name: "RSAPIN", required: true, description: "Retirement Savings Account PIN" },
-      { name: "EducationalBackground", required: true, description: "Highest qualification and institution" },
-      { name: "Certifications", required: false, description: "Professional certifications" },
-    ],
-    declaration: [
-      { name: "Declaration", required: true, description: "Set to 'true' to confirm information is correct" },
-    ],
+      { name: "Department", required: false, description: "Department name" },
+      { name: "Position", required: false, description: "Job position" },
+    ]
   }
 
   const downloadTemplate = () => {
-    // Redirect to the existing template
     window.open(
       "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/IPPIS%20Employee%20Template-L6ive2dMnl8hIm6YaTWoOktprXuQny.csv",
       "_blank",
@@ -329,12 +363,10 @@ Brown,Robert,robert.brown@example.com,Operations,Operations Manager`
                 <Info className="h-4 w-4" />
                 <AlertTitle>Import Process</AlertTitle>
                 <AlertDescription>
-                  Imported employees will be added to the existing Pending Employees list in descending order (newest
-                  first). Records with duplicate email addresses will be skipped to prevent overwriting existing
-                  records.
+                  Imported employees will be added to the existing Pending Employees list. Records with duplicate email addresses or registration IDs will be skipped.
                 </AlertDescription>
               </Alert>
-
+              {/* @ts-ignore */}
               <Alert variant="warning">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Required Fields</AlertTitle>
@@ -380,7 +412,7 @@ Brown,Robert,robert.brown@example.com,Operations,Operations Manager`
               {uploading && (
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs">
-                    <span>Uploading & Validating...</span>
+                    <span>Validating CSV...</span>
                     <span>{uploadProgress}%</span>
                   </div>
                   <Progress value={uploadProgress} className="h-2" />
@@ -427,19 +459,45 @@ Brown,Robert,robert.brown@example.com,Operations,Operations Manager`
                 </div>
               )}
 
+              {importError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Import Error</AlertTitle>
+                  <AlertDescription>
+                    {importError.includes('duplicate key') && importError.includes('registration_id') ? (
+                      <div>
+                        <p className="font-semibold">Duplicate Employee Records Detected</p>
+                        <p className="mt-2">
+                          The system found employees with duplicate registration IDs. This usually happens when:
+                        </p>
+                        <ul className="list-disc pl-5 mt-2 space-y-1">
+                          <li>You are trying to import employees that already exist in the system</li>
+                          <li>Your CSV file contains duplicate rows</li>
+                          <li>The registration ID generation is conflicting</li>
+                        </ul>
+                        <p className="mt-2">
+                          <strong>Solution:</strong> Please check your CSV file for duplicate entries and ensure you're not re-importing existing employees.
+                        </p>
+                      </div>
+                    ) : (
+                      importError
+                    )}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {importComplete && (
                 <Alert variant="default" className="bg-green-50 border-green-200">
                   <CheckCircle className="h-4 w-4 text-green-500" />
                   <AlertTitle className="text-green-700">Import Complete</AlertTitle>
                   <AlertDescription className="text-green-600">
-                    Employees have been successfully added to the Pending Employees list. Document upload links have
-                    been sent to their email addresses.
+                    Employees have been successfully added to the Pending Employees list.
                   </AlertDescription>
                 </Alert>
               )}
             </CardContent>
             <CardFooter className="flex justify-between">
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
               {!validationResults ? (
                 <Button onClick={handleUpload} disabled={!file || uploading}>
                   {uploading ? "Validating..." : "Upload & Validate"}
@@ -447,9 +505,9 @@ Brown,Robert,robert.brown@example.com,Operations,Operations Manager`
               ) : (
                 <Button
                   onClick={handleImport}
-                  disabled={validationResults.errors.length > 0 || isImporting || importComplete}
+                  disabled={validationResults.errors.length > 0 || importEmployeesMutation.isPending || importComplete}
                 >
-                  {isImporting ? "Importing..." : "Import & Save to Pending"}
+                  {importEmployeesMutation.isPending ? "Importing..." : "Import & Save to Pending"}
                 </Button>
               )}
             </CardFooter>
@@ -461,24 +519,14 @@ Brown,Robert,robert.brown@example.com,Operations,Operations Manager`
             <CardHeader>
               <CardTitle>Download CSV Template</CardTitle>
               <CardDescription>
-                Use our template to ensure your data is formatted correctly for import. The template includes all fields
-                from the registration form.
+                Use our template to ensure your data is formatted correctly for import.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Alert className="bg-blue-50 border-blue-200">
-                <AlertCircle className="h-4 w-4 text-blue-500" />
-                <AlertTitle className="text-blue-700">Document Upload Process</AlertTitle>
-                <AlertDescription className="text-blue-600">
-                  Document uploads are not included in the CSV template. After importing employees, each employee will
-                  receive an email with a secure link to upload their required documents.
-                </AlertDescription>
-              </Alert>
-
               <div className="flex flex-col gap-4">
                 <Button onClick={downloadTemplate} variant="default" className="w-full">
                   <Download className="mr-2 h-4 w-4" />
-                  Download Full CSV Template (Recommended)
+                  Download Full CSV Template
                 </Button>
 
                 <Button onClick={downloadWorkingSample} variant="outline" className="w-full">
@@ -488,7 +536,7 @@ Brown,Robert,robert.brown@example.com,Operations,Operations Manager`
 
                 <Button onClick={downloadSimpleTemplate} variant="outline" className="w-full">
                   <Download className="mr-2 h-4 w-4" />
-                  Download Simple CSV Template (name, email, department, position)
+                  Download Simple CSV Template
                 </Button>
               </div>
 
