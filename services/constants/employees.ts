@@ -1,5 +1,6 @@
 export const QUERY_KEYS = {
   EMPLOYEES_LIST: "employees-list",
+  RECENT_EMPLOYEES: "recent-employees",
   EMPLOYEE_PROFILE: "employee-profile",
   PENDING_EMPLOYEES: "pending-employees",
   PENDING_DOCUMENTS: "pending-documents",
