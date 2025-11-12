@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Filter,
-  MoreHorizontal,
+  MoreVertical,
   Search,
   SlidersHorizontal,
   CheckCircle,
@@ -31,6 +31,12 @@ import {
   Eye,
   ThumbsUp,
   ThumbsDown,
+  Info,
+  Download,
+  User,
+  IdCard,
+  Calendar,
+  FileCheck,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import {
@@ -43,20 +49,20 @@ import {
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CommentDialog } from "../components/comment-dialog"
-import { useAllDocuments } from "@/services/hooks/employees/usePendingEmployees"
+import { useDocuments } from "@/services/hooks/employees/usePendingEmployees"
 
 // Define the Document interface to match the API response
-interface Document {
-  id: number;
+interface DocumentByEmployee {
+  registrationId: string;
   name: string;
-  type: string;
-  employee_name: string;
-  employee_id: string;
-  status: string;
-  upload_date: string;
-  fileUrl?: string;
-  fileType?: string;
-  fileSize?: number;
+  documents: {
+    appointmentLetter: string | null;
+    educationalCertificates: string | null;
+    profileImage: string | null;
+    signature: string | null;
+  };
+  status: string | null;
+  uploadedAt: string | null;
 }
 
 export default function DocumentsContent() {
@@ -66,64 +72,61 @@ export default function DocumentsContent() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(10)
   const [showPreviewDialog, setShowPreviewDialog] = useState(false)
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
+  const [selectedDocument, setSelectedDocument] = useState<DocumentByEmployee | null>(null)
+  const [selectedDocumentType, setSelectedDocumentType] = useState<string>("")
   const [showApproveDialog, setShowApproveDialog] = useState(false)
   const [showRejectDialog, setShowRejectDialog] = useState(false)
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false)
 
   const { toast } = useToast()
   
-  // Use the React Query hook to fetch documents
-  const { data: documentsResponse, isLoading, error, refetch } = useAllDocuments()
+  const { data: documentsResponse, isLoading, error, refetch } = useDocuments()
 
-  // @ts-expect-error axios response mismatch
-  const documents: Document[] = documentsResponse?.map(doc => ({
-    id: doc.id,
-    name: doc.name,
-    type: doc.type,
-    employee_name: doc.employee_name,
-    employee_id: doc.employee_id,
-    status: doc.status,
-    upload_date: doc.upload_date,
-  })) || []
+ //@ts-expect-error
+  const documents: DocumentByEmployee[] = documentsResponse || []
 
-  // Filter documents based on search and filters
   const filteredDocuments = documents.filter(doc => {
     const matchesSearch = 
       doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (doc.employee_name && doc.employee_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      doc.employee_id.toLowerCase().includes(searchTerm.toLowerCase())
+      doc.registrationId.toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesStatus = statusFilter === "all" || doc.status === statusFilter
-    const matchesType = typeFilter === "all" || doc.type === typeFilter
+    
+    // Check if the document has the filtered type
+    const matchesType = typeFilter === "all" || 
+      (typeFilter === "appointmentLetter" && doc.documents.appointmentLetter) ||
+      (typeFilter === "educationalCertificates" && doc.documents.educationalCertificates) ||
+      (typeFilter === "profileImage" && doc.documents.profileImage) ||
+      (typeFilter === "signature" && doc.documents.signature)
     
     return matchesSearch && matchesStatus && matchesType
   })
 
-  // Group filtered documents by employee
-  const employeeDocuments = filteredDocuments.reduce((acc: Record<string, Document[]>, doc) => {
-    const employeeId = doc.employee_id;
-    if (!acc[employeeId]) {
-      acc[employeeId] = []
-    }
-    acc[employeeId].push(doc)
-    return acc
-  }, {})
-
   // Handle document preview
-  const handlePreviewDocument = (document: Document) => {
+  const handlePreviewDocument = (document: DocumentByEmployee, documentType: string) => {
     setSelectedDocument(document)
+    setSelectedDocumentType(documentType)
     setShowPreviewDialog(true)
   }
 
-  // Handle opening the approve dialog
-  const handleOpenApproveDialog = (document: Document) => {
+  // Handle viewing document details
+  const handleViewDetails = (document: DocumentByEmployee, documentType: string) => {
     setSelectedDocument(document)
+    setSelectedDocumentType(documentType)
+    setShowDetailsDialog(true)
+  }
+
+  // Handle opening the approve dialog
+  const handleOpenApproveDialog = (document: DocumentByEmployee, documentType: string = "") => {
+    setSelectedDocument(document)
+    setSelectedDocumentType(documentType)
     setShowApproveDialog(true)
   }
 
   // Handle opening the reject dialog
-  const handleOpenRejectDialog = (document: Document) => {
+  const handleOpenRejectDialog = (document: DocumentByEmployee, documentType: string = "") => {
     setSelectedDocument(document)
+    setSelectedDocumentType(documentType)
     setShowRejectDialog(true)
   }
 
@@ -133,14 +136,14 @@ export default function DocumentsContent() {
 
     try {
       // TODO: Replace with actual API call to update document status
-      // await DocumentService.updateDocumentStatus(selectedDocument.id, "verified", comment)
+      // await DocumentService.updateDocumentStatus(selectedDocument.registrationId, selectedDocumentType, "verified", comment)
       
       // For now, just refetch the documents
       await refetch()
 
       toast({
         title: "Success",
-        description: `Document "${selectedDocument.name}" has been approved.`,
+        description: `Document has been approved.`,
       })
     } catch (error) {
       console.error("Failed to approve document:", error)
@@ -159,14 +162,14 @@ export default function DocumentsContent() {
 
     try {
       // TODO: Replace with actual API call to update document status
-      // await DocumentService.updateDocumentStatus(selectedDocument.id, "rejected", comment)
+      // await DocumentService.updateDocumentStatus(selectedDocument.registrationId, selectedDocumentType, "rejected", comment)
       
       // For now, just refetch the documents
       await refetch()
 
       toast({
         title: "Success",
-        description: `Document "${selectedDocument.name}" has been rejected.`,
+        description: `Document has been rejected.`,
       })
     } catch (error) {
       console.error("Failed to reject document:", error)
@@ -180,18 +183,10 @@ export default function DocumentsContent() {
   }
 
   // Handle approving all documents for an employee with comment
-  const handleApproveAllForEmployee = async (employeeId: string, employeeName: string) => {
+  const handleApproveAllForEmployee = async (document: DocumentByEmployee) => {
     try {
-      // Open a dialog to get comment
-      setSelectedDocument({
-        id: 0,
-        name: "All Documents",
-        type: "Other Document",
-        employee_name: employeeName,
-        employee_id: employeeId,
-        status: "pending",
-        upload_date: new Date().toISOString(),
-      })
+      setSelectedDocument(document)
+      setSelectedDocumentType("")
       setShowApproveDialog(true)
     } catch (error) {
       console.error("Failed to approve all documents:", error)
@@ -204,18 +199,10 @@ export default function DocumentsContent() {
   }
 
   // Handle rejecting all documents for an employee with comment
-  const handleRejectAllForEmployee = async (employeeId: string, employeeName: string) => {
+  const handleRejectAllForEmployee = async (document: DocumentByEmployee) => {
     try {
-      // Open a dialog to get comment
-      setSelectedDocument({
-        id: 0,
-        name: "All Documents",
-        type: "Other Document",
-        employee_name: employeeName,
-        employee_id: employeeId,
-        status: "pending",
-        upload_date: new Date().toISOString(),
-      })
+      setSelectedDocument(document)
+      setSelectedDocumentType("")
       setShowRejectDialog(true)
     } catch (error) {
       console.error("Failed to reject all documents:", error)
@@ -232,19 +219,19 @@ export default function DocumentsContent() {
     if (!selectedDocument) return
 
     try {
-      if (selectedDocument.id) {
+      if (selectedDocumentType) {
         // Single document approval
         await handleApproveDocument(comment)
       } else {
         // TODO: Replace with actual bulk approval API call
-        // await DocumentService.verifyAllDocumentsForEmployee(selectedDocument.employee_id, comment)
+        // await DocumentService.verifyAllDocumentsForEmployee(selectedDocument.registrationId, comment)
         
         // For now, just refetch the documents
         await refetch()
 
         toast({
           title: "Success",
-          description: `All pending documents for ${selectedDocument.employee_name || 'this employee'} have been approved.`,
+          description: `All pending documents for ${selectedDocument.name} have been approved.`,
         })
       }
     } catch (error) {
@@ -263,19 +250,19 @@ export default function DocumentsContent() {
     if (!selectedDocument) return
 
     try {
-      if (selectedDocument.id) {
+      if (selectedDocumentType) {
         // Single document rejection
         await handleRejectDocument(comment)
       } else {
         // TODO: Replace with actual bulk rejection API call
-        // await DocumentService.rejectAllDocumentsForEmployee(selectedDocument.employee_id, comment)
+        // await DocumentService.rejectAllDocumentsForEmployee(selectedDocument.registrationId, comment)
         
         // For now, just refetch the documents
         await refetch()
 
         toast({
           title: "Success",
-          description: `All pending documents for ${selectedDocument.employee_name || 'this employee'} have been rejected.`,
+          description: `All pending documents for ${selectedDocument.name} have been rejected.`,
         })
       }
     } catch (error) {
@@ -291,19 +278,35 @@ export default function DocumentsContent() {
 
   const getDocumentIcon = (type: string) => {
     switch (type) {
-      case "Appointment Letter":
-      case "Promotion Letter":
-      case "Educational Certificate":
+      case "appointmentLetter":
         return <FileText className="h-4 w-4" />
-      case "Profile Image":
-      case "Signature":
+      case "educationalCertificates":
+        return <FileText className="h-4 w-4" />
+      case "profileImage":
+        return <FileImage className="h-4 w-4" />
+      case "signature":
         return <FileImage className="h-4 w-4" />
       default:
         return <File className="h-4 w-4" />
     }
   }
 
-  const getStatusBadge = (status: string) => {
+  const getDocumentTypeName = (type: string) => {
+    switch (type) {
+      case "appointmentLetter":
+        return "Appointment Letter"
+      case "educationalCertificates":
+        return "Educational Certificates"
+      case "profileImage":
+        return "Profile Image"
+      case "signature":
+        return "Signature"
+      default:
+        return type
+    }
+  }
+
+  const getStatusBadge = (status: string | null) => {
     switch (status) {
       case "verified":
         return (
@@ -324,7 +327,11 @@ export default function DocumentsContent() {
           </Badge>
         )
       default:
-        return null
+        return (
+          <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
+            <Clock className="h-3 w-3 mr-1" /> Not Uploaded
+          </Badge>
+        )
     }
   }
 
@@ -336,12 +343,31 @@ export default function DocumentsContent() {
     return name.trim()
   }
 
-  // Format file size
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return "Unknown"
-    if (bytes < 1024) return bytes + " B"
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB"
-    return (bytes / (1024 * 1024)).toFixed(1) + " MB"
+  // Get document URL for a specific type
+  const getDocumentUrl = (document: DocumentByEmployee, type: string) => {
+    switch (type) {
+      case "appointmentLetter":
+        return document.documents.appointmentLetter
+      case "educationalCertificates":
+        return document.documents.educationalCertificates
+      case "profileImage":
+        return document.documents.profileImage
+      case "signature":
+        return document.documents.signature
+      default:
+        return null
+    }
+  }
+
+  // Check if employee has any pending documents
+  const hasPendingDocuments = (document: DocumentByEmployee) => {
+    return document.status === "pending" || 
+           Object.values(document.documents).some(doc => doc !== null)
+  }
+
+  // Get the count of uploaded documents for an employee
+  const getUploadedDocumentCount = (document: DocumentByEmployee) => {
+    return Object.values(document.documents).filter(doc => doc !== null).length
   }
 
   // Debug: Log the data to see what's happening
@@ -349,8 +375,7 @@ export default function DocumentsContent() {
     console.log("Documents Response:", documentsResponse)
     console.log("Processed Documents:", documents)
     console.log("Filtered Documents:", filteredDocuments)
-    console.log("Employee Documents:", employeeDocuments)
-  }, [documentsResponse, documents, filteredDocuments, employeeDocuments])
+  }, [documentsResponse, documents, filteredDocuments])
 
   return (
     <div className="space-y-6">
@@ -404,12 +429,10 @@ export default function DocumentsContent() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="Appointment Letter">Appointment Letter</SelectItem>
-                    <SelectItem value="Educational Certificate">Educational Certificate</SelectItem>
-                    <SelectItem value="Promotion Letter">Promotion Letter</SelectItem>
-                    <SelectItem value="Other Document">Other Document</SelectItem>
-                    <SelectItem value="Profile Image">Profile Image</SelectItem>
-                    <SelectItem value="Signature">Signature</SelectItem>
+                    <SelectItem value="appointmentLetter">Appointment Letter</SelectItem>
+                    <SelectItem value="educationalCertificates">Educational Certificates</SelectItem>
+                    <SelectItem value="profileImage">Profile Image</SelectItem>
+                    <SelectItem value="signature">Signature</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -433,18 +456,19 @@ export default function DocumentsContent() {
                 Retry
               </Button>
             </div>
-          ) : Object.keys(employeeDocuments).length === 0 ? (
+          ) : filteredDocuments.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               {documents.length === 0 ? "No documents found." : "No documents match your filters."}
             </div>
           ) : (
             <div className="space-y-6">
-              {Object.entries(employeeDocuments).map(([employeeId, docs]) => {
-                const employeeName = formatEmployeeName(docs[0]?.employee_name)
-                const hasPendingDocs = docs.some((doc) => doc.status === "pending")
+              {filteredDocuments.map((document) => {
+                const employeeName = formatEmployeeName(document.name)
+                const hasPendingDocs = hasPendingDocuments(document)
+                const uploadedCount = getUploadedDocumentCount(document)
 
                 return (
-                  <Card key={employeeId} className="overflow-hidden">
+                  <Card key={document.registrationId} className="overflow-hidden">
                     <CardHeader className="bg-gray-50 py-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -457,10 +481,10 @@ export default function DocumentsContent() {
                           <div>
                             <h3 className="font-medium">{employeeName}</h3>
                             <p className="text-sm text-muted-foreground">
-                              Employee ID: {employeeId}
+                              Registration ID: {document.registrationId}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {docs.length} document{docs.length !== 1 ? "s" : ""}
+                              {uploadedCount} document{uploadedCount !== 1 ? "s" : ""} uploaded • Status: {getStatusBadge(document.status)}
                             </p>
                           </div>
                         </div>
@@ -469,14 +493,14 @@ export default function DocumentsContent() {
                             <Button
                               size="sm"
                               className="bg-green-600 hover:bg-green-700"
-                              onClick={() => handleApproveAllForEmployee(employeeId, employeeName)}
+                              onClick={() => handleApproveAllForEmployee(document)}
                             >
                               <ThumbsUp className="h-4 w-4 mr-1" /> Verify All
                             </Button>
                             <Button
                               size="sm"
                               variant="destructive"
-                              onClick={() => handleRejectAllForEmployee(employeeId, employeeName)}
+                              onClick={() => handleRejectAllForEmployee(document)}
                             >
                               <ThumbsDown className="h-4 w-4 mr-1" /> Reject All
                             </Button>
@@ -488,95 +512,117 @@ export default function DocumentsContent() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Document</TableHead>
-                            <TableHead>Type</TableHead>
+                            <TableHead>Document Type</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Upload Date</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {docs.map((doc) => (
-                            <TableRow key={doc.id}>
+                          {Object.entries(document.documents).map(([type, url]) => (
+                            <TableRow key={type}>
                               <TableCell>
                                 <div className="flex items-center gap-2">
-                                  {getDocumentIcon(doc.type)}
-                                  <span className="font-medium">{doc.name}</span>
+                                  {getDocumentIcon(type)}
+                                  <span className="font-medium">{getDocumentTypeName(type)}</span>
                                 </div>
                               </TableCell>
-                              <TableCell>{doc.type}</TableCell>
-                              <TableCell>{getStatusBadge(doc.status)}</TableCell>
-                              <TableCell>{new Date(doc.upload_date).toLocaleDateString()}</TableCell>
+                              <TableCell>
+                                {url ? (
+                                  getStatusBadge(document.status)
+                                ) : (
+                                  <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">
+                                    Not Uploaded
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {document.uploadedAt ? new Date(document.uploadedAt).toLocaleDateString() : "Not uploaded"}
+                              </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex justify-end gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-blue-600"
-                                    onClick={() => handlePreviewDocument(doc)}
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                    <span className="sr-only">View</span>
-                                  </Button>
-                                  {doc.status === "pending" && (
+                                  {url && (
                                     <>
                                       <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-8 w-8 text-green-600"
-                                        onClick={() => handleOpenApproveDialog(doc)}
+                                        className="h-8 w-8 text-blue-600"
+                                        onClick={() => handlePreviewDocument(document, type)}
                                       >
-                                        <CheckCircle className="h-4 w-4" />
-                                        <span className="sr-only">Approve</span>
+                                        <Eye className="h-4 w-4" />
+                                        <span className="sr-only">View</span>
                                       </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-red-600"
-                                        onClick={() => handleOpenRejectDialog(doc)}
-                                      >
-                                        <AlertTriangle className="h-4 w-4" />
-                                        <span className="sr-only">Reject</span>
-                                      </Button>
+                                      {document.status === "pending" && (
+                                        <>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-green-600"
+                                            onClick={() => handleOpenApproveDialog(document, type)}
+                                          >
+                                            <CheckCircle className="h-4 w-4" />
+                                            <span className="sr-only">Approve</span>
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-red-600"
+                                            onClick={() => handleOpenRejectDialog(document, type)}
+                                          >
+                                            <AlertTriangle className="h-4 w-4" />
+                                            <span className="sr-only">Reject</span>
+                                          </Button>
+                                        </>
+                                      )}
                                     </>
                                   )}
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button variant="ghost" size="icon" className="h-8 w-8">
-                                        <MoreHorizontal className="h-4 w-4" />
+                                        <MoreVertical className="h-4 w-4" />
                                         <span className="sr-only">Open menu</span>
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                      <DropdownMenuItem onClick={() => handlePreviewDocument(doc)}>
-                                        View document
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem>Download</DropdownMenuItem>
-                                      <DropdownMenuSeparator />
-                                      {doc.status === "pending" ? (
+                                      {url ? (
                                         <>
-                                          <DropdownMenuItem
-                                            className="text-green-600"
-                                            onClick={() => handleOpenApproveDialog(doc)}
-                                          >
-                                            Approve
+                                          <DropdownMenuItem onClick={() => handlePreviewDocument(document, type)}>
+                                            <Eye className="h-4 w-4 mr-2" />
+                                            Preview Document
                                           </DropdownMenuItem>
-                                          <DropdownMenuItem
-                                            className="text-red-600"
-                                            onClick={() => handleOpenRejectDialog(doc)}
-                                          >
-                                            Reject
+                                          <DropdownMenuItem onClick={() => handleViewDetails(document, type)}>
+                                            <Info className="h-4 w-4 mr-2" />
+                                            View Details
                                           </DropdownMenuItem>
+                                          <DropdownMenuItem>
+                                            <Download className="h-4 w-4 mr-2" />
+                                            Download
+                                          </DropdownMenuItem>
+                                          <DropdownMenuSeparator />
+                                          {document.status === "pending" && (
+                                            <>
+                                              <DropdownMenuItem
+                                                className="text-green-600"
+                                                onClick={() => handleOpenApproveDialog(document, type)}
+                                              >
+                                                <CheckCircle className="h-4 w-4 mr-2" />
+                                                Approve
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem
+                                                className="text-red-600"
+                                                onClick={() => handleOpenRejectDialog(document, type)}
+                                              >
+                                                <AlertTriangle className="h-4 w-4 mr-2" />
+                                                Reject
+                                              </DropdownMenuItem>
+                                            </>
+                                          )}
                                         </>
                                       ) : (
-                                        <DropdownMenuItem
-                                          onClick={() => {
-                                            setSelectedDocument(doc)
-                                            setShowApproveDialog(true)
-                                          }}
-                                        >
-                                          Change status
+                                        <DropdownMenuItem disabled>
+                                          <File className="h-4 w-4 mr-2" />
+                                          Document not uploaded
                                         </DropdownMenuItem>
                                       )}
                                     </DropdownMenuContent>
@@ -600,10 +646,12 @@ export default function DocumentsContent() {
       <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
         <DialogContent className="sm:max-w-[700px]">
           <DialogHeader>
-            <DialogTitle>{selectedDocument?.name}</DialogTitle>
+            <DialogTitle>
+              {selectedDocument && selectedDocumentType && getDocumentTypeName(selectedDocumentType)}
+            </DialogTitle>
             <DialogDescription>
-              Uploaded on{" "}
-              {selectedDocument?.upload_date ? new Date(selectedDocument.upload_date).toLocaleDateString() : ""}
+              {selectedDocument && `Employee: ${formatEmployeeName(selectedDocument.name)}`}
+              {selectedDocument?.uploadedAt && ` • Uploaded on ${new Date(selectedDocument.uploadedAt).toLocaleDateString()}`}
             </DialogDescription>
           </DialogHeader>
 
@@ -614,21 +662,23 @@ export default function DocumentsContent() {
             </TabsList>
             <TabsContent value="preview" className="py-4">
               <div className="flex justify-center">
-                {selectedDocument?.type === "Profile Image" || selectedDocument?.type === "Signature" ? (
-                  <img
-                    src={selectedDocument?.fileUrl || `/placeholder.svg?height=300&width=400`}
-                    alt={selectedDocument?.name}
-                    className="max-h-[400px] object-contain border rounded"
-                  />
-                ) : (
-                  <div className="border rounded p-8 w-full h-[400px] flex flex-col items-center justify-center bg-gray-50">
-                    <FileText className="h-16 w-16 text-gray-400 mb-4" />
-                    <p className="text-lg font-medium">{selectedDocument?.name}</p>
-                    <p className="text-sm text-gray-500 mt-2">
-                      {selectedDocument?.fileType || "application/pdf"} • {formatFileSize(selectedDocument?.fileSize)}
-                    </p>
-                    <Button className="mt-4">Download Document</Button>
-                  </div>
+                {selectedDocument && selectedDocumentType && (
+                  (selectedDocumentType === "profileImage" || selectedDocumentType === "signature") ? (
+                    <img
+                      src={getDocumentUrl(selectedDocument, selectedDocumentType) || `/placeholder.svg?height=300&width=400`}
+                      alt={getDocumentTypeName(selectedDocumentType)}
+                      className="max-h-[400px] object-contain border rounded"
+                    />
+                  ) : (
+                    <div className="border rounded p-8 w-full h-[400px] flex flex-col items-center justify-center bg-gray-50">
+                      <FileText className="h-16 w-16 text-gray-400 mb-4" />
+                      <p className="text-lg font-medium">{getDocumentTypeName(selectedDocumentType)}</p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        Document preview not available
+                      </p>
+                      <Button className="mt-4">Download Document</Button>
+                    </div>
+                  )
                 )}
               </div>
             </TabsContent>
@@ -636,46 +686,38 @@ export default function DocumentsContent() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h4 className="text-sm font-medium text-gray-500">Document Name</h4>
-                    <p>{selectedDocument?.name}</p>
-                  </div>
-                  <div>
                     <h4 className="text-sm font-medium text-gray-500">Document Type</h4>
-                    <p>{selectedDocument?.type}</p>
+                    <p>{selectedDocumentType && getDocumentTypeName(selectedDocumentType)}</p>
                   </div>
                   <div>
                     <h4 className="text-sm font-medium text-gray-500">Employee</h4>
-                    <p>{formatEmployeeName(selectedDocument?.employee_name)}</p>
+                    <p>{selectedDocument && formatEmployeeName(selectedDocument.name)}</p>
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium text-gray-500">Employee ID</h4>
-                    <p>{selectedDocument?.employee_id}</p>
+                    <h4 className="text-sm font-medium text-gray-500">Registration ID</h4>
+                    <p>{selectedDocument?.registrationId}</p>
                   </div>
                   <div>
                     <h4 className="text-sm font-medium text-gray-500">Status</h4>
-                    <div>{getStatusBadge(selectedDocument?.status || "")}</div>
+                    <div>{getStatusBadge(selectedDocument?.status || null)}</div>
                   </div>
                   <div>
                     <h4 className="text-sm font-medium text-gray-500">Upload Date</h4>
                     <p>
-                      {selectedDocument?.upload_date
-                        ? new Date(selectedDocument.upload_date).toLocaleDateString()
-                        : "Unknown"}
+                      {selectedDocument?.uploadedAt
+                        ? new Date(selectedDocument.uploadedAt).toLocaleDateString()
+                        : "Not uploaded"}
                     </p>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-500">File Size</h4>
-                    <p>{formatFileSize(selectedDocument?.fileSize)}</p>
                   </div>
                 </div>
 
-                {selectedDocument?.status === "pending" && (
+                {selectedDocument?.status === "pending" && selectedDocumentType && getDocumentUrl(selectedDocument, selectedDocumentType) && (
                   <div className="flex gap-2 mt-6">
                     <Button
                       className="bg-green-600 hover:bg-green-700"
                       onClick={() => {
                         setShowPreviewDialog(false)
-                        if (selectedDocument) handleOpenApproveDialog(selectedDocument)
+                        if (selectedDocument && selectedDocumentType) handleOpenApproveDialog(selectedDocument, selectedDocumentType)
                       }}
                     >
                       <CheckCircle className="h-4 w-4 mr-2" /> Approve Document
@@ -684,7 +726,7 @@ export default function DocumentsContent() {
                       variant="destructive"
                       onClick={() => {
                         setShowPreviewDialog(false)
-                        if (selectedDocument) handleOpenRejectDialog(selectedDocument)
+                        if (selectedDocument && selectedDocumentType) handleOpenRejectDialog(selectedDocument, selectedDocumentType)
                       }}
                     >
                       <AlertTriangle className="h-4 w-4 mr-2" /> Reject Document
@@ -703,19 +745,179 @@ export default function DocumentsContent() {
         </DialogContent>
       </Dialog>
 
+      {/* Document Details Dialog */}
+      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Info className="h-5 w-5" />
+              Document Details
+            </DialogTitle>
+            <DialogDescription>
+              Detailed information about the document and its verification status
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Document Information Section */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Document Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <FileCheck className="h-4 w-4 text-gray-500" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Document Type</p>
+                      <p>{selectedDocumentType && getDocumentTypeName(selectedDocumentType)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-gray-500" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Employee Name</p>
+                      <p>{selectedDocument && formatEmployeeName(selectedDocument.name)}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <IdCard className="h-4 w-4 text-gray-500" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Registration ID</p>
+                      <p>{selectedDocument?.registrationId}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-gray-500" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Upload Date</p>
+                      <p>
+                        {selectedDocument?.uploadedAt
+                          ? new Date(selectedDocument.uploadedAt).toLocaleDateString()
+                          : "Not uploaded"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Status Section */}
+            <div className="space-y-3">
+              <h3 className="text-lg font-medium">Verification Status</h3>
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  {getStatusBadge(selectedDocument?.status || null)}
+                  <div>
+                    <p className="text-sm font-medium">
+                      {selectedDocument?.status === "verified" && "Document has been verified"}
+                      {selectedDocument?.status === "pending" && "Awaiting verification"}
+                      {selectedDocument?.status === "rejected" && "Document was rejected"}
+                      {!selectedDocument?.status && "Document not uploaded"}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {selectedDocument?.status === "pending" && "Pending review by administrator"}
+                      {selectedDocument?.status === "verified" && "Approved and verified"}
+                      {selectedDocument?.status === "rejected" && "Requires correction and resubmission"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Document Availability */}
+            {selectedDocumentType && (
+              <div className="space-y-3">
+                <h3 className="text-lg font-medium">Document Availability</h3>
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {getDocumentUrl(selectedDocument!, selectedDocumentType) ? (
+                        <>
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                          <div>
+                            <p className="font-medium">Document is available</p>
+                            <p className="text-sm text-gray-500">Ready for preview and download</p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="h-5 w-5 text-amber-600" />
+                          <div>
+                            <p className="font-medium">Document not uploaded</p>
+                            <p className="text-sm text-gray-500">Employee needs to upload this document</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    {getDocumentUrl(selectedDocument!, selectedDocumentType) && (
+                      <Button variant="outline" size="sm">
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            {selectedDocument?.status === "pending" && selectedDocumentType && getDocumentUrl(selectedDocument, selectedDocumentType) && (
+              <div className="flex gap-3 pt-4 border-t">
+                <Button
+                  className="bg-green-600 hover:bg-green-700 flex-1"
+                  onClick={() => {
+                    setShowDetailsDialog(false)
+                    if (selectedDocument && selectedDocumentType) handleOpenApproveDialog(selectedDocument, selectedDocumentType)
+                  }}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" /> Approve Document
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowDetailsDialog(false)
+                    if (selectedDocument && selectedDocumentType) handlePreviewDocument(selectedDocument, selectedDocumentType)
+                  }}
+                >
+                  <Eye className="h-4 w-4 mr-2" /> Preview
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowDetailsDialog(false)
+                    if (selectedDocument && selectedDocumentType) handleOpenRejectDialog(selectedDocument, selectedDocumentType)
+                  }}
+                >
+                  <AlertTriangle className="h-4 w-4 mr-2" /> Reject
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDetailsDialog(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Approve Dialog */}
       <CommentDialog
         isOpen={showApproveDialog}
         onClose={() => setShowApproveDialog(false)}
         onSubmit={handleBulkApproveWithComment}
-        title={`Approve ${selectedDocument?.id ? "Document" : "All Documents"}`}
+        title={`Approve ${selectedDocumentType ? "Document" : "All Documents"}`}
         description={`Are you sure you want to approve ${
-          selectedDocument?.id
-            ? `"${selectedDocument.name}"`
-            : `all pending documents for ${formatEmployeeName(selectedDocument?.employee_name)}`
+          selectedDocumentType
+            ? `"${selectedDocumentType && getDocumentTypeName(selectedDocumentType)}"`
+            : `all pending documents for ${selectedDocument && formatEmployeeName(selectedDocument.name)}`
         }?`}
         type="approve"
-        entityName={selectedDocument?.name || ""}
+        entityName={selectedDocumentType ? getDocumentTypeName(selectedDocumentType) : (selectedDocument?.name || "")}
       />
 
       {/* Reject Dialog */}
@@ -723,14 +925,14 @@ export default function DocumentsContent() {
         isOpen={showRejectDialog}
         onClose={() => setShowRejectDialog(false)}
         onSubmit={handleBulkRejectWithComment}
-        title={`Reject ${selectedDocument?.id ? "Document" : "All Documents"}`}
+        title={`Reject ${selectedDocumentType ? "Document" : "All Documents"}`}
         description={`Are you sure you want to reject ${
-          selectedDocument?.id
-            ? `"${selectedDocument.name}"`
-            : `all pending documents for ${formatEmployeeName(selectedDocument?.employee_name)}`
+          selectedDocumentType
+            ? `"${selectedDocumentType && getDocumentTypeName(selectedDocumentType)}"`
+            : `all pending documents for ${selectedDocument && formatEmployeeName(selectedDocument.name)}`
         }? Please provide a reason for rejection.`}
         type="reject"
-        entityName={selectedDocument?.name || ""}
+        entityName={selectedDocumentType ? getDocumentTypeName(selectedDocumentType) : (selectedDocument?.name || "")}
       />
     </div>
   )

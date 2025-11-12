@@ -1,8 +1,11 @@
+
+
 import { get, put, post, patch, del } from "@/services/axios";
 import { 
   PendingEmployeesResponse, 
   PendingEmployeeResponse,
-  AllDocumentsResponse
+  AllDocumentsResponse,
+  DocumentsResponse
 } from "@/types/employees/pending-employees";
 
 export const getPendingEmployees = async (
@@ -32,7 +35,6 @@ export const approvePendingEmployee = async (
   registrationId: string,
   payload: { id: string }
 ): Promise<PendingEmployeeResponse> => {
-
   const cleanRegistrationId = registrationId.replace(/%20/g, ' ');
   
   const { data } = await patch<PendingEmployeeResponse>(
@@ -42,7 +44,6 @@ export const approvePendingEmployee = async (
   // @ts-expect-error axios response mismatch
   return data;
 };
-
 
 export const deletePendingEmployee = async (
   registrationId: string
@@ -56,9 +57,14 @@ export const deletePendingEmployee = async (
   return data;
 };
 
-
 export const getAllDocuments = async (): Promise<AllDocumentsResponse> => {
   const { data } = await get<AllDocumentsResponse>(`/admin/documents/all`);
+  // @ts-expect-error axios response mismatch
+  return data;
+};
+
+export const getDocuments = async (): Promise<DocumentsResponse> => {
+  const { data } = await get<DocumentsResponse>(`/admin/documents`);
   // @ts-expect-error axios response mismatch
   return data;
 };
