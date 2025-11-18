@@ -3,6 +3,7 @@ export interface Employee {
   name: string;
   email: string;
   department: string;
+  metadata: any;
   position: string;
   status: 'active' | 'inactive';
   join_date: string;
