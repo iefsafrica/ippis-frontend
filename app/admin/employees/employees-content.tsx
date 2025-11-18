@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,6 +38,7 @@ import {
   Shield,
   User,
   IdCard,
+  Printer,
 } from "lucide-react"
 import { Pagination } from "../components/pagination"
 import { toast } from "sonner"
@@ -88,6 +89,7 @@ export default function EmployeesContent() {
     Record<string, string>
   >({});
 
+  const printRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   // Use React Query hooks for employees data
@@ -239,6 +241,129 @@ export default function EmployeesContent() {
     setCurrentPage(1);
   };
 
+  // Handle print employee details
+  const handlePrint = () => {
+    if (!printRef.current) return;
+
+    const printContent = printRef.current.innerHTML;
+    const originalContent = document.body.innerHTML;
+
+    // Create a print-friendly version
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Employee Details - ${selectedEmployee?.name}</title>
+            <style>
+              body { 
+                font-family: Arial, sans-serif; 
+                margin: 20px;
+                color: #333;
+              }
+              .print-header { 
+                border-bottom: 2px solid #333; 
+                padding-bottom: 15px; 
+                margin-bottom: 20px;
+              }
+              .employee-avatar {
+                width: 60px;
+                height: 60px;
+                border-radius: 50%;
+                object-fit: cover;
+                border: 2px solid #e5e7eb;
+              }
+              .employee-name { 
+                font-size: 24px; 
+                font-weight: bold; 
+                margin-bottom: 10px;
+              }
+              .employee-info { 
+                display: flex; 
+                gap: 15px; 
+                margin-bottom: 10px;
+                flex-wrap: wrap;
+              }
+              .info-item { 
+                display: flex; 
+                align-items: center; 
+                gap: 5px;
+                font-size: 14px;
+              }
+              .section { 
+                margin-bottom: 25px; 
+                page-break-inside: avoid;
+              }
+              .section-title { 
+                font-size: 18px; 
+                font-weight: bold; 
+                border-bottom: 1px solid #ccc; 
+                padding-bottom: 8px; 
+                margin-bottom: 15px;
+                color: #1f2937;
+              }
+              .grid { 
+                display: grid; 
+                grid-template-columns: 1fr 1fr; 
+                gap: 15px;
+              }
+              .field { 
+                margin-bottom: 12px;
+              }
+              .label { 
+                font-weight: 600; 
+                font-size: 12px; 
+                color: #6b7280; 
+                margin-bottom: 4px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+              }
+              .value { 
+                font-size: 14px;
+                word-wrap: break-word;
+              }
+              .status-badge { 
+                display: inline-flex; 
+                align-items: center; 
+                padding: 4px 8px; 
+                border-radius: 4px; 
+                font-size: 12px; 
+                font-weight: 500;
+              }
+              .status-active { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+              .status-pending { background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+              .status-inactive { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+              @media print {
+                body { margin: 0.5in; }
+                .section { page-break-inside: avoid; }
+                .no-print { display: none !important; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="no-print" style="margin-bottom: 20px; text-align: center; color: #666; font-size: 12px;">
+              Generated from Employee Management System - ${new Date().toLocaleDateString()}
+            </div>
+            ${printContent}
+            <div class="no-print" style="margin-top: 30px; text-align: center; color: #666; font-size: 12px;">
+              Confidential Employee Document
+            </div>
+            <script>
+              window.onload = function() {
+                window.print();
+                setTimeout(function() {
+                  window.close();
+                }, 500);
+              }
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+  };
+
   // Export functions
   const handleExportPDF = () => {
     const columns = [
@@ -282,7 +407,7 @@ export default function EmployeesContent() {
     });
   };
 
-  const handlePrint = () => {
+  const handlePrintList = () => {
     const columns = [
       { header: "Name", accessor: "name" },
       { header: "Email", accessor: "email" },
@@ -349,6 +474,20 @@ export default function EmployeesContent() {
   const formatSimpleDate = (dateString: string) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString('en-US');
+  };
+
+  // Get status badge for print view
+  const getPrintStatusBadge = (status: string) => {
+    switch (status) {
+      case "active":
+        return `<span class="status-badge status-active">Active</span>`;
+      case "pending":
+        return `<span class="status-badge status-pending">Pending</span>`;
+      case "inactive":
+        return `<span class="status-badge status-inactive">Inactive</span>`;
+      default:
+        return "";
+    }
   };
 
   // Advanced search fields
@@ -418,7 +557,7 @@ export default function EmployeesContent() {
           <DataExportMenu
             onExportPDF={handleExportPDF}
             onExportCSV={handleExportCSV}
-            onPrint={handlePrint}
+            onPrint={handlePrintList}
             title="Employees"
           />
         </div>
@@ -650,33 +789,31 @@ export default function EmployeesContent() {
             </DialogDescription>
           </DialogHeader>
           {selectedEmployee && (
-            <div className="space-y-6 py-2">
+            <div ref={printRef} className="space-y-6 py-2">
               {/* Employee Header */}
               <div className="flex items-center gap-4 pb-4 border-b">
-                <Avatar className="h-16 w-16">
-                  <AvatarImage
-                    src={`/abstract-geometric-shapes.png?key=n1gxi&height=64&width=64&query=${encodeURIComponent(
+                <div className="flex items-center gap-4">
+                  <img
+                    src={`/abstract-geometric-shapes.png?key=n1gxi&height=60&width=60&query=${encodeURIComponent(
                       selectedEmployee.name
                     )}`}
                     alt={selectedEmployee.name}
+                    className="employee-avatar size-[60px] rounded-full border-radius-full object-cover"
                   />
-                  <AvatarFallback className="text-base">
-                    {selectedEmployee.name.substring(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold">{selectedEmployee.name}</h3>
-                  <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                    <div className="flex items-center gap-1">
-                      <Mail className="h-4 w-4" />
-                      {selectedEmployee.email}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Building className="h-4 w-4" />
-                      {selectedEmployee.department}
-                    </div>
-                    <div>
-                      {getStatusBadge(selectedEmployee.status)}
+                  <div className="flex-1">
+                    <h3 className="text-xl font-semibold">{selectedEmployee.name}</h3>
+                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                      <div className="flex items-center gap-1">
+                        <Mail className="h-4 w-4" />
+                        {selectedEmployee.email}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Building className="h-4 w-4" />
+                        {selectedEmployee.department}
+                      </div>
+                      <div>
+                        {getStatusBadge(selectedEmployee.status)}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -852,9 +989,15 @@ export default function EmployeesContent() {
             </div>
           )}
           <DialogFooter className="pt-4 border-t">
-            <Button onClick={() => setShowViewDialog(false)}>
-              Close
-            </Button>
+            <div className="flex gap-2 w-full justify-between">
+              <Button variant="outline" onClick={() => setShowViewDialog(false)}>
+                Close
+              </Button>
+              <Button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700">
+                <Printer className="h-4 w-4 mr-2" />
+                Print Details
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
