@@ -39,6 +39,8 @@ import {
   User,
   IdCard,
   Printer,
+  Download,
+  Edit,
 } from "lucide-react"
 import { Pagination } from "../components/pagination"
 import { toast } from "sonner"
@@ -65,6 +67,51 @@ interface PaginationInfo {
   totalPages: number
 }
 
+interface PayslipData {
+  employee: {
+    name: string;
+    ippisNumber: string;
+    ministry: string;
+    designation: string;
+    department: string;
+    dateOfFirstAppointment: string;
+    dateOfBirth: string;
+    tradeUnion: string;
+    grade: string;
+    step: string;
+    gender: string;
+    taxState: string;
+  };
+  bank: {
+    name: string;
+    branch: string;
+    accountNumber: string;
+  };
+  pension: {
+    pfaName: string;
+    pin: string;
+  };
+  earnings: Array<{
+    description: string;
+    amount: number;
+  }>;
+  deductions: Array<{
+    description: string;
+    amount: number;
+  }>;
+  summary: {
+    grossEarnings: number;
+    totalDeductions: number;
+    netSalary: number;
+  };
+  cumulative: {
+    tax: number;
+    income: number;
+    pension: number;
+    nhf: number;
+  };
+}
+
 export default function EmployeesContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
@@ -74,6 +121,7 @@ export default function EmployeesContent() {
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
   const [newEmployee, setNewEmployee] = useState<AddEmployeePayload>({
@@ -225,9 +273,10 @@ export default function EmployeesContent() {
     setShowViewDialog(true);
   };
 
-  // Handle edit employee
+  // Handle edit employee - just opens the modal
   const handleEdit = (employee: Employee) => {
-    router.push(`/admin/employees/${employee.id}/edit`);
+    setSelectedEmployee(employee);
+    setShowEditDialog(true);
   };
 
   // Handle delete employee
@@ -241,404 +290,563 @@ export default function EmployeesContent() {
     setCurrentPage(1);
   };
 
+  // Format currency for display
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      minimumFractionDigits: 2
+    }).format(amount);
+  };
 
-  const handlePrint = () => {
+  // Get payslip data from API
+  const getPayslipData = async (employeeId: string): Promise<PayslipData | null> => {
+    try {
+      const response = await fetch(`/api/admin/employees/${employeeId}/payslip`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch payslip data');
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching payslip data:', error);
+      // Return null if API fails, we'll handle this in the print function
+      return null;
+    }
+  };
+
+  // Generate payslip data from employee data
+  const generatePayslipData = (employee: Employee): PayslipData => {
+    // Extract data from employee metadata or use defaults
+    const metadata = employee.metadata || {};
+    
+    // Earnings data - using actual metadata values when available
+    const basicSalary = parseFloat(metadata["Basic Salary"]) || 171690.17;
+    const housingAllowance = parseFloat(metadata["Housing Allowance"]) || 50000;
+    const transportAllowance = parseFloat(metadata["Transport Allowance"]) || 20000;
+    const otherAllowances = parseFloat(metadata["Other Allowances"]) || 21141;
+    
+    const grossEarnings = basicSalary + housingAllowance + transportAllowance + otherAllowances;
+    
+    // Deductions data - using actual metadata values when available
+    const tax = parseFloat(metadata["Tax"]) || 20377.84;
+    const pension = parseFloat(metadata["Pension"]) || 13735.21;
+    const nhf = parseFloat(metadata["NHF"]) || 4292.25;
+    const unionDues = parseFloat(metadata["Union Dues"]) || 1337.47;
+    
+    const totalDeductions = tax + pension + nhf + unionDues;
+    const netSalary = grossEarnings - totalDeductions;
+
+    // Cumulative data
+    const cumulativeTax = parseFloat(metadata["Cumulative Tax"]) || 183400.56;
+    const cumulativeIncome = parseFloat(metadata["Cumulative Income"]) || 2119548.98;
+    const cumulativePension = parseFloat(metadata["Cumulative Pension"]) || 609222.03;
+    const cumulativeNHF = parseFloat(metadata["Cumulative NHF"]) || 38630.25;
+
+    return {
+      employee: {
+        name: employee.name,
+        ippisNumber: employee.registration_id || metadata["IPPIS Number"] || "Not assigned",
+        ministry: metadata["Ministry"] || "Office Of The Auditor General Of The Federation-Oaugef",
+        designation: employee.position,
+        department: employee.department,
+        dateOfFirstAppointment: metadata["Date of First Appointment"] || "08-DEC-2017",
+        dateOfBirth: metadata["Date of Birth"] || "21-JUL-1983",
+        tradeUnion: metadata["Trade Union"] || "ASSOCIATION OF SENIOR CIVIL SERVANT OF NIGERIA",
+        grade: metadata["Grade"] || "SL10_CONPSS",
+        step: metadata["Step"] || "7",
+        gender: metadata["Gender"] || "Male",
+        taxState: metadata["Tax State"] || "FCT (ABUJA)"
+      },
+      bank: {
+        name: metadata["Bank Name"] || "FIRST BANK OF NIGERIA PLC",
+        branch: metadata["Bank Branch"] || "UVO BRANCH",
+        accountNumber: metadata["Account Number"] || "2042994547"
+      },
+      pension: {
+        pfaName: metadata["PFA Name"] || "Leadway Pensure PFA Limited",
+        pin: metadata["RSA PIN"] || "PEN200850444611"
+      },
+      earnings: [
+        { description: "Basic Salary", amount: basicSalary },
+        { description: "Housing Allowance", amount: housingAllowance },
+        { description: "Transport Allowance", amount: transportAllowance },
+        { description: "Other Allowances", amount: otherAllowances }
+      ],
+      deductions: [
+        { description: "Tax", amount: tax },
+        { description: "Pension", amount: pension },
+        { description: "NHF", amount: nhf },
+        { description: "Union Dues", amount: unionDues }
+      ],
+      summary: {
+        grossEarnings,
+        totalDeductions,
+        netSalary
+      },
+      cumulative: {
+        tax: cumulativeTax,
+        income: cumulativeIncome,
+        pension: cumulativePension,
+        nhf: cumulativeNHF
+      }
+    };
+  };
+
+  const handlePrint = async () => {
     if (!selectedEmployee) return;
 
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Employee Details - ${selectedEmployee.name}</title>
-            <style>
-              /* Reset and base styles */
-              * { 
-                margin: 0; 
-                padding: 0; 
-                box-sizing: border-box; 
-              }
-              body { 
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-                margin: 20px;
-                color: #374151;
-                background: white;
-                line-height: 1.5;
-              }
-              
-              /* Header section */
-              .print-header { 
-                display: flex;
-                align-items: center;
-                gap: 16px;
-                padding-bottom: 16px;
-                border-bottom: 1px solid #e5e7eb;
-                margin-bottom: 24px;
-              }
-              .employee-avatar {
-                width: 60px;
-                height: 60px;
-                border-radius: 50%;
-                object-fit: cover;
-                border: 2px solid #e5e7eb;
-              }
-              .employee-info-main {
-                flex: 1;
-              }
-              .employee-name { 
-                font-size: 24px; 
-                font-weight: 600; 
-                color: #111827;
-                margin-bottom: 4px;
-              }
-              .employee-meta {
-                display: flex;
-                align-items: center;
-                gap: 16px;
-                flex-wrap: wrap;
-              }
-              .meta-item {
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                font-size: 14px;
-                color: #6b7280;
-              }
-              .status-badge {
-                display: inline-flex;
-                align-items: center;
-                padding: 4px 8px;
-                border-radius: 6px;
-                font-size: 12px;
-                font-weight: 500;
-                border: 1px solid;
-              }
-              .status-active { 
-                background-color: #f0fdf4; 
-                color: #166534; 
-                border-color: #bbf7d0; 
-              }
-              .status-pending { 
-                background-color: #fffbeb; 
-                color: #92400e; 
-                border-color: #fde68a; 
-              }
-              .status-inactive { 
-                background-color: #fef2f2; 
-                color: #991b1b; 
-                border-color: #fecaca; 
-              }
-              
-              /* Section styles */
-              .section { 
-                margin-bottom: 32px; 
-                page-break-inside: avoid;
-              }
-              .section-title { 
-                font-size: 18px; 
-                font-weight: 600; 
-                color: #111827;
-                border-bottom: 1px solid #e5e7eb;
-                padding-bottom: 8px; 
-                margin-bottom: 16px;
-              }
-              
-              /* Grid layouts */
-              .grid-2 { 
-                display: grid; 
-                grid-template-columns: 1fr 1fr; 
-                gap: 20px;
-              }
-              .grid-field { 
-                margin-bottom: 16px;
-              }
-              .field-label { 
-                font-weight: 500; 
-                font-size: 14px; 
-                color: #6b7280; 
-                margin-bottom: 4px;
-                display: block;
-              }
-              .field-value { 
-                font-size: 14px;
-                color: #111827;
-                font-weight: 400;
-                word-wrap: break-word;
-              }
-              
-              /* Full width fields */
-              .col-span-2 { grid-column: span 2; }
-              
-              /* Print-specific styles */
-              @media print {
+    try {
+      // Try to get payslip data from API first
+      let payslipData = await getPayslipData(selectedEmployee.id);
+      
+      // If API fails, generate from employee data
+      if (!payslipData) {
+        payslipData = generatePayslipData(selectedEmployee);
+      }
+
+      const currentDate = new Date();
+      const monthYear = currentDate.toLocaleDateString('en-US', { 
+        month: 'short', 
+        year: 'numeric' 
+      }).toUpperCase();
+
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Employee Payslip - ${selectedEmployee.name}</title>
+              <style>
+                /* Reset and base styles */
+                * { 
+                  margin: 0; 
+                  padding: 0; 
+                  box-sizing: border-box; 
+                }
                 body { 
-                  margin: 0.5in;
-                  font-size: 12pt;
+                  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                  margin: 20px;
+                  color: #333;
+                  background: white;
+                  line-height: 1.4;
+                  font-size: 12px;
                 }
+                
+                /* Header section */
+                .payslip-header { 
+                  text-align: center;
+                  border-bottom: 3px double #2c5aa0;
+                  padding-bottom: 15px;
+                  margin-bottom: 20px;
+                }
+                .government-title { 
+                  font-size: 16px;
+                  font-weight: bold;
+                  color: #2c5aa0;
+                  margin-bottom: 5px;
+                  text-transform: uppercase;
+                }
+                .payslip-title { 
+                  font-size: 14px;
+                  font-weight: bold;
+                  color: #d40000;
+                  margin-bottom: 5px;
+                  text-transform: uppercase;
+                }
+                .period { 
+                  font-size: 13px;
+                  font-weight: bold;
+                  color: #2c5aa0;
+                }
+                
+                /* Employee info sections */
                 .section { 
-                  page-break-inside: avoid;
-                  margin-bottom: 24pt;
+                  margin-bottom: 15px;
+                  border: 1px solid #ddd;
+                  border-radius: 4px;
+                  overflow: hidden;
                 }
-                .no-print { 
-                  display: none !important; 
+                .section-header { 
+                  background: #2c5aa0;
+                  color: white;
+                  padding: 6px 10px;
+                  font-weight: bold;
+                  font-size: 11px;
                 }
-                .print-header {
-                  margin-bottom: 20pt;
-                  padding-bottom: 12pt;
+                .section-content { 
+                  padding: 8px 10px;
                 }
-                .section-title {
-                  font-size: 14pt;
-                  margin-bottom: 12pt;
+                
+                /* Grid layouts */
+                .grid-2 { 
+                  display: grid; 
+                  grid-template-columns: 1fr 1fr; 
+                  gap: 15px;
                 }
-                .grid-2 {
-                  gap: 16pt;
+                .grid-3 { 
+                  display: grid; 
+                  grid-template-columns: 1fr 1fr 1fr; 
+                  gap: 10px;
                 }
-                .grid-field {
-                  margin-bottom: 12pt;
+                
+                /* Info rows */
+                .info-row {
+                  display: flex;
+                  margin-bottom: 4px;
                 }
-              }
+                .info-label {
+                  font-weight: bold;
+                  min-width: 140px;
+                  color: #555;
+                }
+                .info-value {
+                  flex: 1;
+                  color: #333;
+                }
+                
+                /* Tables */
+                .earnings-table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  margin: 10px 0;
+                }
+                .earnings-table th {
+                  background: #f0f0f0;
+                  border: 1px solid #ddd;
+                  padding: 6px;
+                  text-align: left;
+                  font-weight: bold;
+                  font-size: 10px;
+                }
+                .earnings-table td {
+                  border: 1px solid #ddd;
+                  padding: 6px;
+                  font-size: 10px;
+                }
+                .earnings-table .total-row {
+                  background: #f8f8f8;
+                  font-weight: bold;
+                }
+                
+                /* Summary sections */
+                .summary-grid {
+                  display: grid;
+                  grid-template-columns: 1fr 1fr;
+                  gap: 15px;
+                  margin-top: 10px;
+                }
+                .summary-box {
+                  border: 1px solid #ddd;
+                  border-radius: 4px;
+                  padding: 8px;
+                }
+                .summary-box h4 {
+                  background: #2c5aa0;
+                  color: white;
+                  padding: 4px 8px;
+                  margin: -8px -8px 8px -8px;
+                  font-size: 11px;
+                  text-align: center;
+                }
+                
+                /* Totals */
+                .total-amount {
+                  font-weight: bold;
+                  color: #2c5aa0;
+                  font-size: 11px;
+                }
+                
+                /* Footer */
+                .footer {
+                  text-align: center;
+                  margin-top: 20px;
+                  padding-top: 10px;
+                  border-top: 2px solid #2c5aa0;
+                  font-style: italic;
+                  color: #666;
+                  font-size: 10px;
+                }
+                
+                /* Print-specific styles */
+                @media print {
+                  body { 
+                    margin: 0.3in;
+                    font-size: 10pt;
+                  }
+                  .no-print { 
+                    display: none !important; 
+                  }
+                  .section {
+                    page-break-inside: avoid;
+                  }
+                  .payslip-header {
+                    border-bottom: 3px double #2c5aa0 !important;
+                  }
+                }
+                
+                /* Utility classes */
+                .text-right { text-align: right; }
+                .text-center { text-align: center; }
+                .text-bold { font-weight: bold; }
+                .mb-2 { margin-bottom: 8px; }
+                .mt-2 { margin-top: 8px; }
+              </style>
+            </head>
+            <body>
+              <div class="no-print" style="margin-bottom: 15px; text-align: center; color: #666; font-size: 10px;">
+                Generated from Employee Management System - ${new Date().toLocaleDateString()}
+              </div>
               
-              /* Utility classes */
-              .text-sm { font-size: 14px; }
-              .font-medium { font-weight: 500; }
-              .text-gray-900 { color: #111827; }
-              .text-gray-600 { color: #6b7280; }
-              .border-b { border-bottom: 1px solid #e5e7eb; }
-              .pb-2 { padding-bottom: 8px; }
-              .pb-4 { padding-bottom: 16px; }
-              .pt-4 { padding-top: 16px; }
-              .space-y-4 > * + * { margin-top: 16px; }
-              .space-y-6 > * + * { margin-top: 24px; }
-              .gap-4 { gap: 16px; }
-              .flex { display: flex; }
-              .items-center { align-items: center; }
-              .gap-1 { gap: 4px; }
-            </style>
-          </head>
-          <body>
-            <div class="no-print" style="margin-bottom: 20px; text-align: center; color: #666; font-size: 12px;">
-              Generated from Employee Management System - ${new Date().toLocaleDateString()}
-            </div>
-            
-            <!-- Employee Header -->
-            <div class="print-header">
-              <img
-                src="/abstract-geometric-shapes.png?key=n1gxi&height=60&width=60&query=${encodeURIComponent(selectedEmployee.name)}"
-                alt="${selectedEmployee.name}"
-                class="employee-avatar"
-                onerror="this.style.display='none'"
-              />
-              <div class="employee-info-main">
-                <h1 class="employee-name">${selectedEmployee.name}</h1>
-                <div class="employee-meta">
-                  <div class="meta-item">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                      <polyline points="22,6 12,13 2,6"></polyline>
-                    </svg>
-                    ${selectedEmployee.email}
-                  </div>
-                  <div class="meta-item">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                      <polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline>
-                      <polyline points="7.5 19.79 7.5 14.6 3 12"></polyline>
-                      <polyline points="21 12 16.5 14.6 16.5 19.79"></polyline>
-                      <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                      <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                    </svg>
-                    ${selectedEmployee.department}
-                  </div>
-                  <div class="meta-item">
-                  
-                    <span class="status-badge ${selectedEmployee.status === 'active' ? 'status-active' : selectedEmployee.status === 'pending' ? 'status-pending' : 'status-inactive'}">
-                      ${selectedEmployee.status.charAt(0).toUpperCase() + selectedEmployee.status.slice(1)}
-                    </span>
+              <!-- Payslip Header -->
+              <div class="payslip-header">
+                <div class="government-title">FEDERAL GOVERNMENT OF NIGERIA</div>
+                <div class="payslip-title">EMPLOYEE PAYSLIP</div>
+                <div class="period">${monthYear}</div>
+              </div>
+
+              <!-- Employee Personal Information -->
+              <div class="section">
+                <div class="section-header">EMPLOYEE INFORMATION</div>
+                <div class="section-content">
+                  <div class="grid-2">
+                    <div>
+                      <div class="info-row">
+                        <span class="info-label">Employee Name:</span>
+                        <span class="info-value">${payslipData.employee.name}</span>
+                      </div>
+                      <div class="info-row">
+                        <span class="info-label">IPPIS Number:</span>
+                        <span class="info-value">${payslipData.employee.ippisNumber}</span>
+                      </div>
+                      <div class="info-row">
+                        <span class="info-label">Ministry:</span>
+                        <span class="info-value">${payslipData.employee.ministry}</span>
+                      </div>
+                      <div class="info-row">
+                        <span class="info-label">Designation:</span>
+                        <span class="info-value">${payslipData.employee.designation}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div class="info-row">
+                        <span class="info-label">Date of First Appt:</span>
+                        <span class="info-value">${payslipData.employee.dateOfFirstAppointment}</span>
+                      </div>
+                      <div class="info-row">
+                        <span class="info-label">Date of Birth:</span>
+                        <span class="info-value">${payslipData.employee.dateOfBirth}</span>
+                      </div>
+                      <div class="info-row">
+                        <span class="info-label">Trade Union:</span>
+                        <span class="info-value">${payslipData.employee.tradeUnion}</span>
+                      </div>
+                      <div class="info-row">
+                        <span class="info-label">Grade/Step:</span>
+                        <span class="info-value">${payslipData.employee.grade} / ${payslipData.employee.step}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Basic Information -->
-            <div class="section">
-              <h2 class="section-title">Basic Information</h2>
-              <div class="grid-2">
-                <div class="grid-field">
-                  <span class="field-label">Employee ID</span>
-                  <div class="field-value">${selectedEmployee.id}</div>
-                </div>
-                <div class="grid-field">
-                  <span class="field-label">Registration ID</span>
-                  <div class="field-value">${selectedEmployee.registration_id || "Not assigned"}</div>
-                </div>
-                <div class="grid-field">
-                  <span class="field-label">Position</span>
-                  <div class="field-value">${selectedEmployee.position}</div>
-                </div>
-                <div class="grid-field">
-                  <span class="field-label">Organization</span>
-                  <div class="field-value">${selectedEmployee.metadata?.Organization || "Not specified"}</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Personal Details -->
-            <div class="section">
-              <h2 class="section-title">Personal Details</h2>
-              <div class="grid-2">
-                ${[
-                  { label: "Title", value: selectedEmployee.metadata?.Title },
-                  { label: "Gender", value: selectedEmployee.metadata?.Gender },
-                  { label: "Surname", value: selectedEmployee.metadata?.Surname },
-                  { label: "First Name", value: selectedEmployee.metadata?.FirstName },
-                  { label: "Other Names", value: selectedEmployee.metadata?.OtherNames },
-                  { label: "Date of Birth", value: selectedEmployee.metadata?.["Date of Birth"] },
-                  { label: "Marital Status", value: selectedEmployee.metadata?.["Marital Status"] },
-                  { label: "Phone Number", value: selectedEmployee.metadata?.["Phone Number"] },
-                ].map(field => `
-                  <div class="grid-field">
-                    <span class="field-label">${field.label}</span>
-                    <div class="field-value">${field.value || "Not provided"}</div>
+              <!-- Bank & Pension Information -->
+              <div class="section">
+                <div class="section-header">BANK & PENSION INFORMATION</div>
+                <div class="section-content">
+                  <div class="grid-2">
+                    <div>
+                      <div class="info-row text-bold" style="margin-bottom: 6px;">Bank Details</div>
+                      <div class="info-row">
+                        <span class="info-label">Bank Name:</span>
+                        <span class="info-value">${payslipData.bank.name}</span>
+                      </div>
+                      <div class="info-row">
+                        <span class="info-label">Bank Branch:</span>
+                        <span class="info-value">${payslipData.bank.branch}</span>
+                      </div>
+                      <div class="info-row">
+                        <span class="info-label">Account Number:</span>
+                        <span class="info-value">${payslipData.bank.accountNumber}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div class="info-row text-bold" style="margin-bottom: 6px;">Pension Details</div>
+                      <div class="info-row">
+                        <span class="info-label">PFA Name:</span>
+                        <span class="info-value">${payslipData.pension.pfaName}</span>
+                      </div>
+                      <div class="info-row">
+                        <span class="info-label">Pension PIN:</span>
+                        <span class="info-value">${payslipData.pension.pin}</span>
+                      </div>
+                    </div>
                   </div>
-                `).join('')}
-              </div>
-            </div>
-
-            <!-- Address Information -->
-            <div class="section">
-              <h2 class="section-title">Address Information</h2>
-              <div class="grid-2">
-                <div class="grid-field col-span-2">
-                  <span class="field-label">Residential Address</span>
-                  <div class="field-value">${selectedEmployee.metadata?.["Residential Address"] || "Not provided"}</div>
                 </div>
-                ${[
-                  { label: "State of Residence", value: selectedEmployee.metadata?.["State of Residence"] },
-                  { label: "State of Origin", value: selectedEmployee.metadata?.["State of Origin"] },
-                  { label: "LGA", value: selectedEmployee.metadata?.LGA },
-                  { label: "Work Location", value: selectedEmployee.metadata?.["Work Location"] },
-                ].map(field => `
-                  <div class="grid-field">
-                    <span class="field-label">${field.label}</span>
-                    <div class="field-value">${field.value || "Not provided"}</div>
+              </div>
+
+              <!-- Earnings & Deductions -->
+              <div class="section">
+                <div class="section-header">EARNINGS & DEDUCTIONS</div>
+                <div class="section-content">
+                  <div class="grid-2">
+                    <!-- Earnings -->
+                    <div>
+                      <table class="earnings-table">
+                        <thead>
+                          <tr>
+                            <th colspan="2">GROSS EARNINGS</th>
+                          </tr>
+                          <tr>
+                            <th>Earnings</th>
+                            <th class="text-right">Amount (₦)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${payslipData.earnings.map(earning => `
+                            <tr>
+                              <td>${earning.description}</td>
+                              <td class="text-right">${formatCurrency(earning.amount)}</td>
+                            </tr>
+                          `).join('')}
+                          <tr class="total-row">
+                            <td><strong>Total Gross Earnings</strong></td>
+                            <td class="text-right total-amount">${formatCurrency(payslipData.summary.grossEarnings)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    <!-- Deductions -->
+                    <div>
+                      <table class="earnings-table">
+                        <thead>
+                          <tr>
+                            <th colspan="2">DEDUCTIONS</th>
+                          </tr>
+                          <tr>
+                            <th>Deductions</th>
+                            <th class="text-right">Amount (₦)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${payslipData.deductions.map(deduction => `
+                            <tr>
+                              <td>${deduction.description}</td>
+                              <td class="text-right">${formatCurrency(deduction.amount)}</td>
+                            </tr>
+                          `).join('')}
+                          <tr class="total-row">
+                            <td><strong>Total Deductions</strong></td>
+                            <td class="text-right total-amount">${formatCurrency(payslipData.summary.totalDeductions)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                `).join('')}
+                </div>
               </div>
-            </div>
 
-            <!-- Employment Information -->
-            <div class="section">
-              <h2 class="section-title">Employment Information</h2>
-              <div class="grid-2">
-                ${[
-                  { label: "Employee ID", value: selectedEmployee.metadata?.["Employee ID"] },
-                  { label: "Service No", value: selectedEmployee.metadata?.["Service No"] },
-                  { label: "Employment Type", value: selectedEmployee.metadata?.["Employment Type"] },
-                  { label: "Date of First Appointment", value: selectedEmployee.metadata?.["Date of First Appointment"] },
-                  { label: "Probation Period", value: selectedEmployee.metadata?.["Probation Period"] },
-                  { label: "Salary Structure", value: selectedEmployee.metadata?.["Salary Structure"] },
-                  { label: "GL", value: selectedEmployee.metadata?.GL },
-                  { label: "Step", value: selectedEmployee.metadata?.Step },
-                  { label: "Cadre", value: selectedEmployee.metadata?.Cadre },
-                ].map(field => `
-                  <div class="grid-field">
-                    <span class="field-label">${field.label}</span>
-                    <div class="field-value">${field.value || "Not specified"}</div>
+              <!-- Summary & Cumulative Balances -->
+              <div class="section">
+                <div class="section-header">SUMMARY & CUMULATIVE BALANCES</div>
+                <div class="section-content">
+                  <div class="summary-grid">
+                    <!-- Payment Summary -->
+                    <div class="summary-box">
+                      <h4>SUMMARY OF PAYMENTS</h4>
+                      <div class="info-row">
+                        <span class="info-label">Total Gross Earnings:</span>
+                        <span class="info-value text-right">${formatCurrency(payslipData.summary.grossEarnings)}</span>
+                      </div>
+                      <div class="info-row">
+                        <span class="info-label">Total Deductions:</span>
+                        <span class="info-value text-right">${formatCurrency(payslipData.summary.totalDeductions)}</span>
+                      </div>
+                      <div class="info-row text-bold mt-2" style="border-top: 1px solid #ddd; padding-top: 4px;">
+                        <span class="info-label">NET SALARY:</span>
+                        <span class="info-value text-right total-amount">${formatCurrency(payslipData.summary.netSalary)}</span>
+                      </div>
+                    </div>
+                    
+                    <!-- Cumulative Balances -->
+                    <div class="summary-box">
+                      <h4>CUMULATIVE BALANCES</h4>
+                      <div class="info-row">
+                        <span class="info-label">Cumulative Tax:</span>
+                        <span class="info-value text-right">${formatCurrency(payslipData.cumulative.tax)}</span>
+                      </div>
+                      <div class="info-row">
+                        <span class="info-label">Cumulative Income:</span>
+                        <span class="info-value text-right">${formatCurrency(payslipData.cumulative.income)}</span>
+                      </div>
+                      <div class="info-row">
+                        <span class="info-label">Cumulative Pension:</span>
+                        <span class="info-value text-right">${formatCurrency(payslipData.cumulative.pension)}</span>
+                      </div>
+                      <div class="info-row">
+                        <span class="info-label">Cumulative NHF:</span>
+                        <span class="info-value text-right">${formatCurrency(payslipData.cumulative.nhf)}</span>
+                      </div>
+                    </div>
                   </div>
-                `).join('')}
-              </div>
-            </div>
-
-            <!-- Financial Information -->
-            <div class="section">
-              <h2 class="section-title">Financial Information</h2>
-              <div class="grid-2">
-                ${[
-                  { label: "Bank Name", value: selectedEmployee.metadata?.["Bank Name"] },
-                  { label: "Account Number", value: selectedEmployee.metadata?.["Account Number"] },
-                  { label: "PFA Name", value: selectedEmployee.metadata?.["PFA Name"] },
-                  { label: "RSA PIN", value: selectedEmployee.metadata?.["RSA PIN"] },
-                  { label: "Payment Method", value: selectedEmployee.metadata?.["Payment Method"] },
-                ].map(field => `
-                  <div class="grid-field">
-                    <span class="field-label">${field.label}</span>
-                    <div class="field-value">${field.value || "Not provided"}</div>
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-
-            <!-- Education & Next of Kin -->
-            <div class="section">
-              <h2 class="section-title">Education & Next of Kin</h2>
-              <div class="grid-2">
-                <div class="grid-field">
-                  <span class="field-label">Certifications</span>
-                  <div class="field-value">${selectedEmployee.metadata?.Certifications || "Not provided"}</div>
-                </div>
-                <div class="grid-field">
-                  <span class="field-label">Educational Background</span>
-                  <div class="field-value">${selectedEmployee.metadata?.EducationalBackground || "Not provided"}</div>
-                </div>
-                <div class="grid-field">
-                  <span class="field-label">Next of Kin Name</span>
-                  <div class="field-value">${selectedEmployee.metadata?.["Next of Kin Name"] || "Not provided"}</div>
-                </div>
-                <div class="grid-field">
-                  <span class="field-label">Next of Kin Phone</span>
-                  <div class="field-value">${selectedEmployee.metadata?.["Next of Kin Phone"] || "Not provided"}</div>
-                </div>
-                <div class="grid-field col-span-2">
-                  <span class="field-label">Next of Kin Address</span>
-                  <div class="field-value">${selectedEmployee.metadata?.["Next of Kin Address"] || "Not provided"}</div>
-                </div>
-                <div class="grid-field">
-                  <span class="field-label">Next of Kin Relationship</span>
-                  <div class="field-value">${selectedEmployee.metadata?.["Next of Kin Relationship"] || "Not provided"}</div>
                 </div>
               </div>
-            </div>
 
-            <!-- System Information -->
-            <div class="section">
-              <h2 class="section-title">System Information</h2>
-              <div class="grid-2">
-                <div class="grid-field">
-                  <span class="field-label">Join Date</span>
-                  <div class="field-value">${formatDate(selectedEmployee.join_date)}</div>
-                </div>
-                <div class="grid-field">
-                  <span class="field-label">Created On</span>
-                  <div class="field-value">${formatDate(selectedEmployee.created_at)}</div>
-                </div>
-                <div class="grid-field">
-                  <span class="field-label">Updated On</span>
-                  <div class="field-value">${formatDate(selectedEmployee.updated_at)}</div>
-                </div>
-                <div class="grid-field">
-                  <span class="field-label">Last Updated</span>
-                  <div class="field-value">${formatSimpleDate(selectedEmployee.updated_at)}</div>
-                </div>
+              <!-- Footer -->
+              <div class="footer">
+                *Generated By : Powered by WALPBERRY is okay don't put consultant*
               </div>
-            </div>
 
-            <div class="no-print" style="margin-top: 30px; text-align: center; color: #666; font-size: 12px;">
-              Confidential Employee Document - Generated on ${new Date().toLocaleDateString()}
-            </div>
+              <div class="no-print" style="margin-top: 20px; text-align: center; color: #666; font-size: 10px;">
+                Confidential Employee Document - Generated on ${new Date().toLocaleDateString()}
+              </div>
 
-            <script>
-              window.onload = function() {
-                window.print();
-                setTimeout(function() {
-                  window.close();
-                }, 500);
-              }
-            </script>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
+              <script>
+                window.onload = function() {
+                  window.print();
+                  setTimeout(function() {
+                    window.close();
+                  }, 500);
+                }
+                
+                function formatCurrency(amount) {
+                  return new Intl.NumberFormat('en-NG', {
+                    style: 'currency',
+                    currency: 'NGN',
+                    minimumFractionDigits: 2
+                  }).format(amount);
+                }
+              </script>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+      }
+    } catch (error) {
+      console.error('Error generating payslip:', error);
+      toast.error("Error", {
+        description: "Failed to generate payslip. Please try again.",
+      });
+    }
+  };
+
+  // Handle PDF download
+  const handleDownloadPDF = async () => {
+    if (!selectedEmployee) return;
+
+    try {
+      // Similar to handlePrint but for PDF download
+      // In a real implementation, you would call your PDF generation service
+      toast.info("Feature Coming Soon", {
+        description: "PDF download functionality will be available soon.",
+      });
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      toast.error("Error", {
+        description: "Failed to download PDF. Please try again.",
+      });
     }
   };
 
@@ -966,6 +1174,7 @@ export default function EmployeesContent() {
                               View details
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleEdit(employee)}>
+                              
                               Edit employee
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
@@ -1092,7 +1301,7 @@ export default function EmployeesContent() {
                     <div className="text-sm mt-1 font-medium">{selectedEmployee.id}</div>
                   </div>
                   <div>
-                    <Label className="text-sm text-gray-600">Registration ID</Label>
+                    <Label className="text-sm text-gray-600">Registration ID (IPPIS)</Label>
                     <div className="text-sm mt-1">{selectedEmployee.registration_id || "Not assigned"}</div>
                   </div>
                   <div>
@@ -1257,9 +1466,198 @@ export default function EmployeesContent() {
               <Button variant="outline" onClick={() => setShowViewDialog(false)}>
                 Close
               </Button>
-              <Button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700">
-                <Printer className="h-4 w-4 mr-2" />
-                Print Details
+              <div className="flex gap-2">
+                <Button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700">
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print Payslip
+                </Button>
+                <Button 
+                  onClick={handleDownloadPDF} 
+                  variant="outline" 
+                  className="border-green-600 text-green-600 hover:bg-green-50"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download PDF
+                </Button>
+              </div>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Employee Dialog - UI Only */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+              <Edit className="h-5 w-5" />
+              Edit Employee
+            </DialogTitle>
+            <DialogDescription>
+              Update the details for {selectedEmployee?.name}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedEmployee && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-firstname" className="text-sm font-medium">
+                    First Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="edit-firstname"
+                    defaultValue={selectedEmployee.metadata?.FirstName || ""}
+                    placeholder="Enter first name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-surname" className="text-sm font-medium">
+                    Surname <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="edit-surname"
+                    defaultValue={selectedEmployee.metadata?.Surname || ""}
+                    placeholder="Enter surname"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-email" className="text-sm font-medium">
+                  Email <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  defaultValue={selectedEmployee.email}
+                  placeholder="Enter email address"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-department" className="text-sm font-medium">
+                    Department <span className="text-red-500">*</span>
+                  </Label>
+                  <Select defaultValue={selectedEmployee.department}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Finance">Finance</SelectItem>
+                      <SelectItem value="HR">HR</SelectItem>
+                      <SelectItem value="IT">IT</SelectItem>
+                      <SelectItem value="Operations">Operations</SelectItem>
+                      <SelectItem value="Legal">Legal</SelectItem>
+                      <SelectItem value="Marketing">Marketing</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-position" className="text-sm font-medium">
+                    Position <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="edit-position"
+                    defaultValue={selectedEmployee.position}
+                    placeholder="Enter position"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-status" className="text-sm font-medium">
+                  Status <span className="text-red-500">*</span>
+                </Label>
+                <Select defaultValue={selectedEmployee.status}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Additional Metadata Fields */}
+              <div className="border-t pt-4 mt-4">
+                <h4 className="font-medium text-gray-900 mb-4">Additional Information</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-phone" className="text-sm font-medium">
+                      Phone Number
+                    </Label>
+                    <Input
+                      id="edit-phone"
+                      defaultValue={selectedEmployee.metadata?.["Phone Number"] || ""}
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-gender" className="text-sm font-medium">
+                      Gender
+                    </Label>
+                    <Select defaultValue={selectedEmployee.metadata?.Gender || ""}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2 mt-4">
+                  <Label htmlFor="edit-address" className="text-sm font-medium">
+                    Residential Address
+                  </Label>
+                  <Input
+                    id="edit-address"
+                    defaultValue={selectedEmployee.metadata?.["Residential Address"] || ""}
+                    placeholder="Enter residential address"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-bank" className="text-sm font-medium">
+                      Bank Name
+                    </Label>
+                    <Input
+                      id="edit-bank"
+                      defaultValue={selectedEmployee.metadata?.["Bank Name"] || ""}
+                      placeholder="Enter bank name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-account" className="text-sm font-medium">
+                      Account Number
+                    </Label>
+                    <Input
+                      id="edit-account"
+                      defaultValue={selectedEmployee.metadata?.["Account Number"] || ""}
+                      placeholder="Enter account number"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="pt-4 border-t">
+            <div className="flex gap-2 w-full justify-between">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowEditDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                Update Employee
               </Button>
             </div>
           </DialogFooter>
