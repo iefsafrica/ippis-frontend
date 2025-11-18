@@ -1,3 +1,20 @@
+// export interface Employee {
+//   id: string;
+//   name: string;
+//   email: string;
+//   department: string;
+//   metadata: any;
+//   position: string;
+//   status: 'active' | 'inactive';
+//   join_date: string;
+//   created_at: string;
+//   updated_at: string;
+//   registration_id: string | null;
+//   createdAt: string;
+//   updatedAt: string;
+// }
+
+// In @/types/employees/employee-management
 export interface Employee {
   id: string;
   name: string;
@@ -5,7 +22,7 @@ export interface Employee {
   department: string;
   metadata: any;
   position: string;
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'pending'; 
   join_date: string;
   created_at: string;
   updated_at: string;

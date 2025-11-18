@@ -241,31 +241,40 @@ export default function EmployeesContent() {
     setCurrentPage(1);
   };
 
-  // Handle print employee details
+
   const handlePrint = () => {
-    if (!printRef.current) return;
+    if (!selectedEmployee) return;
 
-    const printContent = printRef.current.innerHTML;
-    const originalContent = document.body.innerHTML;
-
-    // Create a print-friendly version
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(`
         <!DOCTYPE html>
         <html>
           <head>
-            <title>Employee Details - ${selectedEmployee?.name}</title>
+            <title>Employee Details - ${selectedEmployee.name}</title>
             <style>
-              body { 
-                font-family: Arial, sans-serif; 
-                margin: 20px;
-                color: #333;
+              /* Reset and base styles */
+              * { 
+                margin: 0; 
+                padding: 0; 
+                box-sizing: border-box; 
               }
+              body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+                margin: 20px;
+                color: #374151;
+                background: white;
+                line-height: 1.5;
+              }
+              
+              /* Header section */
               .print-header { 
-                border-bottom: 2px solid #333; 
-                padding-bottom: 15px; 
-                margin-bottom: 20px;
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                padding-bottom: 16px;
+                border-bottom: 1px solid #e5e7eb;
+                margin-bottom: 24px;
               }
               .employee-avatar {
                 width: 60px;
@@ -274,81 +283,350 @@ export default function EmployeesContent() {
                 object-fit: cover;
                 border: 2px solid #e5e7eb;
               }
+              .employee-info-main {
+                flex: 1;
+              }
               .employee-name { 
                 font-size: 24px; 
-                font-weight: bold; 
-                margin-bottom: 10px;
+                font-weight: 600; 
+                color: #111827;
+                margin-bottom: 4px;
               }
-              .employee-info { 
-                display: flex; 
-                gap: 15px; 
-                margin-bottom: 10px;
+              .employee-meta {
+                display: flex;
+                align-items: center;
+                gap: 16px;
                 flex-wrap: wrap;
               }
-              .info-item { 
-                display: flex; 
-                align-items: center; 
-                gap: 5px;
+              .meta-item {
+                display: flex;
+                align-items: center;
+                gap: 6px;
                 font-size: 14px;
+                color: #6b7280;
               }
+              .status-badge {
+                display: inline-flex;
+                align-items: center;
+                padding: 4px 8px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 500;
+                border: 1px solid;
+              }
+              .status-active { 
+                background-color: #f0fdf4; 
+                color: #166534; 
+                border-color: #bbf7d0; 
+              }
+              .status-pending { 
+                background-color: #fffbeb; 
+                color: #92400e; 
+                border-color: #fde68a; 
+              }
+              .status-inactive { 
+                background-color: #fef2f2; 
+                color: #991b1b; 
+                border-color: #fecaca; 
+              }
+              
+              /* Section styles */
               .section { 
-                margin-bottom: 25px; 
+                margin-bottom: 32px; 
                 page-break-inside: avoid;
               }
               .section-title { 
                 font-size: 18px; 
-                font-weight: bold; 
-                border-bottom: 1px solid #ccc; 
+                font-weight: 600; 
+                color: #111827;
+                border-bottom: 1px solid #e5e7eb;
                 padding-bottom: 8px; 
-                margin-bottom: 15px;
-                color: #1f2937;
+                margin-bottom: 16px;
               }
-              .grid { 
+              
+              /* Grid layouts */
+              .grid-2 { 
                 display: grid; 
                 grid-template-columns: 1fr 1fr; 
-                gap: 15px;
+                gap: 20px;
               }
-              .field { 
-                margin-bottom: 12px;
+              .grid-field { 
+                margin-bottom: 16px;
               }
-              .label { 
-                font-weight: 600; 
-                font-size: 12px; 
+              .field-label { 
+                font-weight: 500; 
+                font-size: 14px; 
                 color: #6b7280; 
                 margin-bottom: 4px;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
+                display: block;
               }
-              .value { 
+              .field-value { 
                 font-size: 14px;
+                color: #111827;
+                font-weight: 400;
                 word-wrap: break-word;
               }
-              .status-badge { 
-                display: inline-flex; 
-                align-items: center; 
-                padding: 4px 8px; 
-                border-radius: 4px; 
-                font-size: 12px; 
-                font-weight: 500;
-              }
-              .status-active { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-              .status-pending { background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
-              .status-inactive { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+              
+              /* Full width fields */
+              .col-span-2 { grid-column: span 2; }
+              
+              /* Print-specific styles */
               @media print {
-                body { margin: 0.5in; }
-                .section { page-break-inside: avoid; }
-                .no-print { display: none !important; }
+                body { 
+                  margin: 0.5in;
+                  font-size: 12pt;
+                }
+                .section { 
+                  page-break-inside: avoid;
+                  margin-bottom: 24pt;
+                }
+                .no-print { 
+                  display: none !important; 
+                }
+                .print-header {
+                  margin-bottom: 20pt;
+                  padding-bottom: 12pt;
+                }
+                .section-title {
+                  font-size: 14pt;
+                  margin-bottom: 12pt;
+                }
+                .grid-2 {
+                  gap: 16pt;
+                }
+                .grid-field {
+                  margin-bottom: 12pt;
+                }
               }
+              
+              /* Utility classes */
+              .text-sm { font-size: 14px; }
+              .font-medium { font-weight: 500; }
+              .text-gray-900 { color: #111827; }
+              .text-gray-600 { color: #6b7280; }
+              .border-b { border-bottom: 1px solid #e5e7eb; }
+              .pb-2 { padding-bottom: 8px; }
+              .pb-4 { padding-bottom: 16px; }
+              .pt-4 { padding-top: 16px; }
+              .space-y-4 > * + * { margin-top: 16px; }
+              .space-y-6 > * + * { margin-top: 24px; }
+              .gap-4 { gap: 16px; }
+              .flex { display: flex; }
+              .items-center { align-items: center; }
+              .gap-1 { gap: 4px; }
             </style>
           </head>
           <body>
             <div class="no-print" style="margin-bottom: 20px; text-align: center; color: #666; font-size: 12px;">
               Generated from Employee Management System - ${new Date().toLocaleDateString()}
             </div>
-            ${printContent}
-            <div class="no-print" style="margin-top: 30px; text-align: center; color: #666; font-size: 12px;">
-              Confidential Employee Document
+            
+            <!-- Employee Header -->
+            <div class="print-header">
+              <img
+                src="/abstract-geometric-shapes.png?key=n1gxi&height=60&width=60&query=${encodeURIComponent(selectedEmployee.name)}"
+                alt="${selectedEmployee.name}"
+                class="employee-avatar"
+                onerror="this.style.display='none'"
+              />
+              <div class="employee-info-main">
+                <h1 class="employee-name">${selectedEmployee.name}</h1>
+                <div class="employee-meta">
+                  <div class="meta-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                      <polyline points="22,6 12,13 2,6"></polyline>
+                    </svg>
+                    ${selectedEmployee.email}
+                  </div>
+                  <div class="meta-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                      <polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline>
+                      <polyline points="7.5 19.79 7.5 14.6 3 12"></polyline>
+                      <polyline points="21 12 16.5 14.6 16.5 19.79"></polyline>
+                      <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                      <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                    ${selectedEmployee.department}
+                  </div>
+                  <div class="meta-item">
+                  
+                    <span class="status-badge ${selectedEmployee.status === 'active' ? 'status-active' : selectedEmployee.status === 'pending' ? 'status-pending' : 'status-inactive'}">
+                      ${selectedEmployee.status.charAt(0).toUpperCase() + selectedEmployee.status.slice(1)}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
+
+            <!-- Basic Information -->
+            <div class="section">
+              <h2 class="section-title">Basic Information</h2>
+              <div class="grid-2">
+                <div class="grid-field">
+                  <span class="field-label">Employee ID</span>
+                  <div class="field-value">${selectedEmployee.id}</div>
+                </div>
+                <div class="grid-field">
+                  <span class="field-label">Registration ID</span>
+                  <div class="field-value">${selectedEmployee.registration_id || "Not assigned"}</div>
+                </div>
+                <div class="grid-field">
+                  <span class="field-label">Position</span>
+                  <div class="field-value">${selectedEmployee.position}</div>
+                </div>
+                <div class="grid-field">
+                  <span class="field-label">Organization</span>
+                  <div class="field-value">${selectedEmployee.metadata?.Organization || "Not specified"}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Personal Details -->
+            <div class="section">
+              <h2 class="section-title">Personal Details</h2>
+              <div class="grid-2">
+                ${[
+                  { label: "Title", value: selectedEmployee.metadata?.Title },
+                  { label: "Gender", value: selectedEmployee.metadata?.Gender },
+                  { label: "Surname", value: selectedEmployee.metadata?.Surname },
+                  { label: "First Name", value: selectedEmployee.metadata?.FirstName },
+                  { label: "Other Names", value: selectedEmployee.metadata?.OtherNames },
+                  { label: "Date of Birth", value: selectedEmployee.metadata?.["Date of Birth"] },
+                  { label: "Marital Status", value: selectedEmployee.metadata?.["Marital Status"] },
+                  { label: "Phone Number", value: selectedEmployee.metadata?.["Phone Number"] },
+                ].map(field => `
+                  <div class="grid-field">
+                    <span class="field-label">${field.label}</span>
+                    <div class="field-value">${field.value || "Not provided"}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Address Information -->
+            <div class="section">
+              <h2 class="section-title">Address Information</h2>
+              <div class="grid-2">
+                <div class="grid-field col-span-2">
+                  <span class="field-label">Residential Address</span>
+                  <div class="field-value">${selectedEmployee.metadata?.["Residential Address"] || "Not provided"}</div>
+                </div>
+                ${[
+                  { label: "State of Residence", value: selectedEmployee.metadata?.["State of Residence"] },
+                  { label: "State of Origin", value: selectedEmployee.metadata?.["State of Origin"] },
+                  { label: "LGA", value: selectedEmployee.metadata?.LGA },
+                  { label: "Work Location", value: selectedEmployee.metadata?.["Work Location"] },
+                ].map(field => `
+                  <div class="grid-field">
+                    <span class="field-label">${field.label}</span>
+                    <div class="field-value">${field.value || "Not provided"}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Employment Information -->
+            <div class="section">
+              <h2 class="section-title">Employment Information</h2>
+              <div class="grid-2">
+                ${[
+                  { label: "Employee ID", value: selectedEmployee.metadata?.["Employee ID"] },
+                  { label: "Service No", value: selectedEmployee.metadata?.["Service No"] },
+                  { label: "Employment Type", value: selectedEmployee.metadata?.["Employment Type"] },
+                  { label: "Date of First Appointment", value: selectedEmployee.metadata?.["Date of First Appointment"] },
+                  { label: "Probation Period", value: selectedEmployee.metadata?.["Probation Period"] },
+                  { label: "Salary Structure", value: selectedEmployee.metadata?.["Salary Structure"] },
+                  { label: "GL", value: selectedEmployee.metadata?.GL },
+                  { label: "Step", value: selectedEmployee.metadata?.Step },
+                  { label: "Cadre", value: selectedEmployee.metadata?.Cadre },
+                ].map(field => `
+                  <div class="grid-field">
+                    <span class="field-label">${field.label}</span>
+                    <div class="field-value">${field.value || "Not specified"}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Financial Information -->
+            <div class="section">
+              <h2 class="section-title">Financial Information</h2>
+              <div class="grid-2">
+                ${[
+                  { label: "Bank Name", value: selectedEmployee.metadata?.["Bank Name"] },
+                  { label: "Account Number", value: selectedEmployee.metadata?.["Account Number"] },
+                  { label: "PFA Name", value: selectedEmployee.metadata?.["PFA Name"] },
+                  { label: "RSA PIN", value: selectedEmployee.metadata?.["RSA PIN"] },
+                  { label: "Payment Method", value: selectedEmployee.metadata?.["Payment Method"] },
+                ].map(field => `
+                  <div class="grid-field">
+                    <span class="field-label">${field.label}</span>
+                    <div class="field-value">${field.value || "Not provided"}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Education & Next of Kin -->
+            <div class="section">
+              <h2 class="section-title">Education & Next of Kin</h2>
+              <div class="grid-2">
+                <div class="grid-field">
+                  <span class="field-label">Certifications</span>
+                  <div class="field-value">${selectedEmployee.metadata?.Certifications || "Not provided"}</div>
+                </div>
+                <div class="grid-field">
+                  <span class="field-label">Educational Background</span>
+                  <div class="field-value">${selectedEmployee.metadata?.EducationalBackground || "Not provided"}</div>
+                </div>
+                <div class="grid-field">
+                  <span class="field-label">Next of Kin Name</span>
+                  <div class="field-value">${selectedEmployee.metadata?.["Next of Kin Name"] || "Not provided"}</div>
+                </div>
+                <div class="grid-field">
+                  <span class="field-label">Next of Kin Phone</span>
+                  <div class="field-value">${selectedEmployee.metadata?.["Next of Kin Phone"] || "Not provided"}</div>
+                </div>
+                <div class="grid-field col-span-2">
+                  <span class="field-label">Next of Kin Address</span>
+                  <div class="field-value">${selectedEmployee.metadata?.["Next of Kin Address"] || "Not provided"}</div>
+                </div>
+                <div class="grid-field">
+                  <span class="field-label">Next of Kin Relationship</span>
+                  <div class="field-value">${selectedEmployee.metadata?.["Next of Kin Relationship"] || "Not provided"}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- System Information -->
+            <div class="section">
+              <h2 class="section-title">System Information</h2>
+              <div class="grid-2">
+                <div class="grid-field">
+                  <span class="field-label">Join Date</span>
+                  <div class="field-value">${formatDate(selectedEmployee.join_date)}</div>
+                </div>
+                <div class="grid-field">
+                  <span class="field-label">Created On</span>
+                  <div class="field-value">${formatDate(selectedEmployee.created_at)}</div>
+                </div>
+                <div class="grid-field">
+                  <span class="field-label">Updated On</span>
+                  <div class="field-value">${formatDate(selectedEmployee.updated_at)}</div>
+                </div>
+                <div class="grid-field">
+                  <span class="field-label">Last Updated</span>
+                  <div class="field-value">${formatSimpleDate(selectedEmployee.updated_at)}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="no-print" style="margin-top: 30px; text-align: center; color: #666; font-size: 12px;">
+              Confidential Employee Document - Generated on ${new Date().toLocaleDateString()}
+            </div>
+
             <script>
               window.onload = function() {
                 window.print();
@@ -474,20 +752,6 @@ export default function EmployeesContent() {
   const formatSimpleDate = (dateString: string) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString('en-US');
-  };
-
-  // Get status badge for print view
-  const getPrintStatusBadge = (status: string) => {
-    switch (status) {
-      case "active":
-        return `<span class="status-badge status-active">Active</span>`;
-      case "pending":
-        return `<span class="status-badge status-pending">Pending</span>`;
-      case "inactive":
-        return `<span class="status-badge status-inactive">Inactive</span>`;
-      default:
-        return "";
-    }
   };
 
   // Advanced search fields
@@ -789,7 +1053,7 @@ export default function EmployeesContent() {
             </DialogDescription>
           </DialogHeader>
           {selectedEmployee && (
-            <div ref={printRef} className="space-y-6 py-2">
+            <div className="space-y-6 py-2">
               {/* Employee Header */}
               <div className="flex items-center gap-4 pb-4 border-b">
                 <div className="flex items-center gap-4">
@@ -798,7 +1062,7 @@ export default function EmployeesContent() {
                       selectedEmployee.name
                     )}`}
                     alt={selectedEmployee.name}
-                    className="employee-avatar size-[60px] rounded-full border-radius-full object-cover"
+                    className="size-[60px] rounded-full object-cover border"
                   />
                   <div className="flex-1">
                     <h3 className="text-xl font-semibold">{selectedEmployee.name}</h3>
