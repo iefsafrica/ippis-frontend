@@ -29,6 +29,7 @@ export interface Employee {
   registration_id: string | null;
   createdAt: string;
   updatedAt: string;
+  uploaded_documents?: string; 
 }
 
 export interface EmployeesResponse {

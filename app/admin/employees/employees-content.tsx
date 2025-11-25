@@ -832,14 +832,12 @@ export default function EmployeesContent() {
     }
   };
 
-  // Handle PDF download
+
   const handleDownloadPDF = async () => {
     if (!selectedEmployee) return;
 
     try {
-      // Similar to handlePrint but for PDF download
-      // In a real implementation, you would call your PDF generation service
-      toast.info("Feature Coming Soon", {
+   toast.info("Feature Coming Soon", {
         description: "PDF download functionality will be available soon.",
       });
     } catch (error) {
@@ -850,7 +848,7 @@ export default function EmployeesContent() {
     }
   };
 
-  // Export functions
+  
   const handleExportPDF = () => {
     const columns = [
       { header: "Name", accessor: "name" },
@@ -1107,13 +1105,14 @@ export default function EmployeesContent() {
                   <TableHead>Position</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Join Date</TableHead>
+                  <TableHead>Uploaded Documents</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
+                    <TableCell colSpan={7} className="h-24 text-center">
                       <div className="flex justify-center items-center">
                         <Loader2 className="h-6 w-6 text-gray-500 animate-spin mr-2" />
                         <span>Loading employees...</span>
@@ -1122,7 +1121,7 @@ export default function EmployeesContent() {
                   </TableRow>
                 ) : employees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
+                    <TableCell colSpan={7} className="h-24 text-center">
                       No employees found.
                     </TableCell>
                   </TableRow>
@@ -1156,6 +1155,7 @@ export default function EmployeesContent() {
                       <TableCell>
                         {employee.join_date ? new Date(employee.join_date).toLocaleDateString() : "N/A"}
                       </TableCell>
+                       <TableCell className="text-center">{employee.uploaded_documents || "N/A"}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -1213,42 +1213,42 @@ export default function EmployeesContent() {
             </Table>
           </div>
 
-          <div className="flex w-full h-fit items-center justify-between mt-5">
-            <div className="flex items-center justify-end mb-2">
-              <label
-                htmlFor="itemsPerPage"
-                className="mr-2 text-sm text-muted-foreground"
-              >
-                Rows per page:
-              </label>
-              <Select
-                value={itemsPerPage.toString()}
-                onValueChange={(value) => {
-                  setItemsPerPage(Number(value));
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="w-[100px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                  <SelectItem value="200">200</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+         <div className="flex w-full h-fit items-center justify-between mt-5">
+  <div className="flex items-center justify-end mb-2">
+    <label
+      htmlFor="itemsPerPage"
+      className="mr-2 text-sm text-muted-foreground"
+    >
+      Rows per page:
+    </label>
+    <Select
+      value={itemsPerPage.toString()}
+      onValueChange={(value) => {
+        setItemsPerPage(Number(value));
+        setCurrentPage(1);
+      }}
+    >
+      <SelectTrigger className="w-[100px]">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="50">50</SelectItem>
+        <SelectItem value="100">100</SelectItem>
+        <SelectItem value="200">200</SelectItem>
+      </SelectContent>
+    </Select>
+  </div>
 
-            {paginationInfo.totalPages > 0 && (
-              <div className="mt-4 flex items-center justify-end">
-                <Pagination
-                  currentPage={paginationInfo.page}
-                  totalPages={paginationInfo.totalPages}
-                  onPageChange={handlePageChange}
-                />
-              </div>
-            )}
-          </div>
+  {paginationInfo.totalPages > 0 && (
+    <div className="mt-4 flex items-center justify-end">
+      <Pagination
+        currentPage={paginationInfo.page}
+        totalPages={paginationInfo.totalPages}
+        onPageChange={handlePageChange}
+      />
+    </div>
+  )}
+</div>
         </CardContent>
       </Card>
 
@@ -1337,6 +1337,29 @@ export default function EmployeesContent() {
                 </div>
               </div>
 
+              {/* Next of Kin Information */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-gray-900 border-b pb-2">Next of Kin Information</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-gray-600">Next of Kin Name</Label>
+                    <div className="text-sm mt-1">{selectedEmployee.metadata?.["Next of Kin Name"] || "Not provided"}</div>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-600">Next of Kin Phone</Label>
+                    <div className="text-sm mt-1">{selectedEmployee.metadata?.["Next of Kin Phone"] || "Not provided"}</div>
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-sm text-gray-600">Next of Kin Address</Label>
+                    <div className="text-sm mt-1">{selectedEmployee.metadata?.["Next of Kin Address"] || "Not provided"}</div>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-600">Next of Kin Relationship</Label>
+                    <div className="text-sm mt-1">{selectedEmployee.metadata?.["Next of Kin Relationship"] || "Not provided"}</div>
+                  </div>
+                </div>
+              </div>
+
               {/* Address Information */}
               <div className="space-y-4">
                 <h4 className="font-medium text-gray-900 border-b pb-2">Address Information</h4>
@@ -1387,6 +1410,21 @@ export default function EmployeesContent() {
                 </div>
               </div>
 
+              {/* Education */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-gray-900 border-b pb-2">Education</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-gray-600">Certifications</Label>
+                    <div className="text-sm mt-1">{selectedEmployee.metadata?.Certifications || "Not provided"}</div>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-600">Educational Background</Label>
+                    <div className="text-sm mt-1">{selectedEmployee.metadata?.EducationalBackground || "Not provided"}</div>
+                  </div>
+                </div>
+              </div>
+
               {/* Financial Information */}
               <div className="space-y-4">
                 <h4 className="font-medium text-gray-900 border-b pb-2">Financial Information</h4>
@@ -1403,37 +1441,6 @@ export default function EmployeesContent() {
                       <div className="text-sm mt-1">{field.value || "Not provided"}</div>
                     </div>
                   ))}
-                </div>
-              </div>
-
-              {/* Education & Next of Kin */}
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-900 border-b pb-2">Education & Next of Kin</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm text-gray-600">Certifications</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.metadata?.Certifications || "Not provided"}</div>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">Educational Background</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.metadata?.EducationalBackground || "Not provided"}</div>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">Next of Kin Name</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.metadata?.["Next of Kin Name"] || "Not provided"}</div>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">Next of Kin Phone</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.metadata?.["Next of Kin Phone"] || "Not provided"}</div>
-                  </div>
-                  <div className="col-span-2">
-                    <Label className="text-sm text-gray-600">Next of Kin Address</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.metadata?.["Next of Kin Address"] || "Not provided"}</div>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">Next of Kin Relationship</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.metadata?.["Next of Kin Relationship"] || "Not provided"}</div>
-                  </div>
                 </div>
               </div>
 
@@ -1469,7 +1476,7 @@ export default function EmployeesContent() {
               <div className="flex gap-2">
                 <Button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700">
                   <Printer className="h-4 w-4 mr-2" />
-                  Print Payslip
+                  Print Employee Slip
                 </Button>
                 <Button 
                   onClick={handleDownloadPDF} 
