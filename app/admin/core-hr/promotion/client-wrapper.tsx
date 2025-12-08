@@ -1,195 +1,242 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { PromotionContent } from "./promotion-content"
 import { useToast } from "@/hooks/use-toast"
+import { 
+  usePromotedEmployees, 
+  useCreatePromotion, 
+  useDeletePromotion,
+  usePromotedEmployeeDetails 
+} from "@/services/hooks/hr-core/usePromotions"
+import { TablePromotion } from "@/types/hr-core/promotion-management"
+//@ts-expect-error - fix any
+const transformToTablePromotion = (data: PromotionResponseData): TablePromotion => {
+  return {
+    id: data.promotion_id.toString(),
+    employee: data.employee_name,
+    employeeId: data.employee_id,
+    company: data.department || "Ministry",
+    promotionTitle: data.new_position,
+    date: data.effective_date,
+    previousPosition: data.previous_position,
+    details: data.reason,
+    employeeEmail: data.employee_email,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+    currentPosition: data.current_position
+  }
+}
 
-// Mock data for promotions
-const mockPromotions = [
-  {
-    id: "prom-001",
-    employee: "John Doe",
-    employeeId: "EMP-001",
-    company: "Ministry of Finance",
-    promotionTitle: "Senior Accountant",
-    date: "2023-05-15",
-    previousPosition: "Accountant",
-    details: "Promoted based on outstanding performance and completion of required certifications.",
-  },
-  {
-    id: "prom-002",
-    employee: "Jane Smith",
-    employeeId: "EMP-002",
-    company: "Ministry of Education",
-    promotionTitle: "Principal",
-    date: "2023-06-22",
-    previousPosition: "Vice Principal",
-    details: "Promoted after 5 years of excellent service and leadership.",
-  },
-  {
-    id: "prom-003",
-    employee: "Michael Johnson",
-    employeeId: "EMP-003",
-    company: "Ministry of Health",
-    promotionTitle: "Senior Medical Officer",
-    date: "2023-07-10",
-    previousPosition: "Medical Officer",
-    details: "Promoted based on additional qualifications and exemplary service.",
-  },
-  {
-    id: "prom-004",
-    employee: "Sarah Williams",
-    employeeId: "EMP-004",
-    company: "Ministry of Works",
-    promotionTitle: "Chief Engineer",
-    date: "2023-08-05",
-    previousPosition: "Senior Engineer",
-    details: "Promoted after successful completion of major infrastructure projects.",
-  },
-  {
-    id: "prom-005",
-    employee: "David Brown",
-    employeeId: "EMP-005",
-    company: "Ministry of Justice",
-    promotionTitle: "Senior Legal Counsel",
-    date: "2023-09-18",
-    previousPosition: "Legal Counsel",
-    details: "Promoted based on case success rate and years of service.",
-  },
-  {
-    id: "prom-006",
-    employee: "Elizabeth Taylor",
-    employeeId: "EMP-006",
-    company: "Ministry of Agriculture",
-    promotionTitle: "Director of Research",
-    date: "2023-10-30",
-    previousPosition: "Research Coordinator",
-    details: "Promoted after leading successful agricultural research initiatives.",
-  },
-  {
-    id: "prom-007",
-    employee: "Robert Wilson",
-    employeeId: "EMP-007",
-    company: "Ministry of Defense",
-    promotionTitle: "Colonel",
-    date: "2023-11-15",
-    previousPosition: "Lieutenant Colonel",
-    details: "Promoted based on leadership excellence and years of service.",
-  },
-  {
-    id: "prom-008",
-    employee: "Patricia Moore",
-    employeeId: "EMP-008",
-    company: "Ministry of Foreign Affairs",
-    promotionTitle: "Senior Diplomat",
-    date: "2023-12-05",
-    previousPosition: "Diplomat",
-    details: "Promoted after successful international assignments.",
-  },
-  {
-    id: "prom-009",
-    employee: "Thomas Anderson",
-    employeeId: "EMP-009",
-    company: "Ministry of Science and Technology",
-    promotionTitle: "Head of Innovation",
-    date: "2024-01-20",
-    previousPosition: "Innovation Specialist",
-    details: "Promoted based on technological innovations and patents.",
-  },
-  {
-    id: "prom-010",
-    employee: "Jennifer White",
-    employeeId: "EMP-010",
-    company: "Ministry of Information",
-    promotionTitle: "Chief Communications Officer",
-    date: "2024-02-10",
-    previousPosition: "Communications Manager",
-    details: "Promoted after successful public information campaigns.",
-  },
-]
+//@ts-expect-error - fix any
+const transformToCreateRequest = (data: Omit<TablePromotion, 'id'>): CreatePromotionRequest => {
+  return {
+    employee_id: data.employeeId,
+    department: data.company || null,
+    previous_position: data.previousPosition,
+    new_position: data.promotionTitle,
+    effective_date: data.date,
+    reason: data.details,
+  }
+}
+
+// Search params type
+export interface SearchParams {
+  employee?: string;
+  company?: string;
+  promotionTitle?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
 
 export default function ClientWrapper() {
-  const [promotions, setPromotions] = useState(mockPromotions)
-  const [isLoading, setIsLoading] = useState(true)
+  const [tablePromotions, setTablePromotions] = useState<TablePromotion[]>([])
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const { toast } = useToast()
+  
+  // Use React Query hooks
+  const { 
+    data: promotionsData = [], 
+    isLoading: isLoadingPromotions, 
+    refetch: refetchPromotions,
+    error: promotionsError 
+  } = usePromotedEmployees()
+  
+  // Hook for employee details
+  const { 
+    data: employeeDetails,
+    isLoading: isLoadingDetails,
+    error: detailsError
+    //@ts-expect-error - fix any
+  } = usePromotedEmployeeDetails(selectedEmployeeId || '', {
+    enabled: !!selectedEmployeeId
+  })
+  
+  const createPromotionMutation = useCreatePromotion({
+    onSuccess: (newPromotion) => {
+      const tablePromotion = transformToTablePromotion(newPromotion)
+      setTablePromotions(prev => [tablePromotion, ...prev])
+      toast({
+        title: "Promotion Added",
+        description: `${newPromotion.employee_name} has been promoted to ${newPromotion.new_position}`,
+        variant: "success" as any,
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to add promotion: ${error.message}`,
+        variant: "destructive",
+      })
+    }
+  })
+  
+  const deletePromotionMutation = useDeletePromotion({
+    onSuccess: (_, promotionId) => {
+      setTablePromotions(prev => prev.filter(promotion => promotion.id !== promotionId.toString()))
+      toast({
+        title: "Promotion Deleted",
+        description: "The promotion record has been deleted successfully",
+        variant: "success" as any,
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to delete promotion: ${error.message}`,
+        variant: "destructive",
+      })
+    }
+  })
 
-  // Simulate loading data
+  // Transform data when promotionsData changes
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 800)
+    if (promotionsData && promotionsData.length > 0) {
+      const transformed = promotionsData.map(transformToTablePromotion)
+      setTablePromotions(transformed)
+    } else {
+      setTablePromotions([])
+    }
+  }, [promotionsData])
 
-    return () => clearTimeout(timer)
-  }, [])
+  // Show error toast if there's an error loading promotions
+  useEffect(() => {
+    if (promotionsError) {
+      toast({
+        title: "Error Loading Promotions",
+        description: "Failed to load promotion data. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }, [promotionsError, toast])
+
+  // Show error toast if there's an error loading details
+  useEffect(() => {
+    if (detailsError) {
+      toast({
+        title: "Error Loading Details",
+        description: "Failed to load employee details. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }, [detailsError, toast])
 
   // Function to add a new promotion
-  const handleAddPromotion = (newPromotion: any) => {
-    const promotionWithId = {
-      ...newPromotion,
-      id: `prom-${Math.floor(Math.random() * 1000)
-        .toString()
-        .padStart(3, "0")}`,
-    }
-    setPromotions([promotionWithId, ...promotions])
-    toast({
-      title: "Promotion Added",
-      description: `${newPromotion.employee} has been promoted to ${newPromotion.promotionTitle}`,
-      variant: "success",
-    })
+  const handleAddPromotion = (newPromotionData: Omit<TablePromotion, 'id'>) => {
+    const createRequest = transformToCreateRequest(newPromotionData)
+    createPromotionMutation.mutate(createRequest)
   }
 
   // Function to delete a promotion
   const handleDeletePromotion = (id: string) => {
-    setPromotions(promotions.filter((promotion) => promotion.id !== id))
-    toast({
-      title: "Promotion Deleted",
-      description: "The promotion record has been deleted successfully",
-      variant: "success",
-    })
+    const promotionId = parseInt(id)
+    if (!isNaN(promotionId)) {
+      deletePromotionMutation.mutate(promotionId)
+    } else {
+      toast({
+        title: "Error",
+        description: "Invalid promotion ID",
+        variant: "destructive",
+      })
+    }
   }
 
+  // Function to handle view details
+  const handleViewDetails = useCallback((employeeId: string) => {
+    setSelectedEmployeeId(employeeId)
+  }, [])
+
+  // Function to close details dialog
+  const handleCloseDetails = useCallback(() => {
+    setSelectedEmployeeId(null)
+  }, [])
+
   // Function to handle search
-  const handleSearch = (searchParams: any) => {
-    // In a real app, this would call an API with search params
-    // For now, we'll just filter the mock data
+  const handleSearch = (searchParams: SearchParams) => {
+    // If no search params, show all data
     if (!Object.values(searchParams).some((value) => value)) {
-      setPromotions(mockPromotions)
+      const transformed = promotionsData.map(transformToTablePromotion)
+      setTablePromotions(transformed)
       return
     }
 
-    const filtered = mockPromotions.filter((promotion) => {
-      return Object.entries(searchParams).every(([key, value]) => {
-        if (!value) return true
+    const filtered = promotionsData
+      .filter((promotion) => {
+        return Object.entries(searchParams).every(([key, value]) => {
+          if (!value) return true
 
-        if (key === "dateFrom" && value) {
-          return new Date(promotion.date) >= new Date(value as string)
-        }
+          if (key === "employee" && value) {
+            return promotion.employee_name
+              .toLowerCase()
+              .includes((value as string).toLowerCase())
+          }
 
-        if (key === "dateTo" && value) {
-          return new Date(promotion.date) <= new Date(value as string)
-        }
+          if (key === "company" && value) {
+            return promotion.department
+              ? promotion.department
+                  .toLowerCase()
+                  .includes((value as string).toLowerCase())
+              : false
+          }
 
-        if (key in promotion) {
-          return promotion[key as keyof typeof promotion]
-            .toString()
-            .toLowerCase()
-            .includes((value as string).toLowerCase())
-        }
+          if (key === "promotionTitle" && value) {
+            return promotion.new_position
+              .toLowerCase()
+              .includes((value as string).toLowerCase())
+          }
 
-        return true
+          if (key === "dateFrom" && value) {
+            return new Date(promotion.effective_date) >= new Date(value as string)
+          }
+
+          if (key === "dateTo" && value) {
+            return new Date(promotion.effective_date) <= new Date(value as string)
+          }
+
+          return true
+        })
       })
-    })
+      .map(transformToTablePromotion)
 
-    setPromotions(filtered)
+    setTablePromotions(filtered)
   }
+
+  // Combine loading states
+  const isLoading = isLoadingPromotions || createPromotionMutation.isPending || deletePromotionMutation.isPending
 
   return (
     <PromotionContent
-      promotions={promotions}
+      promotions={tablePromotions}
       isLoading={isLoading}
       onAddPromotion={handleAddPromotion}
       onDeletePromotion={handleDeletePromotion}
       onSearch={handleSearch}
+      //@ts-expect-error - fix any
+      onViewDetails={handleViewDetails}
+      employeeDetails={employeeDetails}
+      isDetailsLoading={isLoadingDetails}
+      isDetailsDialogOpen={!!selectedEmployeeId}
+      onCloseDetails={handleCloseDetails}
     />
   )
 }

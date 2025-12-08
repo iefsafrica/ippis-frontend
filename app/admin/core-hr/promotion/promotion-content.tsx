@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -36,22 +35,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-
-interface Promotion {
-  id: string;
-  employee: string;
-  employeeId: string;
-  company: string;
-  promotionTitle: string;
-  date: string;
-  previousPosition: string;
-  details: string;
-}
+import { TablePromotion } from '@/types/hr-core/promotion-management';
 
 interface PromotionContentProps {
-  promotions: Promotion[];
+  promotions: TablePromotion[];
   isLoading: boolean;
-  onAddPromotion: (promotion: Omit<Promotion, 'id'>) => void;
+  onAddPromotion: (promotion: Omit<TablePromotion, 'id'>) => void;
   onDeletePromotion: (id: string) => void;
   onSearch: (searchParams: any) => void;
 }
@@ -69,7 +58,7 @@ export function PromotionContent({
   const [selectedPromotionId, setSelectedPromotionId] = useState<string | null>(
     null
   );
-  const [selectedPromotion, setSelectedPromotion] = useState<Promotion | null>(
+  const [selectedPromotion, setSelectedPromotion] = useState<TablePromotion | null>(
     null
   );
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
@@ -122,14 +111,14 @@ export function PromotionContent({
     }
   };
 
-  const handleViewDetails = (promotion: Promotion) => {
+  const handleViewDetails = (promotion: TablePromotion) => {
     setSelectedPromotion(promotion);
     setIsDetailsDialogOpen(true);
   };
 
   const searchFields = [
     { name: 'employee', label: 'Employee', type: 'text' },
-    { name: 'company', label: 'Company', type: 'text' },
+    { name: 'company', label: 'Company/Department', type: 'text' },
     { name: 'promotionTitle', label: 'Promotion Title', type: 'text' },
     { name: 'dateFrom', label: 'Date From', type: 'date' },
     { name: 'dateTo', label: 'Date To', type: 'date' },
@@ -143,6 +132,7 @@ export function PromotionContent({
           <div className="flex items-center space-x-2">
             <AdvancedSearch
               onSearch={onSearch}
+              //@ts-expect-error - fix any
               fields={searchFields}
               title="Promotions"
             />
@@ -183,7 +173,8 @@ export function PromotionContent({
                     <TableHeader>
                       <TableRow>
                         <TableHead>Employee</TableHead>
-                        <TableHead>Company</TableHead>
+                        <TableHead>Employee ID</TableHead>
+                        <TableHead>Company/Department</TableHead>
                         <TableHead>Promotion Title</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -192,7 +183,7 @@ export function PromotionContent({
                     <TableBody>
                       {paginatedPromotions.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="h-24 text-center">
+                          <TableCell colSpan={6} className="h-24 text-center">
                             No promotions found
                           </TableCell>
                         </TableRow>
@@ -202,7 +193,8 @@ export function PromotionContent({
                             <TableCell className="font-medium">
                               {promotion.employee}
                             </TableCell>
-                            <TableCell>{promotion.company}</TableCell>
+                            <TableCell>{promotion.employeeId}</TableCell>
+                            <TableCell>{promotion.company || 'N/A'}</TableCell>
                             <TableCell>{promotion.promotionTitle}</TableCell>
                             <TableCell>
                               {new Date(promotion.date).toLocaleDateString()}
@@ -242,13 +234,15 @@ export function PromotionContent({
                   </Table>
                 </div>
 
-                <div className="flex items-center justify-center mt-6">
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={handlePageChange}
-                  />
-                </div>
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center mt-6">
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                    />
+                  </div>
+                )}
               </>
             )}
           </CardContent>

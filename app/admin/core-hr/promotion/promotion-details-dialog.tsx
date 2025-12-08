@@ -9,22 +9,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-
-interface Promotion {
-  id: string
-  employee: string
-  employeeId: string
-  company: string
-  promotionTitle: string
-  date: string
-  previousPosition: string
-  details: string
-}
+import { TablePromotion } from "@/types/hr-core/promotion-management"
 
 interface PromotionDetailsDialogProps {
   isOpen: boolean
   onClose: () => void
-  promotion: Promotion | null
+  promotion: TablePromotion | null
 }
 
 export function PromotionDetailsDialog({ isOpen, onClose, promotion }: PromotionDetailsDialogProps) {
@@ -50,9 +40,16 @@ export function PromotionDetailsDialog({ isOpen, onClose, promotion }: Promotion
             </div>
           </div>
 
+          {promotion.employeeEmail && (
+            <div className="mt-4">
+              <h3 className="text-sm font-medium text-gray-500">Email</h3>
+              <p className="mt-1">{promotion.employeeEmail}</p>
+            </div>
+          )}
+
           <div className="mt-4">
             <h3 className="text-sm font-medium text-gray-500">Company/Department</h3>
-            <p className="mt-1">{promotion.company}</p>
+            <p className="mt-1">{promotion.company || 'Not specified'}</p>
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-4">
@@ -75,6 +72,26 @@ export function PromotionDetailsDialog({ isOpen, onClose, promotion }: Promotion
             <h3 className="text-sm font-medium text-gray-500">Details/Reason</h3>
             <p className="mt-1 whitespace-pre-wrap">{promotion.details || "No details provided"}</p>
           </div>
+
+          {(promotion.createdAt || promotion.updatedAt) && (
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <h3 className="text-sm font-medium text-gray-500 mb-2">System Information</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                {promotion.createdAt && (
+                  <div>
+                    <span className="text-gray-500">Created:</span>
+                    <p>{new Date(promotion.createdAt).toLocaleDateString()}</p>
+                  </div>
+                )}
+                {promotion.updatedAt && (
+                  <div>
+                    <span className="text-gray-500">Updated:</span>
+                    <p>{new Date(promotion.updatedAt).toLocaleDateString()}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

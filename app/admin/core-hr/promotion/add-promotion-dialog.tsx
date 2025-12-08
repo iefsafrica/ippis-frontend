@@ -221,3 +221,4 @@ export function AddPromotionDialog({ isOpen, onClose, onSubmit }: AddPromotionDi
     </Dialog>
   )
 }
+
