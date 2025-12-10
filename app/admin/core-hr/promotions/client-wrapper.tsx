@@ -1,34 +1,35 @@
+
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { PromotionContent } from "./promotion-content"
 import { useToast } from "@/hooks/use-toast"
 import { 
   usePromotedEmployees, 
   useCreatePromotion, 
-  useDeletePromotion,
-  usePromotedEmployeeDetails 
+  useDeletePromotion
 } from "@/services/hooks/hr-core/usePromotions"
 import { TablePromotion } from "@/types/hr-core/promotion-management"
-//@ts-expect-error - fix any
-const transformToTablePromotion = (data: PromotionResponseData): TablePromotion => {
+import {  CreatePromotionRequest } from "@/types/hr-core/promotion-management"
+
+
+const transformToTablePromotion = (data: any): TablePromotion => {
   return {
-    id: data.promotion_id.toString(),
-    employee: data.employee_name,
-    employeeId: data.employee_id,
+    id: data.id?.toString() || Math.random().toString(),
+    employee: data.employee_name || data.name || "Unknown",
+    employeeId: data.employee_id || data.id || "",
     company: data.department || "Ministry",
-    promotionTitle: data.new_position,
-    date: data.effective_date,
-    previousPosition: data.previous_position,
-    details: data.reason,
-    employeeEmail: data.employee_email,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
-    currentPosition: data.current_position
+    promotionTitle: data.new_position || data.position || "",
+    date: data.effective_date || data.updated_at || new Date().toISOString(),
+    previousPosition: data.previous_position || "N/A",
+    details: data.reason || "",
+    employeeEmail: data.employee_email || data.email || "",
+    createdAt: data.created_at || "",
+    updatedAt: data.updated_at || "",
+    currentPosition: data.current_position || data.position || ""
   }
 }
 
-//@ts-expect-error - fix any
 const transformToCreateRequest = (data: Omit<TablePromotion, 'id'>): CreatePromotionRequest => {
   return {
     employee_id: data.employeeId,
@@ -51,7 +52,6 @@ export interface SearchParams {
 
 export default function ClientWrapper() {
   const [tablePromotions, setTablePromotions] = useState<TablePromotion[]>([])
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const { toast } = useToast()
   
   // Use React Query hooks
@@ -62,25 +62,14 @@ export default function ClientWrapper() {
     error: promotionsError 
   } = usePromotedEmployees()
   
-  // Hook for employee details
-  const { 
-    data: employeeDetails,
-    isLoading: isLoadingDetails,
-    error: detailsError
-    //@ts-expect-error - fix any
-  } = usePromotedEmployeeDetails(selectedEmployeeId || '', {
-    enabled: !!selectedEmployeeId
-  })
-  
   const createPromotionMutation = useCreatePromotion({
-    onSuccess: (newPromotion) => {
-      const tablePromotion = transformToTablePromotion(newPromotion)
-      setTablePromotions(prev => [tablePromotion, ...prev])
+    onSuccess: () => {
       toast({
         title: "Promotion Added",
-        description: `${newPromotion.employee_name} has been promoted to ${newPromotion.new_position}`,
-        variant: "success" as any,
+        description: "Promotion has been added successfully",
+        variant: "default",
       })
+      refetchPromotions()
     },
     onError: (error) => {
       toast({
@@ -92,13 +81,13 @@ export default function ClientWrapper() {
   })
   
   const deletePromotionMutation = useDeletePromotion({
-    onSuccess: (_, promotionId) => {
-      setTablePromotions(prev => prev.filter(promotion => promotion.id !== promotionId.toString()))
+    onSuccess: () => {
       toast({
         title: "Promotion Deleted",
         description: "The promotion record has been deleted successfully",
-        variant: "success" as any,
+        variant: "default",
       })
+      refetchPromotions()
     },
     onError: (error) => {
       toast({
@@ -130,17 +119,6 @@ export default function ClientWrapper() {
     }
   }, [promotionsError, toast])
 
-  // Show error toast if there's an error loading details
-  useEffect(() => {
-    if (detailsError) {
-      toast({
-        title: "Error Loading Details",
-        description: "Failed to load employee details. Please try again.",
-        variant: "destructive",
-      })
-    }
-  }, [detailsError, toast])
-
   // Function to add a new promotion
   const handleAddPromotion = (newPromotionData: Omit<TablePromotion, 'id'>) => {
     const createRequest = transformToCreateRequest(newPromotionData)
@@ -161,16 +139,6 @@ export default function ClientWrapper() {
     }
   }
 
-  // Function to handle view details
-  const handleViewDetails = useCallback((employeeId: string) => {
-    setSelectedEmployeeId(employeeId)
-  }, [])
-
-  // Function to close details dialog
-  const handleCloseDetails = useCallback(() => {
-    setSelectedEmployeeId(null)
-  }, [])
-
   // Function to handle search
   const handleSearch = (searchParams: SearchParams) => {
     // If no search params, show all data
@@ -180,13 +148,13 @@ export default function ClientWrapper() {
       return
     }
 
-    const filtered = promotionsData
-      .filter((promotion) => {
+    const filtered = (promotionsData || [])
+      .filter((promotion: any) => {
         return Object.entries(searchParams).every(([key, value]) => {
           if (!value) return true
 
           if (key === "employee" && value) {
-            return promotion.employee_name
+            return (promotion.employee_name || promotion.name || "")
               .toLowerCase()
               .includes((value as string).toLowerCase())
           }
@@ -200,17 +168,19 @@ export default function ClientWrapper() {
           }
 
           if (key === "promotionTitle" && value) {
-            return promotion.new_position
+            return (promotion.new_position || promotion.position || "")
               .toLowerCase()
               .includes((value as string).toLowerCase())
           }
 
           if (key === "dateFrom" && value) {
-            return new Date(promotion.effective_date) >= new Date(value as string)
+            const promotionDate = new Date(promotion.effective_date || promotion.updated_at)
+            return promotionDate >= new Date(value as string)
           }
 
           if (key === "dateTo" && value) {
-            return new Date(promotion.effective_date) <= new Date(value as string)
+            const promotionDate = new Date(promotion.effective_date || promotion.updated_at)
+            return promotionDate <= new Date(value as string)
           }
 
           return true
@@ -231,12 +201,6 @@ export default function ClientWrapper() {
       onAddPromotion={handleAddPromotion}
       onDeletePromotion={handleDeletePromotion}
       onSearch={handleSearch}
-      //@ts-expect-error - fix any
-      onViewDetails={handleViewDetails}
-      employeeDetails={employeeDetails}
-      isDetailsLoading={isLoadingDetails}
-      isDetailsDialogOpen={!!selectedEmployeeId}
-      onCloseDetails={handleCloseDetails}
     />
   )
 }

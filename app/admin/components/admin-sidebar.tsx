@@ -179,8 +179,8 @@ export function AdminSidebar() {
         setOpenDropdown(openDropdown === "core-hr" ? null : "core-hr"),
       subItems: [
         {
-          title: "Promotion",
-          href: "/admin/core-hr/promotion",
+          title: "Promotions",
+          href: "/admin/core-hr/promotions",
         },
         {
           title: "Award",

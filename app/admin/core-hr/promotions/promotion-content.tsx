@@ -1,6 +1,8 @@
+
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -12,9 +14,8 @@ import {
 import { Pagination } from '@/app/admin/components/pagination';
 import { DataExportMenu } from '@/app/admin/components/data-export-menu';
 import { AdvancedSearch } from '@/app/admin/components/advanced-search';
-import { Plus, Trash2, FileEdit, Eye } from 'lucide-react';
+import { Plus, Trash2, FileEdit, Eye, ChevronUp, ChevronDown } from 'lucide-react';
 import { AddPromotionDialog } from './add-promotion-dialog';
-import { PromotionDetailsDialog } from './promotion-details-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -45,6 +46,9 @@ interface PromotionContentProps {
   onSearch: (searchParams: any) => void;
 }
 
+type SortField = 'employee' | 'employeeId' | 'company' | 'promotionTitle' | 'date';
+type SortDirection = 'asc' | 'desc';
+
 export function PromotionContent({
   promotions,
   isLoading,
@@ -52,22 +56,49 @@ export function PromotionContent({
   onDeletePromotion,
   onSearch,
 }: PromotionContentProps) {
+  const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedPromotionId, setSelectedPromotionId] = useState<string | null>(
     null
   );
-  const [selectedPromotion, setSelectedPromotion] = useState<TablePromotion | null>(
-    null
-  );
-  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const { toast } = useToast();
 
+  // Sort promotions based on selected field and direction
+  const sortedPromotions = useMemo(() => {
+    const promotionsCopy = [...promotions];
+    
+    return promotionsCopy.sort((a, b) => {
+      let aValue: any = a[sortField];
+      let bValue: any = b[sortField];
+
+      // Handle date sorting
+      if (sortField === 'date') {
+        aValue = new Date(aValue).getTime();
+        bValue = new Date(bValue).getTime();
+      }
+      
+      // Handle string sorting (case insensitive)
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+
+      if (sortDirection === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+  }, [promotions, sortField, sortDirection]);
+
   const itemsPerPage = 50;
-  const totalPages = Math.ceil(promotions.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedPromotions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedPromotions = promotions.slice(
+  const paginatedPromotions = sortedPromotions.slice(
     startIndex,
     startIndex + itemsPerPage
   );
@@ -112,8 +143,27 @@ export function PromotionContent({
   };
 
   const handleViewDetails = (promotion: TablePromotion) => {
-    setSelectedPromotion(promotion);
-    setIsDetailsDialogOpen(true);
+    router.push(`/admin/core-hr/promotions/${promotion.employeeId}`);
+  };
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction if clicking the same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field with default descending order
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) return null;
+    return sortDirection === 'asc' ? (
+      <ChevronUp className="ml-1 h-4 w-4" />
+    ) : (
+      <ChevronDown className="ml-1 h-4 w-4" />
+    );
   };
 
   const searchFields = [
@@ -157,6 +207,11 @@ export function PromotionContent({
             <CardTitle>Promotions List</CardTitle>
             <CardDescription>
               Manage employee promotions and career advancement records
+              {sortedPromotions.length > 0 && (
+                <span className="ml-2 text-sm font-medium">
+                  (Sorted by {sortField} in {sortDirection}ending order)
+                </span>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -172,11 +227,51 @@ export function PromotionContent({
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Employee</TableHead>
-                        <TableHead>Employee ID</TableHead>
-                        <TableHead>Company/Department</TableHead>
-                        <TableHead>Promotion Title</TableHead>
-                        <TableHead>Date</TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('employee')}
+                        >
+                          <div className="flex items-center">
+                            Employee
+                            {getSortIcon('employee')}
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('employeeId')}
+                        >
+                          <div className="flex items-center">
+                            Employee ID
+                            {getSortIcon('employeeId')}
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('company')}
+                        >
+                          <div className="flex items-center">
+                            Company/Department
+                            {getSortIcon('company')}
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('promotionTitle')}
+                        >
+                          <div className="flex items-center">
+                            Promotion Title
+                            {getSortIcon('promotionTitle')}
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('date')}
+                        >
+                          <div className="flex items-center">
+                            Date
+                            {getSortIcon('date')}
+                          </div>
+                        </TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -205,6 +300,7 @@ export function PromotionContent({
                                   variant="outline"
                                   size="icon"
                                   onClick={() => handleViewDetails(promotion)}
+                                  title="View Details"
                                 >
                                   <Eye className="h-4 w-4" />
                                 </Button>
@@ -212,6 +308,7 @@ export function PromotionContent({
                                   variant="outline"
                                   size="icon"
                                   className="text-blue-600 hover:text-blue-800"
+                                  title="Edit"
                                 >
                                   <FileEdit className="h-4 w-4" />
                                 </Button>
@@ -222,6 +319,7 @@ export function PromotionContent({
                                   onClick={() =>
                                     handleDeleteClick(promotion.id)
                                   }
+                                  title="Delete"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -253,12 +351,6 @@ export function PromotionContent({
         isOpen={isAddDialogOpen}
         onClose={() => setIsAddDialogOpen(false)}
         onSubmit={onAddPromotion}
-      />
-
-      <PromotionDetailsDialog
-        isOpen={isDetailsDialogOpen}
-        onClose={() => setIsDetailsDialogOpen(false)}
-        promotion={selectedPromotion}
       />
 
       <AlertDialog
