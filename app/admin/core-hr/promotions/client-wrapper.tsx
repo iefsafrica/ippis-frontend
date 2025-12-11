@@ -1,17 +1,16 @@
 
+
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { PromotionContent } from "./promotion-content"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { 
   usePromotedEmployees, 
   useCreatePromotion, 
   useDeletePromotion
 } from "@/services/hooks/hr-core/usePromotions"
-import { TablePromotion } from "@/types/hr-core/promotion-management"
-import {  CreatePromotionRequest } from "@/types/hr-core/promotion-management"
-
+import { TablePromotion, CreatePromotionRequest } from "@/types/hr-core/promotion-management"
 
 const transformToTablePromotion = (data: any): TablePromotion => {
   return {
@@ -52,147 +51,183 @@ export interface SearchParams {
 
 export default function ClientWrapper() {
   const [tablePromotions, setTablePromotions] = useState<TablePromotion[]>([])
-  const { toast } = useToast()
+  const [originalPromotions, setOriginalPromotions] = useState<TablePromotion[]>([])
+  const [needsRefresh, setNeedsRefresh] = useState(false)
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false)
   
   // Use React Query hooks
   const { 
     data: promotionsData = [], 
     isLoading: isLoadingPromotions, 
-    refetch: refetchPromotions,
-    error: promotionsError 
+    error: promotionsError,
+    refetch: refetchPromotions
   } = usePromotedEmployees()
   
+  // Function to sort data in descending order by date
+  const sortDataByDateDescending = (data: TablePromotion[]): TablePromotion[] => {
+    if (!data || data.length === 0) return [];
+    
+    return [...data].sort((a, b) => {
+      try {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        return dateB - dateA; // Newest first (descending)
+      } catch (error) {
+        return 0;
+      }
+    });
+  };
+  
+  // Function to manually refresh promotions data
+  const refreshPromotionsData = async () => {
+    try {
+      setIsManualRefreshing(true)
+      const { data: newData } = await refetchPromotions()
+      
+      if (newData && newData.length > 0) {
+        // Transform the data first
+        const transformed = newData.map(transformToTablePromotion)
+        // Sort by date in descending order
+        const sortedTransformed = sortDataByDateDescending(transformed);
+        setTablePromotions(sortedTransformed)
+        setOriginalPromotions(sortedTransformed)
+        toast.success("Promotions updated")
+      } else {
+        setTablePromotions([])
+        setOriginalPromotions([])
+      }
+      
+      setNeedsRefresh(false)
+    } catch (error) {
+      console.error("Error refreshing promotions:", error)
+      toast.error("Failed to refresh promotions")
+    } finally {
+      setIsManualRefreshing(false)
+    }
+  }
+  
+  // Create promotion mutation
   const createPromotionMutation = useCreatePromotion({
     onSuccess: () => {
-      toast({
-        title: "Promotion Added",
-        description: "Promotion has been added successfully",
-        variant: "default",
-      })
-      refetchPromotions()
+      setNeedsRefresh(true)
+      toast.success("Promotion created successfully!")
     },
     onError: (error) => {
-      toast({
-        title: "Error",
-        description: `Failed to add promotion: ${error.message}`,
-        variant: "destructive",
-      })
+      toast.error(error.message || "Failed to create promotion")
     }
   })
   
+  // Delete promotion mutation
   const deletePromotionMutation = useDeletePromotion({
     onSuccess: () => {
-      toast({
-        title: "Promotion Deleted",
-        description: "The promotion record has been deleted successfully",
-        variant: "default",
-      })
-      refetchPromotions()
+      refreshPromotionsData()
+      toast.success("Promotion deleted successfully!")
     },
     onError: (error) => {
-      toast({
-        title: "Error",
-        description: `Failed to delete promotion: ${error.message}`,
-        variant: "destructive",
-      })
+      toast.error(error.message || "Failed to delete promotion")
     }
   })
 
-  // Transform data when promotionsData changes
+  // Initial data load with sorting
   useEffect(() => {
     if (promotionsData && promotionsData.length > 0) {
+      // Transform the data first
       const transformed = promotionsData.map(transformToTablePromotion)
-      setTablePromotions(transformed)
+      // Sort by date in descending order
+      const sortedTransformed = sortDataByDateDescending(transformed);
+      setTablePromotions(sortedTransformed)
+      setOriginalPromotions(sortedTransformed)
     } else {
       setTablePromotions([])
+      setOriginalPromotions([])
     }
   }, [promotionsData])
+
+  // Check if we need to refresh
+  useEffect(() => {
+    if (needsRefresh && !isManualRefreshing) {
+      refreshPromotionsData()
+    }
+  }, [needsRefresh])
 
   // Show error toast if there's an error loading promotions
   useEffect(() => {
     if (promotionsError) {
-      toast({
-        title: "Error Loading Promotions",
-        description: "Failed to load promotion data. Please try again.",
-        variant: "destructive",
-      })
+      toast.error("Failed to load promotion data. Please try again.")
     }
-  }, [promotionsError, toast])
+  }, [promotionsError])
 
   // Function to add a new promotion
-  const handleAddPromotion = (newPromotionData: Omit<TablePromotion, 'id'>) => {
-    const createRequest = transformToCreateRequest(newPromotionData)
-    createPromotionMutation.mutate(createRequest)
+  const handleAddPromotion = async (promotionData: any) => {
+    try {
+      const result = await createPromotionMutation.mutateAsync(promotionData)
+      return result
+    } catch (error) {
+      throw error
+    }
   }
 
   // Function to delete a promotion
-  const handleDeletePromotion = (id: string) => {
-    const promotionId = parseInt(id)
-    if (!isNaN(promotionId)) {
-      deletePromotionMutation.mutate(promotionId)
-    } else {
-      toast({
-        title: "Error",
-        description: "Invalid promotion ID",
-        variant: "destructive",
-      })
+  const handleDeletePromotion = async (id: string) => {
+    try {
+      const promotionId = parseInt(id)
+      if (!isNaN(promotionId)) {
+        await deletePromotionMutation.mutateAsync(promotionId)
+      } else {
+        toast.error("Invalid promotion ID")
+        throw new Error("Invalid promotion ID")
+      }
+    } catch (error) {
+      throw error
     }
   }
 
   // Function to handle search
   const handleSearch = (searchParams: SearchParams) => {
-    // If no search params, show all data
+    // If no search params, reset to original data
     if (!Object.values(searchParams).some((value) => value)) {
-      const transformed = promotionsData.map(transformToTablePromotion)
-      setTablePromotions(transformed)
+      setTablePromotions(originalPromotions)
       return
     }
 
-    const filtered = (promotionsData || [])
-      .filter((promotion: any) => {
-        return Object.entries(searchParams).every(([key, value]) => {
-          if (!value) return true
+    const filtered = originalPromotions.filter((promotion) => {
+      return Object.entries(searchParams).every(([key, value]) => {
+        if (!value) return true
 
-          if (key === "employee" && value) {
-            return (promotion.employee_name || promotion.name || "")
-              .toLowerCase()
-              .includes((value as string).toLowerCase())
-          }
+        const searchValue = String(value).toLowerCase()
+        
+        if (key === "employee" && value) {
+          return promotion.employee.toLowerCase().includes(searchValue)
+        }
 
-          if (key === "company" && value) {
-            return promotion.department
-              ? promotion.department
-                  .toLowerCase()
-                  .includes((value as string).toLowerCase())
-              : false
-          }
+        if (key === "company" && value) {
+          //@ts-expect-error - fix any
+          return promotion.company.toLowerCase().includes(searchValue)
+        }
 
-          if (key === "promotionTitle" && value) {
-            return (promotion.new_position || promotion.position || "")
-              .toLowerCase()
-              .includes((value as string).toLowerCase())
-          }
+        if (key === "promotionTitle" && value) {
+          return promotion.promotionTitle.toLowerCase().includes(searchValue)
+        }
 
-          if (key === "dateFrom" && value) {
-            const promotionDate = new Date(promotion.effective_date || promotion.updated_at)
-            return promotionDate >= new Date(value as string)
-          }
+        if (key === "dateFrom" && value) {
+          const promotionDate = new Date(promotion.date)
+          return promotionDate >= new Date(value)
+        }
 
-          if (key === "dateTo" && value) {
-            const promotionDate = new Date(promotion.effective_date || promotion.updated_at)
-            return promotionDate <= new Date(value as string)
-          }
+        if (key === "dateTo" && value) {
+          const promotionDate = new Date(promotion.date)
+          return promotionDate <= new Date(value)
+        }
 
-          return true
-        })
+        return true
       })
-      .map(transformToTablePromotion)
+    })
 
     setTablePromotions(filtered)
   }
 
   // Combine loading states
-  const isLoading = isLoadingPromotions || createPromotionMutation.isPending || deletePromotionMutation.isPending
+  const isLoading = isLoadingPromotions || createPromotionMutation.isPending || deletePromotionMutation.isPending || isManualRefreshing
 
   return (
     <PromotionContent

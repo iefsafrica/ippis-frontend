@@ -39,6 +39,9 @@ import {
   Target,
   Star,
   Users,
+  ChevronRight,
+  ArrowUpRight,
+  Percent,
 } from 'lucide-react';
 import { usePromotedEmployeeDetails } from '@/services/hooks/hr-core/usePromotions';
 import { useEffect, useState } from 'react';
@@ -52,7 +55,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { PromotedEmployeeDetails, Promotion } from '@/types/hr-core/promotion-management';
 
-// Extended interface to include optional UI-specific properties
 interface EmployeeDetailsWithUI extends PromotedEmployeeDetails {
   avatar?: string;
   phone?: string;
@@ -230,14 +232,13 @@ export default function PromotionDetailsPage() {
       </div>
     );
   }
-//@ts-expect-error - Temporary fix for type mismatch
+//@ts-expect-error - fix any
   const { promotions, ...employee } = employeeDetails as EmployeeDetailsWithUI;
   const latestPromotion = promotions[promotions.length - 1];
   const tenureInMonths = Math.floor(
     (new Date().getTime() - new Date(employee.join_date).getTime()) / (1000 * 60 * 60 * 24 * 30)
   );
 
-  // Calculate average promotion cycle in months
   const calculateAveragePromotionCycle = (promotions: Promotion[]) => {
     if (promotions.length < 2) return 0;
     
@@ -254,66 +255,70 @@ export default function PromotionDetailsPage() {
 
   const averagePromotionCycle = calculateAveragePromotionCycle(promotions);
 
+  // Format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  // Calculate performance metrics
+  const getPerformanceColor = (rating: number) => {
+    if (rating >= 4.5) return 'text-green-600';
+    if (rating >= 4.0) return 'text-green-500';
+    if (rating >= 3.5) return 'text-yellow-500';
+    return 'text-gray-500';
+  };
+
   return (
     <div className="container mx-auto py-8 space-y-8">
-      {/* Header with Breadcrumbs */}
-      <div className="flex flex-col space-y-4">
-        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-          <Button variant="ghost" size="sm" onClick={handleGoBack} className="px-0">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Promotions
-          </Button>
-          <span>/</span>
-          <span className="font-medium text-foreground">Employee Details</span>
-        </div>
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start space-x-4">
-            <Avatar className="h-16 w-16 border-2 border-background shadow-sm">
-              <AvatarImage src={employee.avatar} alt={employee.name} />
-              <AvatarFallback className="bg-primary/10 text-primary text-lg font-semibold">
-                {employee.name.split(' ').map(n => n[0]).join('')}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">{employee.name}</h1>
-              <div className="flex flex-wrap items-center gap-2 mt-2">
-                <Badge variant={employee.status === 'active' ? 'default' : 'secondary'} className="gap-1">
-                  {employee.status === 'active' ? (
-                    <CheckCircle className="h-3 w-3" />
-                  ) : (
-                    <AlertCircle className="h-3 w-3" />
-                  )}
-                  {employee.status.charAt(0).toUpperCase() + employee.status.slice(1)}
-                </Badge>
-                <Badge variant="outline" className="gap-1">
-                  <Building className="h-3 w-3" />
-                  {employee.department}
-                </Badge>
-                <Badge variant="outline" className="gap-1">
-                  <Briefcase className="h-3 w-3" />
-                  {employee.position}
-                </Badge>
-              </div>
+      {/* Header with Actions */}
+      <div className="flex flex-col space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleGoBack} 
+              className="gap-2 hover:bg-gray-50"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+            <div className="flex items-center space-x-2 text-sm text-gray-500">
+              <span>Promotions</span>
+              <ChevronRight className="h-3 w-3" />
+              <span className="font-medium text-gray-900">Employee Details</span>
             </div>
           </div>
-
+          
           <div className="flex items-center space-x-2">
-            <Button variant="outline" onClick={handleExport} className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleExport} 
+              className="gap-2 border-gray-300 hover:bg-gray-50"
+            >
               <Download className="h-4 w-4" />
               Export
             </Button>
-            <Button variant="outline" onClick={handlePrint} className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handlePrint} 
+              className="gap-2 border-gray-300 hover:bg-gray-50"
+            >
               <Printer className="h-4 w-4" />
               Print
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
+                <Button variant="outline" size="icon" className="border-gray-300 hover:bg-gray-50">
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSendNotification} className="gap-2">
@@ -332,64 +337,120 @@ export default function PromotionDetailsPage() {
             </DropdownMenu>
           </div>
         </div>
+
+        {/* Employee Header Card */}
+        <Card className="border-0 shadow-sm bg-gradient-to-r from-gray-50 to-white">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div className="flex items-start space-x-6">
+                <div className="relative">
+                  <Avatar className="h-20 w-20 border-4 border-white shadow-lg">
+                    <AvatarImage src={employee.avatar} alt={employee.name} />
+                    <AvatarFallback className="bg-green-50 text-green-700 text-lg font-semibold">
+                      {employee.name.split(' ').map(n => n[0]).join('')}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="absolute -bottom-1 -right-1">
+                    <div className="bg-green-600 text-white p-1.5 rounded-full">
+                      <Award className="h-4 w-4" />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900">{employee.name}</h1>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <Badge 
+                        variant="secondary" 
+                        className="bg-green-50 text-green-700 border-green-200 hover:bg-green-50"
+                      >
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        {employee.status.charAt(0).toUpperCase() + employee.status.slice(1)}
+                      </Badge>
+                      <span className="text-sm text-gray-500">•</span>
+                      
+                      <span className="text-sm text-gray-600">{employee.employee_id}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-4">
+                    <div className="flex items-center gap-2">
+                      <Building className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm text-gray-600">{employee.department}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Briefcase className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm text-gray-600">{employee.position}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm text-gray-600">
+                        Joined {new Date(employee.join_date).getFullYear()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="text-right">
+                <div className="text-3xl font-bold text-gray-900">
+                  {promotions.length}
+                </div>
+                <div className="text-sm text-gray-500">Total Promotions</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Left Column - Employee Profile */}
+        {/* Left Column - Summary & Stats */}
         <div className="lg:col-span-1 space-y-6">
-          {/* Employee Info Card */}
-          <Card className="shadow-sm">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Employee Profile
-              </CardTitle>
+          {/* Quick Stats */}
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold">Career Overview</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-5">
               <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-muted">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="font-medium">{employee.email}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-muted">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Phone</p>
-                    <p className="font-medium">{employee.phone || 'N/A'}</p>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-gray-100">
+                      <Calendar className="h-4 w-4 text-gray-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Tenure</p>
+                      <p className="font-semibold text-gray-900">
+                        {Math.floor(tenureInMonths / 12)}y {tenureInMonths % 12}m
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-muted">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Location</p>
-                    <p className="font-medium">{employee.location || 'N/A'}</p>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-gray-100">
+                      <Star className="h-4 w-4 text-gray-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Performance</p>
+                      <p className={`font-semibold ${getPerformanceColor(employee.performance_rating || 4.8)}`}>
+                        {employee.performance_rating?.toFixed(1) || '4.8'}/5.0
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-muted">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Join Date</p>
-                    <p className="font-medium">
-                      {new Date(employee.join_date).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </p>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-gray-100">
+                      <Clock className="h-4 w-4 text-gray-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Avg. Cycle</p>
+                      <p className="font-semibold text-gray-900">{averagePromotionCycle || 18} months</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -398,359 +459,479 @@ export default function PromotionDetailsPage() {
 
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Tenure</span>
-                  <span className="text-sm font-semibold">{tenureInMonths} months</span>
+                  <span className="text-sm font-medium text-gray-700">Career Progress</span>
+                  <span className="text-sm font-semibold text-gray-900">{Math.min(tenureInMonths, 100)}%</span>
                 </div>
-                <Progress value={Math.min(tenureInMonths, 100)} className="h-2" />
+                <Progress value={Math.min(tenureInMonths, 100)} className="h-2 bg-gray-200">
+                  <div className="h-full bg-green-600 rounded-full transition-all duration-300" style={{ width: `${Math.min(tenureInMonths, 100)}%` }} />
+                </Progress>
               </div>
             </CardContent>
           </Card>
 
-          {/* Career Stats */}
-          <Card className="shadow-sm">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Career Stats
+          {/* Contact Info */}
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Contact Information
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-primary/5 p-4 rounded-lg text-center">
-                  <div className="text-2xl font-bold text-primary">{promotions.length}</div>
-                  <div className="text-xs text-muted-foreground mt-1">Promotions</div>
-                </div>
-                <div className="bg-blue-500/5 p-4 rounded-lg text-center">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {Math.floor(tenureInMonths / 12)}.{tenureInMonths % 12}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">Years of Service</div>
-                </div>
-              </div>
-              
               <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Performance Rating</span>
-                  <span className="font-semibold flex items-center gap-1">
-                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                    {employee.performance_rating?.toFixed(1) || '4.8'}/5.0
-                  </span>
+                <div className="flex items-start gap-3">
+                  <Mail className="h-4 w-4 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-xs text-gray-500">Email</p>
+                    <p className="text-sm font-medium text-gray-900">{employee.email}</p>
+                  </div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Avg. Promotion Cycle</span>
-                  <span className="font-semibold">{averagePromotionCycle || 18} months</span>
+
+                <div className="flex items-start gap-3">
+                  <Phone className="h-4 w-4 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-xs text-gray-500">Phone</p>
+                    <p className="text-sm font-medium text-gray-900">{employee.phone || 'Not provided'}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-4 w-4 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-xs text-gray-500">Location</p>
+                    <p className="text-sm font-medium text-gray-900">{employee.location || 'Not specified'}</p>
+                  </div>
                 </div>
               </div>
+
+              <Button className="w-full mt-4 bg-green-600 hover:bg-green-700">
+                <Mail className="h-4 w-4 mr-2" />
+                Contact Employee
+              </Button>
             </CardContent>
           </Card>
+
+          {/* Latest Promotion */}
+          {latestPromotion && (
+            <Card className="border-0 shadow-sm border-l-4 border-l-green-500">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <Award className="h-4 w-4 text-green-600" />
+                  Latest Promotion
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs text-gray-500">Effective Date</p>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {new Date(latestPromotion.effective_date).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center justify-between py-2 px-3 bg-green-50 rounded-lg">
+                    <div className="text-center">
+                      <p className="text-xs text-gray-600">From</p>
+                      <p className="text-sm font-medium text-gray-900">{latestPromotion.previous_position}</p>
+                    </div>
+                    <ArrowUpRight className="h-4 w-4 text-green-600" />
+                    <div className="text-center">
+                      <p className="text-xs text-gray-600">To</p>
+                      <p className="text-sm font-medium text-green-700">{latestPromotion.new_position}</p>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <p className="text-xs text-gray-500">Department</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {latestPromotion.department || employee.department}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Right Column - Main Content */}
         <div className="lg:col-span-3 space-y-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
-              <TabsTrigger value="history" className="gap-2">
-                <History className="h-4 w-4" />
-                Promotion History
-              </TabsTrigger>
-              <TabsTrigger value="timeline" className="gap-2">
-                <Activity className="h-4 w-4" />
-                Career Timeline
-              </TabsTrigger>
-              <TabsTrigger value="insights" className="gap-2">
-                <Target className="h-4 w-4" />
-                Insights
-              </TabsTrigger>
-            </TabsList>
+          {/* Tabs Navigation */}
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
+                  activeTab === 'history'
+                    ? 'border-green-600 text-green-700'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <History className="h-4 w-4" />
+                  Promotion History
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('timeline')}
+                className={`py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
+                  activeTab === 'timeline'
+                    ? 'border-green-600 text-green-700'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Activity className="h-4 w-4" />
+                  Career Timeline
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('insights')}
+                className={`py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
+                  activeTab === 'insights'
+                    ? 'border-green-600 text-green-700'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Insights & Analysis
+                </div>
+              </button>
+            </nav>
+          </div>
 
-            <TabsContent value="history" className="space-y-6">
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Promotion Records</CardTitle>
-                      <CardDescription>
-                        Detailed history of all position changes
-                      </CardDescription>
-                    </div>
-                    <Badge variant="secondary" className="gap-1">
-                      <Users className="h-3 w-3" />
-                      {promotions.length} Records
-                    </Badge>
+          {/* Tab Content */}
+          {activeTab === 'history' && (
+            <Card className="border-0 shadow-sm">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Promotion Records</CardTitle>
+                    <CardDescription className="text-gray-500">
+                      Complete history of position changes and advancements
+                    </CardDescription>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="rounded-lg border">
-                    <Table>
-                      <TableHeader>
+                  <Badge variant="outline" className="bg-gray-50">
+                    {promotions.length} records
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-lg border border-gray-200 overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-gray-50">
+                      <TableRow>
+                        <TableHead className="font-semibold text-gray-700">Date</TableHead>
+                        <TableHead className="font-semibold text-gray-700">From Position</TableHead>
+                        <TableHead className="font-semibold text-gray-700">To Position</TableHead>
+                        <TableHead className="font-semibold text-gray-700">Department</TableHead>
+                        <TableHead className="font-semibold text-gray-700">Status</TableHead>
+                        <TableHead className="font-semibold text-gray-700 text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {promotions.length === 0 ? (
                         <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>From Position</TableHead>
-                          <TableHead>To Position</TableHead>
-                          <TableHead>Department</TableHead>
-                          <TableHead>Salary Change</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableCell colSpan={6} className="h-32 text-center">
+                            <div className="flex flex-col items-center justify-center py-8">
+                              <Award className="h-12 w-12 text-gray-300 mb-4" />
+                              <p className="text-gray-500">No promotion records found</p>
+                            </div>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {promotions.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">
-                              <div className="flex flex-col items-center justify-center py-8">
-                                <Award className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                                <p className="text-muted-foreground">No promotion records found</p>
+                      ) : (
+                        promotions.map((promotion: Promotion) => (
+                          <TableRow key={promotion.id} className="hover:bg-gray-50/50">
+                            <TableCell className="font-medium">
+                              <div className="flex flex-col">
+                                <span className="text-gray-900">
+                                  {new Date(promotion.effective_date).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric'
+                                  })}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {new Date(promotion.effective_date).toLocaleDateString('en-US', {
+                                    weekday: 'short'
+                                  })}
+                                </span>
                               </div>
                             </TableCell>
-                          </TableRow>
-                        ) : (
-                          promotions.map((promotion: Promotion) => (
-                            <TableRow key={promotion.id} className="hover:bg-muted/50">
-                              <TableCell className="font-medium">
-                                {new Date(promotion.effective_date).toLocaleDateString()}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <Briefcase className="h-3 w-3 text-muted-foreground" />
-                                  {promotion.previous_position}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <Award className="h-3 w-3 text-green-600" />
-                                  <span className="font-semibold">{promotion.new_position}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className="text-xs">
-                                  {promotion.department || employee.department}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-1 text-green-600">
-                                  <TrendingUp className="h-3 w-3" />
-                                  <span className="font-medium">+15%</span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                  Completed
-                                </Badge>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="timeline" className="space-y-6">
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <CardTitle>Career Journey</CardTitle>
-                  <CardDescription>
-                    Visual timeline of career progression
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="relative pl-8">
-                    {promotions.map((promotion: Promotion, index: number) => (
-                      <div key={promotion.id} className="relative pb-8 last:pb-0">
-                        {index < promotions.length - 1 && (
-                          <div className="absolute left-3 top-8 h-full w-0.5 bg-border" />
-                        )}
-                        <div className="relative flex items-start">
-                          <div className="absolute left-[-28px] mt-2 flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-primary shadow-sm">
-                            <Award className="h-4 w-4 text-primary-foreground" />
-                          </div>
-                          <div className="flex-1 rounded-lg border bg-card p-4 shadow-sm">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                              <div>
-                                <h4 className="font-semibold text-lg">{promotion.new_position}</h4>
-                                <p className="text-sm text-muted-foreground">
-                                  From {promotion.previous_position}
-                                </p>
-                              </div>
+                            <TableCell>
                               <div className="flex items-center gap-2">
-                                <Badge variant="secondary" className="gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {new Date(promotion.effective_date).toLocaleDateString()}
-                                </Badge>
+                                <div className="h-2 w-2 rounded-full bg-gray-300" />
+                                <span className="text-gray-700">{promotion.previous_position}</span>
                               </div>
-                            </div>
-                            <p className="mt-3 text-sm">{promotion.reason}</p>
-                            <div className="mt-4 flex flex-wrap gap-2">
-                              <Badge variant="outline" className="gap-1">
-                                <Building className="h-3 w-3" />
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Award className="h-4 w-4 text-green-600" />
+                                <span className="font-semibold text-gray-900">{promotion.new_position}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="bg-gray-50 text-gray-700">
                                 {promotion.department || employee.department}
                               </Badge>
-                              <Badge variant="outline" className="gap-1 bg-green-50 text-green-700">
-                                <DollarSign className="h-3 w-3" />
-                                Salary Increased
+                            </TableCell>
+                            <TableCell>
+                              <Badge className="bg-green-50 text-green-700 border-green-200 hover:bg-green-50">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Completed
                               </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === 'timeline' && (
+            <Card className="border-0 shadow-sm">
+              <CardHeader>
+                <CardTitle>Career Journey</CardTitle>
+                <CardDescription className="text-gray-500">
+                  Visual timeline of professional growth and development
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="relative">
+                  {/* Vertical Line */}
+                  <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200" />
+                  
+                  {promotions.map((promotion: Promotion, index: number) => (
+                    <div key={promotion.id} className="relative flex items-start mb-8 last:mb-0">
+                      {/* Timeline Dot */}
+                      <div className="relative z-10 flex-shrink-0">
+                        <div className={`h-12 w-12 rounded-full border-4 border-white flex items-center justify-center ${
+                          index === promotions.length - 1 ? 'bg-green-600' : 'bg-gray-300'
+                        }`}>
+                          <Award className="h-5 w-5 text-white" />
+                        </div>
+                      </div>
+                      
+                      {/* Content */}
+                      <div className="ml-6 flex-1">
+                        <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-3">
+                                <h4 className="font-semibold text-gray-900">{promotion.new_position}</h4>
+                                <Badge className="bg-green-50 text-green-700 border-green-200">
+                                  Level {index + 1}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-gray-600">
+                                Promoted from {promotion.previous_position}
+                              </p>
+                              <p className="text-sm text-gray-500 mt-2">{promotion.reason}</p>
+                            </div>
+                            
+                            <div className="flex flex-col items-end gap-2">
+                              <Badge variant="outline" className="bg-gray-50">
+                                <Calendar className="h-3 w-3 mr-1" />
+                                {new Date(promotion.effective_date).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  year: 'numeric'
+                                })}
+                              </Badge>
+                              <div className="text-sm text-gray-500">
+                                {Math.floor((new Date(promotion.effective_date).getTime() - new Date(employee.join_date).getTime()) / (1000 * 60 * 60 * 24 * 30))} months after joining
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-100">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg">
+                              <Building className="h-3 w-3 text-gray-500" />
+                              <span className="text-sm text-gray-700">{promotion.department || employee.department}</span>
+                            </div>
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-lg">
+                              <Percent className="h-3 w-3 text-green-600" />
+                              <span className="text-sm font-medium text-green-700">~15% salary increase</span>
                             </div>
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-            <TabsContent value="insights" className="space-y-6">
-              <Card className="shadow-sm">
+          {activeTab === 'insights' && (
+            <div className="space-y-6">
+              {/* Performance Metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="border-0 shadow-sm">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">Growth Rate</p>
+                        <p className="text-2xl font-bold text-gray-900 mt-2">
+                          {promotions.length > 0 ? ((promotions.length / (tenureInMonths / 12)) * 100).toFixed(1) : 0}%
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">per year</p>
+                      </div>
+                      <div className="p-3 rounded-full bg-green-50">
+                        <TrendingUp className="h-6 w-6 text-green-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-0 shadow-sm">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">Avg. Cycle</p>
+                        <p className="text-2xl font-bold text-gray-900 mt-2">
+                          {averagePromotionCycle || 18}
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">months between promotions</p>
+                      </div>
+                      <div className="p-3 rounded-full bg-blue-50">
+                        <Clock className="h-6 w-6 text-blue-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-0 shadow-sm">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">Performance</p>
+                        <p className="text-2xl font-bold text-gray-900 mt-2">
+                          {employee.performance_rating?.toFixed(1) || '4.8'}
+                        </p>
+                        <div className="flex items-center gap-1 mt-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`h-3 w-3 ${
+                                star <= Math.floor(employee.performance_rating || 4.8)
+                                  ? 'fill-yellow-400 text-yellow-400'
+                                  : 'fill-gray-200 text-gray-200'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-full bg-yellow-50">
+                        <Star className="h-6 w-6 text-yellow-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Recommendations */}
+              <Card className="border-0 shadow-sm">
                 <CardHeader>
-                  <CardTitle>Promotion Insights</CardTitle>
-                  <CardDescription>
-                    Analytics and trends from promotion history
+                  <CardTitle>Career Development Insights</CardTitle>
+                  <CardDescription className="text-gray-500">
+                    Analysis and recommendations for continued growth
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-semibold">Growth Pattern</h4>
-                        <TrendingUp className="h-5 w-5 text-green-600" />
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-gray-900">Growth Pattern Analysis</h4>
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                            <span className="text-sm text-gray-600">Total Career Levels</span>
+                            <span className="font-medium text-gray-900">{promotions.length}</span>
+                          </div>
+                          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                            <span className="text-sm text-gray-600">Time to First Promotion</span>
+                            <span className="font-medium text-gray-900">
+                              {promotions.length > 0 
+                                ? Math.floor((new Date(promotions[0].effective_date).getTime() - new Date(employee.join_date).getTime()) / (1000 * 60 * 60 * 24 * 30))
+                                : 'N/A'} months
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                            <span className="text-sm text-gray-600">Consistency Score</span>
+                            <span className="font-medium text-green-700">Excellent</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="space-y-3">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Total Promotions</span>
-                          <span className="font-semibold">{promotions.length}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Average Cycle</span>
-                          <span className="font-semibold">{averagePromotionCycle || 18} months</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Career Growth</span>
-                          <span className="font-semibold text-green-600">+{promotions.length} Levels</span>
+
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-gray-900">Next Steps</h4>
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-3 p-4 bg-green-50 rounded-lg border border-green-100">
+                            <Target className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="font-medium text-sm text-gray-900">Next Target Position</p>
+                              <p className="text-sm text-gray-600 mt-1">
+                                {employee.position.includes('Senior') ? 'Lead ' : 'Senior '}
+                                {employee.position.replace('Senior ', '').replace('Lead ', '')}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                            <Calendar className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="font-medium text-sm text-gray-900">Estimated Timeline</p>
+                              <p className="text-sm text-gray-600 mt-1">
+                                {averagePromotionCycle || 12} months based on current trajectory
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-semibold">Performance Metrics</h4>
-                        <BarChart3 className="h-5 w-5 text-blue-600" />
-                      </div>
+                    <Separator />
+
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-4">Development Recommendations</h4>
                       <div className="space-y-3">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Performance Rating</span>
-                          <span className="font-semibold">
-                            {employee.performance_rating?.toFixed(1) || '4.8'}/5.0
+                        <div className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg">
+                          <div className="h-2 w-2 rounded-full bg-green-600" />
+                          <span className="text-sm text-gray-700">
+                            Focus on leadership development programs
                           </span>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Tenure</span>
-                          <span className="font-semibold">{Math.floor(tenureInMonths / 12)} years</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Last Promotion</span>
-                          <span className="font-semibold">
-                            {latestPromotion 
-                              ? new Date(latestPromotion.effective_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-                              : 'N/A'
-                            }
+                        <div className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg">
+                          <div className="h-2 w-2 rounded-full bg-green-600" />
+                          <span className="text-sm text-gray-700">
+                            Consider cross-departmental exposure
                           </span>
                         </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator className="my-6" />
-
-                  <div>
-                    <h4 className="font-semibold mb-4">Next Steps & Recommendations</h4>
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3 p-3 rounded-lg bg-blue-50">
-                        <Target className="h-5 w-5 text-blue-600 mt-0.5" />
-                        <div>
-                          <p className="font-medium text-sm">Next Level Target</p>
-                          <p className="text-sm text-muted-foreground">
-                            {employee.position.includes('Senior') ? 'Lead ' : 'Senior '}{employee.position}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-3 p-3 rounded-lg bg-green-50">
-                        <Clock className="h-5 w-5 text-green-600 mt-0.5" />
-                        <div>
-                          <p className="font-medium text-sm">Estimated Timeline</p>
-                          <p className="text-sm text-muted-foreground">
-                            {averagePromotionCycle || 12}-{averagePromotionCycle ? averagePromotionCycle + 6 : 18} months based on current trajectory
-                          </p>
+                        <div className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg">
+                          <div className="h-2 w-2 rounded-full bg-green-600" />
+                          <span className="text-sm text-gray-700">
+                            Maintain current performance levels
+                          </span>
                         </div>
                       </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-          </Tabs>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Latest Promotion Highlights */}
-      {latestPromotion && (
-        <Card className="shadow-sm border-primary/20">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Award className="h-5 w-5 text-primary" />
-              Latest Promotion Highlight
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-primary/10">
-                  <Briefcase className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">From Position</p>
-                  <p className="font-semibold">{latestPromotion.previous_position}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-green-500/10">
-                  <Award className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">To Position</p>
-                  <p className="font-semibold">{latestPromotion.new_position}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-blue-500/10">
-                  <Calendar className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Effective Date</p>
-                  <p className="font-semibold">
-                    {new Date(latestPromotion.effective_date).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-purple-500/10">
-                  <TrendingUp className="h-6 w-6 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Growth Impact</p>
-                  <p className="font-semibold text-green-600">+1 Career Level</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="border-t pt-4">
-            <div className="w-full">
-              <p className="text-sm text-muted-foreground mb-2">Promotion Reason</p>
-              <p className="text-sm">{latestPromotion.reason}</p>
-            </div>
-          </CardFooter>
-        </Card>
-      )}
     </div>
   );
 }

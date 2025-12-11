@@ -111,6 +111,7 @@ export interface PromotedEmployeeDetails {
   updated_at: string;
   registration_id: string | null;
   metadata: any | null;
+  employee_id: string;
   promotions: Promotion[];
 }
 
