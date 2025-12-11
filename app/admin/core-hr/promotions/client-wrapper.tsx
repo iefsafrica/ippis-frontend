@@ -1,5 +1,3 @@
-
-
 "use client"
 
 import { useState, useEffect, useRef } from "react"
@@ -14,7 +12,7 @@ import { TablePromotion, CreatePromotionRequest } from "@/types/hr-core/promotio
 
 const transformToTablePromotion = (data: any): TablePromotion => {
   return {
-    id: data.id?.toString() || Math.random().toString(),
+    id: data.promotion_id?.toString() || data.id?.toString() || Math.random().toString(),
     employee: data.employee_name || data.name || "Unknown",
     employeeId: data.employee_id || data.id || "",
     company: data.department || "Ministry",
@@ -25,7 +23,8 @@ const transformToTablePromotion = (data: any): TablePromotion => {
     employeeEmail: data.employee_email || data.email || "",
     createdAt: data.created_at || "",
     updatedAt: data.updated_at || "",
-    currentPosition: data.current_position || data.position || ""
+    currentPosition: data.current_position || data.position || "",
+    promotionId: data.promotion_id || data.id
   }
 }
 
@@ -49,9 +48,14 @@ export interface SearchParams {
   dateTo?: string;
 }
 
+// Extend TablePromotion type to include promotionId
+interface ExtendedTablePromotion extends TablePromotion {
+  promotionId?: number;
+}
+
 export default function ClientWrapper() {
-  const [tablePromotions, setTablePromotions] = useState<TablePromotion[]>([])
-  const [originalPromotions, setOriginalPromotions] = useState<TablePromotion[]>([])
+  const [tablePromotions, setTablePromotions] = useState<ExtendedTablePromotion[]>([])
+  const [originalPromotions, setOriginalPromotions] = useState<ExtendedTablePromotion[]>([])
   const [needsRefresh, setNeedsRefresh] = useState(false)
   const [isManualRefreshing, setIsManualRefreshing] = useState(false)
   
@@ -63,18 +67,15 @@ export default function ClientWrapper() {
     refetch: refetchPromotions
   } = usePromotedEmployees()
   
-  // Function to sort data in descending order by date
-  const sortDataByDateDescending = (data: TablePromotion[]): TablePromotion[] => {
+  // Function to sort data in descending order by promotionId
+  const sortDataByPromotionIdDescending = (data: ExtendedTablePromotion[]): ExtendedTablePromotion[] => {
     if (!data || data.length === 0) return [];
     
     return [...data].sort((a, b) => {
-      try {
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
-        return dateB - dateA; // Newest first (descending)
-      } catch (error) {
-        return 0;
-      }
+      // Use promotionId for sorting - highest number first (descending)
+      const idA = a.promotionId || parseInt(a.id) || 0;
+      const idB = b.promotionId || parseInt(b.id) || 0;
+      return idB - idA; // Newest first (descending)
     });
   };
   
@@ -85,10 +86,8 @@ export default function ClientWrapper() {
       const { data: newData } = await refetchPromotions()
       
       if (newData && newData.length > 0) {
-        // Transform the data first
         const transformed = newData.map(transformToTablePromotion)
-        // Sort by date in descending order
-        const sortedTransformed = sortDataByDateDescending(transformed);
+        const sortedTransformed = sortDataByPromotionIdDescending(transformed);
         setTablePromotions(sortedTransformed)
         setOriginalPromotions(sortedTransformed)
         toast.success("Promotions updated")
@@ -133,8 +132,15 @@ export default function ClientWrapper() {
     if (promotionsData && promotionsData.length > 0) {
       // Transform the data first
       const transformed = promotionsData.map(transformToTablePromotion)
-      // Sort by date in descending order
-      const sortedTransformed = sortDataByDateDescending(transformed);
+      // Sort by promotionId in descending order
+      const sortedTransformed = sortDataByPromotionIdDescending(transformed);
+      console.log("Sorted by promotionId, first 5:", sortedTransformed.slice(0, 5).map(p => ({
+        id: p.id,
+        promotionId: p.promotionId,
+        employee: p.employee,
+        promotionTitle: p.promotionTitle
+      })));
+      
       setTablePromotions(sortedTransformed)
       setOriginalPromotions(sortedTransformed)
     } else {
@@ -201,7 +207,7 @@ export default function ClientWrapper() {
         }
 
         if (key === "company" && value) {
-          //@ts-expect-error - fix any
+          //@ts-expect-error - company exists on promotion
           return promotion.company.toLowerCase().includes(searchValue)
         }
 
@@ -223,7 +229,9 @@ export default function ClientWrapper() {
       })
     })
 
-    setTablePromotions(filtered)
+    // Keep the search results sorted by promotionId descending
+    const sortedFiltered = sortDataByPromotionIdDescending(filtered);
+    setTablePromotions(sortedFiltered)
   }
 
   // Combine loading states

@@ -119,6 +119,7 @@ export interface TablePromotion {
   id: string;
   employee: string;
   employeeId: string;
+  promotionId?: number;
   company?: string;
   promotionTitle: string;
   date: string;

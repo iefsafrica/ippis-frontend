@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -47,8 +45,13 @@ interface PromotionContentProps {
   onSearch: (searchParams: any) => void;
 }
 
-type SortField = 'employee' | 'employeeId' | 'company' | 'promotionTitle' | 'date';
+type SortField = 'employee' | 'employeeId' | 'company' | 'promotionTitle' | 'date' | 'id';
 type SortDirection = 'asc' | 'desc';
+
+// Extend TablePromotion to include promotionId
+interface ExtendedTablePromotion extends TablePromotion {
+  promotionId?: number;
+}
 
 export function PromotionContent({
   promotions,
@@ -64,7 +67,7 @@ export function PromotionContent({
   const [selectedPromotionId, setSelectedPromotionId] = useState<string | null>(
     null
   );
-  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortField, setSortField] = useState<SortField>('id');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -97,16 +100,23 @@ export function PromotionContent({
     }
   };
 
-  // Sort promotions based on selected field and direction - IMPORTANT FIX HERE
+  // Sort promotions based on selected field and direction
   const sortedPromotions = useMemo(() => {
     if (!promotions || promotions.length === 0) return [];
     
-    const promotionsCopy = [...promotions];
+    const promotionsCopy = [...promotions] as ExtendedTablePromotion[];
     
     return promotionsCopy.sort((a, b) => {
       let aValue: any = a[sortField];
       let bValue: any = b[sortField];
 
+      // Handle ID sorting (using promotionId if available)
+      if (sortField === 'id') {
+        // Try to use promotionId if available, otherwise parse the string id
+        aValue = a.promotionId || parseInt(a.id) || 0;
+        bValue = b.promotionId || parseInt(b.id) || 0;
+      }
+      
       // Handle date sorting
       if (sortField === 'date') {
         const dateA = new Date(aValue);
@@ -220,7 +230,7 @@ export function PromotionContent({
           <div className="flex items-center space-x-2">
             <AdvancedSearch
               onSearch={handleSearch}
-              //@ts-expect-error - fix any
+              //@ts-ignore
               fields={searchFields}
               title="Promotions"
             />
@@ -266,7 +276,7 @@ export function PromotionContent({
                   Manage employee promotions and career advancement records
                   {!isLoading && sortedPromotions.length > 0 && (
                     <span className="ml-2 text-sm font-medium">
-                      (Sorted by {sortField} in {sortDirection}ending order)
+                      (Sorted by {sortField === 'id' ? 'promotion ID' : sortField} in {sortDirection}ending order)
                     </span>
                   )}
                 </CardDescription>
