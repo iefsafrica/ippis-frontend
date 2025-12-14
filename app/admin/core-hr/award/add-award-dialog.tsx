@@ -1,5 +1,3 @@
-
-
 "use client"
 
 import type React from "react"
@@ -77,10 +75,12 @@ export function AddAwardDialog({
     department: "",
     award_type: "",
     gift_item: "",
-    cash_prize: 0,
+    cash_prize: 0, // Keep as 0 for the type
     award_date: new Date().toISOString().split("T")[0],
     description: "",
   })
+
+  const [cashPrizeInput, setCashPrizeInput] = useState<string>("") // New state for input display
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -115,6 +115,7 @@ export function AddAwardDialog({
         award_date: new Date().toISOString().split("T")[0],
         description: "",
       })
+      setCashPrizeInput("") // Reset input display
       setErrors({})
       setDropdownEmployees([])
     }
@@ -172,10 +173,23 @@ export function AddAwardDialog({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData((prev) => ({ 
-      ...prev, 
-      [name]: name === 'cash_prize' ? parseFloat(value) || 0 : value 
-    }))
+    
+    if (name === 'cash_prize') {
+      // Handle cash price input separately
+      setCashPrizeInput(value)
+      
+      // Parse the value to number for formData
+      const numericValue = value === "" ? 0 : parseFloat(value.replace(/[^0-9.]/g, '')) || 0
+      setFormData((prev) => ({ 
+        ...prev, 
+        [name]: numericValue 
+      }))
+    } else {
+      setFormData((prev) => ({ 
+        ...prev, 
+        [name]: value 
+      }))
+    }
 
     if (errors[name]) {
       setErrors((prev) => {
@@ -497,7 +511,7 @@ export function AddAwardDialog({
                           type="number"
                           min="0"
                           step="0.01"
-                          value={formData.cash_prize}
+                          value={cashPrizeInput} // Use the display state
                           onChange={handleChange}
                           className="h-11 border-gray-300 pl-12 text-gray-900"
                           placeholder="Enter amount"
