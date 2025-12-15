@@ -225,24 +225,34 @@ export function DataTable({ title, columns, data, searchFields, onAdd, onEdit, o
         </div>
       )}
 
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this item? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex space-x-2 justify-end">
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={executeDelete}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+    <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+  <DialogContent className="w-[95vw] max-w-md sm:max-w-lg rounded-lg">
+    <DialogHeader className="space-y-2 text-center sm:text-left">
+      <DialogTitle>Confirm Deletion</DialogTitle>
+      <DialogDescription>
+        Are you sure you want to delete this item? This action cannot be undone.
+      </DialogDescription>
+    </DialogHeader>
+
+    <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+      <Button
+        variant="outline"
+        className="w-full sm:w-auto"
+        onClick={() => setDeleteDialogOpen(false)}
+      >
+        Cancel
+      </Button>
+      <Button
+        variant="destructive"
+        className="w-full sm:w-auto"
+        onClick={executeDelete}
+      >
+        Delete
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
     </div>
   )
 }
