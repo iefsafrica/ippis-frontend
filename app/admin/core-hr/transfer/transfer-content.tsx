@@ -353,7 +353,6 @@ const columns = [
   },
 ]
 
-// These handlers will be defined in the main component
 let handleViewTransfer: ((id: string) => void) | undefined;
 let handleEditTransfer: ((id: string) => void) | undefined;
 let handleOpenDeleteDialog: ((id: string) => void) | undefined;
