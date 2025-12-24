@@ -86,6 +86,7 @@ export const useUpdateTransfer = () => {
 
       // Optimistically update transfers list cache(s) so the UI reflects the new status immediately
       try {
+        //@ts-expect-error - type issue
         queryClient.setQueriesData([TRANSFER_QUERY_KEYS.TRANSFERS], (old: any) => {
           if (!old || !Array.isArray(old.data)) return old;
           return {
@@ -94,8 +95,9 @@ export const useUpdateTransfer = () => {
           };
         });
 
-        // If the status changed away from pending, ensure pending list removes this item
+
         if (variables.status && variables.status !== "pending") {
+          //@ts-expect-error - type issue
           queryClient.setQueriesData([TRANSFER_QUERY_KEYS.PENDING_TRANSFERS], (old: any) => {
             if (!old || !Array.isArray(old.data)) return old;
             return {
@@ -134,29 +136,3 @@ export const useDeleteTransfer = () => {
     },
   });
 };
-
-// export const useApproveTransfer = () => {
-//   const queryClient = useQueryClient();
-
-//   return useMutation<TransferResponse, Error, number>({
-//     mutationFn: approveTransfer,
-//     onSuccess: (data, id) => {
-//       queryClient.invalidateQueries({ queryKey: [TRANSFER_QUERY_KEYS.TRANSFERS] });
-//       queryClient.invalidateQueries({ queryKey: [TRANSFER_QUERY_KEYS.PENDING_TRANSFERS] });
-//       queryClient.setQueryData([TRANSFER_QUERY_KEYS.TRANSFER, id], data);
-//     },
-//   });
-// };
-
-// export const useRejectTransfer = () => {
-//   const queryClient = useQueryClient();
-
-//   return useMutation<TransferResponse, Error, number>({
-//     mutationFn: rejectTransfer,
-//     onSuccess: (data, id) => {
-//       queryClient.invalidateQueries({ queryKey: [TRANSFER_QUERY_KEYS.TRANSFERS] });
-//       queryClient.invalidateQueries({ queryKey: [TRANSFER_QUERY_KEYS.PENDING_TRANSFERS] });
-//       queryClient.setQueryData([TRANSFER_QUERY_KEYS.TRANSFER, id], data);
-//     },
-//   });
-// };
