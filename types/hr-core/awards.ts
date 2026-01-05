@@ -1,32 +1,4 @@
-// export interface CreateAwardRequest {
-//   employee_id: string;
-//   employee_name: string;
-//   department: string;
-//   award_type: string;
-//   gift_item: string;
-//   ctash_price: number;
-//   award_date: string;
-//   description: string;
-// }
 
-// export interface CreateAwardResponse {
-//   success: boolean;
-//   message: string;
-//   data: {
-//     id: number;
-//     employee_id: string;
-//     employee_name: string;
-//     department: string;
-//     award_type: string;
-//     gift_item: string;
-//     ctash_price: number;
-//     award_date: string;
-//     description: string;
-//     status: string;
-//     created_at: string;
-//     updated_at: string;
-//   };
-// }
 
 
 export interface Award {
