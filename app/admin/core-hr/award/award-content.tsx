@@ -364,10 +364,11 @@ export function AwardContent() {
             searchFields={awardSearchFields}
             // Keep the onAdd prop so the DataTable renders its own "Add New" button
             onAdd={handleAddAward}
+            //@ts-expect-error - TS is not aware of the possible structures
             onEdit={handleEditAward}
             onDelete={handleDeleteAward}
             onView={handleViewAward}
-            //@ts-expect-error - TS is not aware of the possible structures
+         
             isLoading={isLoading}
             emptyMessage="No awards found. Add your first award to get started."
           />
