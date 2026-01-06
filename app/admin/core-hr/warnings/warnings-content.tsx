@@ -1,384 +1,375 @@
 "use client"
 
-import { useState } from "react"
-import { EnhancedDataTable } from "@/app/admin/components/enhanced-data-table"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { EnhancedForm, type FormField } from "@/app/admin/components/enhanced-form"
-import { DetailsView, type DetailTab } from "@/app/admin/components/details-view"
-import { format } from "date-fns"
-
-// Mock data for warnings
-const mockWarnings = [
-  {
-    id: "WARN-1001",
-    employeeId: "EMP-1234",
-    employeeName: "John Doe",
-    employeeAvatar: "/thoughtful-man.png",
-    department: "IT",
-    subject: "Attendance Policy Violation",
-    description: "Employee has been late to work more than 5 times in the past month.",
-    warningType: "verbal",
-    warningDate: "2023-05-10T09:30:00",
-    issuedBy: "Sarah Johnson",
-    issuedById: "EMP-5678",
-    status: "active",
-    expiryDate: "2023-08-10T09:30:00",
-    documents: [{ id: "DOC-1", name: "Attendance Record.pdf", url: "#" }],
-    acknowledgement: {
-      acknowledged: true,
-      date: "2023-05-11T14:20:00",
-      comments: "I acknowledge this warning and will improve my punctuality.",
-    },
-  },
-  {
-    id: "WARN-1002",
-    employeeId: "EMP-2345",
-    employeeName: "Emily Wilson",
-    employeeAvatar: "/diverse-woman-portrait.png",
-    department: "Finance",
-    subject: "Performance Concerns",
-    description: "Employee has missed several project deadlines in the past quarter.",
-    warningType: "written",
-    warningDate: "2023-05-08T11:45:00",
-    issuedBy: "Michael Brown",
-    issuedById: "EMP-6789",
-    status: "active",
-    expiryDate: "2023-11-08T11:45:00",
-    documents: [{ id: "DOC-2", name: "Performance Report.pdf", url: "#" }],
-    acknowledgement: {
-      acknowledged: false,
-      date: null,
-      comments: null,
-    },
-  },
-  {
-    id: "WARN-1003",
-    employeeId: "EMP-3456",
-    employeeName: "Robert Smith",
-    employeeAvatar: "/thoughtful-man.png",
-    department: "HR",
-    subject: "Policy Violation",
-    description: "Employee violated company confidentiality policy by sharing sensitive information.",
-    warningType: "final",
-    warningDate: "2023-04-15T14:20:00",
-    issuedBy: "Jennifer Davis",
-    issuedById: "EMP-7890",
-    status: "active",
-    expiryDate: "2023-10-15T14:20:00",
-    documents: [
-      { id: "DOC-3", name: "Incident Report.pdf", url: "#" },
-      { id: "DOC-4", name: "Policy Document.pdf", url: "#" },
-    ],
-    acknowledgement: {
-      acknowledged: true,
-      date: "2023-04-16T09:30:00",
-      comments: "I understand the severity of this violation and will adhere to all company policies going forward.",
-    },
-  },
-  {
-    id: "WARN-1004",
-    employeeId: "EMP-4567",
-    employeeName: "David Wilson",
-    employeeAvatar: "/abstract-geometric-shapes.png",
-    department: "Marketing",
-    subject: "Insubordination",
-    description: "Employee refused to follow direct instructions from supervisor.",
-    warningType: "written",
-    warningDate: "2023-03-20T10:15:00",
-    issuedBy: "Sarah Johnson",
-    issuedById: "EMP-5678",
-    status: "expired",
-    expiryDate: "2023-06-20T10:15:00",
-    documents: [],
-    acknowledgement: {
-      acknowledged: true,
-      date: "2023-03-21T11:30:00",
-      comments: "I acknowledge this warning.",
-    },
-  },
-  {
-    id: "WARN-1005",
-    employeeId: "EMP-5678",
-    employeeName: "Sarah Johnson",
-    employeeAvatar: "/diverse-woman-portrait.png",
-    department: "IT",
-    subject: "Unauthorized Absence",
-    description: "Employee was absent without approval for 2 consecutive days.",
-    warningType: "verbal",
-    warningDate: "2023-05-01T13:40:00",
-    issuedBy: "Michael Brown",
-    issuedById: "EMP-6789",
-    status: "active",
-    expiryDate: "2023-08-01T13:40:00",
-    documents: [],
-    acknowledgement: {
-      acknowledged: false,
-      date: null,
-      comments: null,
-    },
-  },
-]
-
-// Form fields for adding/editing a warning
-const warningFormFields: FormField[] = [
-  {
-    name: "employeeId",
-    label: "Employee",
-    type: "select",
-    required: true,
-    options: [
-      { value: "EMP-1234", label: "John Doe (IT)" },
-      { value: "EMP-2345", label: "Emily Wilson (Finance)" },
-      { value: "EMP-3456", label: "Robert Smith (HR)" },
-      { value: "EMP-4567", label: "David Wilson (Marketing)" },
-      { value: "EMP-5678", label: "Sarah Johnson (IT)" },
-    ],
-  },
-  {
-    name: "subject",
-    label: "Warning Subject",
-    type: "text",
-    required: true,
-    placeholder: "Brief subject of the warning",
-  },
-  {
-    name: "description",
-    label: "Description",
-    type: "textarea",
-    required: true,
-    placeholder: "Detailed description of the warning",
-  },
-  {
-    name: "warningType",
-    label: "Warning Type",
-    type: "select",
-    required: true,
-    options: [
-      { value: "verbal", label: "Verbal Warning" },
-      { value: "written", label: "Written Warning" },
-      { value: "final", label: "Final Warning" },
-    ],
-  },
-  {
-    name: "warningDate",
-    label: "Warning Date",
-    type: "date",
-    required: true,
-  },
-  {
-    name: "expiryDate",
-    label: "Expiry Date",
-    type: "date",
-    required: true,
-  },
-  {
-    name: "issuedById",
-    label: "Issued By",
-    type: "select",
-    required: true,
-    options: [
-      { value: "EMP-5678", label: "Sarah Johnson (HR Manager)" },
-      { value: "EMP-6789", label: "Michael Brown (Department Head)" },
-      { value: "EMP-7890", label: "Jennifer Davis (HR Specialist)" },
-    ],
-  },
-  {
-    name: "documents",
-    label: "Supporting Documents",
-    type: "file",
-    multiple: true,
-    accept: ".pdf,.doc,.docx,.jpg,.png,.zip",
-    description: "Upload any relevant documents or evidence (max 5MB per file)",
-  },
-  {
-    name: "status",
-    label: "Status",
-    type: "select",
-    required: true,
-    options: [
-      { value: "active", label: "Active" },
-      { value: "expired", label: "Expired" },
-      { value: "withdrawn", label: "Withdrawn" },
-    ],
-    defaultValue: "active",
-  },
-]
+import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Loader2, AlertTriangle, RefreshCw, Search, Hash, Upload, Download } from "lucide-react"
+import { toast } from "sonner"
+import { CoreHRClientWrapper } from "../components/core-hr-client-wrapper"
+import { DataTable } from "../components/data-table"
+import { useGetEmployeeWarnings, useGetEmployeeWarningByEmployeeId } from "@/services/hooks/hr-core/employeeWarnings"
+import type { EmployeeWarning } from "@/types/hr-core/employeeWarnings"
+import { AddWarningDialog } from "./AddWarningDialog"
+import { EditWarningDialog } from "./EditWarningDialog"
+import { ViewWarningDialog } from "./ViewWarningDialog"
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { useCreateEmployeeWarning, useUpdateEmployeeWarning, useDeleteEmployeeWarning, useUploadWarningDocument } from "@/services/hooks/hr-core/employeeWarnings"
 
 export function WarningsContent() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
-  const [selectedWarning, setSelectedWarning] = useState<any>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [selectedWarning, setSelectedWarning] = useState<EmployeeWarning | null>(null)
+  const [searchEmployeeId, setSearchEmployeeId] = useState("")
+  const [isUploading, setIsUploading] = useState(false)
+
+  // Use the hooks
+  const { 
+    data: warningsData, 
+    isLoading: isLoadingWarnings,
+    refetch: refetchWarnings
+  } = useGetEmployeeWarnings()
+
+  const {
+    data: employeeWarningsData,
+    isLoading: isLoadingEmployeeWarnings,
+    refetch: refetchEmployeeWarnings
+  } = useGetEmployeeWarningByEmployeeId(searchEmployeeId)
+
+  const createWarningMutation = useCreateEmployeeWarning()
+  const updateWarningMutation = useUpdateEmployeeWarning()
+  const deleteWarningMutation = useDeleteEmployeeWarning()
+  const uploadDocumentMutation = useUploadWarningDocument()
+
+  // Transform API data to match table format
+  const transformWarningData = (warning: EmployeeWarning) => {
+    return {
+      id: warning.id.toString(),
+      employeeId: warning.employee_id,
+      employeeName: warning.employee_name,
+      employeeAvatar: "",
+      department: warning.department,
+      subject: warning.warning_subject,
+      description: warning.warning_description,
+      warningType: warning.warning_type,
+      warningDate: warning.warning_date,
+      issuedBy: warning.issued_by,
+      status: warning.status,
+      expiryDate: warning.expiry_date,
+      supporting_documents: warning.supporting_documents,
+      created_at: warning.created_at,
+      updated_at: warning.updated_at,
+    }
+  }
+
+  // Get warnings data based on search
+  const getWarningsData = () => {
+    if (searchEmployeeId && employeeWarningsData?.data) {
+      return employeeWarningsData.data.map(transformWarningData)
+    }
+    if (warningsData?.data) {
+      return warningsData.data.map(transformWarningData)
+    }
+    return []
+  }
 
   const handleAdd = () => {
     setIsAddDialogOpen(true)
   }
 
   const handleEdit = (id: string) => {
-    const warning = mockWarnings.find((w) => w.id === id)
-    setSelectedWarning(warning)
-    setIsEditDialogOpen(true)
+    const warning = warningsData?.data?.find((w: EmployeeWarning) => w.id.toString() === id)
+    if (warning) {
+      setSelectedWarning(warning)
+      setIsEditDialogOpen(true)
+    }
   }
 
   const handleView = (id: string) => {
-    const warning = mockWarnings.find((w) => w.id === id)
-    setSelectedWarning(warning)
-    setIsViewDialogOpen(true)
+    const warning = warningsData?.data?.find((w: EmployeeWarning) => w.id.toString() === id)
+    if (warning) {
+      setSelectedWarning(warning)
+      setIsViewDialogOpen(true)
+    }
   }
 
   const handleDelete = (id: string) => {
-    console.log("Deleting warning:", id)
-    // Implement delete logic
+    const warning = warningsData?.data?.find((w: EmployeeWarning) => w.id.toString() === id)
+    if (warning) {
+      setSelectedWarning(warning)
+      setIsDeleteDialogOpen(true)
+    }
   }
 
-  const handleSubmitAdd = (data: Record<string, any>) => {
-    setIsSubmitting(true)
-    console.log("Adding new warning:", data)
+  const handleConfirmDelete = async () => {
+    if (!selectedWarning) return
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false)
+    try {
+      await deleteWarningMutation.mutateAsync(selectedWarning.id)
+      toast.success("Warning deleted successfully")
+      setIsDeleteDialogOpen(false)
+      setSelectedWarning(null)
+      refetchWarnings()
+    } catch (error) {
+      toast.error("Failed to delete warning")
+      console.error("Delete error:", error)
+    }
+  }
+
+  const handleSubmitAdd = async (data: any) => {
+    try {
+      await createWarningMutation.mutateAsync(data)
+      toast.success("Warning created successfully")
       setIsAddDialogOpen(false)
-      // Add success notification
-    }, 1000)
+      refetchWarnings()
+    } catch (error) {
+      toast.error("Failed to create warning")
+      console.error("Create error:", error)
+      throw error
+    }
   }
 
-  const handleSubmitEdit = (data: Record<string, any>) => {
-    setIsSubmitting(true)
-    console.log("Updating warning:", selectedWarning?.id, data)
-
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false)
+  const handleSubmitEdit = async (data: any) => {
+    try {
+      const { id, ...updateData } = data
+      await updateWarningMutation.mutateAsync({
+        id: id,
+        data: updateData
+      })
+      toast.success("Warning updated successfully")
       setIsEditDialogOpen(false)
-      // Add success notification
-    }, 1000)
-  }
-
-  // Status badge renderer
-  const renderStatus = (value: string) => {
-    const statusConfig: Record<string, { color: string; label: string }> = {
-      active: { color: "bg-red-100 text-red-800", label: "Active" },
-      expired: { color: "bg-gray-100 text-gray-800", label: "Expired" },
-      withdrawn: { color: "bg-blue-100 text-blue-800", label: "Withdrawn" },
+      setSelectedWarning(null)
+      refetchWarnings()
+    } catch (error) {
+      toast.error("Failed to update warning")
+      console.error("Update error:", error)
+      throw error
     }
-
-    const config = statusConfig[value] || { color: "bg-gray-100 text-gray-800", label: value }
-
-    return <Badge className={config.color}>{config.label}</Badge>
   }
 
-  // Warning type badge renderer
-  const renderWarningType = (value: string) => {
-    const typeConfig: Record<string, { color: string; label: string }> = {
-      verbal: { color: "bg-yellow-100 text-yellow-800", label: "Verbal Warning" },
-      written: { color: "bg-orange-100 text-orange-800", label: "Written Warning" },
-      final: { color: "bg-red-100 text-red-800", label: "Final Warning" },
+  const handleFileUpload = async (file: File) => {
+    setIsUploading(true)
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await uploadDocumentMutation.mutateAsync(formData)
+      toast.success("Document uploaded successfully")
+      console.log("Uploaded document URL:", response.url)
+      return response.url
+    } catch (error) {
+      toast.error("Failed to upload document")
+      console.error("Upload error:", error)
+      throw error
+    } finally {
+      setIsUploading(false)
     }
-
-    const config = typeConfig[value] || { color: "bg-gray-100 text-gray-800", label: value }
-
-    return <Badge className={config.color}>{config.label}</Badge>
   }
 
-  // Employee renderer
-  const renderEmployee = (value: string, row: any) => {
-    return (
-      <div className="flex items-center space-x-2">
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={row.employeeAvatar || "/placeholder.svg"} alt={value} />
-          <AvatarFallback>{value.substring(0, 2).toUpperCase()}</AvatarFallback>
-        </Avatar>
-        <div>
-          <div className="font-medium">{value}</div>
-          <div className="text-xs text-gray-500">{row.employeeId}</div>
-        </div>
-      </div>
-    )
-  }
-
-  // Date renderer
-  const renderDate = (value: string) => {
-    return format(new Date(value), "MMM d, yyyy")
-  }
-
-  // Acknowledgement renderer
-  const renderAcknowledgement = (value: any) => {
-    if (!value || !value.acknowledged) {
-      return (
-        <Badge variant="outline" className="bg-yellow-50 text-yellow-800">
-          Pending
-        </Badge>
-      )
+  const handleEmployeeSearch = () => {
+    if (searchEmployeeId) {
+      refetchEmployeeWarnings()
     }
-    return (
-      <Badge variant="outline" className="bg-green-50 text-green-800">
-        Acknowledged
-      </Badge>
-    )
   }
+
+  const handleManualRefresh = () => {
+    refetchWarnings()
+    if (searchEmployeeId) {
+      refetchEmployeeWarnings()
+    }
+    toast.info("Refreshing warnings...")
+  }
+
+  // Calculate statistics
+  const warnings = warningsData?.data || []
+  const activeCount = warnings.filter((w: EmployeeWarning) => w.status === "active").length
+  const expiredCount = warnings.filter((w: EmployeeWarning) => w.status === "expired").length
+  const withdrawnCount = warnings.filter((w: EmployeeWarning) => w.status === "withdrawn").length
+  const totalCount = warnings.length
 
   // Table columns
   const columns = [
     {
       key: "employeeName",
       label: "Employee",
-      render: renderEmployee,
       sortable: true,
+      render: (value: string, row: any) => (
+        <div className="flex items-center">
+          <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 flex items-center justify-center">
+            <div className="text-blue-700 font-bold text-xs">
+              {value.split(' ').map(n => n[0]).join('').toUpperCase()}
+            </div>
+          </div>
+          <div className="ml-3 min-w-0">
+            <div className="font-medium text-gray-900 truncate max-w-[140px] sm:max-w-[180px]">{value}</div>
+            <div className="text-xs text-gray-500 truncate max-w-[140px] sm:max-w-[180px]">{row.employeeId}</div>
+          </div>
+        </div>
+      ),
     },
     {
       key: "subject",
       label: "Subject",
       sortable: true,
+      render: (value: string) => (
+        <div className="flex items-center">
+          <div className="h-9 w-9 rounded-md bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 flex items-center justify-center mr-2 flex-shrink-0">
+            <AlertTriangle className="h-4 w-4 text-gray-600" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-medium text-gray-900 truncate max-w-[140px]">{value}</div>
+          </div>
+        </div>
+      ),
     },
     {
       key: "warningType",
-      label: "Warning Type",
-      render: renderWarningType,
+      label: "Type",
       sortable: true,
+      render: (value: string) => {
+        const typeConfig: Record<string, { label: string; className: string; icon: string }> = {
+          verbal: { 
+            label: "Verbal", 
+            className: "bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 text-yellow-800",
+            icon: "🗣️"
+          },
+          written: { 
+            label: "Written", 
+            className: "bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 text-orange-800",
+            icon: "📝"
+          },
+          final: { 
+            label: "Final", 
+            className: "bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 text-red-800",
+            icon: "⚠️"
+          },
+        }
+        
+        const config = typeConfig[value] || { 
+          label: value, 
+          className: "bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 text-gray-800",
+          icon: "?"
+        }
+        
+        return (
+          <span className={`${config.className} px-3 py-1.5 font-medium rounded-full shadow-sm text-sm`}>
+            <span className="mr-1.5">{config.icon}</span>
+            {config.label}
+          </span>
+        )
+      },
     },
     {
       key: "warningDate",
-      label: "Issued On",
-      render: renderDate,
+      label: "Date",
       sortable: true,
+      render: (value: string) => {
+        try {
+          const date = new Date(value)
+          return (
+            <div className="flex items-center">
+              <div className="h-9 w-9 rounded-md bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 flex flex-col items-center justify-center mr-2 flex-shrink-0">
+                <span className="text-xs font-medium text-purple-700">{date.getDate()}</span>
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-gray-900">
+                  {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {date.getFullYear()}
+                </div>
+              </div>
+            </div>
+          )
+        } catch {
+          return <span className="text-gray-500">N/A</span>
+        }
+      },
     },
     {
       key: "status",
       label: "Status",
-      render: renderStatus,
       sortable: true,
+      render: (value: string) => {
+        const statusConfig: Record<string, { label: string; className: string; icon: string }> = {
+          active: { 
+            label: "Active", 
+            className: "bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 text-red-800",
+            icon: "🔴"
+          },
+          expired: { 
+            label: "Expired", 
+            className: "bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 text-gray-800",
+            icon: "⚫"
+          },
+          withdrawn: { 
+            label: "Withdrawn", 
+            className: "bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 text-blue-800",
+            icon: "🔵"
+          },
+        }
+        
+        const config = statusConfig[value] || { 
+          label: value, 
+          className: "bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 text-gray-800",
+          icon: "?"
+        }
+        
+        return (
+          <span className={`${config.className} px-3 py-1.5 font-medium rounded-full shadow-sm text-sm`}>
+            <span className="mr-1.5">{config.icon}</span>
+            {config.label}
+          </span>
+        )
+      },
     },
     {
       key: "issuedBy",
       label: "Issued By",
       sortable: true,
-    },
-    {
-      key: "acknowledgement",
-      label: "Acknowledgement",
-      render: renderAcknowledgement,
-      sortable: false,
+      render: (value: string) => (
+        <div className="flex items-center">
+          <div className="h-9 w-9 rounded-md bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 flex items-center justify-center mr-2 flex-shrink-0">
+            <div className="text-green-700 font-bold text-xs">HR</div>
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-medium text-gray-900 truncate max-w-[100px]">{value}</div>
+          </div>
+        </div>
+      ),
     },
   ]
 
-  // Filter options
-  const filterOptions = [
+  const searchFields = [
     {
-      id: "status",
-      label: "Status",
+      name: "employeeId",
+      label: "Employee ID",
+      type: "text" as const,
+    },
+    {
+      name: "employeeName",
+      label: "Employee Name",
+      type: "text" as const,
+    },
+    {
+      name: "department",
+      label: "Department",
       type: "select" as const,
       options: [
-        { value: "active", label: "Active" },
-        { value: "expired", label: "Expired" },
-        { value: "withdrawn", label: "Withdrawn" },
+        { value: "Finance", label: "Finance" },
+        { value: "IT", label: "Information Technology" },
+        { value: "HR", label: "Human Resources" },
+        { value: "Marketing", label: "Marketing" },
+        { value: "Sales", label: "Sales" },
+        { value: "Operations", label: "Operations" },
+        { value: "Customer Service", label: "Customer Service" },
       ],
     },
     {
-      id: "warningType",
+      name: "warningType",
       label: "Warning Type",
       type: "select" as const,
       options: [
@@ -388,206 +379,375 @@ export function WarningsContent() {
       ],
     },
     {
-      id: "department",
-      label: "Department",
+      name: "status",
+      label: "Status",
       type: "select" as const,
       options: [
-        { value: "IT", label: "IT" },
-        { value: "Finance", label: "Finance" },
-        { value: "HR", label: "HR" },
-        { value: "Marketing", label: "Marketing" },
+        { value: "active", label: "Active" },
+        { value: "expired", label: "Expired" },
+        { value: "withdrawn", label: "Withdrawn" },
       ],
-    },
-    {
-      id: "warningDate",
-      label: "Issued Date",
-      type: "date" as const,
-      options: [],
     },
   ]
 
-  // Detail tabs for viewing a warning
-  const detailTabs: DetailTab[] = selectedWarning
-    ? [
-        {
-          id: "details",
-          label: "Warning Details",
-          sections: [
-            {
-              title: "Basic Information",
-              fields: [
-                { label: "Warning ID", value: selectedWarning.id },
-                { label: "Subject", value: selectedWarning.subject },
-                {
-                  label: "Warning Type",
-                  value: selectedWarning.warningType,
-                  type: "status",
-                  options: {
-                    statusMap: {
-                      verbal: { label: "Verbal Warning", color: "bg-yellow-100 text-yellow-800" },
-                      written: { label: "Written Warning", color: "bg-orange-100 text-orange-800" },
-                      final: { label: "Final Warning", color: "bg-red-100 text-red-800" },
-                    },
-                  },
-                },
-                {
-                  label: "Status",
-                  value: selectedWarning.status,
-                  type: "status",
-                  options: {
-                    statusMap: {
-                      active: { label: "Active", color: "bg-red-100 text-red-800" },
-                      expired: { label: "Expired", color: "bg-gray-100 text-gray-800" },
-                      withdrawn: { label: "Withdrawn", color: "bg-blue-100 text-blue-800" },
-                    },
-                  },
-                },
-                { label: "Warning Date", value: selectedWarning.warningDate, type: "date" },
-                { label: "Expiry Date", value: selectedWarning.expiryDate, type: "date" },
-              ],
-            },
-            {
-              title: "Employee Information",
-              fields: [
-                { label: "Employee Name", value: selectedWarning.employeeName },
-                { label: "Employee ID", value: selectedWarning.employeeId },
-                { label: "Department", value: selectedWarning.department },
-                { label: "Issued By", value: selectedWarning.issuedBy },
-              ],
-            },
-            {
-              title: "Warning Description",
-              fields: [{ label: "Description", value: selectedWarning.description }],
-            },
-            {
-              title: "Acknowledgement",
-              fields: [
-                {
-                  label: "Status",
-                  value: selectedWarning.acknowledgement.acknowledged ? "Acknowledged" : "Pending",
-                  type: "status",
-                  options: {
-                    statusMap: {
-                      Acknowledged: { label: "Acknowledged", color: "bg-green-100 text-green-800" },
-                      Pending: { label: "Pending", color: "bg-yellow-100 text-yellow-800" },
-                    },
-                  },
-                },
-                {
-                  label: "Acknowledgement Date",
-                  value: selectedWarning.acknowledgement.date,
-                  type: "date",
-                },
-                {
-                  label: "Employee Comments",
-                  value: selectedWarning.acknowledgement.comments || "No comments provided",
-                },
-              ],
-            },
-          ],
-        },
-        {
-          id: "documents",
-          label: "Documents",
-          sections: [
-            {
-              title: "Supporting Documents",
-              fields:
-                selectedWarning.documents.length > 0
-                  ? selectedWarning.documents.map((doc: any) => ({
-                      label: doc.name,
-                      value: doc.url,
-                      type: "file",
-                    }))
-                  : [{ label: "Documents", value: "No documents attached" }],
-            },
-          ],
-        },
-      ]
-    : []
+  const isLoading = isLoadingWarnings || 
+    (searchEmployeeId ? isLoadingEmployeeWarnings : false) ||
+    createWarningMutation.isPending || 
+    updateWarningMutation.isPending || 
+    deleteWarningMutation.isPending
 
-  return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Employee Warnings</h1>
-          <p className="text-muted-foreground">Manage employee disciplinary warnings and notices</p>
+  if (isLoadingWarnings) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-3">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-red-50 to-red-100 border border-red-200 animate-pulse" />
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                Employee Warnings
+              </h1>
+              <div className="h-3 w-48 bg-gray-200 rounded animate-pulse mt-2" />
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-28 bg-white rounded-xl shadow border border-gray-200 animate-pulse" />
+          ))}
+        </div>
+        <div className="bg-white rounded-xl shadow border border-gray-200 p-6">
+          <div className="flex flex-col space-y-4">
+            <div className="h-8 bg-gray-200 rounded animate-pulse w-1/4" />
+            <div className="h-64 bg-gray-100 rounded-xl animate-pulse" />
+          </div>
         </div>
       </div>
+    )
+  }
 
-      <EnhancedDataTable
-        title="Warnings"
-        columns={columns}
-        data={mockWarnings}
-        filterOptions={filterOptions}
-        onAdd={handleAdd}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onView={handleView}
-      />
+  return (
+    <CoreHRClientWrapper title="Employee Warnings" endpoint="/admin/hr/warnings">
+      <div className="container mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+          <div className="flex items-center space-x-3">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-red-50 to-red-100 border border-red-200 flex items-center justify-center shadow-sm">
+              <AlertTriangle className="h-6 w-6 text-red-600" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                Employee Warnings
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Manage employee disciplinary warnings and notices
+                {warningsData?.data && (
+                  <span className="ml-2 text-sm text-gray-500">
+                    ({totalCount} active warnings)
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              onClick={handleManualRefresh}
+              disabled={isLoading}
+              className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              <span className="ml-2 hidden sm:inline">Refresh</span>
+            </Button>
+          </div>
+        </div>
 
-      {/* Add Warning Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Add New Warning</DialogTitle>
-          </DialogHeader>
-          <EnhancedForm
-            fields={warningFormFields}
-            onSubmit={handleSubmitAdd}
-            onCancel={() => setIsAddDialogOpen(false)}
-            isSubmitting={isSubmitting}
-            submitLabel="Create Warning"
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-500">Active Warnings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center">
+                <div className="h-8 w-8 rounded-lg bg-red-100 border border-red-200 flex items-center justify-center mr-3">
+                  <span className="text-red-800 font-bold">{activeCount}</span>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-gray-900">{activeCount}</div>
+                  <p className="text-xs text-gray-500 mt-1">Currently active</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-500">Expired Warnings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center">
+                <div className="h-8 w-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center mr-3">
+                  <span className="text-gray-800 font-bold">{expiredCount}</span>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-gray-900">{expiredCount}</div>
+                  <p className="text-xs text-gray-500 mt-1">Past expiry date</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-500">Withdrawn</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center">
+                <div className="h-8 w-8 rounded-lg bg-blue-100 border border-blue-200 flex items-center justify-center mr-3">
+                  <span className="text-blue-800 font-bold">{withdrawnCount}</span>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-gray-900">{withdrawnCount}</div>
+                  <p className="text-xs text-gray-500 mt-1">Withdrawn warnings</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-500">Total</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center">
+                <div className="h-8 w-8 rounded-lg bg-purple-100 border border-purple-200 flex items-center justify-center mr-3">
+                  <span className="text-purple-800 font-bold">{totalCount}</span>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-gray-900">{totalCount}</div>
+                  <p className="text-xs text-gray-500 mt-1">Total warnings</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Search Section */}
+        <Card className="border border-gray-200 shadow-sm mb-6">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div className="flex-1">
+                <Label htmlFor="employeeSearch" className="text-sm font-medium text-gray-700 mb-2 block">
+                  Search by Employee ID
+                </Label>
+                <div className="flex items-center space-x-3">
+                  <Hash className="h-5 w-5 text-gray-500" />
+                  <Input
+                    id="employeeSearch"
+                    type="text"
+                    value={searchEmployeeId}
+                    onChange={(e) => setSearchEmployeeId(e.target.value)}
+                    placeholder="Employee ID"
+                    aria-label="Search by employee ID"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center space-x-2 pt-2">
+                <Button
+                  onClick={handleEmployeeSearch}
+                  disabled={isLoadingEmployeeWarnings || !searchEmployeeId}
+                  className="h-11 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                >
+                  {isLoadingEmployeeWarnings ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Search className="h-4 w-4 mr-2" />
+                  )}
+                  Search
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchEmployeeId("")
+                    refetchWarnings()
+                  }}
+                  className="h-11 border-gray-300 hover:bg-gray-100"
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Main Table */}
+        <Card className="border border-gray-200 shadow-lg rounded-xl overflow-hidden mb-6">
+          <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-semibold text-gray-900">Employee Warnings</CardTitle>
+                <CardDescription className="text-gray-600">
+                  Manage and review employee disciplinary warnings
+                </CardDescription>
+              </div>
+              <div className="mt-4 sm:mt-0">
+                <Button
+                  onClick={handleAdd}
+                  disabled={isLoading}
+                  className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+                >
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  Add Warning
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <DataTable
+              title="Employee Warnings"
+              columns={columns}
+              data={getWarningsData()}
+              searchFields={searchFields}
+              onAdd={handleAdd}
+              //@ts-expect-error - fix ts error
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onView={handleView}
+              showActions={true}
+              isLoading={isLoading}
+              emptyMessage={
+                <div className="text-center py-12">
+                  <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-red-50 border border-red-200 mb-4">
+                    <AlertTriangle className="h-8 w-8 text-red-600" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No warnings found</h3>
+                  <p className="text-gray-600 mb-4">
+                    {searchEmployeeId 
+                      ? `No warnings found for employee ID: ${searchEmployeeId}`
+                      : "Start by adding your first employee warning"
+                    }
+                  </p>
+                </div>
+              }
+            />
+          </CardContent>
+        </Card>
+
+        {/* Upload Document Section */}
+        <Card className="border border-gray-200 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold flex items-center">
+              <Upload className="h-5 w-5 mr-2 text-gray-700" />
+              Upload Warning Document
+            </CardTitle>
+            <CardDescription>
+              Upload supporting documents for warnings (PDF, JPG, PNG, DOCX)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors">
+                <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 mb-2">Drag and drop files here, or click to browse</p>
+                <p className="text-sm text-gray-500 mb-4">Max file size: 5MB</p>
+                <input
+                  type="file"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleFileUpload(file)
+                  }}
+                  className="hidden"
+                  id="file-upload"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => document.getElementById('file-upload')?.click()}
+                  disabled={isUploading}
+                  className="border-gray-300 hover:bg-gray-100"
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Browse Files
+                    </>
+                  )}
+                </Button>
+              </div>
+              {uploadDocumentMutation.data && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0 mt-0.5">
+                      <Download className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-green-800">Document uploaded successfully!</p>
+                      <p className="text-sm text-green-700 mt-1">
+                        URL: <a href={uploadDocumentMutation.data.url} target="_blank" rel="noopener noreferrer" className="underline">{uploadDocumentMutation.data.url}</a>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Dialogs */}
+        <AddWarningDialog
+          isOpen={isAddDialogOpen}
+          onClose={() => setIsAddDialogOpen(false)}
+          onSubmit={handleSubmitAdd}
+          isLoading={createWarningMutation.isPending}
+        />
+
+        {selectedWarning && (
+          <EditWarningDialog
+            isOpen={isEditDialogOpen}
+            onClose={() => {
+              setIsEditDialogOpen(false)
+              setSelectedWarning(null)
+            }}
+            onSubmit={handleSubmitEdit}
+            initialData={selectedWarning}
+            isLoading={updateWarningMutation.isPending}
           />
-        </DialogContent>
-      </Dialog>
+        )}
 
-      {/* Edit Warning Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Edit Warning</DialogTitle>
-          </DialogHeader>
-          {selectedWarning && (
-            <EnhancedForm
-              fields={warningFormFields}
-              onSubmit={handleSubmitEdit}
-              onCancel={() => setIsEditDialogOpen(false)}
-              isSubmitting={isSubmitting}
-              submitLabel="Update Warning"
-              initialValues={{
-                employeeId: selectedWarning.employeeId,
-                subject: selectedWarning.subject,
-                description: selectedWarning.description,
-                warningType: selectedWarning.warningType,
-                warningDate: selectedWarning.warningDate,
-                expiryDate: selectedWarning.expiryDate,
-                issuedById: selectedWarning.issuedById,
-                status: selectedWarning.status,
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+        {selectedWarning && (
+          <ViewWarningDialog
+            isOpen={isViewDialogOpen}
+            onClose={() => {
+              setIsViewDialogOpen(false)
+              setSelectedWarning(null)
+            }}
+            warning={selectedWarning}
+          />
+        )}
 
-      {/* View Warning Dialog */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen} className="max-w-4xl">
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-          {selectedWarning && (
-            <DetailsView
-              title={selectedWarning.subject}
-              subtitle={`Warning ID: ${selectedWarning.id}`}
-              data={selectedWarning}
-              tabs={detailTabs}
-              onEdit={() => {
-                setIsViewDialogOpen(false)
-                setTimeout(() => handleEdit(selectedWarning.id), 100)
-              }}
-              onBack={() => setIsViewDialogOpen(false)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+        <DeleteConfirmationDialog
+          isOpen={isDeleteDialogOpen}
+          onClose={() => {
+            setIsDeleteDialogOpen(false)
+            setSelectedWarning(null)
+          }}
+          onConfirm={handleConfirmDelete}
+          title="Delete Employee Warning"
+          description={`Are you sure you want to delete this warning?`}
+          itemName={`${selectedWarning?.employee_name}'s ${selectedWarning?.warning_subject}`}
+          isLoading={deleteWarningMutation.isPending}
+        />
+      </div>
+    </CoreHRClientWrapper>
   )
 }
