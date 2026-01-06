@@ -362,7 +362,7 @@ export function AwardContent() {
             columns={columns}
             data={localAwards}
             searchFields={awardSearchFields}
-            // Keep the onAdd prop so the DataTable renders its own "Add New" button
+            
             onAdd={handleAddAward}
             //@ts-expect-error - TS is not aware of the possible structures
             onEdit={handleEditAward}
