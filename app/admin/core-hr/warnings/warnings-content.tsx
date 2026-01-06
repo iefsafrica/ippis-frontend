@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, AlertTriangle, RefreshCw, Search, Hash, Upload, Download } from "lucide-react"
+import { Loader2, AlertTriangle, RefreshCw, Search, Hash, Upload, Download, MoreVertical, Eye, Edit, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { CoreHRClientWrapper } from "../components/core-hr-client-wrapper"
 import { DataTable } from "../components/data-table"
@@ -15,6 +15,7 @@ import { AddWarningDialog } from "./AddWarningDialog"
 import { EditWarningDialog } from "./EditWarningDialog"
 import { ViewWarningDialog } from "./ViewWarningDialog"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { useCreateEmployeeWarning, useUpdateEmployeeWarning, useDeleteEmployeeWarning, useUploadWarningDocument } from "@/services/hooks/hr-core/employeeWarnings"
 
 export function WarningsContent() {
@@ -68,10 +69,16 @@ export function WarningsContent() {
   // Get warnings data based on search
   const getWarningsData = () => {
     if (searchEmployeeId && employeeWarningsData?.data) {
-      return employeeWarningsData.data.map(transformWarningData)
+      return employeeWarningsData.data
+        .slice()
+        .sort((a: EmployeeWarning, b: EmployeeWarning) => Number(b.id) - Number(a.id))
+        .map(transformWarningData)
     }
     if (warningsData?.data) {
-      return warningsData.data.map(transformWarningData)
+      return warningsData.data
+        .slice()
+        .sort((a: EmployeeWarning, b: EmployeeWarning) => Number(b.id) - Number(a.id))
+        .map(transformWarningData)
     }
     return []
   }
@@ -108,14 +115,16 @@ export function WarningsContent() {
     if (!selectedWarning) return
 
     try {
+      console.log("Deleting warning", { id: selectedWarning.id })
       await deleteWarningMutation.mutateAsync(selectedWarning.id)
       toast.success("Warning deleted successfully")
       setIsDeleteDialogOpen(false)
       setSelectedWarning(null)
       refetchWarnings()
-    } catch (error) {
-      toast.error("Failed to delete warning")
+    } catch (error: any) {
+      const serverMessage = error?.response?.data?.error || error?.message
       console.error("Delete error:", error)
+      toast.error(serverMessage || "Failed to delete warning")
     }
   }
 
@@ -135,17 +144,28 @@ export function WarningsContent() {
   const handleSubmitEdit = async (data: any) => {
     try {
       const { id, ...updateData } = data
+      const idNum = Number(id ?? selectedWarning?.id)
+      if (!idNum) {
+        toast.error("Missing warning id. Please try again.")
+        throw new Error("Missing warning id")
+      }
+
+      const updatePayload = { ...updateData, id: idNum }
+      console.log("Updating warning", { id: idNum, data: updatePayload })
+
       await updateWarningMutation.mutateAsync({
-        id: id,
-        data: updateData
+        id: idNum,
+        data: updatePayload,
       })
+
       toast.success("Warning updated successfully")
       setIsEditDialogOpen(false)
       setSelectedWarning(null)
       refetchWarnings()
-    } catch (error) {
-      toast.error("Failed to update warning")
+    } catch (error: any) {
+      const serverMessage = error?.response?.data?.error || error?.message
       console.error("Update error:", error)
+      toast.error(serverMessage || "Failed to update warning")
       throw error
     }
   }
@@ -189,6 +209,42 @@ export function WarningsContent() {
   const expiredCount = warnings.filter((w: EmployeeWarning) => w.status === "expired").length
   const withdrawnCount = warnings.filter((w: EmployeeWarning) => w.status === "withdrawn").length
   const totalCount = warnings.length
+
+  // Action dropdown component for each row
+  interface ActionDropdownProps {
+    row: any
+    onView: (id: string) => void
+    onEdit: (id: string) => void
+    onDelete: (id: string) => void
+  }
+
+  const ActionDropdown: React.FC<ActionDropdownProps> = ({ row, onView, onEdit, onDelete }) => {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+            <span className="sr-only">Open menu</span>
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => onView(row.id)}>
+            <Eye className="mr-2 h-4 w-4" />
+            View Details
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onEdit(row.id)} disabled={row.status === "withdrawn" || row.status === "expired"}>
+            <Edit className="mr-2 h-4 w-4" />
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onDelete(row.id)} className="text-red-600 focus:text-red-600">
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+  }
+
 
   // Table columns
   const columns = [
@@ -338,6 +394,20 @@ export function WarningsContent() {
           <div className="min-w-0">
             <div className="text-sm font-medium text-gray-900 truncate max-w-[100px]">{value}</div>
           </div>
+        </div>
+      ),
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      render: (_value: any, row: any) => (
+        <div className="flex justify-start">
+          <ActionDropdown
+            row={row}
+            onView={(id) => handleView(id)}
+            onEdit={(id) => handleEdit(id)}
+            onDelete={(id) => handleDelete(id)}
+          />
         </div>
       ),
     },
@@ -734,6 +804,8 @@ export function WarningsContent() {
             warning={selectedWarning}
           />
         )}
+
+
 
         <DeleteConfirmationDialog
           isOpen={isDeleteDialogOpen}

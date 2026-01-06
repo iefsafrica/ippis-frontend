@@ -60,8 +60,22 @@ export const useCreateEmployeeWarning = () => {
   return useMutation<CreateEmployeeWarningResponse, Error, CreateEmployeeWarningRequest>({
     mutationKey: [CREATE_EMPLOYEE_WARNING],
     mutationFn: createEmployeeWarning,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [GET_EMPLOYEE_WARNINGS] });
+    onSuccess: (response) => {
+      // If the server returned the created warning, optimistically add it to the top of the cached list
+      const newWarning = response?.data;
+
+      if (newWarning) {
+        queryClient.setQueryData<GetEmployeeWarningsResponse | undefined>([GET_EMPLOYEE_WARNINGS], (old) => {
+          if (!old) return { success: true, data: [newWarning] };
+          // ensure we don't duplicate the same id (in case of refetch)
+          const filtered = old.data.filter((w) => w.id !== newWarning.id);
+          return { ...old, data: [newWarning, ...filtered] };
+        });
+      } else {
+        queryClient.invalidateQueries({ queryKey: [GET_EMPLOYEE_WARNINGS] });
+      }
+
+      // Still invalidate employee-specific queries to keep things in sync
       queryClient.invalidateQueries({ queryKey: [GET_EMPLOYEE_WARNING_BY_EMPLOYEE_ID] });
     },
   });
