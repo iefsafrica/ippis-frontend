@@ -1,20 +1,17 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
 import { CoreHRClientWrapper } from "../components/core-hr-client-wrapper"
 import { DataTable } from "../components/data-table"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, MapPin, User, CreditCard, Loader2, RefreshCw, Plane, Hotel, Briefcase } from "lucide-react"
+import { Calendar, MapPin, User, CreditCard, Loader2, RefreshCw, Plane, Hotel, Briefcase, Eye, Edit, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { 
   useGetTravels, 
   useCreateTravel, 
   useUpdateTravel, 
   useDeleteTravel, 
-  mapTravelToLocal, 
-  mapLocalToTravelRequest,
-  mapLocalToUpdateRequest 
+  mapTravelToLocal
 } from "@/services/hooks/hr-core/travel"
 import type { CreateTravelRequest, UpdateTravelRequest, LocalTravel } from "@/types/hr-core/travel"
 import { Button } from "@/components/ui/button"
@@ -23,7 +20,6 @@ import { EditTravelDialog } from "./EditTravelDialog"
 import { ViewTravelDialog } from "./ViewTravelDialog"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 const travelSearchFields = [
@@ -82,224 +78,6 @@ const travelSearchFields = [
       { value: "completed", label: "Completed" },
       { value: "cancelled", label: "Cancelled" },
     ],
-  },
-]
-
-const columns = [
-  {
-    key: "employeeName",
-    label: "Employee",
-    sortable: true,
-    render: (value: string, row: any) => (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex items-center cursor-default">
-              <div className="relative">
-                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 flex items-center justify-center">
-                  <User className="h-4 w-4 text-blue-600" />
-                </div>
-                <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-white border border-gray-200 flex items-center justify-center">
-                  <div className={`h-2 w-2 rounded-full ${
-                    row.status === "approved" ? "bg-green-500" :
-                    row.status === "pending" ? "bg-yellow-500" :
-                    row.status === "completed" ? "bg-blue-500" : "bg-gray-400"
-                  }`} />
-                </div>
-              </div>
-              <div className="ml-3 min-w-0">
-                <div className="font-medium text-gray-900 truncate max-w-[140px] sm:max-w-[180px]">{value}</div>
-                <div className="text-xs text-gray-500 truncate max-w-[140px] sm:max-w-[180px]">{row.employeeId}</div>
-              </div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p className="text-xs">View details for {value}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    ),
-  },
-  {
-    key: "purpose",
-    label: "Purpose",
-    sortable: true,
-    render: (value: string) => (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex items-center cursor-default">
-              <Briefcase className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
-              <div className="truncate max-w-[120px] sm:max-w-[180px]">{value}</div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p className="text-xs">{value}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    ),
-  },
-  {
-    key: "destination",
-    label: "Destination",
-    sortable: true,
-    render: (value: string) => (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex items-center cursor-default">
-              <div className="relative">
-                <MapPin className="h-4 w-4 text-red-500 mr-2 flex-shrink-0" />
-              </div>
-              <span className="truncate max-w-[100px] sm:max-w-[150px]">{value}</span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p className="text-xs">Travel destination: {value}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    ),
-  },
-  {
-    key: "startDate",
-    label: "Travel Period",
-    sortable: true,
-    render: (value: string, row: any) => {
-      const calculateDuration = () => {
-        try {
-          const start = new Date(value)
-          const end = new Date(row.endDate)
-          const diffTime = Math.abs(end.getTime() - start.getTime())
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-          return diffDays
-        } catch {
-          return 0
-        }
-      }
-      
-      const duration = calculateDuration()
-      
-      return (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center cursor-default">
-                <div className="h-9 w-9 rounded-md bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 flex flex-col items-center justify-center mr-2 flex-shrink-0">
-                  <Calendar className="h-3 w-3 text-gray-600 mb-0.5" />
-                  <span className="text-xs font-medium text-gray-700">{duration}</span>
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-medium text-gray-900">
-                    {new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {new Date(row.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </div>
-                </div>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="text-xs">{duration} day{duration !== 1 ? 's' : ''} • {new Date(value).toLocaleDateString()} to {new Date(row.endDate).toLocaleDateString()}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )
-    },
-  },
-  {
-    key: "estimatedCost",
-    label: "Cost",
-    sortable: true,
-    render: (value: string) => {
-      const amount = parseFloat(value) || 0
-      return (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center cursor-default">
-                <div className="h-9 w-9 rounded-md bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mr-2 flex-shrink-0">
-                  <CreditCard className="h-3.5 w-3.5 text-green-600" />
-                </div>
-                <div className="min-w-0">
-                  <div className="font-medium text-gray-900">
-                    ₦{amount.toLocaleString(undefined, {
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0,
-                    })}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {amount >= 1000000 ? `${(amount / 1000000).toFixed(1)}M` : 
-                     amount >= 1000 ? `${(amount / 1000).toFixed(1)}K` : 
-                     'Budget'}
-                  </div>
-                </div>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="text-xs">Estimated cost: ₦{amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )
-    },
-  },
-  {
-    key: "status",
-    label: "Status",
-    sortable: true,
-    render: (value: string) => {
-      const statusConfig: Record<string, { label: string; className: string; icon: string }> = {
-        approved: { 
-          label: "Approved", 
-          className: "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 text-green-800 hover:from-green-100 hover:to-emerald-100",
-          icon: "✓"
-        },
-        pending: { 
-          label: "Pending", 
-          className: "bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 text-yellow-800 hover:from-yellow-100 hover:to-amber-100",
-          icon: "⏳"
-        },
-        completed: { 
-          label: "Completed", 
-          className: "bg-gradient-to-r from-blue-50 to-sky-50 border border-blue-200 text-blue-800 hover:from-blue-100 hover:to-sky-100",
-          icon: "✓"
-        },
-        rejected: { 
-          label: "Rejected", 
-          className: "bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 text-red-800 hover:from-red-100 hover:to-rose-100",
-          icon: "✗"
-        },
-        cancelled: { 
-          label: "Cancelled", 
-          className: "bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 text-gray-800 hover:from-gray-100 hover:to-slate-100",
-          icon: "✗"
-        },
-      }
-      
-      const config = statusConfig[value] || { 
-        label: value, 
-        className: "bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 text-gray-800 hover:from-gray-100 hover:to-slate-100",
-        icon: "?"
-      }
-      
-      return (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge className={`${config.className} px-3 py-1.5 font-medium rounded-full shadow-sm`} variant="outline">
-                <span className="mr-1.5">{config.icon}</span>
-                {config.label}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="text-xs">Status: {config.label}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )
-    },
   },
 ]
 
@@ -440,6 +218,261 @@ export function TravelContent() {
     toast.info("Refreshing travel records...")
   }
 
+  // Define columns INSIDE the component so they can access the handler functions
+  const columns = [
+    {
+      key: "employeeName",
+      label: "Employee",
+      sortable: true,
+      render: (value: string, row: any) => (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center cursor-default">
+                <div className="relative">
+                  <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 flex items-center justify-center">
+                    <User className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-white border border-gray-200 flex items-center justify-center">
+                    <div className={`h-2 w-2 rounded-full ${
+                      row.status === "approved" ? "bg-green-500" :
+                      row.status === "pending" ? "bg-yellow-500" :
+                      row.status === "completed" ? "bg-blue-500" : "bg-gray-400"
+                    }`} />
+                  </div>
+                </div>
+                <div className="ml-3 min-w-0">
+                  <div className="font-medium text-gray-900 truncate max-w-[140px] sm:max-w-[180px]">{value}</div>
+                  <div className="text-xs text-gray-500 truncate max-w-[140px] sm:max-w-[180px]">{row.employeeId}</div>
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">View details for {value}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ),
+    },
+    {
+      key: "purpose",
+      label: "Purpose",
+      sortable: true,
+      render: (value: string) => (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center cursor-default">
+                <Briefcase className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
+                <div className="truncate max-w-[120px] sm:max-w-[180px]">{value}</div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">{value}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ),
+    },
+    {
+      key: "destination",
+      label: "Destination",
+      sortable: true,
+      render: (value: string) => (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center cursor-default">
+                <div className="relative">
+                  <MapPin className="h-4 w-4 text-red-500 mr-2 flex-shrink-0" />
+                </div>
+                <span className="truncate max-w-[100px] sm:max-w-[150px]">{value}</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">Travel destination: {value}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ),
+    },
+    {
+      key: "startDate",
+      label: "Travel Period",
+      sortable: true,
+      render: (value: string, row: any) => {
+        const calculateDuration = () => {
+          try {
+            const start = new Date(value)
+            const end = new Date(row.endDate)
+            const diffTime = Math.abs(end.getTime() - start.getTime())
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+            return diffDays
+          } catch {
+            return 0
+          }
+        }
+        
+        const duration = calculateDuration()
+        
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center cursor-default">
+                  <div className="h-9 w-9 rounded-md bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 flex flex-col items-center justify-center mr-2 flex-shrink-0">
+                    <Calendar className="h-3 w-3 text-gray-600 mb-0.5" />
+                    <span className="text-xs font-medium text-gray-700">{duration}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-gray-900">
+                      {new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(row.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </div>
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">{duration} day{duration !== 1 ? 's' : ''} • {new Date(value).toLocaleDateString()} to {new Date(row.endDate).toLocaleDateString()}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
+      },
+    },
+    {
+      key: "estimatedCost",
+      label: "Cost",
+      sortable: true,
+      render: (value: string) => {
+        const amount = parseFloat(value) || 0
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center cursor-default">
+                  <div className="h-9 w-9 rounded-md bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center mr-2 flex-shrink-0">
+                    <CreditCard className="h-3.5 w-3.5 text-green-600" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-medium text-gray-900">
+                      ₦{amount.toLocaleString(undefined, {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                      })}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {amount >= 1000000 ? `${(amount / 1000000).toFixed(1)}M` : 
+                       amount >= 1000 ? `${(amount / 1000).toFixed(1)}K` : 
+                       'Budget'}
+                    </div>
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">Estimated cost: ₦{amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
+      },
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      render: (value: string) => {
+        const statusConfig: Record<string, { label: string; className: string; icon: string }> = {
+          approved: { 
+            label: "Approved", 
+            className: "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 text-green-800 hover:from-green-100 hover:to-emerald-100",
+            icon: "✓"
+          },
+          pending: { 
+            label: "Pending", 
+            className: "bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 text-yellow-800 hover:from-yellow-100 hover:to-amber-100",
+            icon: "⏳"
+          },
+          completed: { 
+            label: "Completed", 
+            className: "bg-gradient-to-r from-blue-50 to-sky-50 border border-blue-200 text-blue-800 hover:from-blue-100 hover:to-sky-100",
+            icon: "✓"
+          },
+          rejected: { 
+            label: "Rejected", 
+            className: "bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 text-red-800 hover:from-red-100 hover:to-rose-100",
+            icon: "✗"
+          },
+          cancelled: { 
+            label: "Cancelled", 
+            className: "bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 text-gray-800 hover:from-gray-100 hover:to-slate-100",
+            icon: "✗"
+          },
+        }
+        
+        const config = statusConfig[value] || { 
+          label: value, 
+          className: "bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 text-gray-800 hover:from-gray-100 hover:to-slate-100",
+          icon: "?"
+        }
+        
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge className={`${config.className} px-3 py-1.5 font-medium rounded-full shadow-sm`} variant="outline">
+                  <span className="mr-1.5">{config.icon}</span>
+                  {config.label}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">Status: {config.label}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
+      },
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      render: (_: any, row: any) => (
+        <div className="flex justify-end space-x-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleViewTravel(row.id)}
+            title="View Details"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleEditTravel(row.id)}
+            title="Edit"
+            disabled={row.status !== "pending"}
+            className="text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleOpenDeleteDialog(row.id)}
+            title="Delete"
+            disabled={row.status !== "pending"}
+            className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ]
+
   // Calculate statistics
   const totalCost = localTravels.reduce((sum, travel) => sum + parseFloat(travel.estimatedCost || "0"), 0)
   const pendingCount = localTravels.filter(t => t.status === "pending").length
@@ -548,6 +581,14 @@ export function TravelContent() {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            <Button
+              onClick={handleAddTravel}
+              disabled={isLoading}
+              className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
+            >
+              <Plane className="h-4 w-4 mr-2" />
+              Add Travel
+            </Button>
           </div>
         </div>
 
@@ -643,11 +684,11 @@ export function TravelContent() {
               data={localTravels}
               searchFields={travelSearchFields}
               onAdd={handleAddTravel}
-                //@ts-expect-error - isLoading prop exists
+              //@ts-expect-error TS2345
               onEdit={handleEditTravel}
               onDelete={handleOpenDeleteDialog}
               onView={handleViewTravel}
-            
+              showActions={true}
               isLoading={isLoading}
               emptyMessage={
                 <div className="text-center py-12">
@@ -673,7 +714,7 @@ export function TravelContent() {
         <AddTravelDialog
           isOpen={isAddDialogOpen}
           onClose={() => setIsAddDialogOpen(false)}
-          //@ts-expect-error - isLoading prop exists
+          //@ts-expect-error TS2322
           onSubmit={handleCreateTravel}
           isLoading={createTravelMutation.isPending}
         />
@@ -682,7 +723,7 @@ export function TravelContent() {
           <EditTravelDialog
             isOpen={isEditDialogOpen}
             onClose={() => setIsEditDialogOpen(false)}
-            //@ts-expect-error - isLoading prop exists
+            //@ts-expect-error TS2322
             onSubmit={handleUpdateTravel}
             initialData={currentTravel}
             isLoading={updateTravelMutation.isPending}

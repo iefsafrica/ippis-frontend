@@ -13,7 +13,7 @@ import {
 import { Pagination } from '@/app/admin/components/pagination';
 import { DataExportMenu } from '@/app/admin/components/data-export-menu';
 import { AdvancedSearch } from '@/app/admin/components/advanced-search';
-import { Plus, Trash2, FileEdit, Eye, ChevronUp, ChevronDown, RefreshCw } from 'lucide-react';
+import { Plus, Eye, ChevronUp, ChevronDown, RefreshCw, User, Building, Award, Calendar } from 'lucide-react';
 import { AddPromotionDialog } from './add-promotion-dialog';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -36,6 +36,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { TablePromotion } from '@/types/hr-core/promotion-management';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface PromotionContentProps {
   promotions: TablePromotion[];
@@ -222,225 +223,328 @@ export function PromotionContent({
     }, 500);
   };
 
+  // Calculate statistics (similar to resignations pattern)
+  const totalCount = promotions.length;
+
+  // Define columns with the same pattern as resignations
+  const columns = [
+    {
+      key: "employee",
+      label: "Employee",
+      sortable: true,
+      render: (value: string, row: any) => (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center cursor-default">
+                <div className="relative">
+                  <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 flex items-center justify-center">
+                    <User className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-white border border-gray-200 flex items-center justify-center">
+                    <div className="h-2 w-2 rounded-full bg-green-500" />
+                  </div>
+                </div>
+                <div className="ml-3 min-w-0">
+                  <div className="font-medium text-gray-900 truncate max-w-[140px] sm:max-w-[180px]">{value}</div>
+                  <div className="text-xs text-gray-500 truncate max-w-[140px] sm:max-w-[180px]">{row.employeeId}</div>
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">View details for {value}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ),
+    },
+    {
+      key: "company",
+      label: "Department & Position",
+      sortable: true,
+      render: (value: string, row: any) => (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center cursor-default">
+                <div className="h-9 w-9 rounded-md bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 flex items-center justify-center mr-2 flex-shrink-0">
+                  <Building className="h-4 w-4 text-gray-600" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-gray-900 truncate max-w-[140px]">{value || 'N/A'}</div>
+                  <div className="text-xs text-gray-500 truncate max-w-[140px]">{row.previousPosition}</div>
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">Department: {value || 'Not specified'}</p>
+              <p className="text-xs">Previous Position: {row.previousPosition}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ),
+    },
+    {
+      key: "promotionTitle",
+      label: "Promotion Details",
+      sortable: true,
+      render: (value: string, row: any) => (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center cursor-default">
+                <div className="h-9 w-9 rounded-md bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 flex items-center justify-center mr-2 flex-shrink-0">
+                  <Award className="h-4 w-4 text-purple-600" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-gray-900 truncate max-w-[140px]">{value}</div>
+                  <div className="text-xs text-gray-500">New position</div>
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">Promotion to: {value}</p>
+              <p className="text-xs">From: {row.previousPosition}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ),
+    },
+    {
+      key: "date",
+      label: "Effective Date",
+      sortable: true,
+      render: (value: string) => {
+        try {
+          const date = new Date(value);
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center cursor-default">
+                    <div className="h-9 w-9 rounded-md bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex flex-col items-center justify-center mr-2 flex-shrink-0">
+                      <Calendar className="h-3 w-3 text-green-600 mb-0.5" />
+                      <span className="text-xs font-medium text-green-700">{date.getDate()}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate max-w-[80px]">
+                        {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </div>
+                      <div className="text-xs text-gray-500">Effective date</div>
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">{date.toLocaleDateString()}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        } catch {
+          return <span className="text-gray-500">N/A</span>;
+        }
+      },
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      render: (_: any, row: any) => (
+        <div className="flex  space-x-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleViewDetails(row)}
+            title="View Details"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div className="container mx-auto py-6">
-      <div className="flex flex-col space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Employee Promotions</h1>
-          <div className="flex items-center space-x-2">
-            <AdvancedSearch
-              onSearch={handleSearch}
-              //@ts-ignore
-              fields={searchFields}
-              title="Promotions"
-            />
-            <DataExportMenu
-              onExportPDF={handleExportPDF}
-              onExportCSV={handleExportCSV}
-              onPrint={handlePrint}
-              title="Promotions"
-            />
-            <Button
-              variant="outline"
-              onClick={handleManualRefresh}
-              disabled={isRefreshing}
-              title="Refresh Table"
-            >
-              {isRefreshing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
+    <div className="container mx-auto px-4 py-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div className="flex items-center space-x-3">
+          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center shadow-sm">
+            <Award className="h-6 w-6 text-green-600" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+              Employee Promotions
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Manage employee promotions and career advancement
+              {promotions && (
+                <span className="ml-2 text-sm text-gray-500">
+                  ({totalCount} promotion records)
+                </span>
               )}
-            </Button>
-            <Button
-              onClick={() => setIsAddDialogOpen(true)}
-              className="bg-green-600 hover:bg-green-700"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="mr-2 h-4 w-4" />
-              )}
-              {isLoading ? "Adding..." : "Add Promotion"}
-            </Button>
+            </p>
           </div>
         </div>
+        <div className="flex items-center space-x-2">
+          <AdvancedSearch
+            onSearch={handleSearch}
+            //@ts-ignore
+            fields={searchFields}
+            title="Promotions"
+          />
+          <DataExportMenu
+            onExportPDF={handleExportPDF}
+            onExportCSV={handleExportCSV}
+            onPrint={handlePrint}
+            title="Promotions"
+          />
+          <Button
+            variant="outline"
+            onClick={handleManualRefresh}
+            disabled={isRefreshing || isLoading}
+            className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"
+          >
+            {isRefreshing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            <span className="ml-2 hidden sm:inline">Refresh</span>
+          </Button>
+          <Button
+            onClick={() => setIsAddDialogOpen(true)}
+            disabled={isLoading}
+            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Promotion
+          </Button>
+        </div>
+      </div>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Promotions List</CardTitle>
-                <CardDescription>
-                  Manage employee promotions and career advancement records
-                  {!isLoading && sortedPromotions.length > 0 && (
-                    <span className="ml-2 text-sm font-medium">
-                      (Sorted by {sortField === 'id' ? 'promotion ID' : sortField} in {sortDirection}ending order)
-                    </span>
-                  )}
-                </CardDescription>
-              </div>
-              {!isLoading && sortedPromotions.length > 0 && (
-                <div className="text-sm text-gray-600">
-                  Showing {paginatedPromotions.length} of {sortedPromotions.length} promotions
-                </div>
-              )}
+      {/* Statistics Card */}
+      <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 mb-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-gray-500">Total Promotion Records</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center">
+            <div className="h-8 w-8 rounded-lg bg-green-100 border border-green-200 flex items-center justify-center mr-3">
+              <span className="text-green-800 font-bold">{totalCount}</span>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md max-h-[60vh] overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-gray-100"
-                      onClick={() => !isLoading && handleSort('employee')}
-                    >
-                      <div className="flex items-center">
-                        Employee
-                        {getSortIcon('employee')}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-gray-100"
-                      onClick={() => !isLoading && handleSort('employeeId')}
-                    >
-                      <div className="flex items-center">
-                        Employee ID
-                        {getSortIcon('employeeId')}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-gray-100"
-                      onClick={() => !isLoading && handleSort('company')}
-                    >
-                      <div className="flex items-center">
-                        Company/Department
-                        {getSortIcon('company')}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-gray-100"
-                      onClick={() => !isLoading && handleSort('promotionTitle')}
-                    >
-                      <div className="flex items-center">
-                        Promotion Title
-                        {getSortIcon('promotionTitle')}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-gray-100"
-                      onClick={() => !isLoading && handleSort('date')}
-                    >
-                      <div className="flex items-center">
-                        Date
-                        {getSortIcon('date')}
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-[400px]">
-                        <div className="flex flex-col items-center justify-center h-full space-y-4">
-                          <Loader2 className="h-12 w-12 animate-spin text-gray-500" />
-                          <div className="text-center">
-                            <p className="text-lg font-medium text-gray-700">Loading promotions...</p>
-                            <p className="text-sm text-gray-500 mt-1">
-                              Please wait while we fetch the latest promotion records
-                            </p>
-                          </div>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : paginatedPromotions.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center">
-                        <div className="flex flex-col items-center justify-center space-y-2">
-                          <div className="text-gray-400">
-                            <svg 
-                              className="w-12 h-12 mx-auto" 
-                              fill="none" 
-                              stroke="currentColor" 
-                              viewBox="0 0 24 24" 
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <path 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round" 
-                                strokeWidth="1.5" 
-                                d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" 
-                              />
-                            </svg>
-                          </div>
-                          <p className="text-gray-600 font-medium">No promotions found</p>
-                          <p className="text-gray-500 text-sm">Add a new promotion to get started</p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    paginatedPromotions.map((promotion) => (
-                      <TableRow key={promotion.id}>
-                        <TableCell className="font-medium">
-                          {promotion.employee}
-                        </TableCell>
-                        <TableCell>{promotion.employeeId}</TableCell>
-                        <TableCell>{promotion.company || 'N/A'}</TableCell>
-                        <TableCell>{promotion.promotionTitle}</TableCell>
-                        <TableCell>
-                          {new Date(promotion.date).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end space-x-2">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => handleViewDetails(promotion)}
-                              title="View Details"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="text-blue-600 hover:text-blue-800"
-                              title="Edit"
-                            >
-                              <FileEdit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="text-red-600 hover:text-red-800"
-                              onClick={() => handleDeleteClick(promotion.id)}
-                              title="Delete"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+            <div>
+              <div className="text-2xl font-bold text-gray-900">{totalCount}</div>
+              <p className="text-xs text-gray-500 mt-1">Total promotion records in system</p>
             </div>
+          </div>
+        </CardContent>
+      </Card>
 
-            {!isLoading && totalPages > 1 && (
-              <div className="flex items-center justify-center mt-6">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={handlePageChange}
-                />
+      {/* Main Table */}
+      <Card className="border border-gray-200 shadow-lg rounded-xl overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between">
+            <div>
+              <CardTitle className="text-lg font-semibold text-gray-900">Promotion Records</CardTitle>
+              <CardDescription className="text-gray-600">
+                Manage and review employee promotion records
+              </CardDescription>
+            </div>
+            {!isLoading && sortedPromotions.length > 0 && (
+              <div className="text-sm text-gray-600">
+                Sorted by {sortField === 'id' ? 'promotion ID' : sortField} in {sortDirection}ending order
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="rounded-md max-h-[60vh] overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {columns.map((column) => (
+                    <TableHead 
+                      key={column.key}
+                      className="cursor-pointer hover:bg-gray-100"
+                      onClick={() => !isLoading && column.sortable && handleSort(column.key as SortField)}
+                    >
+                      <div className="flex items-center">
+                        {column.label}
+                        {column.sortable && getSortIcon(column.key as SortField)}
+                      </div>
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="h-[400px]">
+                      <div className="flex flex-col items-center justify-center h-full space-y-4">
+                        <Loader2 className="h-12 w-12 animate-spin text-gray-500" />
+                        <div className="text-center">
+                          <p className="text-lg font-medium text-gray-700">Loading promotions...</p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Please wait while we fetch the latest promotion records
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : paginatedPromotions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        <div className="text-gray-400">
+                          <svg 
+                            className="w-12 h-12 mx-auto" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24" 
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                              strokeWidth="1.5" 
+                              d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" 
+                            />
+                          </svg>
+                        </div>
+                        <p className="text-gray-600 font-medium">No promotions found</p>
+                        <p className="text-gray-500 text-sm">Add a new promotion to get started</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  paginatedPromotions.map((promotion) => (
+                    <TableRow key={promotion.id}>
+                      {columns.map((column) => (
+                        <TableCell key={`${promotion.id}-${column.key}`}>
+                          {column.render 
+                          //@ts-expect-error - TS doesn't infer correctly here
+                            ? column.render(promotion[column.key as keyof TablePromotion], promotion)
+                            : promotion[column.key as keyof TablePromotion]}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {!isLoading && totalPages > 1 && (
+            <div className="flex items-center justify-center mt-6">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <AddPromotionDialog
         isOpen={isAddDialogOpen}
@@ -474,5 +578,5 @@ export function PromotionContent({
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
+  );
 }

@@ -65,9 +65,9 @@ export function AddTransferDialog({
     isLoading: isLoadingEmployees,
     error: employeesError,
     refetch,
-    //@ts-expect-error - refetch exists
+    //@ts-expect-error TS2532
   } = useAllEmployees({
-    enabled: false,
+    enabled: true, // Changed to true to always fetch employees
   })
 
   const [formData, setFormData] = useState<CreateTransferPayload>({
@@ -86,26 +86,10 @@ export function AddTransferDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [dropdownEmployees, setDropdownEmployees] = useState<DropdownEmployee[]>([])
-  const [hasFetchedEmployees, setHasFetchedEmployees] = useState(false)
 
-  useEffect(() => {
-    if (isOpen && !hasFetchedEmployees) {
-      const fetchEmployees = async () => {
-        try {
-          await refetch()
-        } catch (error) {
-          toast.error("Failed to load employees")
-          console.error("Error fetching employees:", error)
-        }
-      }
-      fetchEmployees()
-      setHasFetchedEmployees(true)
-    }
-  }, [isOpen, refetch, hasFetchedEmployees])
-
+  // Reset form when dialog closes
   useEffect(() => {
     if (!isOpen) {
-      setHasFetchedEmployees(false)
       setFormData({
         employee_id: "",
         employee_name: "",
@@ -119,10 +103,10 @@ export function AddTransferDialog({
         reason: "",
       })
       setErrors({})
-      setDropdownEmployees([])
     }
   }, [isOpen])
 
+  // Process employee data whenever it changes
   useEffect(() => {
     if (employeesData) {
       try {
@@ -130,17 +114,17 @@ export function AddTransferDialog({
         
         if (Array.isArray(employeesData)) {
           employeeList = employeesData
-          //@ts-expect-error - refetch exists
+          //@ts-expect-error TS2532
         } else if (employeesData.data && Array.isArray(employeesData.data)) {
-          //@ts-expect-error - refetch exists
+          //@ts-expect-error TS2532
           employeeList = employeesData.data
-          //@ts-expect-error - refetch exists
+          //@ts-expect-error TS2532
         } else if (employeesData.employees && Array.isArray(employeesData.employees)) {
-          //@ts-expect-error - refetch exists
+          //@ts-expect-error TS2532
           employeeList = employeesData.employees
-          //@ts-expect-error - refetch exists
+          //@ts-expect-error TS2532
         } else if (employeesData.data?.employees && Array.isArray(employeesData.data.employees)) {
-          //@ts-expect-error - refetch exists
+          //@ts-expect-error TS2532
           employeeList = employeesData.data.employees
         }
         
@@ -174,6 +158,13 @@ export function AddTransferDialog({
       setDropdownEmployees([])
     }
   }, [employeesData])
+
+  // Refetch employees when dialog opens to ensure fresh data
+  useEffect(() => {
+    if (isOpen) {
+      refetch()
+    }
+  }, [isOpen, refetch])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target

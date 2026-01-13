@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Loader2, User, Building, Calendar, Award, ChevronDown, Hash, BadgeCheck, Gift, Briefcase } from "lucide-react"
+import { Loader2, User, Building, Calendar, Award, Hash, BadgeCheck, Gift } from "lucide-react"
 import type { LocalAward } from "@/types/hr-core/awards"
 import { toast } from "sonner"
 
@@ -56,6 +56,22 @@ export function EditAwardDialog({
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
+    if (initialData) {
+      setFormData({
+        employeeId: initialData.employeeId || "",
+        employeeName: initialData.employeeName || "",
+        department: initialData.department || "",
+        awardType: initialData.awardType || "",
+        giftItem: initialData.giftItem || "",
+        cashPrice: initialData.cashPrice?.toString() || "",
+        awardDate: initialData.awardDate || new Date().toISOString().split("T")[0],
+        description: initialData.description || "",
+        status: initialData.status || "active",
+      })
+    }
+  }, [initialData])
+
+  useEffect(() => {
     if (!isOpen) {
       setFormData({
         employeeId: "",
@@ -71,22 +87,6 @@ export function EditAwardDialog({
       setErrors({})
     }
   }, [isOpen])
-
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        employeeId: initialData.employeeId || "",
-        employeeName: initialData.employeeName || "",
-        department: initialData.department || "",
-        awardType: initialData.awardType || "",
-        giftItem: initialData.giftItem || "",
-        cashPrice: initialData.cashPrice?.toString() || "",
-        awardDate: initialData.awardDate || new Date().toISOString().split("T")[0],
-        description: initialData.description || "",
-        status: initialData.status || "active",
-      })
-    }
-  }, [initialData])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -212,120 +212,74 @@ export function EditAwardDialog({
 
           <div className="px-8 py-6 max-h-[70vh] overflow-y-auto">
             <div className="space-y-8">
-              {/* Employee Information Section */}
+              {/* Employee Information Section - Read Only */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-medium text-gray-900 uppercase tracking-wide">Employee Information</h3>
-                  <span className="text-xs text-gray-500">Required fields marked with *</span>
+                  <span className="text-xs text-gray-500">Employee details cannot be changed</span>
                 </div>
                 
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-3">
                       <div>
-                        <Label htmlFor="employeeId" className="text-xs text-gray-500 font-medium mb-1 block">
-                          Employee ID *
+                        <Label className="text-xs text-gray-500 font-medium mb-1 block">
+                          Employee ID
                         </Label>
                         <div className="flex items-center">
                           <div className="h-10 flex items-center justify-center w-10 border-r border-gray-200 bg-white">
                             <Hash className="h-4 w-4 text-gray-600" />
                           </div>
                           <Input
-                            id="employeeId"
                             name="employeeId"
                             value={formData.employeeId}
-                            onChange={handleChange}
-                            className="h-10 border-0 bg-white pl-3 text-sm font-medium text-gray-900"
-                            required
+                            readOnly
+                            className="h-10 border-0 bg-white pl-3 text-sm font-medium text-gray-900 cursor-default"
                           />
                         </div>
-                        {errors.employeeId && (
-                          <p className="text-sm text-red-600 mt-1">{errors.employeeId}</p>
-                        )}
                       </div>
 
                       <div>
-                        <Label htmlFor="employeeName" className="text-xs text-gray-500 font-medium mb-1 block">
-                          Employee Name *
+                        <Label className="text-xs text-gray-500 font-medium mb-1 block">
+                          Employee Name
                         </Label>
                         <div className="flex items-center">
                           <div className="h-10 flex items-center justify-center w-10 border-r border-gray-200 bg-white">
                             <User className="h-4 w-4 text-gray-600" />
                           </div>
                           <Input
-                            id="employeeName"
                             name="employeeName"
                             value={formData.employeeName}
-                            onChange={handleChange}
-                            className="h-10 border-0 bg-white pl-3 text-sm font-medium text-gray-900"
-                            required
+                            readOnly
+                            className="h-10 border-0 bg-white pl-3 text-sm font-medium text-gray-900 cursor-default"
                           />
                         </div>
-                        {errors.employeeName && (
-                          <p className="text-sm text-red-600 mt-1">{errors.employeeName}</p>
-                        )}
                       </div>
                     </div>
 
                     <div className="space-y-3">
                       <div>
-                        <Label htmlFor="department" className="text-xs text-gray-500 font-medium mb-1 block">
-                          Department *
+                        <Label className="text-xs text-gray-500 font-medium mb-1 block">
+                          Department
                         </Label>
-                        <Select
-                          value={formData.department}
-                          onValueChange={(value) => handleSelectChange("department", value)}
-                          disabled={isLoading}
-                        >
-                          <SelectTrigger className="h-10 border-0 bg-white pl-3">
-                            <div className="flex items-center">
-                              <Building className="h-4 w-4 text-gray-500 mr-3" />
-                              <SelectValue placeholder="Select department" />
-                            </div>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {departmentOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {errors.department && (
-                          <p className="text-sm text-red-600 mt-1">{errors.department}</p>
-                        )}
-                      </div>
-
-                      <div>
-                        <Label htmlFor="status" className="text-xs text-gray-500 font-medium mb-1 block">
-                          Status *
-                        </Label>
-                        <Select
-                          value={formData.status}
-                          onValueChange={(value) => handleSelectChange("status", value)}
-                          disabled={isLoading}
-                        >
-                          <SelectTrigger className="h-10 border-0 bg-white pl-3">
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {statusOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {errors.status && (
-                          <p className="text-sm text-red-600 mt-1">{errors.status}</p>
-                        )}
+                        <div className="flex items-center">
+                          <div className="h-10 flex items-center justify-center w-10 border-r border-gray-200 bg-white">
+                            <Building className="h-4 w-4 text-gray-600" />
+                          </div>
+                          <Input
+                            name="department"
+                            value={formData.department}
+                            readOnly
+                            className="h-10 border-0 bg-white pl-3 text-sm font-medium text-gray-900 cursor-default"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Award Details Section */}
+              {/* Award Details Section - Editable */}
               <div className="pt-6 border-t border-gray-200">
                 <h3 className="text-sm font-medium text-gray-900 uppercase tracking-wide mb-6">Award Details</h3>
                 
@@ -448,6 +402,31 @@ export function EditAwardDialog({
                     />
                     {errors.description && (
                       <p className="text-sm text-red-600 mt-2">{errors.description}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="status" className="text-sm font-medium text-gray-700 mb-2 block">
+                      Status *
+                    </Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value) => handleSelectChange("status", value)}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger className="h-11 border-gray-300 text-gray-900">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.status && (
+                      <p className="text-sm text-red-600 mt-2">{errors.status}</p>
                     )}
                   </div>
                 </div>

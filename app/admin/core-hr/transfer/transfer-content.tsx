@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { CoreHRClientWrapper } from "../components/core-hr-client-wrapper"
 import { DataTable } from "../components/data-table"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, MapPin, User, Building, Briefcase, Hash, Loader2, RefreshCw, ArrowRight, CheckCircle, XCircle, Eye, Edit, Trash2, MoreVertical } from "lucide-react"
+import { Calendar, MapPin, User, Building, Briefcase, Hash, Loader2, RefreshCw, ArrowRight, Eye, Edit, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import {
   useTransfers,
@@ -25,12 +25,6 @@ import { ViewTransferDialog } from "./view-transfer-dialog"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 
 const transferSearchFields = [
   {
@@ -77,288 +71,6 @@ const transferSearchFields = [
   },
 ]
 
-// Action Dropdown Component
-interface ActionDropdownProps {
-  row: any;
-  onView: (id: string) => void;
-  onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
-  onApprove: (id: string) => void;
-  onReject: (id: string) => void;
-}
-
-const ActionDropdown: React.FC<ActionDropdownProps> = ({
-  row,
-  onView,
-  onEdit,
-  onDelete,
-  onApprove,
-  onReject,
-}) => {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          className="h-8 w-8 p-0"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="sr-only">Open menu</span>
-          <MoreVertical className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => onView(row.id)}>
-          <Eye className="mr-2 h-4 w-4" />
-          View Details
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onEdit(row.id)}>
-          <Edit className="mr-2 h-4 w-4" />
-          Edit
-        </DropdownMenuItem>
-        
-        {row.status === "pending" && (
-          <>
-            <DropdownMenuItem 
-              onClick={() => onApprove(row.id)}
-              className="text-green-600 focus:text-green-600"
-            >
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Approve
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => onReject(row.id)}
-              className="text-red-600 focus:text-red-600"
-            >
-              <XCircle className="mr-2 h-4 w-4" />
-              Reject
-            </DropdownMenuItem>
-          </>
-        )}
-        
-        <DropdownMenuItem 
-          onClick={() => onDelete(row.id)}
-          className="text-red-600 focus:text-red-600"
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-};
-
-const columns = [
- 
-  {
-    key: "employee_name",
-    label: "Employee",
-    sortable: true,
-    render: (value: string, row: any) => (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex items-center cursor-default">
-              <div className="relative">
-                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 flex items-center justify-center">
-                  <User className="h-4 w-4 text-blue-600" />
-                </div>
-                <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-white border border-gray-200 flex items-center justify-center">
-                  <div className={`h-2 w-2 rounded-full ${
-                    row.status === "approved" ? "bg-green-500" :
-                    row.status === "pending" ? "bg-yellow-500" :
-                    row.status === "rejected" || row.status === "cancelled" ? "bg-red-500" : "bg-gray-400"
-                  }`} />
-                </div>
-              </div>
-              <div className="ml-3 min-w-0">
-                <div className="font-medium text-gray-900 truncate max-w-[140px] sm:max-w-[180px]">{value}</div>
-                <div className="text-xs text-gray-500 truncate max-w-[140px] sm:max-w-[180px]">{row.employee_id}</div>
-              </div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p className="text-xs">View details for {value}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    ),
-  },
-  {
-    key: "from_department",
-    label: "From → To",
-    sortable: true,
-    render: (value: string, row: any) => (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex items-center cursor-default">
-              <div className="h-9 w-9 rounded-md bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 flex items-center justify-center mr-2 flex-shrink-0">
-                <Building className="h-4 w-4 text-gray-600" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center text-sm">
-                  <span className="font-medium text-gray-900 truncate max-w-[80px]">{value}</span>
-                  <ArrowRight className="h-3 w-3 mx-1 text-gray-400 flex-shrink-0" />
-                  <span className="font-medium text-gray-900 truncate max-w-[80px]">{row.to_department}</span>
-                </div>
-                <div className="text-xs text-gray-500 truncate max-w-[180px]">
-                  {row.from_position} → {row.to_position}
-                </div>
-              </div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p className="text-xs">Department: {value} → {row.to_department}</p>
-            <p className="text-xs">Position: {row.from_position} → {row.to_position}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    ),
-  },
-  {
-    key: "from_location",
-    label: "Location",
-    sortable: true,
-    render: (value: string, row: any) => (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex items-center cursor-default">
-              <div className="h-9 w-9 rounded-md bg-gradient-to-br from-red-50 to-red-100 border border-red-200 flex items-center justify-center mr-2 flex-shrink-0">
-                <MapPin className="h-4 w-4 text-red-600" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center text-sm">
-                  <span className="font-medium text-gray-900 truncate max-w-[80px]">{value}</span>
-                  <ArrowRight className="h-3 w-3 mx-1 text-gray-400 flex-shrink-0" />
-                  <span className="font-medium text-gray-900 truncate max-w-[80px]">{row.to_location}</span>
-                </div>
-                <div className="text-xs text-gray-500">Location transfer</div>
-              </div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p className="text-xs">Location: {value} → {row.to_location}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    ),
-  },
-  {
-    key: "effective_date",
-    label: "Effective Date",
-    sortable: true,
-    render: (value: string) => {
-      try {
-        const date = new Date(value)
-        const today = new Date()
-        const diffTime = date.getTime() - today.getTime()
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-        
-        return (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center cursor-default">
-                  <div className="h-9 w-9 rounded-md bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 flex flex-col items-center justify-center mr-2 flex-shrink-0">
-                    <Calendar className="h-3 w-3 text-purple-600 mb-0.5" />
-                    <span className="text-xs font-medium text-purple-700">{date.getDate()}</span>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="font-medium text-gray-900">
-                      {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </div>
-                    <div className={`text-xs ${diffDays < 0 ? 'text-gray-500' : diffDays <= 7 ? 'text-yellow-600' : 'text-green-600'}`}>
-                      {diffDays < 0 ? 'Past' : diffDays === 0 ? 'Today' : `In ${diffDays} day${diffDays !== 1 ? 's' : ''}`}
-                    </div>
-                  </div>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-xs">Effective from: {date.toLocaleDateString()}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )
-      } catch {
-        return <span className="text-gray-500">N/A</span>
-      }
-    },
-  },
-  {
-    key: "status",
-    label: "Status",
-    sortable: true,
-    render: (value: string) => {
-      const statusConfig: Record<string, { label: string; className: string; icon: string }> = {
-        approved: { 
-          label: "Approved", 
-          className: "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 text-green-800 hover:from-green-100 hover:to-emerald-100",
-          icon: "✓"
-        },
-        pending: { 
-          label: "Pending", 
-          className: "bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 text-yellow-800 hover:from-yellow-100 hover:to-amber-100",
-          icon: "⏳"
-        },
-        rejected: { 
-          label: "Rejected", 
-          className: "bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 text-red-800 hover:from-red-100 hover:to-rose-100",
-          icon: "✗"
-        },
-        cancelled: { 
-          label: "Cancelled", 
-          className: "bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 text-gray-800 hover:from-gray-100 hover:to-slate-100",
-          icon: "✗"
-        },
-      }
-      
-      const config = statusConfig[value] || { 
-        label: value, 
-        className: "bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 text-gray-800 hover:from-gray-100 hover:to-slate-100",
-        icon: "?"
-      }
-      
-      return (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge className={`${config.className} px-3 py-1.5 font-medium rounded-full shadow-sm`} variant="outline">
-                <span className="mr-1.5">{config.icon}</span>
-                {config.label}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="text-xs">Status: {config.label}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )
-    },
-  },
-   {
-    key: "actions",
-    label: "Actions",
-    render: (_: any, row: any) => (
-      <ActionDropdown
-        row={row}
-        onView={() => handleViewTransfer?.(row.id)}
-        onEdit={() => handleEditTransfer?.(row.id)}
-        onDelete={() => handleOpenDeleteDialog?.(row.id)}
-        onApprove={() => handleApproveTransfer?.(row.id)}
-        onReject={() => handleRejectTransfer?.(row.id)}
-      />
-    ),
-  },
-]
-
-let handleViewTransfer: ((id: string) => void) | undefined;
-let handleEditTransfer: ((id: string) => void) | undefined;
-let handleOpenDeleteDialog: ((id: string) => void) | undefined;
-let handleApproveTransfer: ((id: string) => void) | undefined;
-let handleRejectTransfer: ((id: string) => void) | undefined;
-
 export function TransferContent() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -366,6 +78,7 @@ export function TransferContent() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [currentTransfer, setCurrentTransfer] = useState<Transfer | null>(null)
   const [filters, setFilters] = useState<TransferFilters>({})
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   
   const { 
     data: transfersResponse, 
@@ -378,19 +91,15 @@ export function TransferContent() {
   const createTransferMutation = useCreateTransfer()
   const updateTransferMutation = useUpdateTransfer()
   const deleteTransferMutation = useDeleteTransfer()
-//@ts-expect-error - transfersResponse may be undefined
+  //@ts-expect-error - transfersResponse may be undefined
   const transfers = transfersResponse?.data || []
 
-  // Assign the handlers so the ActionDropdown can use them
-  handleViewTransfer = (id: string) => {
-    const transfer = transfers.find((t: Transfer) => t.id.toString() === id)
-    if (transfer) {
-      setCurrentTransfer(transfer)
-      setIsViewDialogOpen(true)
-    }
+  const handleAddTransfer = () => {
+    setCurrentTransfer(null)
+    setIsAddDialogOpen(true)
   }
 
-  handleEditTransfer = (id: string) => {
+  const handleEditTransfer = (id: string) => {
     const transfer = transfers.find((t: Transfer) => t.id.toString() === id)
     if (transfer) {
       setCurrentTransfer(transfer)
@@ -398,59 +107,32 @@ export function TransferContent() {
     }
   }
 
-  handleOpenDeleteDialog = (id: string) => {
+  const handleViewTransfer = (id: string) => {
     const transfer = transfers.find((t: Transfer) => t.id.toString() === id)
     if (transfer) {
       setCurrentTransfer(transfer)
+      setIsViewDialogOpen(true)
+    }
+  }
+
+  const handleOpenDeleteDialog = (id: string) => {
+    const transfer = transfers.find((t: Transfer) => t.id.toString() === id)
+    if (transfer) {
+      setCurrentTransfer(transfer)
+      setDeleteTargetId(id)
       setIsDeleteDialogOpen(true)
     }
   }
 
-  handleApproveTransfer = async (id: string) => {
-    if (window.confirm("Are you sure you want to approve this transfer?")) {
-      try {
-        const updatePayload: UpdateTransferPayload = {
-          id: parseInt(id),
-          status: "approved",
-        }
-        await updateTransferMutation.mutateAsync(updatePayload)
-        toast.success("Transfer approved successfully")
-        refetchTransfers()
-      } catch (error) {
-        toast.error("Failed to approve transfer")
-      }
-    }
-  }
-
-  handleRejectTransfer = async (id: string) => {
-    if (window.confirm("Are you sure you want to reject this transfer?")) {
-      try {
-        const updatePayload: UpdateTransferPayload = {
-          id: parseInt(id),
-          status: "rejected",
-        }
-        await updateTransferMutation.mutateAsync(updatePayload)
-        toast.success("Transfer rejected successfully")
-        refetchTransfers()
-      } catch (error) {
-        toast.error("Failed to reject transfer")
-      }
-    }
-  }
-
-  const handleAddTransfer = () => {
-    setCurrentTransfer(null)
-    setIsAddDialogOpen(true)
-  }
-
   const handleDeleteTransfer = async () => {
-    if (!currentTransfer) return
+    if (!deleteTargetId) return
 
     try {
-      await deleteTransferMutation.mutateAsync(currentTransfer.id)
+      await deleteTransferMutation.mutateAsync(parseInt(deleteTargetId))
       
       toast.success("Transfer deleted successfully")
       setIsDeleteDialogOpen(false)
+      setDeleteTargetId(null)
       refetchTransfers()
     } catch (error: any) {
       toast.error(error.message || "Failed to delete transfer")
@@ -491,6 +173,272 @@ export function TransferContent() {
     refetchTransfers()
     toast.info("Refreshing transfers...")
   }
+
+  // Fixed: Define columns INSIDE the component with proper event handling
+  const columns = [
+    {
+      key: "employee_name",
+      label: "Employee",
+      sortable: true,
+      render: (value: string, row: any) => (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center cursor-default">
+                <div className="relative">
+                  <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 flex items-center justify-center">
+                    <User className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-white border border-gray-200 flex items-center justify-center">
+                    <div className={`h-2 w-2 rounded-full ${
+                      row.status === "approved" ? "bg-green-500" :
+                      row.status === "pending" ? "bg-yellow-500" :
+                      row.status === "rejected" || row.status === "cancelled" ? "bg-red-500" : "bg-gray-400"
+                    }`} />
+                  </div>
+                </div>
+                <div className="ml-3 min-w-0">
+                  <div className="font-medium text-gray-900 truncate max-w-[140px] sm:max-w-[180px]">{value}</div>
+                  <div className="text-xs text-gray-500 truncate max-w-[140px] sm:max-w-[180px]">{row.employee_id}</div>
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">View details for {value}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ),
+    },
+    {
+      key: "from_department",
+      label: "From → To",
+      sortable: true,
+      render: (value: string, row: any) => (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center cursor-default">
+                <div className="h-9 w-9 rounded-md bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 flex items-center justify-center mr-2 flex-shrink-0">
+                  <Building className="h-4 w-4 text-gray-600" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center text-sm">
+                    <span className="font-medium text-gray-900 truncate max-w-[80px]">{value}</span>
+                    <ArrowRight className="h-3 w-3 mx-1 text-gray-400 flex-shrink-0" />
+                    <span className="font-medium text-gray-900 truncate max-w-[80px]">{row.to_department}</span>
+                  </div>
+                  <div className="text-xs text-gray-500 truncate max-w-[180px]">
+                    {row.from_position} → {row.to_position}
+                  </div>
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">Department: {value} → {row.to_department}</p>
+              <p className="text-xs">Position: {row.from_position} → {row.to_position}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ),
+    },
+    {
+      key: "from_location",
+      label: "Location",
+      sortable: true,
+      render: (value: string, row: any) => (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center cursor-default">
+                <div className="h-9 w-9 rounded-md bg-gradient-to-br from-red-50 to-red-100 border border-red-200 flex items-center justify-center mr-2 flex-shrink-0">
+                  <MapPin className="h-4 w-4 text-red-600" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center text-sm">
+                    <span className="font-medium text-gray-900 truncate max-w-[80px]">{value}</span>
+                    <ArrowRight className="h-3 w-3 mx-1 text-gray-400 flex-shrink-0" />
+                    <span className="font-medium text-gray-900 truncate max-w-[80px]">{row.to_location}</span>
+                  </div>
+                  <div className="text-xs text-gray-500">Location transfer</div>
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">Location: {value} → {row.to_location}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ),
+    },
+    {
+      key: "effective_date",
+      label: "Effective Date",
+      sortable: true,
+      render: (value: string) => {
+        try {
+          const date = new Date(value)
+          const today = new Date()
+          const diffTime = date.getTime() - today.getTime()
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+          
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center cursor-default">
+                    <div className="h-9 w-9 rounded-md bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 flex flex-col items-center justify-center mr-2 flex-shrink-0">
+                      <Calendar className="h-3 w-3 text-purple-600 mb-0.5" />
+                      <span className="text-xs font-medium text-purple-700">{date.getDate()}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900">
+                        {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </div>
+                      <div className={`text-xs ${diffDays < 0 ? 'text-gray-500' : diffDays <= 7 ? 'text-yellow-600' : 'text-green-600'}`}>
+                        {diffDays < 0 ? 'Past' : diffDays === 0 ? 'Today' : `In ${diffDays} day${diffDays !== 1 ? 's' : ''}`}
+                      </div>
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Effective from: {date.toLocaleDateString()}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )
+        } catch {
+          return <span className="text-gray-500">N/A</span>
+        }
+      },
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      render: (value: string) => {
+        const statusConfig: Record<string, { label: string; className: string; icon: string }> = {
+          approved: { 
+            label: "Approved", 
+            className: "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 text-green-800 hover:from-green-100 hover:to-emerald-100",
+            icon: "✓"
+          },
+          pending: { 
+            label: "Pending", 
+            className: "bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 text-yellow-800 hover:from-yellow-100 hover:to-amber-100",
+            icon: "⏳"
+          },
+          rejected: { 
+            label: "Rejected", 
+            className: "bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 text-red-800 hover:from-red-100 hover:to-rose-100",
+            icon: "✗"
+          },
+          cancelled: { 
+            label: "Cancelled", 
+            className: "bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 text-gray-800 hover:from-gray-100 hover:to-slate-100",
+            icon: "✗"
+          },
+        }
+        
+        const config = statusConfig[value] || { 
+          label: value, 
+          className: "bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 text-gray-800 hover:from-gray-100 hover:to-slate-100",
+          icon: "?"
+        }
+        
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge className={`${config.className} px-3 py-1.5 font-medium rounded-full shadow-sm`} variant="outline">
+                  <span className="mr-1.5">{config.icon}</span>
+                  {config.label}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">Status: {config.label}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
+      },
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      render: (_: any, row: any) => (
+        <div className="flex  space-x-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleViewTransfer(row.id.toString())
+                  }}
+                  title="View Details"
+                  className="h-8 w-8"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>View Details</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleEditTransfer(row.id.toString())
+                  }}
+                  title="Edit"
+                  disabled={row.status !== "pending"}
+                  className="h-8 w-8 text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit Transfer</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleOpenDeleteDialog(row.id.toString())
+                  }}
+                  title="Delete"
+                  disabled={row.status !== "pending"}
+                  className="h-8 w-8 text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Delete Transfer</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      ),
+    },
+  ]
 
   // Calculate statistics
   const pendingCount = transfers.filter((t: Transfer) => t.status === "pending").length
@@ -572,7 +520,7 @@ export function TransferContent() {
                 {/* @ts-expect-error - transfersResponse may be undefined */}
                 {transfersResponse?.data && (
                   <span className="ml-2 text-sm text-gray-500">
-                    {/* @ts-expect-error - transfersResponse may be undefined */}
+                     {/* @ts-expect-error - transfersResponse may be undefined */}
                     ({transfersResponse.data.length} transfer requests)
                   </span>
                 )}
@@ -704,10 +652,6 @@ export function TransferContent() {
               searchFields={transferSearchFields}
               onAdd={handleAddTransfer}
               //@ts-expect-error - transfersResponse may be undefined
-              onEdit={handleEditTransfer}
-              onDelete={handleOpenDeleteDialog}
-              onView={handleViewTransfer}
-              showActions={true}
               isLoading={isLoading}
               emptyMessage={
                 <div className="text-center py-12">
@@ -758,6 +702,7 @@ export function TransferContent() {
             }}
             onDelete={() => {
               setIsViewDialogOpen(false)
+              setDeleteTargetId(currentTransfer.id.toString())
               setIsDeleteDialogOpen(true)
             }}
             onApprove={async () => {
@@ -797,10 +742,13 @@ export function TransferContent() {
 
         <DeleteConfirmationDialog
           isOpen={isDeleteDialogOpen}
-          onClose={() => setIsDeleteDialogOpen(false)}
+          onClose={() => {
+            setIsDeleteDialogOpen(false)
+            setDeleteTargetId(null)
+          }}
           onConfirm={handleDeleteTransfer}
           title="Delete Transfer Request"
-          description={`Are you sure you want to delete the transfer request for ${currentTransfer?.employee_name}?`}
+          description="Are you sure you want to delete this transfer request? This action cannot be undone."
           itemName={`${currentTransfer?.employee_name}'s transfer from ${currentTransfer?.from_department} to ${currentTransfer?.to_department}`}
           isLoading={deleteTransferMutation.isPending}
         />

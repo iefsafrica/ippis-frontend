@@ -86,25 +86,35 @@ export function AddResignationDialog({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [dropdownEmployees, setDropdownEmployees] = useState<DropdownEmployee[]>([])
   const [hasFetchedEmployees, setHasFetchedEmployees] = useState(false)
+  const [shouldFetchEmployees, setShouldFetchEmployees] = useState(false)
 
   useEffect(() => {
-    if (isOpen && !hasFetchedEmployees) {
+    if (isOpen) {
+      // Always fetch employees when dialog opens
+      setShouldFetchEmployees(true)
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (shouldFetchEmployees && !isLoadingEmployees) {
       const fetchEmployees = async () => {
         try {
           await refetch()
         } catch (error) {
           toast.error("Failed to load employees")
           console.error("Error fetching employees:", error)
+        } finally {
+          setShouldFetchEmployees(false)
+          setHasFetchedEmployees(true)
         }
       }
       fetchEmployees()
-      setHasFetchedEmployees(true)
     }
-  }, [isOpen, refetch, hasFetchedEmployees])
+  }, [shouldFetchEmployees, refetch, isLoadingEmployees])
 
   useEffect(() => {
     if (!isOpen) {
-      setHasFetchedEmployees(false)
+      // Reset form but keep employees data
       setFormData({
         employee_id: "",
         employee_name: "",
@@ -117,7 +127,8 @@ export function AddResignationDialog({
         notes: "",
       })
       setErrors({})
-      setDropdownEmployees([])
+      // Don't reset dropdownEmployees or hasFetchedEmployees here
+      // They will be refetched when dialog opens again
     }
   }, [isOpen])
 
@@ -303,6 +314,13 @@ export function AddResignationDialog({
 
   const isLoading = externalIsLoading || isSubmitting
 
+  // Manually trigger employee fetch when dropdown is clicked
+  const handleDropdownClick = () => {
+    if (!hasFetchedEmployees || employeesError) {
+      setShouldFetchEmployees(true)
+    }
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="p-0 max-w-3xl overflow-hidden border border-gray-200 shadow-xl">
@@ -341,7 +359,10 @@ export function AddResignationDialog({
                       onValueChange={handleEmployeeSelect} 
                       disabled={isLoadingEmployees}
                     >
-                      <SelectTrigger className="h-11 border-gray-300 hover:border-gray-400 text-gray-900">
+                      <SelectTrigger 
+                        className="h-11 border-gray-300 hover:border-gray-400 text-gray-900"
+                        onClick={handleDropdownClick}
+                      >
                         <div className="flex items-center justify-between w-full">
                           <div className="flex items-center">
                             {isLoadingEmployees ? (
@@ -350,7 +371,9 @@ export function AddResignationDialog({
                               <User className="h-4 w-4 text-gray-500 mr-3" />
                             )}
                             <SelectValue placeholder={
-                              isLoadingEmployees ? "Loading employees..." : "Search for employee..."
+                              isLoadingEmployees ? "Loading employees..." : 
+                              employeesError ? "Click to load employees" :
+                              "Search for employee..."
                             } />
                           </div>
                           <ChevronDown className="h-4 w-4 text-gray-400" />
@@ -365,11 +388,13 @@ export function AddResignationDialog({
                         ) : employeesError ? (
                           <div className="p-4 text-center">
                             <p className="text-sm text-gray-700">Error loading employees</p>
-                            <p className="text-xs text-gray-500 mt-1">Please try again</p>
+                            <p className="text-xs text-gray-500 mt-1">Click on dropdown to retry</p>
                           </div>
                         ) : dropdownEmployees.length === 0 ? (
                           <div className="p-4 text-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-3 text-gray-500 mx-auto mb-2" />
                             <p className="text-sm text-gray-700">No employees found</p>
+                            <p className="text-xs text-gray-500 mt-1">Click on dropdown to load employees</p>
                           </div>
                         ) : (
                           dropdownEmployees.map((employee) => (
@@ -646,7 +671,7 @@ export function AddResignationDialog({
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isLoading || isLoadingEmployees}
+                  disabled={isLoading || isLoadingEmployees || !formData.employee_id}
                   className="h-10 px-8 bg-green-700 hover:bg-green-800 text-white flex-1 sm:flex-none"
                 >
                   {isLoading ? (

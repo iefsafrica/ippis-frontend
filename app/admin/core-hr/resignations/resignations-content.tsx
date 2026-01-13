@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { CoreHRClientWrapper } from "../components/core-hr-client-wrapper"
 import { DataTable } from "../components/data-table"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, User, FileText, Building, ArrowRight, Hash, Loader2, RefreshCw, CheckCircle, XCircle, Eye, Edit, Trash2, MoreVertical, LogOut, AlertCircle } from "lucide-react"
+import { Calendar, User, FileText, Building, ArrowRight, Hash, Loader2, RefreshCw, CheckCircle, XCircle, Eye, Edit, Trash2, LogOut, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import {
   useGetResignations,
@@ -28,12 +28,6 @@ import { ViewResignationDialog } from "./ViewResignationDialog"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -103,81 +97,6 @@ const resignationSearchFields = [
     ],
   },
 ]
-
-// Action Dropdown Component
-interface ActionDropdownProps {
-  row: any;
-  onView: (id: number) => void;
-  onEdit: (id: number) => void;
-  onDelete: (id: number) => void;
-  onApprove: (id: number) => void;
-  onDisapprove: (id: number) => void;
-}
-
-const ActionDropdown: React.FC<ActionDropdownProps> = ({
-  row,
-  onView,
-  onEdit,
-  onDelete,
-  onApprove,
-  onDisapprove,
-}) => {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          className="h-8 w-8 p-0"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="sr-only">Open menu</span>
-          <MoreVertical className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => onView(row.id)}>
-          <Eye className="mr-2 h-4 w-4" />
-          View Details
-        </DropdownMenuItem>
-        <DropdownMenuItem 
-          onClick={() => onEdit(row.id)}
-          disabled={row.status !== "pending"}
-        >
-          <Edit className="mr-2 h-4 w-4" />
-          Edit
-        </DropdownMenuItem>
-        
-        {row.status === "pending" && (
-          <>
-            <DropdownMenuItem 
-              onClick={() => onApprove(row.id)}
-              className="text-green-600 focus:text-green-600"
-            >
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Approve
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => onDisapprove(row.id)}
-              className="text-red-600 focus:text-red-600"
-            >
-              <XCircle className="mr-2 h-4 w-4" />
-              Disapprove
-            </DropdownMenuItem>
-          </>
-        )}
-        
-        <DropdownMenuItem 
-          onClick={() => onDelete(row.id)}
-          className="text-red-600 focus:text-red-600"
-          disabled={row.status !== "pending"}
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-};
 
 // Approve Confirmation Dialog
 interface ApproveConfirmationDialogProps {
@@ -507,10 +426,8 @@ export function ResignationsContent() {
     }
   }
 
-  // FIXED: This now properly handles the data with ID
   const handleUpdateResignation = async (data: UpdateResignationRequest & { id: number }) => {
     try {
-      // Extract id and rest of data
       const { id, ...updateData } = data
       
       await updateResignationMutation.mutateAsync({
@@ -773,14 +690,58 @@ export function ResignationsContent() {
       key: "actions",
       label: "Actions",
       render: (_: any, row: any) => (
-        <ActionDropdown
-          row={row}
-          onView={handleViewResignation}
-          onEdit={handleEditResignation}
-          onDelete={handleOpenDeleteDialog}
-          onApprove={handleOpenApproveDialog}
-          onDisapprove={handleOpenDisapproveDialog}
-        />
+        <div className="flex justify-end space-x-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleViewResignation(row.id)}
+            title="View Details"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleEditResignation(row.id)}
+            title="Edit"
+            disabled={row.status !== "pending"}
+            className="text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          {row.status === "pending" && (
+            <>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleOpenApproveDialog(row.id)}
+                title="Approve"
+                className="text-green-600 hover:text-green-800"
+              >
+                <CheckCircle className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleOpenDisapproveDialog(row.id)}
+                title="Disapprove"
+                className="text-red-600 hover:text-red-800"
+              >
+                <XCircle className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleOpenDeleteDialog(row.id)}
+            title="Delete"
+            disabled={row.status !== "pending"}
+            className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       ),
     },
   ]
@@ -977,7 +938,7 @@ export function ResignationsContent() {
               data={resignations}
               searchFields={resignationSearchFields}
               onAdd={handleAddResignation}
-              //@ts-expect-error - fix later
+              //@ts-expect-error - TS2322
               onEdit={handleEditResignation}
               onDelete={handleOpenDeleteDialog}
               onView={handleViewResignation}
@@ -1032,7 +993,7 @@ export function ResignationsContent() {
               setCurrentResignation(null)
             }}
             resignation={currentResignation}
-            //@ts-expect-error - fix later
+            //@ts-expect-error - TS2322
             onEdit={() => {
               setIsViewDialogOpen(false)
               setIsEditDialogOpen(true)

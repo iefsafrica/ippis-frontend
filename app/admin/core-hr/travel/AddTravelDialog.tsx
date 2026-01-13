@@ -90,25 +90,14 @@ export function AddTravelDialog({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [dropdownEmployees, setDropdownEmployees] = useState<DropdownEmployee[]>([])
   const [hasFetchedEmployees, setHasFetchedEmployees] = useState(false)
+  const [shouldFetchEmployees, setShouldFetchEmployees] = useState(false)
 
+  // Always fetch employees when dialog opens
   useEffect(() => {
-    if (isOpen && !hasFetchedEmployees) {
-      const fetchEmployees = async () => {
-        try {
-          await refetch()
-        } catch (error) {
-          toast.error("Failed to load employees")
-          console.error("Error fetching employees:", error)
-        }
-      }
-      fetchEmployees()
-      setHasFetchedEmployees(true)
-    }
-  }, [isOpen, refetch, hasFetchedEmployees])
-
-  useEffect(() => {
-    if (!isOpen) {
-      setHasFetchedEmployees(false)
+    if (isOpen) {
+      setShouldFetchEmployees(true)
+    } else {
+      // Reset form but keep employee data in state
       setFormData({
         employee_id: "",
         employee_name: "",
@@ -125,10 +114,27 @@ export function AddTravelDialog({
       setEstimatedCostInput("")
       setAdvanceAmountInput("")
       setErrors({})
-      setDropdownEmployees([])
     }
   }, [isOpen])
 
+  // Fetch employees when dialog opens or when needed
+  useEffect(() => {
+    if (shouldFetchEmployees && !isLoadingEmployees) {
+      const fetchEmployees = async () => {
+        try {
+          await refetch()
+        } catch (error) {
+          toast.error("Failed to load employees")
+          console.error("Error fetching employees:", error)
+        } finally {
+          setShouldFetchEmployees(false)
+        }
+      }
+      fetchEmployees()
+    }
+  }, [shouldFetchEmployees, refetch, isLoadingEmployees])
+
+  // Process employee data when received
   useEffect(() => {
     if (employeesData) {
       try {
@@ -136,17 +142,17 @@ export function AddTravelDialog({
         
         if (Array.isArray(employeesData)) {
           employeeList = employeesData
-          //@ts-expect-error - refetch exists
+          //@ts-expect-error - hasFetchedEmployees exists
         } else if (employeesData.data && Array.isArray(employeesData.data)) {
-            //@ts-expect-error - refetch exists
+          //@ts-expect-error - hasFetchedEmployees exists
           employeeList = employeesData.data
-          //@ts-expect-error - refetch exists
+          //@ts-expect-error - hasFetchedEmployees exists
         } else if (employeesData.employees && Array.isArray(employeesData.employees)) {
-            //@ts-expect-error - refetch exists
+          //@ts-expect-error - hasFetchedEmployees exists
           employeeList = employeesData.employees
-          //@ts-expect-error - refetch exists
+          //@ts-expect-error - hasFetchedEmployees exists
         } else if (employeesData.data?.employees && Array.isArray(employeesData.data.employees)) {
-            //@ts-expect-error - refetch exists
+          //@ts-expect-error - hasFetchedEmployees exists
           employeeList = employeesData.data.employees
         }
         
@@ -178,6 +184,13 @@ export function AddTravelDialog({
       setDropdownEmployees([])
     }
   }, [employeesData])
+
+  // Manually trigger employee fetch when dropdown is clicked
+  const handleDropdownClick = () => {
+    if (!hasFetchedEmployees || error) {
+      setShouldFetchEmployees(true)
+    }
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -364,7 +377,10 @@ export function AddTravelDialog({
                       onValueChange={handleEmployeeSelect} 
                       disabled={isLoadingEmployees}
                     >
-                      <SelectTrigger className="h-11 border-gray-300 hover:border-gray-400 text-gray-900">
+                      <SelectTrigger 
+                        className="h-11 border-gray-300 hover:border-gray-400 text-gray-900"
+                        onClick={handleDropdownClick}
+                      >
                         <div className="flex items-center justify-between w-full">
                           <div className="flex items-center">
                             {isLoadingEmployees ? (
@@ -373,7 +389,9 @@ export function AddTravelDialog({
                               <User className="h-4 w-4 text-gray-500 mr-3" />
                             )}
                             <SelectValue placeholder={
-                              isLoadingEmployees ? "Loading employees..." : "Search for employee..."
+                              isLoadingEmployees ? "Loading employees..." : 
+                              error ? "Click to load employees" :
+                              "Search for employee..."
                             } />
                           </div>
                           <ChevronDown className="h-4 w-4 text-gray-400" />
@@ -388,11 +406,13 @@ export function AddTravelDialog({
                         ) : error ? (
                           <div className="p-4 text-center">
                             <p className="text-sm text-gray-700">Error loading employees</p>
-                            <p className="text-xs text-gray-500 mt-1">Please try again</p>
+                            <p className="text-xs text-gray-500 mt-1">Click on dropdown to retry</p>
                           </div>
                         ) : dropdownEmployees.length === 0 ? (
                           <div className="p-4 text-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-3 text-gray-500 mx-auto mb-2" />
                             <p className="text-sm text-gray-700">No employees found</p>
+                            <p className="text-xs text-gray-500 mt-1">Click on dropdown to load employees</p>
                           </div>
                         ) : (
                           dropdownEmployees.map((employee) => (
@@ -407,10 +427,15 @@ export function AddTravelDialog({
                                     {employee.displayName.charAt(0)}
                                   </span>
                                 </div>
-                                <div className="flex min-w-0">
-                                  <p className="text-sm pt-2 font-medium text-gray-900 leading-tight">
+                                <div className="flex flex-col min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 leading-tight">
                                     {employee.displayName}
                                   </p>
+                                  {employee.department && (
+                                    <p className="text-xs text-gray-500 truncate">
+                                      {employee.department}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
                             </SelectItem>

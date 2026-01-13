@@ -75,36 +75,45 @@ export function AddAwardDialog({
     department: "",
     award_type: "",
     gift_item: "",
-    cash_prize: 0, // Keep as 0 for the type
+    cash_prize: 0,
     award_date: new Date().toISOString().split("T")[0],
     description: "",
   })
 
-  const [cashPrizeInput, setCashPrizeInput] = useState<string>("") // New state for input display
-
+  const [cashPrizeInput, setCashPrizeInput] = useState<string>("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [dropdownEmployees, setDropdownEmployees] = useState<DropdownEmployee[]>([])
   const [hasFetchedEmployees, setHasFetchedEmployees] = useState(false)
+  const [shouldFetchEmployees, setShouldFetchEmployees] = useState(false)
 
   useEffect(() => {
-    if (isOpen && !hasFetchedEmployees) {
+    if (isOpen) {
+      // Always fetch employees when dialog opens
+      setShouldFetchEmployees(true)
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (shouldFetchEmployees && !isLoadingEmployees) {
       const fetchEmployees = async () => {
         try {
           await refetch()
         } catch (error) {
           toast.error("Failed to load employees")
           console.error("Error fetching employees:", error)
+        } finally {
+          setShouldFetchEmployees(false)
+          setHasFetchedEmployees(true)
         }
       }
       fetchEmployees()
-      setHasFetchedEmployees(true)
     }
-  }, [isOpen, refetch, hasFetchedEmployees])
+  }, [shouldFetchEmployees, refetch, isLoadingEmployees])
 
   useEffect(() => {
     if (!isOpen) {
-      setHasFetchedEmployees(false)
+      // Reset form but keep employees data
       setFormData({
         employee_id: "",
         employee_name: "",
@@ -115,9 +124,9 @@ export function AddAwardDialog({
         award_date: new Date().toISOString().split("T")[0],
         description: "",
       })
-      setCashPrizeInput("") // Reset input display
+      setCashPrizeInput("")
       setErrors({})
-      setDropdownEmployees([])
+      // Don't reset dropdownEmployees or hasFetchedEmployees here
     }
   }, [isOpen])
 
@@ -175,10 +184,7 @@ export function AddAwardDialog({
     const { name, value } = e.target
     
     if (name === 'cash_prize') {
-      // Handle cash price input separately
       setCashPrizeInput(value)
-      
-      // Parse the value to number for formData
       const numericValue = value === "" ? 0 : parseFloat(value.replace(/[^0-9.]/g, '')) || 0
       setFormData((prev) => ({ 
         ...prev, 
@@ -291,6 +297,13 @@ export function AddAwardDialog({
 
   const isLoading = externalIsLoading || isSubmitting
 
+  // Manually trigger employee fetch when dropdown is clicked
+  const handleDropdownClick = () => {
+    if (!hasFetchedEmployees || error) {
+      setShouldFetchEmployees(true)
+    }
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="p-0 max-w-3xl overflow-hidden border border-gray-200 shadow-xl">
@@ -329,7 +342,10 @@ export function AddAwardDialog({
                       onValueChange={handleEmployeeSelect} 
                       disabled={isLoadingEmployees}
                     >
-                      <SelectTrigger className="h-11 border-gray-300 hover:border-gray-400 text-gray-900">
+                      <SelectTrigger 
+                        className="h-11 border-gray-300 hover:border-gray-400 text-gray-900"
+                        onClick={handleDropdownClick}
+                      >
                         <div className="flex items-center justify-between w-full">
                           <div className="flex items-center">
                             {isLoadingEmployees ? (
@@ -338,7 +354,9 @@ export function AddAwardDialog({
                               <User className="h-4 w-4 text-gray-500 mr-3" />
                             )}
                             <SelectValue placeholder={
-                              isLoadingEmployees ? "Loading employees..." : "Search for employee..."
+                              isLoadingEmployees ? "Loading employees..." : 
+                              error ? "Click to load employees" :
+                              "Search for employee..."
                             } />
                           </div>
                           <ChevronDown className="h-4 w-4 text-gray-400" />
@@ -353,11 +371,13 @@ export function AddAwardDialog({
                         ) : error ? (
                           <div className="p-4 text-center">
                             <p className="text-sm text-gray-700">Error loading employees</p>
-                            <p className="text-xs text-gray-500 mt-1">Please try again</p>
+                            <p className="text-xs text-gray-500 mt-1">Click on dropdown to retry</p>
                           </div>
                         ) : dropdownEmployees.length === 0 ? (
                           <div className="p-4 text-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-3 text-gray-500 mx-auto mb-2" />
                             <p className="text-sm text-gray-700">No employees found</p>
+                            <p className="text-xs text-gray-500 mt-1">Click on dropdown to load employees</p>
                           </div>
                         ) : (
                           dropdownEmployees.map((employee) => (
@@ -511,7 +531,7 @@ export function AddAwardDialog({
                           type="number"
                           min="0"
                           step="0.01"
-                          value={cashPrizeInput} // Use the display state
+                          value={cashPrizeInput}
                           onChange={handleChange}
                           className="h-11 border-gray-300 pl-12 text-gray-900"
                           placeholder="Enter amount"
@@ -603,14 +623,14 @@ export function AddAwardDialog({
                   type="button"
                   variant="outline"
                   onClick={onClose}
-                  disabled={isLoading}
+                  disabled={isLoading || isLoadingEmployees}
                   className="h-10 px-6 border-gray-300 hover:bg-gray-100 text-gray-700 flex-1 sm:flex-none"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isLoading || isLoadingEmployees}
+                  disabled={isLoading || isLoadingEmployees || !formData.employee_id}
                   className="h-10 px-8 bg-green-700 hover:bg-green-800 text-white flex-1 sm:flex-none"
                 >
                   {isLoading ? (

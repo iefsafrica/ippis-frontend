@@ -1,12 +1,11 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
 import { CoreHRClientWrapper } from "../components/core-hr-client-wrapper"
 import { DataTable } from "../components/data-table"
 import { Badge } from "@/components/ui/badge"
-import { Award, Calendar, User, RefreshCw, Loader2 } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { Award, Calendar, User, RefreshCw, Loader2, Eye, Edit, Trash2 } from "lucide-react"
+import { toast } from "sonner"
 import { useGetAwards, useCreateAward, useUpdateAward, useDeleteAward } from "@/services/hooks/hr-core/awards"
 import type { CreateAwardRequest, LocalAward, Award as ApiAward } from "@/types/hr-core/awards"
 import { Button } from "@/components/ui/button"
@@ -14,6 +13,16 @@ import { AddAwardDialog } from "./add-award-dialog"
 import { EditAwardDialog } from "./edit-award-dialog"
 import { ViewAwardDialog } from "./view-award-dialog"
 import { convertApiAwardToLocal, convertLocalAwardToApi } from "@/utils/award-converters"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const awardSearchFields = [
   {
@@ -72,88 +81,13 @@ const awardSearchFields = [
   },
 ]
 
-// Table columns configuration
-const columns = [
-  {
-    key: "employeeId",
-    label: "Employee ID",
-    sortable: true,
-  },
-  {
-    key: "employeeName",
-    label: "Employee Name",
-    sortable: true,
-    render: (value: string) => (
-      <div className="flex items-center">
-        <User className="mr-2 h-4 w-4 text-gray-500" />
-        <span className="truncate max-w-[180px]">{value}</span>
-      </div>
-    ),
-  },
-  {
-    key: "department",
-    label: "Department",
-    sortable: true,
-    render: (value: string) => (
-      <div className="truncate max-w-[150px]">{value}</div>
-    ),
-  },
-  {
-    key: "awardType",
-    label: "Award Type",
-    sortable: true,
-    render: (value: string) => (
-      <div className="flex items-center">
-        <Award className="mr-2 h-4 w-4 text-yellow-500 flex-shrink-0" />
-        <span className="truncate max-w-[180px]">{value}</span>
-      </div>
-    ),
-  },
-  {
-    key: "awardDate",
-    label: "Award Date",
-    sortable: true,
-    render: (value: string) => (
-      <div className="flex items-center">
-        <Calendar className="mr-2 h-4 w-4 text-gray-500 flex-shrink-0" />
-        {new Date(value).toLocaleDateString()}
-      </div>
-    ),
-  },
-  {
-    key: "status",
-    label: "Status",
-    sortable: true,
-    render: (value: string) => {
-      const badgeClass = 
-        value === "active" 
-          ? "bg-green-100 text-green-800 hover:bg-green-100" 
-          : value === "pending" 
-            ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-100" 
-            : "bg-red-100 text-red-800 hover:bg-red-100";
-      
-      const displayText = 
-        value === "active" ? "Active" : 
-        value === "pending" ? "Pending" : 
-        value === "inactive" ? "Inactive" : value;
-      
-      return (
-        <Badge className={badgeClass} variant="outline">
-          {displayText}
-        </Badge>
-      );
-    },
-  },
-]
-
 export function AwardContent() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [currentAward, setCurrentAward] = useState<LocalAward | null>(null)
   const [localAwards, setLocalAwards] = useState<LocalAward[]>([])
-  
-  const { toast } = useToast()
   
   // Query hooks
   const { 
@@ -186,13 +120,15 @@ export function AwardContent() {
   // Handle API errors
   useEffect(() => {
     if (isAwardsError && awardsError) {
-      toast({
-        title: "Error",
-        description: "Failed to load awards. Please try again.",
-        variant: "destructive",
+      toast.error("Failed to load awards. Please try again.", {
+        style: {
+          background: "#EF4444",
+          color: "white",
+          border: "none",
+        },
       })
     }
-  }, [isAwardsError, awardsError, toast])
+  }, [isAwardsError, awardsError])
 
   const handleAddAward = () => {
     setCurrentAward(null)
@@ -215,16 +151,26 @@ export function AwardContent() {
     }
   }
 
-  const handleDeleteAward = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this award?")) return
+  const handleOpenDeleteDialog = (id: string) => {
+    const award = localAwards.find((a) => a.id === id)
+    if (award) {
+      setCurrentAward(award)
+      setIsDeleteDialogOpen(true)
+    }
+  }
+
+  const handleDeleteAward = async () => {
+    if (!currentAward) return
 
     try {
-      const awardId = parseInt(id)
+      const awardId = parseInt(currentAward.id)
       if (isNaN(awardId)) {
-        toast({
-          title: "Error",
-          description: "Invalid award ID",
-          variant: "destructive",
+        toast.error("Invalid award ID", {
+          style: {
+            background: "#EF4444",
+            color: "white",
+            border: "none",
+          },
         })
         return
       }
@@ -232,17 +178,25 @@ export function AwardContent() {
       await deleteAwardMutation.mutateAsync(awardId)
       
       // Remove the deleted award from local state
-      setLocalAwards(prev => prev.filter(award => award.id !== id))
+      setLocalAwards(prev => prev.filter(award => award.id !== currentAward.id))
       
-      toast({
-        title: "Success",
-        description: "Award deleted successfully",
+      toast.success("Award deleted successfully", {
+        style: {
+          background: "#10B981",
+          color: "white",
+          border: "none",
+        },
       })
+      
+      setIsDeleteDialogOpen(false)
+      setCurrentAward(null)
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete award",
-        variant: "destructive",
+      toast.error(error.message || "Failed to delete award", {
+        style: {
+          background: "#EF4444",
+          color: "white",
+          border: "none",
+        },
       })
     }
   }
@@ -256,18 +210,23 @@ export function AwardContent() {
         // Add new award at the beginning (since it will have the highest ID)
         setLocalAwards(prev => [newAward, ...prev])
         
-        toast({
-          title: "Success",
-          description: response.message || "Award created successfully",
+        toast.success(response.message || "Award created successfully", {
+          style: {
+            background: "#10B981",
+            color: "white",
+            border: "none",
+          },
         })
         
         return response
       }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create award",
-        variant: "destructive",
+      toast.error(error.message || "Failed to create award", {
+        style: {
+          background: "#EF4444",
+          color: "white",
+          border: "none",
+        },
       })
       throw error
     }
@@ -296,18 +255,23 @@ export function AwardContent() {
           })
         })
         
-        toast({
-          title: "Success",
-          description: response.message || "Award updated successfully",
+        toast.success(response.message || "Award updated successfully", {
+          style: {
+            background: "#10B981",
+            color: "white",
+            border: "none",
+          },
         })
         
         return response
       }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update award",
-        variant: "destructive",
+      toast.error(error.message || "Failed to update award", {
+        style: {
+          background: "#EF4444",
+          color: "white",
+          border: "none",
+        },
       })
       throw error
     }
@@ -315,13 +279,133 @@ export function AwardContent() {
 
   const handleManualRefresh = () => {
     refetchAwards()
-    toast({
-      title: "Refreshing",
-      description: "Fetching latest awards...",
+    toast.info("Fetching latest awards...", {
+      style: {
+        background: "#3B82F6",
+        color: "white",
+        border: "none",
+      },
     })
   }
 
   const isLoading = isLoadingAwards || createAwardMutation.isPending || updateAwardMutation.isPending || deleteAwardMutation.isPending
+
+  // Define columns inside the component so they have access to the handlers
+  const columns = [
+    {
+      key: "employeeId",
+      label: "Employee ID",
+      sortable: true,
+      render: (value: string) => (
+        <div className="font-medium text-gray-900">{value}</div>
+      ),
+    },
+    {
+      key: "employeeName",
+      label: "Employee Name",
+      sortable: true,
+      render: (value: string) => (
+        <div className="flex items-center">
+          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 flex items-center justify-center mr-3">
+            <User className="h-4 w-4 text-blue-600" />
+          </div>
+          <span className="truncate max-w-[180px]">{value}</span>
+        </div>
+      ),
+    },
+    {
+      key: "department",
+      label: "Department",
+      sortable: true,
+      render: (value: string) => (
+        <div className="truncate max-w-[150px]">{value}</div>
+      ),
+    },
+    {
+      key: "awardType",
+      label: "Award Type",
+      sortable: true,
+      render: (value: string) => (
+        <div className="flex items-center">
+          <div className="h-8 w-8 rounded-md bg-gradient-to-br from-yellow-50 to-yellow-100 border border-yellow-200 flex items-center justify-center mr-3">
+            <Award className="h-4 w-4 text-yellow-600" />
+          </div>
+          <span className="truncate max-w-[180px]">{value}</span>
+        </div>
+      ),
+    },
+    {
+      key: "awardDate",
+      label: "Award Date",
+      sortable: true,
+      render: (value: string) => (
+        <div className="flex items-center">
+          <div className="h-8 w-8 rounded-md bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 flex items-center justify-center mr-3">
+            <Calendar className="h-4 w-4 text-purple-600" />
+          </div>
+          {new Date(value).toLocaleDateString()}
+        </div>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      render: (value: string) => {
+        const badgeClass = 
+          value === "active" 
+            ? "bg-green-100 text-green-800 hover:bg-green-100" 
+            : value === "pending" 
+              ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-100" 
+              : "bg-red-100 text-red-800 hover:bg-red-100";
+        
+        const displayText = 
+          value === "active" ? "Active" : 
+          value === "pending" ? "Pending" : 
+          value === "inactive" ? "Inactive" : value;
+        
+        return (
+          <Badge className={badgeClass} variant="outline">
+            {displayText}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      render: (_: any, row: any) => (
+        <div className="flex justify-end space-x-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleViewAward(row.id)}
+            className="hover:bg-gray-100"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleEditAward(row.id)}
+            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleOpenDeleteDialog(row.id)}
+            className="text-red-600 hover:text-red-800 hover:bg-red-50"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ]
 
   return (
     <CoreHRClientWrapper title="Employee Awards" endpoint="/api/admin/hr/awards">
@@ -343,8 +427,7 @@ export function AwardContent() {
               variant="outline"
               onClick={handleManualRefresh}
               disabled={isLoading}
-              title="Refresh Table"
-              className="border-gray-300"
+              className="border-gray-300 hover:bg-gray-100"
             >
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -352,7 +435,14 @@ export function AwardContent() {
                 <RefreshCw className="h-4 w-4" />
               )}
             </Button>
-            {/* REMOVED: Green "Add Award" button from header */}
+            <Button
+              onClick={handleAddAward}
+              disabled={isLoading}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <Award className="h-4 w-4 mr-2" />
+              Add Award
+            </Button>
           </div>
         </div>
         
@@ -362,15 +452,25 @@ export function AwardContent() {
             columns={columns}
             data={localAwards}
             searchFields={awardSearchFields}
-            
             onAdd={handleAddAward}
-            //@ts-expect-error - TS is not aware of the possible structures
-            onEdit={handleEditAward}
-            onDelete={handleDeleteAward}
-            onView={handleViewAward}
-         
+            //@ts-expect-error - fix type 
             isLoading={isLoading}
-            emptyMessage="No awards found. Add your first award to get started."
+            emptyMessage={
+              <div className="text-center py-12">
+                <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-yellow-50 border border-yellow-200 mb-4">
+                  <Award className="h-8 w-8 text-yellow-600" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No awards found</h3>
+                <p className="text-gray-600 mb-4">Start by adding your first award</p>
+                <Button
+                  onClick={handleAddAward}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Award className="h-4 w-4 mr-2" />
+                  Add Award
+                </Button>
+              </div>
+            }
           />
         </div>
 
@@ -378,7 +478,7 @@ export function AwardContent() {
         <AddAwardDialog
           isOpen={isAddDialogOpen}
           onClose={() => setIsAddDialogOpen(false)}
-          //@ts-expect-error - TS is not aware of the possible structures
+          //@ts-expect-error - fix type
           onSubmit={handleCreateAward}
           isLoading={createAwardMutation.isPending}
         />
@@ -388,7 +488,7 @@ export function AwardContent() {
           <EditAwardDialog
             isOpen={isEditDialogOpen}
             onClose={() => setIsEditDialogOpen(false)}
-            //@ts-expect-error - TS is not aware of the possible structures
+            //@ts-expect-error - fix type
             onSubmit={(data) => handleUpdateAward(currentAward.id, data)}
             initialData={currentAward}
             isLoading={updateAwardMutation.isPending}
@@ -399,7 +499,10 @@ export function AwardContent() {
         {currentAward && (
           <ViewAwardDialog
             isOpen={isViewDialogOpen}
-            onClose={() => setIsViewDialogOpen(false)}
+            onClose={() => {
+              setIsViewDialogOpen(false)
+              setCurrentAward(null)
+            }}
             award={currentAward}
             onEdit={() => {
               setIsViewDialogOpen(false)
@@ -407,10 +510,61 @@ export function AwardContent() {
             }}
             onDelete={() => {
               setIsViewDialogOpen(false)
-              handleDeleteAward(currentAward.id)
+              setIsDeleteDialogOpen(true)
             }}
           />
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent className="bg-white border border-gray-200 shadow-xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2 text-gray-900">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <Trash2 className="h-5 w-5 text-red-600" />
+                </div>
+                Delete Award
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-700">
+                Are you sure you want to delete the award for{" "}
+                <span className="font-semibold text-gray-900">{currentAward?.employeeName}</span>?
+                <br />
+                <span className="text-gray-600 text-sm mt-2 block">
+                  Award: {currentAward?.awardType} • Date: {currentAward?.awardDate ? new Date(currentAward.awardDate).toLocaleDateString() : "N/A"}
+                </span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="bg-gray-50 px-6 py-4 rounded-b-lg">
+              <AlertDialogCancel 
+                onClick={() => {
+                  setIsDeleteDialogOpen(false)
+                  setCurrentAward(null)
+                }}
+                disabled={deleteAwardMutation.isPending}
+                className="bg-white text-gray-700 hover:bg-gray-50 border-gray-300"
+              >
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteAward}
+                disabled={deleteAwardMutation.isPending}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {deleteAwardMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Award
+                  </>
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </CoreHRClientWrapper>
   )
