@@ -367,74 +367,35 @@ export function TransferContent() {
       key: "actions",
       label: "Actions",
       render: (_: any, row: any) => (
-        <div className="flex  space-x-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleViewTransfer(row.id.toString())
-                  }}
-                  title="View Details"
-                  className="h-8 w-8"
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>View Details</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleEditTransfer(row.id.toString())
-                  }}
-                  title="Edit"
-                  disabled={row.status !== "pending"}
-                  className="h-8 w-8 text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Edit className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Edit Transfer</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleOpenDeleteDialog(row.id.toString())
-                  }}
-                  title="Delete"
-                  disabled={row.status !== "pending"}
-                  className="h-8 w-8 text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Delete Transfer</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+        <div className="flex justify-end space-x-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleViewTransfer(row.id.toString())}
+            title="View Details"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleEditTransfer(row.id.toString())}
+            title="Edit"
+            disabled={row.status !== "pending"}
+            className="text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleOpenDeleteDialog(row.id.toString())}
+            title="Delete"
+            disabled={row.status !== "pending"}
+            className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
       ),
     },

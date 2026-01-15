@@ -686,7 +686,7 @@ export default function PromotionDetailsPage() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right">
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <Button variant="outline" size="icon" title="View Details">
                                 <Eye className="h-4 w-4" />
                               </Button>
                             </TableCell>

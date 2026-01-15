@@ -134,11 +134,19 @@ export function ReportsContent() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">
-          Reports & Analytics
-        </h1>
+        <div className="flex items-center space-x-3">
+          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 flex items-center justify-center shadow-sm">
+            <BarChart className="h-6 w-6 text-indigo-600" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+              Reports & Analytics
+            </h1>
+            <p className="text-gray-600 mt-1">Insights and trends across employees and payroll.</p>
+          </div>
+        </div>
         <Button onClick={handleExportData} disabled={loading}>
           <Download className="mr-2 h-4 w-4" />
           Export Data

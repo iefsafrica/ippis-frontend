@@ -2518,7 +2518,6 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Pagination } from "../components/pagination"
 import { 
   RefreshCw, 
   Search, 
@@ -2529,7 +2528,8 @@ import {
   Clock, 
   AlertCircle, 
   Eye, 
-  MoreVertical,
+  X,
+  Users,
   User,
   Building,
   DollarSign,
@@ -2539,7 +2539,9 @@ import {
   Trash2,
   ShieldAlert,
   Ban,
-  RotateCcw
+  RotateCcw,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react"
 import { ClearPendingEmployeesButton } from "../components/clear-pending-employees-button"
 import { toast } from "sonner"
@@ -2551,13 +2553,6 @@ import {
   useRejectPendingEmployee 
 } from "@/services/hooks/employees/usePendingEmployees"
 import { Employee3 } from "@/types/employees/pending-employees" 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -2623,6 +2618,9 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
     limit: 10,
     totalPages: 0
   }
+  const totalItems = pagination.total
+  const indexOfFirstItem = totalItems === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1
+  const indexOfLastItem = Math.min(pagination.page * pagination.limit, totalItems)
 
   // Helper function to get full name
   const getFullName = (employee: Employee3) => {
@@ -2651,6 +2649,32 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
   // Handle page change
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
+  }
+
+  const handlePreviousPage = () => {
+    setCurrentPage((prev) => Math.max(1, prev - 1))
+  }
+
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(pagination.totalPages, prev + 1))
+  }
+
+  const getPageNumbers = () => {
+    const totalPages = pagination.totalPages
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1)
+    }
+    
+    const pages = []
+    if (currentPage <= 3) {
+      pages.push(1, 2, 3, 4, "...", totalPages)
+    } else if (currentPage >= totalPages - 2) {
+      pages.push(1, "...", totalPages - 3, totalPages - 2, totalPages - 1, totalPages)
+    } else {
+      pages.push(1, "...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages)
+    }
+    
+    return pages
   }
 
   // Function to get status badge
@@ -3019,13 +3043,20 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Pending Employees</h1>
-          <p className="text-muted-foreground">
-            Manage and review employee submissions awaiting approval
-          </p>
+        <div className="flex items-center space-x-3">
+          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 flex items-center justify-center shadow-sm">
+            <Users className="h-6 w-6 text-blue-600" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+              Pending Employees
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Manage and review employee submissions awaiting approval
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <TooltipProvider>
@@ -3044,10 +3075,10 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Employee Management</CardTitle>
-          <CardDescription>
+      <Card className="border border-gray-200 shadow-lg rounded-xl overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 pb-3">
+          <CardTitle className="text-lg font-semibold text-gray-900">Employee Management</CardTitle>
+          <CardDescription className="text-gray-600">
             Search, filter, and manage pending employee submissions
           </CardDescription>
         </CardHeader>
@@ -3161,49 +3192,46 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
                             <TableCell>{emp.position || "-"}</TableCell>
                             <TableCell>{getStatusBadge(emp.status)}</TableCell>
                             <TableCell className="text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-8 w-8 p-0">
-                                    <span className="sr-only">Open menu</span>
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-48">
-                                  <DropdownMenuItem
-                                    onClick={() => handleViewDetails(emp)}
-                                    className="flex items-center cursor-pointer"
-                                  >
-                                    <Eye className="mr-2 h-4 w-4" />
-                                    View Details
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => handleApproveClick(emp)}
-                                    className="flex items-center cursor-pointer text-green-600 focus:text-green-600"
-                                    disabled={isApprovePending}
-                                  >
-                                    <CheckCircle className="mr-2 h-4 w-4" />
-                                    {isApprovePending ? "Approving..." : "Approve Employee"}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => handleRejectClick(emp)}
-                                    className="flex items-center cursor-pointer text-amber-600 focus:text-amber-600"
-                                    disabled={isRejectPending}
-                                  >
-                                    <Ban className="mr-2 h-4 w-4" />
-                                    {isRejectPending ? "Rejecting..." : "Reject"}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => handleDeleteClick(emp)}
-                                    className="flex items-center cursor-pointer text-red-600 focus:text-red-600"
-                                    disabled={isDeletePending}
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    {isDeletePending ? "Deleting..." : "Delete"}
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <div className="flex justify-end space-x-2">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => handleViewDetails(emp)}
+                                  title="View Details"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => handleApproveClick(emp)}
+                                  title={isApprovePending ? "Approving..." : "Approve Employee"}
+                                  disabled={isApprovePending}
+                                  className="text-green-600 hover:text-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => handleRejectClick(emp)}
+                                  title={isRejectPending ? "Rejecting..." : "Reject"}
+                                  disabled={isRejectPending}
+                                  className="text-amber-600 hover:text-amber-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <Ban className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => handleDeleteClick(emp)}
+                                  title={isDeletePending ? "Deleting..." : "Delete"}
+                                  disabled={isDeletePending}
+                                  className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -3212,13 +3240,57 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
                 </div>
               )}
 
-              {pagination.totalPages > 1 && (
-                <div className="flex items-center justify-end">
-                  <Pagination 
-                    currentPage={pagination.page} 
-                    totalPages={pagination.totalPages} 
-                    onPageChange={handlePageChange} 
-                  />
+              {totalItems > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-1 py-3">
+                  <div className="text-sm text-gray-600">
+                    Showing {indexOfFirstItem}-{indexOfLastItem} of {totalItems} employees
+                  </div>
+                  {pagination.totalPages > 1 && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handlePreviousPage}
+                        disabled={currentPage === 1}
+                        className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-600"
+                        aria-label="Previous page"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <div className="flex items-center gap-1 mx-1">
+                        {getPageNumbers().map((page, index) => (
+                          <div key={index}>
+                            {page === "..." ? (
+                              <span className="px-1.5 py-0.5 text-gray-400">...</span>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handlePageChange(page as number)}
+                                className={`h-8 min-w-8 px-0 text-sm ${
+                                  currentPage === page 
+                                    ? "bg-gray-100 text-gray-900 font-medium" 
+                                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                                }`}
+                              >
+                                {page}
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleNextPage}
+                        disabled={currentPage === pagination.totalPages}
+                        className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-600"
+                        aria-label="Next page"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </TabsContent>
@@ -3284,66 +3356,45 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
                             </div>
                           </CardContent>
                           <CardFooter className="bg-muted/50 pt-3">
-                            <div className="flex justify-between w-full">
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm" 
-                                      onClick={() => handleViewDetails(employee)}
-                                    >
-                                      <Eye className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>View details</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                              
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="outline" size="sm">
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    onClick={() => handleViewDetails(employee)}
-                                    className="flex items-center cursor-pointer"
-                                  >
-                                    <Eye className="mr-2 h-4 w-4" />
-                                    View Details
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => handleApproveClick(employee)}
-                                    className="flex items-center cursor-pointer text-green-600 focus:text-green-600"
-                                    disabled={isApprovePending}
-                                  >
-                                    <CheckCircle className="mr-2 h-4 w-4" />
-                                    {isApprovePending ? "Approving..." : "Approve"}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => handleRejectClick(employee)}
-                                    className="flex items-center cursor-pointer text-amber-600 focus:text-amber-600"
-                                    disabled={isRejectPending}
-                                  >
-                                    <Ban className="mr-2 h-4 w-4" />
-                                    {isRejectPending ? "Rejecting..." : "Reject"}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => handleDeleteClick(employee)}
-                                    className="flex items-center cursor-pointer text-red-600 focus:text-red-600"
-                                    disabled={isDeletePending}
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    {isDeletePending ? "Deleting..." : "Delete"}
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                            <div className="flex w-full justify-end gap-2">
+                              <Button 
+                                variant="outline" 
+                                size="icon" 
+                                onClick={() => handleViewDetails(employee)}
+                                title="View Details"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => handleApproveClick(employee)}
+                                title={isApprovePending ? "Approving..." : "Approve"}
+                                disabled={isApprovePending}
+                                className="text-green-600 hover:text-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => handleRejectClick(employee)}
+                                title={isRejectPending ? "Rejecting..." : "Reject"}
+                                disabled={isRejectPending}
+                                className="text-amber-600 hover:text-amber-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <Ban className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => handleDeleteClick(employee)}
+                                title={isDeletePending ? "Deleting..." : "Delete"}
+                                disabled={isDeletePending}
+                                className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </CardFooter>
                         </Card>
@@ -3358,30 +3409,36 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
 
       {/* View Details Dialog */}
       <Dialog open={isViewDetailsOpen} onOpenChange={setIsViewDetailsOpen}>
-        <DialogContent className="max-w-4xl h-[90vh] w-full p-0 flex flex-col">
-          <DialogHeader className="px-6 py-4 border-b shrink-0">
-            <div className="flex items-center gap-3">
-              {selectedEmployee && (
-                <Avatar className="h-12 w-12 border-2">
-                  <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                    {getInitials(selectedEmployee)}
-                  </AvatarFallback>
-                </Avatar>
-              )}
-              <div>
-                <DialogTitle className="text-2xl font-bold">
-                  {selectedEmployee ? getFullName(selectedEmployee) : 'Employee Details'}
-                </DialogTitle>
-                <DialogDescription>
-                  Complete information about employee submission
-                </DialogDescription>
+        <DialogContent className="p-0 max-w-4xl overflow-hidden border border-gray-200 shadow-xl">
+          <DialogHeader className="px-8 pt-8 pb-6 border-b border-gray-100">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <User className="h-6 w-6 text-gray-700" />
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-semibold text-gray-900">
+                    Pending Employee Details
+                  </DialogTitle>
+                  <DialogDescription className="text-gray-600 mt-1">
+                    {selectedEmployee ? `View submission for ${getFullName(selectedEmployee)}` : "View employee submission"}
+                  </DialogDescription>
+                </div>
               </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsViewDetailsOpen(false)}
+                className="h-8 w-8 text-gray-500 hover:text-gray-700"
+                aria-label="Close dialog"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
           </DialogHeader>
           
-          {/* Scrollable content area */}
-          <ScrollArea className="flex-1 px-6">
-            <div className="space-y-6 py-2">
+          <ScrollArea className="max-h-[70vh] px-8 py-6">
+            <div className="space-y-6">
               {selectedEmployee && (
                 <>
                   {/* Basic Information Section */}
@@ -3672,28 +3729,37 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
             </div>
           </ScrollArea>
           
-          <DialogFooter className="px-6 py-4 border-t shrink-0">
-            <Button variant="outline" onClick={() => setIsViewDetailsOpen(false)}>Close</Button>
-            {selectedEmployee && (
-              <div className="flex gap-2">
-                <Button 
-                  onClick={() => handleRejectClick(selectedEmployee)}
-                  disabled={isRejectPending}
-                  variant="outline"
-                  className="text-amber-600 border-amber-200 hover:bg-amber-50"
-                >
-                  <Ban className="mr-2 h-4 w-4" />
-                  {isRejectPending ? "Rejecting..." : "Reject"}
-                </Button>
-                <Button 
-                  onClick={() => handleApproveClick(selectedEmployee)}
-                  disabled={isApprovePending}
-                >
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  {isApprovePending ? "Approving..." : "Approve Employee"}
-                </Button>
-              </div>
-            )}
+          <DialogFooter className="px-8 py-5 border-t border-gray-200 bg-gray-50">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4">
+              <Button
+                variant="outline"
+                onClick={() => setIsViewDetailsOpen(false)}
+                className="border-gray-300 hover:bg-gray-100 text-gray-700"
+              >
+                Close
+              </Button>
+              {selectedEmployee && (
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => handleRejectClick(selectedEmployee)}
+                    disabled={isRejectPending}
+                    variant="outline"
+                    className="text-amber-600 border-amber-200 hover:bg-amber-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Ban className="mr-2 h-4 w-4" />
+                    {isRejectPending ? "Rejecting..." : "Reject"}
+                  </Button>
+                  <Button 
+                    onClick={() => handleApproveClick(selectedEmployee)}
+                    disabled={isApprovePending}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    {isApprovePending ? "Approving..." : "Approve Employee"}
+                  </Button>
+                </div>
+              )}
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

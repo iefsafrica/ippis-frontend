@@ -123,7 +123,7 @@ export function EditTransferDialog({
         status: "pending",
       })
       setErrors({})
-      setDropdownEmployees([])
+      setDropdownEmployees((prev) => prev)
     }
   }, [isOpen])
 
@@ -172,10 +172,10 @@ export function EditTransferDialog({
         setDropdownEmployees(mappedEmployees)
       } catch (error) {
         console.error("Error processing employee data:", error)
-        setDropdownEmployees([])
+        setDropdownEmployees((prev) => prev)
       }
     } else {
-      setDropdownEmployees([])
+      setDropdownEmployees((prev) => prev)
     }
   }, [employeesData])
 

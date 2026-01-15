@@ -380,7 +380,7 @@ export function AwardContent() {
             variant="outline"
             size="icon"
             onClick={() => handleViewAward(row.id)}
-            className="hover:bg-gray-100"
+            title="View Details"
           >
             <Eye className="h-4 w-4" />
           </Button>
@@ -389,7 +389,8 @@ export function AwardContent() {
             variant="outline"
             size="icon"
             onClick={() => handleEditAward(row.id)}
-            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+            title="Edit"
+            className="text-blue-600 hover:text-blue-800"
           >
             <Edit className="h-4 w-4" />
           </Button>
@@ -398,7 +399,8 @@ export function AwardContent() {
             variant="outline"
             size="icon"
             onClick={() => handleOpenDeleteDialog(row.id)}
-            className="text-red-600 hover:text-red-800 hover:bg-red-50"
+            title="Delete"
+            className="text-red-600 hover:text-red-800"
           >
             <Trash2 className="h-4 w-4" />
           </Button>

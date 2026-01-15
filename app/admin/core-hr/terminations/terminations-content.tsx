@@ -27,13 +27,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Loader2, User, Building, Calendar, FileText, Hash, MoreVertical, Eye, Edit, Trash2, XCircle, RefreshCw, AlertCircle } from "lucide-react"
+import { Loader2, User, Building, Calendar, FileText, Hash, Eye, Edit, Trash2, XCircle, RefreshCw, AlertCircle } from "lucide-react"
 import { format } from "date-fns"
 
 const terminationSearchFields = [
@@ -96,55 +90,6 @@ const terminationSearchFields = [
     ],
   },
 ]
-
-// Action Dropdown Component
-interface ActionDropdownProps {
-  row: any;
-  onView: (id: number) => void;
-  onEdit: (id: number) => void;
-  onDelete: (id: number) => void;
-}
-
-const ActionDropdown: React.FC<ActionDropdownProps> = ({
-  row,
-  onView,
-  onEdit,
-  onDelete,
-}) => {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          className="h-8 w-8 p-0"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="sr-only">Open menu</span>
-          <MoreVertical className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => onView(row.id)}>
-          <Eye className="mr-2 h-4 w-4" />
-          View Details
-        </DropdownMenuItem>
-        <DropdownMenuItem 
-          onClick={() => onEdit(row.id)}
-        >
-          <Edit className="mr-2 h-4 w-4" />
-          Edit
-        </DropdownMenuItem>
-        <DropdownMenuItem 
-          onClick={() => onDelete(row.id)}
-          className="text-red-600 focus:text-red-600"
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
 
 export function TerminationsContent() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -528,12 +473,34 @@ export function TerminationsContent() {
       key: "actions",
       label: "Actions",
       render: (_: any, row: any) => (
-        <ActionDropdown
-          row={row}
-          onView={handleViewTermination}
-          onEdit={handleEditTermination}
-          onDelete={handleOpenDeleteDialog}
-        />
+        <div className="flex justify-end space-x-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleViewTermination(row.id)}
+            title="View Details"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleEditTermination(row.id)}
+            title="Edit"
+            className="text-blue-600 hover:text-blue-800"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleOpenDeleteDialog(row.id)}
+            title="Delete"
+            className="text-red-600 hover:text-red-800"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       ),
     },
   ]

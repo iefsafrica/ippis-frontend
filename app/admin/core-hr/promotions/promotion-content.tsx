@@ -349,7 +349,7 @@ export function PromotionContent({
       key: "actions",
       label: "Actions",
       render: (_: any, row: any) => (
-        <div className="flex  space-x-2">
+        <div className="flex justify-end space-x-2">
           <Button
             variant="outline"
             size="icon"

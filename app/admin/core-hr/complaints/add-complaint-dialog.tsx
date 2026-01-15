@@ -123,7 +123,7 @@ export function AddComplaintDialog({
         submitted_on: new Date().toISOString().split("T")[0],
       })
       setErrors({})
-      setDropdownEmployees([])
+      setDropdownEmployees((prev) => prev)
       setSelectedEmployee(null)
       setSelectedPriority("medium")
       setSelectedStatus("pending")
@@ -176,10 +176,10 @@ export function AddComplaintDialog({
         setDropdownEmployees(mappedEmployees)
       } catch (error) {
         console.error("Error processing employee data:", error)
-        setDropdownEmployees([])
+        setDropdownEmployees((prev) => prev)
       }
     } else {
-      setDropdownEmployees([])
+      setDropdownEmployees((prev) => prev)
     }
   }, [employeesData])
 

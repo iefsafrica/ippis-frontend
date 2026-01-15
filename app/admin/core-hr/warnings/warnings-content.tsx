@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, AlertTriangle, RefreshCw, Search, Hash, Upload, Download, MoreVertical, Eye, Edit, Trash2 } from "lucide-react"
+import { Loader2, AlertTriangle, RefreshCw, Search, Hash, Upload, Download, Eye, Edit, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { CoreHRClientWrapper } from "../components/core-hr-client-wrapper"
 import { DataTable } from "../components/data-table"
@@ -15,7 +15,6 @@ import { AddWarningDialog } from "./AddWarningDialog"
 import { EditWarningDialog } from "./EditWarningDialog"
 import { ViewWarningDialog } from "./ViewWarningDialog"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { useCreateEmployeeWarning, useUpdateEmployeeWarning, useDeleteEmployeeWarning, useUploadWarningDocument } from "@/services/hooks/hr-core/employeeWarnings"
 
 export function WarningsContent() {
@@ -210,42 +209,6 @@ export function WarningsContent() {
   const withdrawnCount = warnings.filter((w: EmployeeWarning) => w.status === "withdrawn").length
   const totalCount = warnings.length
 
-  // Action dropdown component for each row
-  interface ActionDropdownProps {
-    row: any
-    onView: (id: string) => void
-    onEdit: (id: string) => void
-    onDelete: (id: string) => void
-  }
-
-  const ActionDropdown: React.FC<ActionDropdownProps> = ({ row, onView, onEdit, onDelete }) => {
-    return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
-            <span className="sr-only">Open menu</span>
-            <MoreVertical className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => onView(row.id)}>
-            <Eye className="mr-2 h-4 w-4" />
-            View Details
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onEdit(row.id)} disabled={row.status === "withdrawn" || row.status === "expired"}>
-            <Edit className="mr-2 h-4 w-4" />
-            Edit
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onDelete(row.id)} className="text-red-600 focus:text-red-600">
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    )
-  }
-
-
   // Table columns
   const columns = [
     {
@@ -401,13 +364,34 @@ export function WarningsContent() {
       key: "actions",
       label: "Actions",
       render: (_value: any, row: any) => (
-        <div className="flex justify-start">
-          <ActionDropdown
-            row={row}
-            onView={(id) => handleView(id)}
-            onEdit={(id) => handleEdit(id)}
-            onDelete={(id) => handleDelete(id)}
-          />
+        <div className="flex justify-end space-x-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleView(row.id)}
+            title="View Details"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleEdit(row.id)}
+            title="Edit"
+            disabled={row.status === "withdrawn" || row.status === "expired"}
+            className="text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleDelete(row.id)}
+            title="Delete"
+            className="text-red-600 hover:text-red-800"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
       ),
     },

@@ -144,6 +144,7 @@ export function AdminSidebar() {
       href: "/admin/employees",
       icon: Users,
       isDropdown: true,
+      toggleOnly: true,
       isOpen: openDropdown === "employee-list", // for Employees List
       section: "employee-list",
       toggle: () =>
@@ -152,7 +153,7 @@ export function AdminSidebar() {
         ),
       subItems: [
         {
-          title: "Pending Employees",
+          title: "Employee",
           href: "/admin/pending",
         },
         {
@@ -659,39 +660,72 @@ export function AdminSidebar() {
                             : "text-gray-700 hover:bg-[#008751]/5 hover:text-[#008751]"
                         )}
                       >
-                        <Link
-                          href={item.href ?? ""}
-                          className="w-full flex items-center justify-between"
-                        >
-                          <div className="flex items-center w-full">
-                            <item.icon
-                              className={cn(
-                                "h-5 w-5",
-                                isActive ? "text-[#008751]" : "text-gray-500"
+                        {item.toggleOnly ? (
+                          <>
+                            <div className="flex items-center w-full">
+                              <item.icon
+                                className={cn(
+                                  "h-5 w-5",
+                                  isActive ? "text-[#008751]" : "text-gray-500"
+                                )}
+                              />
+                              {!collapsed && (
+                                <span className="ml-3">{item.title}</span>
                               )}
-                            />
-                            {!collapsed && (
-                              <span className="ml-3">{item.title}</span>
-                            )}
-                          </div>
+                            </div>
 
-                          {!collapsed &&
-                            (item.isOpen ? (
-                              <ChevronUp
+                            {!collapsed &&
+                              (item.isOpen ? (
+                                <ChevronUp
+                                  className={cn(
+                                    "h-4 w-4",
+                                    isActive ? "text-[#008751]" : "text-gray-500"
+                                  )}
+                                />
+                              ) : (
+                                <ChevronDown
+                                  className={cn(
+                                    "h-4 w-4",
+                                    isActive ? "text-[#008751]" : "text-gray-500"
+                                  )}
+                                />
+                              ))}
+                          </>
+                        ) : (
+                          <Link
+                            href={item.href ?? ""}
+                            className="w-full flex items-center justify-between"
+                          >
+                            <div className="flex items-center w-full">
+                              <item.icon
                                 className={cn(
-                                  "h-4 w-4",
+                                  "h-5 w-5",
                                   isActive ? "text-[#008751]" : "text-gray-500"
                                 )}
                               />
-                            ) : (
-                              <ChevronDown
-                                className={cn(
-                                  "h-4 w-4",
-                                  isActive ? "text-[#008751]" : "text-gray-500"
-                                )}
-                              />
-                            ))}
-                        </Link>
+                              {!collapsed && (
+                                <span className="ml-3">{item.title}</span>
+                              )}
+                            </div>
+
+                            {!collapsed &&
+                              (item.isOpen ? (
+                                <ChevronUp
+                                  className={cn(
+                                    "h-4 w-4",
+                                    isActive ? "text-[#008751]" : "text-gray-500"
+                                  )}
+                                />
+                              ) : (
+                                <ChevronDown
+                                  className={cn(
+                                    "h-4 w-4",
+                                    isActive ? "text-[#008751]" : "text-gray-500"
+                                  )}
+                                />
+                              ))}
+                          </Link>
+                        )}
                       </button>
                     ) : (
                       <Link

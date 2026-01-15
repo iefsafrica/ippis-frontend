@@ -92,7 +92,7 @@ export function AddPromotionDialog({ isOpen, onClose, onSubmit }: AddPromotionDi
         details: "",
       })
       setErrors({})
-      setDropdownEmployees([])
+      setDropdownEmployees((prev) => prev)
     }
   }, [isOpen])
 
@@ -134,7 +134,7 @@ export function AddPromotionDialog({ isOpen, onClose, onSubmit }: AddPromotionDi
         .filter((emp: DropdownEmployee) => emp.id && emp.displayName)
       setDropdownEmployees(mappedEmployees)
     } else {
-      setDropdownEmployees([])
+      setDropdownEmployees((prev) => prev)
     }
   }, [employeesData])
 

@@ -5,20 +5,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Filter,
-  MoreVertical,
   Search,
   SlidersHorizontal,
   CheckCircle,
@@ -37,6 +28,7 @@ import {
   IdCard,
   Calendar,
   FileCheck,
+  X,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import {
@@ -378,17 +370,24 @@ export default function DocumentsContent() {
   }, [documentsResponse, documents, filteredDocuments])
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Documents</h1>
-          <p className="text-muted-foreground">Manage and verify employee documents.</p>
+        <div className="flex items-center space-x-3">
+          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 flex items-center justify-center shadow-sm">
+            <FileText className="h-6 w-6 text-blue-600" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+              Documents
+            </h1>
+            <p className="text-gray-600 mt-1">Manage and verify employee documents.</p>
+          </div>
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Document Verification</CardTitle>
+      <Card className="border border-gray-200 shadow-lg rounded-xl overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 pb-3">
+          <CardTitle className="text-lg font-semibold text-gray-900">Document Verification</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -540,99 +539,66 @@ export default function DocumentsContent() {
                                 {document.uploadedAt ? new Date(document.uploadedAt).toLocaleDateString() : "Not uploaded"}
                               </TableCell>
                               <TableCell className="text-right">
-                                <div className="flex justify-end gap-1">
-                                  {url && (
+                                <div className="flex justify-end gap-2">
+                                  {url ? (
                                     <>
                                       <Button
-                                        variant="ghost"
+                                        variant="outline"
                                         size="icon"
-                                        className="h-8 w-8 text-blue-600"
                                         onClick={() => handlePreviewDocument(document, type)}
+                                        title="Preview Document"
                                       >
                                         <Eye className="h-4 w-4" />
-                                        <span className="sr-only">View</span>
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => handleViewDetails(document, type)}
+                                        title="View Details"
+                                      >
+                                        <Info className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        title="Download"
+                                      >
+                                        <Download className="h-4 w-4" />
                                       </Button>
                                       {document.status === "pending" && (
                                         <>
                                           <Button
-                                            variant="ghost"
+                                            variant="outline"
                                             size="icon"
-                                            className="h-8 w-8 text-green-600"
                                             onClick={() => handleOpenApproveDialog(document, type)}
+                                            title="Approve"
+                                            className="text-green-600 hover:text-green-800"
                                           >
                                             <CheckCircle className="h-4 w-4" />
-                                            <span className="sr-only">Approve</span>
                                           </Button>
                                           <Button
-                                            variant="ghost"
+                                            variant="outline"
                                             size="icon"
-                                            className="h-8 w-8 text-red-600"
                                             onClick={() => handleOpenRejectDialog(document, type)}
+                                            title="Reject"
+                                            className="text-red-600 hover:text-red-800"
                                           >
                                             <AlertTriangle className="h-4 w-4" />
-                                            <span className="sr-only">Reject</span>
                                           </Button>
                                         </>
                                       )}
                                     </>
+                                  ) : (
+                                    <Button
+                                      variant="outline"
+                                      size="icon"
+                                      title="Document not uploaded"
+                                      disabled
+                                      className="disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                      <File className="h-4 w-4" />
+                                    </Button>
                                   )}
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                                        <MoreVertical className="h-4 w-4" />
-                                        <span className="sr-only">Open menu</span>
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-48">
-                                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                      {url ? (
-                                        <>
-                                          <DropdownMenuItem 
-                                            onClick={() => handlePreviewDocument(document, type)}
-                                            className="cursor-pointer"
-                                          >
-                                            <Eye className="h-4 w-4 mr-2" />
-                                            Preview Document
-                                          </DropdownMenuItem>
-                                          <DropdownMenuItem 
-                                            onClick={() => handleViewDetails(document, type)}
-                                            className="cursor-pointer"
-                                          >
-                                            <Info className="h-4 w-4 mr-2" />
-                                            View Details
-                                          </DropdownMenuItem>
-                                          <DropdownMenuItem className="cursor-pointer">
-                                            <Download className="h-4 w-4 mr-2" />
-                                            Download
-                                          </DropdownMenuItem>
-                                          <DropdownMenuSeparator />
-                                          {document.status === "pending" && (
-                                            <>
-                                              <DropdownMenuItem
-                                                className="text-green-600 cursor-pointer"
-                                                onClick={() => handleOpenApproveDialog(document, type)}
-                                              >
-                                                <CheckCircle className="h-4 w-4 mr-2" />
-                                                Approve
-                                              </DropdownMenuItem>
-                                              <DropdownMenuItem
-                                                className="text-red-600 cursor-pointer"
-                                                onClick={() => handleOpenRejectDialog(document, type)}
-                                              >
-                                                <AlertTriangle className="h-4 w-4 mr-2" />
-                                                Reject
-                                              </DropdownMenuItem>
-                                            </>
-                                          )}
-                                        </>
-                                      ) : (
-                                        <DropdownMenuItem disabled className="cursor-not-allowed">
-                                          <File className="h-4 w-4 mr-2" />
-                                          Document not uploaded
-                                        </DropdownMenuItem>
-                                      )}
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -650,17 +616,36 @@ export default function DocumentsContent() {
 
       {/* Document Preview Dialog */}
       <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
-        <DialogContent className="sm:max-w-[700px]">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedDocument && selectedDocumentType && getDocumentTypeName(selectedDocumentType)}
-            </DialogTitle>
-            <DialogDescription>
-              {selectedDocument && `Employee: ${formatEmployeeName(selectedDocument.name)}`}
-              {selectedDocument?.uploadedAt && ` • Uploaded on ${new Date(selectedDocument.uploadedAt).toLocaleDateString()}`}
-            </DialogDescription>
+        <DialogContent className="p-0 max-w-3xl overflow-hidden border border-gray-200 shadow-xl">
+          <DialogHeader className="px-8 pt-8 pb-6 border-b border-gray-100">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <FileText className="h-6 w-6 text-gray-700" />
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-semibold text-gray-900">
+                    {selectedDocument && selectedDocumentType && getDocumentTypeName(selectedDocumentType)}
+                  </DialogTitle>
+                  <DialogDescription className="text-gray-600 mt-1">
+                    {selectedDocument && `Employee: ${formatEmployeeName(selectedDocument.name)}`}
+                    {selectedDocument?.uploadedAt && ` - Uploaded on ${new Date(selectedDocument.uploadedAt).toLocaleDateString()}`}
+                  </DialogDescription>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowPreviewDialog(false)}
+                className="h-8 w-8 text-gray-500 hover:text-gray-700"
+                aria-label="Close dialog"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </DialogHeader>
 
+          <div className="px-8 py-6 max-h-[70vh] overflow-y-auto">
           <Tabs defaultValue="preview" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="preview">Preview</TabsTrigger>
@@ -743,8 +728,10 @@ export default function DocumentsContent() {
             </TabsContent>
           </Tabs>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPreviewDialog(false)}>
+                    </div>
+
+          <DialogFooter className="px-8 py-5 border-t border-gray-200 bg-gray-50">
+            <Button variant="outline" onClick={() => setShowPreviewDialog(false)} className="border-gray-300 hover:bg-gray-100 text-gray-700">
               Close
             </Button>
           </DialogFooter>
@@ -753,18 +740,35 @@ export default function DocumentsContent() {
 
       {/* Document Details Dialog */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Info className="h-5 w-5" />
-              Document Details
-            </DialogTitle>
-            <DialogDescription>
-              Detailed information about {selectedDocumentType && getDocumentTypeName(selectedDocumentType)}
-            </DialogDescription>
+        <DialogContent className="p-0 max-w-3xl overflow-hidden border border-gray-200 shadow-xl">
+          <DialogHeader className="px-8 pt-8 pb-6 border-b border-gray-100">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <Info className="h-6 w-6 text-gray-700" />
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-semibold text-gray-900">
+                    Document Details
+                  </DialogTitle>
+                  <DialogDescription className="text-gray-600 mt-1">
+                    Detailed information about {selectedDocumentType && getDocumentTypeName(selectedDocumentType)}
+                  </DialogDescription>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowDetailsDialog(false)}
+                className="h-8 w-8 text-gray-500 hover:text-gray-700"
+                aria-label="Close dialog"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-6">
+          <div className="px-8 py-6 max-h-[70vh] overflow-y-auto space-y-6">
             {/* Document Information Section */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Document Information</h3>
@@ -903,8 +907,8 @@ export default function DocumentsContent() {
             )}
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDetailsDialog(false)}>
+          <DialogFooter className="px-8 py-5 border-t border-gray-200 bg-gray-50">
+            <Button variant="outline" onClick={() => setShowDetailsDialog(false)} className="border-gray-300 hover:bg-gray-100 text-gray-700">
               Close
             </Button>
           </DialogFooter>

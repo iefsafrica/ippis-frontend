@@ -6,20 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Filter,
-  MoreVerticalIcon,
+  Trash2,
   Plus,
   Search,
   SlidersHorizontal,
@@ -1157,54 +1149,61 @@ export default function EmployeesContent() {
                       </TableCell>
                        <TableCell className="text-center">{employee.uploaded_documents || "N/A"}</TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                            >
-                              <span className="sr-only">Open menu</span>
-                              <MoreVerticalIcon className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleView(employee)}>
-                              View details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEdit(employee)}>
-                              
-                              Edit employee
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => handleStatusChange(employee.id, "active", employee.name)}
-                              className="text-green-600 focus:text-green-600"
-                            >
-                              Set Active
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleStatusChange(employee.id, "pending", employee.name)}
-                              className="text-amber-600 focus:text-amber-600"
-                            >
-                              Set Pending
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleStatusChange(employee.id, "inactive", employee.name)}
-                              className="text-red-600 focus:text-red-600"
-                            >
-                              Set Inactive
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => handleDelete(employee)}
-                              className="text-red-600 focus:text-red-600"
-                            >
-                              Delete employee
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <div className="flex justify-end space-x-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleView(employee)}
+                            title="View Details"
+                          >
+                            <User className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleEdit(employee)}
+                            title="Edit"
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleStatusChange(employee.id, "active", employee.name)}
+                            title="Set Active"
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleStatusChange(employee.id, "pending", employee.name)}
+                            title="Set Pending"
+                            className="text-amber-600 hover:text-amber-800"
+                          >
+                            <Clock className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleStatusChange(employee.id, "inactive", employee.name)}
+                            title="Set Inactive"
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <AlertTriangle className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleDelete(employee)}
+                            title="Delete"
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
