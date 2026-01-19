@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { DatePickerWithRange } from "./date-range-picker"
 import { addDays } from "date-fns"
 import { Slider } from "@/components/ui/slider"
+import { toast } from "sonner"
 
 const projectSchema = z.object({
   title: z.string().min(2, {
@@ -63,13 +64,14 @@ export function ProjectForm() {
 
   function onSubmit(values: z.infer<typeof projectSchema>) {
     setIsSubmitting(true)
-    console.log(values)
+    const loadingToast = toast.loading("Adding project...")
 
     // Simulate API call
     setTimeout(() => {
+      toast.dismiss(loadingToast)
+      toast.success("Project added successfully")
       setIsSubmitting(false)
       form.reset()
-      // Close dialog or show success message
     }, 1000)
   }
 

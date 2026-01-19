@@ -1,6 +1,8 @@
 import { Suspense } from "react"
+import Link from "next/link"
 import { CalendarContent } from "./calendar-content"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
 
 export const metadata = {
   title: "HR Calendar | IPPIS Admin",
@@ -12,6 +14,9 @@ export default function HRCalendarPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">HR Calendar</h1>
+        <Button asChild variant="outline">
+          <Link href="/admin/hr-calendar/events">View Events Table</Link>
+        </Button>
       </div>
       <Suspense fallback={<CalendarSkeleton />}>
         <CalendarContent />

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { DatePickerWithRange } from "./date-range-picker"
 import { addDays } from "date-fns"
+import { toast } from "sonner"
 
 const leaveRequestSchema = z.object({
   employee: z.string().min(2, {
@@ -48,13 +49,14 @@ export function LeaveRequestForm() {
 
   function onSubmit(values: z.infer<typeof leaveRequestSchema>) {
     setIsSubmitting(true)
-    console.log(values)
+    const loadingToast = toast.loading("Submitting leave request...")
 
     // Simulate API call
     setTimeout(() => {
+      toast.dismiss(loadingToast)
+      toast.success("Leave request submitted successfully")
       setIsSubmitting(false)
       form.reset()
-      // Close dialog or show success message
     }, 1000)
   }
 

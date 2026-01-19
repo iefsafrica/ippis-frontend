@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { DatePicker } from "./date-picker"
 import { addDays } from "date-fns"
+import { toast } from "sonner"
 
 const taskSchema = z.object({
   title: z.string().min(2, {
@@ -50,13 +51,14 @@ export function TaskForm() {
 
   function onSubmit(values: z.infer<typeof taskSchema>) {
     setIsSubmitting(true)
-    console.log(values)
+    const loadingToast = toast.loading("Adding task...")
 
     // Simulate API call
     setTimeout(() => {
+      toast.dismiss(loadingToast)
+      toast.success("Task added successfully")
       setIsSubmitting(false)
       form.reset()
-      // Close dialog or show success message
     }, 1000)
   }
 

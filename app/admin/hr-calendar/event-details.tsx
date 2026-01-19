@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { format } from "date-fns"
 
-export function EventDetails({ event, onClose }) {
+export function EventDetails({ event, onClose, onEdit, onDelete }) {
   const formatDate = (date) => {
     return format(new Date(date), "PPP")
   }
@@ -46,6 +46,13 @@ export function EventDetails({ event, onClose }) {
             {event.end && event.start.toDateString() !== event.end.toDateString() && <> to {formatDate(event.end)}</>}
           </div>
         </div>
+
+        {event.department && (
+          <div className="grid grid-cols-3 gap-2">
+            <div className="font-semibold">Department:</div>
+            <div className="col-span-2">{event.department}</div>
+          </div>
+        )}
 
         {event.location && (
           <div className="grid grid-cols-3 gap-2">
@@ -89,7 +96,12 @@ export function EventDetails({ event, onClose }) {
         <Button variant="outline" onClick={onClose}>
           Close
         </Button>
-        <Button>Edit Event</Button>
+        {onEdit && <Button onClick={onEdit}>Edit Event</Button>}
+        {onDelete && (
+          <Button variant="destructive" onClick={onDelete}>
+            Delete Event
+          </Button>
+        )}
       </div>
     </div>
   )

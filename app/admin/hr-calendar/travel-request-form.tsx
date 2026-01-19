@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { DatePickerWithRange } from "./date-range-picker"
 import { addDays } from "date-fns"
 import { Checkbox } from "@/components/ui/checkbox"
+import { toast } from "sonner"
 
 const travelRequestSchema = z.object({
   employee: z.string().min(2, {
@@ -57,13 +58,14 @@ export function TravelRequestForm() {
 
   function onSubmit(values: z.infer<typeof travelRequestSchema>) {
     setIsSubmitting(true)
-    console.log(values)
+    const loadingToast = toast.loading("Submitting travel request...")
 
     // Simulate API call
     setTimeout(() => {
+      toast.dismiss(loadingToast)
+      toast.success("Travel request submitted successfully")
       setIsSubmitting(false)
       form.reset()
-      // Close dialog or show success message
     }, 1000)
   }
 

@@ -1,272 +1,272 @@
 "use client"
 
-import { useState } from "react"
-import { Calendar, dateFnsLocalizer } from "react-big-calendar"
-import format from "date-fns/format"
-import parse from "date-fns/parse"
-import startOfWeek from "date-fns/startOfWeek"
-import getDay from "date-fns/getDay"
-import enUS from "date-fns/locale/en-US"
-import "react-big-calendar/lib/css/react-big-calendar.css"
-import { Card, CardContent } from "@/components/ui/card"
+import { useMemo, useState } from "react"
+import { addDays, differenceInCalendarDays, format, isSameDay, isWithinInterval } from "date-fns"
+import { Calendar as CalendarIcon, Clock, MapPin, Users } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AddEventForm } from "./add-event-form"
-import { LeaveRequestForm } from "./leave-request-form"
-import { TravelRequestForm } from "./travel-request-form"
-import { ProjectForm } from "./project-form"
-import { TaskForm } from "./task-form"
-import { EventDetails } from "./event-details"
-import { LeaveRequestDetails } from "./leave-request-details"
-import { TravelRequestDetails } from "./travel-request-details"
-import { ProjectDetails } from "./project-details"
-import { TaskDetails } from "./task-details"
+import { Calendar } from "@/components/ui/calendar"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { useGetCalendarEvents } from "@/services/hooks/calendar/events"
+import { toast } from "sonner"
+import { AddCalendarEventDialog } from "./add-calendar-event-dialog"
+import { ViewCalendarEventDialog } from "./view-calendar-event-dialog"
+import type { CalendarEvent } from "@/types/calendar/events"
 
-const locales = {
-  "en-US": enUS,
+const eventTypeBadgeClasses: Record<string, string> = {
+  holiday: "bg-red-100 text-red-800",
+  meeting: "bg-blue-100 text-blue-800",
+  training: "bg-green-100 text-green-800",
+  deadline: "bg-orange-100 text-orange-800",
+  leave: "bg-purple-100 text-purple-800",
+  travel: "bg-pink-100 text-pink-800",
+  project: "bg-teal-100 text-teal-800",
+  task: "bg-amber-100 text-amber-800",
+  other: "bg-gray-100 text-gray-800",
 }
 
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek,
-  getDay,
-  locales,
-})
-
-// Event types with corresponding colors
-const eventTypeColors = {
-  holiday: "#f87171", // red
-  meeting: "#60a5fa", // blue
-  training: "#34d399", // green
-  deadline: "#f97316", // orange
-  leave: "#8b5cf6", // purple
-  travel: "#ec4899", // pink
-  project: "#14b8a6", // teal
-  task: "#f59e0b", // amber
-  other: "#6b7280", // gray
-}
-
-// Sample events
-const events = [
-  {
-    id: 1,
-    title: "Workers' Day",
-    start: new Date(2025, 4, 1),
-    end: new Date(2025, 4, 2),
-    type: "holiday",
-    allDay: true,
-    description: "National public holiday",
-    location: "Nationwide",
-  },
-  {
-    id: 2,
-    title: "Department Meeting",
-    start: new Date(2025, 4, 5, 10, 0),
-    end: new Date(2025, 4, 5, 11, 30),
-    type: "meeting",
-    description: "Monthly department progress review",
-    location: "Conference Room A",
-    attendees: ["John Doe", "Jane Smith", "Robert Johnson"],
-  },
-  {
-    id: 3,
-    title: "New Employee Orientation",
-    start: new Date(2025, 4, 8, 9, 0),
-    end: new Date(2025, 4, 8, 16, 0),
-    type: "training",
-    description: "Orientation for new hires",
-    location: "Training Room 2",
-    trainer: "HR Training Team",
-  },
-  {
-    id: 4,
-    title: "Quarterly Report Due",
-    start: new Date(2025, 4, 15),
-    end: new Date(2025, 4, 16),
-    type: "deadline",
-    allDay: true,
-    description: "Submit Q1 department reports",
-    responsible: "All Department Heads",
-  },
-  {
-    id: 5,
-    title: "John's Annual Leave",
-    start: new Date(2025, 4, 10),
-    end: new Date(2025, 4, 15),
-    type: "leave",
-    allDay: true,
-    description: "Annual leave",
-    employee: "John Doe",
-    status: "Approved",
-    leaveType: "Annual",
-  },
-  {
-    id: 6,
-    title: "Lagos Conference Trip",
-    start: new Date(2025, 4, 20),
-    end: new Date(2025, 4, 23),
-    type: "travel",
-    allDay: true,
-    description: "HR Conference in Lagos",
-    employee: "Jane Smith",
-    destination: "Lagos",
-    status: "Approved",
-    travelType: "Conference",
-  },
-  {
-    id: 7,
-    title: "IPPIS System Upgrade",
-    start: new Date(2025, 4, 5),
-    end: new Date(2025, 4, 25),
-    type: "project",
-    allDay: true,
-    description: "Major system upgrade project",
-    manager: "Robert Johnson",
-    team: ["John Doe", "Jane Smith", "Michael Brown"],
-    status: "In Progress",
-    completion: 35,
-  },
-  {
-    id: 8,
-    title: "Update Employee Records",
-    start: new Date(2025, 4, 12),
-    end: new Date(2025, 4, 13),
-    type: "task",
-    allDay: true,
-    description: "Update employee records with new information",
-    assignee: "Jane Smith",
-    priority: "High",
-    status: "Pending",
-  },
-]
+const dateKey = (date: Date) => format(date, "yyyy-MM-dd")
 
 export function CalendarContent() {
-  const [selectedEvent, setSelectedEvent] = useState(null)
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState("events")
+  const [currentEvent, setCurrentEvent] = useState<CalendarEvent | null>(null)
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
-  const eventStyleGetter = (event) => {
-    const style = {
-      backgroundColor: eventTypeColors[event.type] || eventTypeColors.other,
-      borderRadius: "4px",
-      opacity: 0.8,
-      color: "white",
-      border: "0",
-      display: "block",
-    }
-    return {
-      style,
+  const { 
+    data: calendarEventsResponse, 
+    isLoading: isLoadingCalendarEvents, 
+    isError: isCalendarEventsError,
+    error: calendarEventsError,
+    refetch: refetchCalendarEvents
+  } = useGetCalendarEvents()
+
+  const events = useMemo(() => {
+    return (calendarEventsResponse?.data || []).map((event) => ({
+      id: event.id,
+      title: event.title,
+      start: new Date(event.start_date),
+      end: new Date(event.end_date),
+      type: event.event_type?.toLowerCase?.() || "other",
+      allDay: event.all_day,
+      description: event.description,
+      location: event.location,
+      attendees: event.attendees,
+      department: event.department,
+      status: event.status,
+    }))
+  }, [calendarEventsResponse])
+
+  const isBusy = isLoadingCalendarEvents
+
+  const handleSelectEvent = (eventId: number) => {
+    const matchedEvent = calendarEventsResponse?.data?.find((item) => item.id === eventId) || null
+    if (matchedEvent) {
+      setCurrentEvent(matchedEvent)
+      setIsViewDialogOpen(true)
     }
   }
 
-  const handleSelectEvent = (event) => {
-    setSelectedEvent(event)
-    setIsDetailsOpen(true)
+  const handleManualRefresh = async () => {
+    await refetchCalendarEvents()
+    toast.info("Refreshing calendar events...")
   }
 
-  const renderEventDetails = () => {
-    if (!selectedEvent) return null
+  const eventDates = useMemo(() => {
+    const dates: Date[] = []
+    events.forEach((event) => {
+      const start = new Date(event.start)
+      const end = new Date(event.end)
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return
+      const span = Math.max(differenceInCalendarDays(end, start), 0)
+      for (let index = 0; index <= span; index += 1) {
+        dates.push(addDays(start, index))
+      }
+    })
+    return dates
+  }, [events])
 
-    switch (selectedEvent.type) {
-      case "leave":
-        return <LeaveRequestDetails event={selectedEvent} onClose={() => setIsDetailsOpen(false)} />
-      case "travel":
-        return <TravelRequestDetails event={selectedEvent} onClose={() => setIsDetailsOpen(false)} />
-      case "project":
-        return <ProjectDetails event={selectedEvent} onClose={() => setIsDetailsOpen(false)} />
-      case "task":
-        return <TaskDetails event={selectedEvent} onClose={() => setIsDetailsOpen(false)} />
-      default:
-        return <EventDetails event={selectedEvent} onClose={() => setIsDetailsOpen(false)} />
-    }
+  const selectedDayEvents = useMemo(() => {
+    return events.filter((event) => {
+      const start = new Date(event.start)
+      const end = new Date(event.end)
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false
+      if (isSameDay(start, end)) {
+        return isSameDay(start, selectedDate)
+      }
+      return isWithinInterval(selectedDate, { start, end })
+    })
+  }, [events, selectedDate])
+
+  if (isLoadingCalendarEvents) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-sm text-gray-600">Loading calendar events...</div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (isCalendarEventsError) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-sm text-red-600">Error loading calendar events</div>
+          <div className="text-xs text-gray-600 mt-2">{calendarEventsError?.message}</div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetchCalendarEvents()}
+            className="mt-4"
+          >
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
-    <Card>
-      <CardContent className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex space-x-2">
-            <Button variant="outline" size="sm">
-              Today
+    <Card className="border border-gray-200 shadow-lg">
+      <CardHeader className="border-b border-gray-100">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="h-11 w-11 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center">
+              <CalendarIcon className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <CardTitle className="text-lg font-semibold text-gray-900">HR Calendar</CardTitle>
+              <p className="text-sm text-gray-500">Select a day to view scheduled events</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button variant="outline" size="sm" onClick={handleManualRefresh} disabled={isBusy}>
+              Refresh
             </Button>
-            <Button variant="outline" size="sm">
-              Month
-            </Button>
-            <Button variant="outline" size="sm">
-              Week
-            </Button>
-            <Button variant="outline" size="sm">
-              Day
+            <Button size="sm" disabled={isBusy} onClick={() => setIsAddDialogOpen(true)}>
+              Add Event
             </Button>
           </div>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button>Add New</Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] bg-white text-black">
-              <DialogHeader>
-                <DialogTitle>Add to Calendar</DialogTitle>
-              </DialogHeader>
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid grid-cols-5 w-full">
-                  <TabsTrigger value="events">Event</TabsTrigger>
-                  <TabsTrigger value="leave">Leave</TabsTrigger>
-                  <TabsTrigger value="travel">Travel</TabsTrigger>
-                  <TabsTrigger value="project">Project</TabsTrigger>
-                  <TabsTrigger value="task">Task</TabsTrigger>
-                </TabsList>
-                <TabsContent value="events">
-                  <AddEventForm />
-                </TabsContent>
-                <TabsContent value="leave">
-                  <LeaveRequestForm />
-                </TabsContent>
-                <TabsContent value="travel">
-                  <TravelRequestForm />
-                </TabsContent>
-                <TabsContent value="project">
-                  <ProjectForm />
-                </TabsContent>
-                <TabsContent value="task">
-                  <TaskForm />
-                </TabsContent>
-              </Tabs>
-            </DialogContent>
-          </Dialog>
         </div>
-
-        <div className="h-[600px]">
-          <Calendar
-            localizer={localizer}
-            events={events}
-            startAccessor="start"
-            endAccessor="end"
-            style={{ height: "100%" }}
-            eventPropGetter={eventStyleGetter}
-            onSelectEvent={handleSelectEvent}
-          />
-        </div>
-
-        <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-          <DialogContent className="sm:max-w-[600px] bg-white text-black">
-            <DialogHeader>
-              <DialogTitle>{selectedEvent?.title}</DialogTitle>
-            </DialogHeader>
-            {renderEventDetails()}
-          </DialogContent>
-        </Dialog>
-
-        <div className="mt-4 flex flex-wrap gap-3">
-          <div className="text-sm font-medium">Legend:</div>
-          {Object.entries(eventTypeColors).map(([type, color]) => (
-            <div key={type} className="flex items-center">
-              <div className="w-3 h-3 rounded-full mr-1" style={{ backgroundColor: color }}></div>
-              <span className="text-sm capitalize">{type}</span>
+      </CardHeader>
+      <CardContent className="p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6">
+          <div className="space-y-4">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={(date) => date && setSelectedDate(date)}
+              modifiers={{ hasEvent: eventDates }}
+              modifiersClassNames={{
+                hasEvent: "bg-blue-100 text-blue-900 font-semibold",
+              }}
+              className="w-full rounded-xl border border-gray-200 bg-white p-3 shadow-sm"
+              classNames={{
+                months: "w-full",
+                month: "w-full space-y-4",
+                caption: "flex items-center justify-between px-1",
+                caption_label: "text-sm font-semibold text-gray-900",
+                nav: "flex items-center gap-2",
+                nav_button: "h-8 w-8 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50",
+                table: "w-full border-collapse",
+                head_row: "flex w-full justify-between",
+                head_cell: "w-9 text-center text-[11px] font-semibold text-gray-500 uppercase",
+                row: "mt-2 flex w-full justify-between",
+                cell: "relative flex h-9 w-9 items-center justify-center p-0",
+                day: "h-9 w-9 rounded-md text-sm font-medium text-gray-900 hover:bg-gray-100",
+                day_today: "border border-blue-200 bg-blue-50",
+                day_selected: "bg-blue-600 text-white hover:bg-blue-600",
+                day_outside: "text-gray-300",
+                day_disabled: "text-gray-300 opacity-60",
+              }}
+            />
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <span className="h-2.5 w-2.5 rounded-full bg-blue-100 border border-blue-200" />
+              Days with events
             </div>
-          ))}
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">
+                  {format(selectedDate, "PPP")}
+                </h3>
+                <p className="text-xs text-gray-500">
+                  {selectedDayEvents.length} event{selectedDayEvents.length === 1 ? "" : "s"} scheduled
+                </p>
+              </div>
+            </div>
+            <Separator />
+            {selectedDayEvents.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-gray-200 p-6 text-center text-sm text-gray-500">
+                No events scheduled for this day.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {selectedDayEvents.map((event) => {
+                  const badgeClass = eventTypeBadgeClasses[event.type] || eventTypeBadgeClasses.other
+                  return (
+                    <button
+                      key={event.id}
+                      type="button"
+                      onClick={() => handleSelectEvent(event.id)}
+                      className="w-full text-left rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">{event.title}</p>
+                          <p className="text-xs text-gray-500">{event.department || "General"}</p>
+                        </div>
+                        <Badge className={badgeClass}>{event.type}</Badge>
+                      </div>
+                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-gray-500">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span>
+                            {event.allDay
+                              ? "All day"
+                              : `${format(event.start, "p")} - ${format(event.end, "p")}`}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-3.5 w-3.5" />
+                          <span>{event.location || "No location"}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Users className="h-3.5 w-3.5" />
+                          <span>
+                            {Array.isArray(event.attendees) && event.attendees.length > 0
+                              ? `${event.attendees.length} attendees`
+                              : "No attendees"}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
+
+        <AddCalendarEventDialog
+          isOpen={isAddDialogOpen}
+          onClose={() => setIsAddDialogOpen(false)}
+        />
+
+        {currentEvent && (
+          <ViewCalendarEventDialog
+            isOpen={isViewDialogOpen}
+            onClose={() => {
+              setIsViewDialogOpen(false)
+              setCurrentEvent(null)
+            }}
+            event={currentEvent}
+          />
+        )}
       </CardContent>
     </Card>
   )
