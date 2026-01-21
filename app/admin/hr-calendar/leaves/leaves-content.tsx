@@ -1,164 +1,140 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Calendar as CalendarIcon, Edit, Eye, RefreshCw, Trash2 } from "lucide-react"
+import { CalendarDays, Edit, Eye, RefreshCw, Trash2, User } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
-import { useDeleteCalendarEvent, useGetCalendarEvents } from "@/services/hooks/calendar/events"
-import type { CalendarEvent } from "@/types/calendar/events"
-import { AddCalendarEventDialog } from "../add-calendar-event-dialog"
-import { EditCalendarEventDialog } from "../edit-calendar-event-dialog"
-import { ViewCalendarEventDialog } from "../view-calendar-event-dialog"
-
-const eventTypeBadgeClasses: Record<string, string> = {
-  holiday: "bg-red-100 text-red-800",
-  meeting: "bg-blue-100 text-blue-800",
-  training: "bg-green-100 text-green-800",
-  deadline: "bg-orange-100 text-orange-800",
-  other: "bg-gray-100 text-gray-800",
-}
+import { useDeleteLeave, useGetLeaves, useUpdateLeave } from "@/services/hooks/calendar/leaves"
+import type { Leave } from "@/types/calendar/leaves"
+import { AddLeaveDialog } from "./add-leave-dialog"
+import { EditLeaveDialog } from "./edit-leave-dialog"
+import { ViewLeaveDialog } from "./view-leave-dialog"
 
 const statusBadgeClasses: Record<string, string> = {
-  active: "bg-green-100 text-green-800",
-  inactive: "bg-gray-100 text-gray-800",
+  pending: "bg-yellow-100 text-yellow-800",
+  approved: "bg-green-100 text-green-800",
+  rejected: "bg-red-100 text-red-800",
 }
 
-const calendarSearchFields = [
-  { name: "title", label: "Title", type: "text" as const },
-  { name: "department", label: "Department", type: "text" as const },
-  {
-    name: "event_type",
-    label: "Event Type",
-    type: "select" as const,
-    options: [
-      { value: "holiday", label: "Holiday" },
-      { value: "meeting", label: "Meeting" },
-      { value: "training", label: "Training" },
-      { value: "deadline", label: "Deadline" },
-      { value: "other", label: "Other" },
-    ],
-  },
-  {
-    name: "status",
-    label: "Status",
-    type: "select" as const,
-    options: [
-      { value: "", label: "All" },
-      { value: "active", label: "Active" },
-      { value: "inactive", label: "Inactive" },
-    ],
-  },
+const leaveSearchFields = [
+  { name: "employee_name", label: "Employee Name", type: "text" as const },
+  { name: "employee_id", label: "Employee ID", type: "text" as const },
+  { name: "leave_type", label: "Leave Type", type: "text" as const },
+  { name: "status", label: "Status", type: "select" as const, options: [
+    { value: "", label: "All" },
+    { value: "pending", label: "Pending" },
+    { value: "approved", label: "Approved" },
+    { value: "rejected", label: "Rejected" },
+  ] },
   { name: "start_date", label: "Start Date", type: "date" as const },
 ]
 
-export function CalendarEventsContent() {
-  const [currentEvent, setCurrentEvent] = useState<CalendarEvent | null>(null)
+
+export function LeavesContent() {
+  const [currentLeave, setCurrentLeave] = useState<Leave | null>(null)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-
   const {
-    data: calendarEventsResponse,
-    isLoading: isLoadingCalendarEvents,
-    isError: isCalendarEventsError,
-    error: calendarEventsError,
-    refetch: refetchCalendarEvents,
-  } = useGetCalendarEvents()
+    data: leavesResponse,
+    isLoading: isLoadingLeaves,
+    isError: isLeavesError,
+    error: leavesError,
+    refetch: refetchLeaves,
+  } = useGetLeaves()
 
-  const deleteCalendarEventMutation = useDeleteCalendarEvent()
+  const updateLeaveMutation = useUpdateLeave()
+  const deleteLeaveMutation = useDeleteLeave()
 
-  const calendarEvents = calendarEventsResponse?.data || []
-  const sortedCalendarEvents = useMemo(() => {
-    return [...calendarEvents].sort((a, b) => b.id - a.id)
-  }, [calendarEvents])
+  const leaves = leavesResponse?.data || []
+  const sortedLeaves = useMemo(() => [...leaves].sort((a, b) => b.id - a.id), [leaves])
 
-  const totalCount = sortedCalendarEvents.length
-  const activeCount = sortedCalendarEvents.filter((event) => event.status === "active").length
-  const inactiveCount = sortedCalendarEvents.filter((event) => event.status !== "active").length
+  const totalCount = sortedLeaves.length
+  const pendingCount = sortedLeaves.filter((leave) => leave.status === "pending").length
+  const approvedCount = sortedLeaves.filter((leave) => leave.status === "approved").length
+  const rejectedCount = sortedLeaves.filter((leave) => leave.status === "rejected").length
 
-  const handleAddEvent = () => {
-    setCurrentEvent(null)
+  const handleManualRefresh = () => {
+    refetchLeaves()
+    toast.info("Refreshing leaves...")
+  }
+
+  const handleAddLeave = () => {
+    setCurrentLeave(null)
     setIsAddDialogOpen(true)
   }
 
-  const handleViewEvent = (id: number) => {
-    const event = sortedCalendarEvents.find((item) => item.id === id)
-    if (!event) {
-      toast.error("Calendar event not found")
+  const handleViewLeave = (id: number) => {
+    const leave = sortedLeaves.find((item) => item.id === id)
+    if (!leave) {
+      toast.error("Leave request not found")
       return
     }
-    setCurrentEvent(event)
+    setCurrentLeave(leave)
     setIsViewDialogOpen(true)
   }
 
-  const handleEditEvent = (id: number) => {
-    const event = sortedCalendarEvents.find((item) => item.id === id)
-    if (!event) {
-      toast.error("Calendar event not found")
+  const handleEditLeave = (id: number) => {
+    const leave = sortedLeaves.find((item) => item.id === id)
+    if (!leave) {
+      toast.error("Leave request not found")
       return
     }
-    setCurrentEvent(event)
+    setCurrentLeave(leave)
     setIsEditDialogOpen(true)
   }
 
   const handleOpenDeleteDialog = (id: number) => {
-    const event = sortedCalendarEvents.find((item) => item.id === id)
-    if (!event) {
-      toast.error("Calendar event not found")
+    const leave = sortedLeaves.find((item) => item.id === id)
+    if (!leave) {
+      toast.error("Leave request not found")
       return
     }
-    setCurrentEvent(event)
+    setCurrentLeave(leave)
     setIsDeleteDialogOpen(true)
   }
 
-  const handleDeleteEvent = async () => {
-    if (!currentEvent) return
+  const handleDeleteLeave = async () => {
+    if (!currentLeave) return
     try {
-      await deleteCalendarEventMutation.mutateAsync(currentEvent.id)
-      toast.success("Calendar event deleted successfully")
+      await deleteLeaveMutation.mutateAsync(currentLeave.id)
+      toast.success("Leave deleted successfully")
       setIsDeleteDialogOpen(false)
-      setCurrentEvent(null)
+      setCurrentLeave(null)
     } catch (error: any) {
-      toast.error(error.message || "Failed to delete calendar event")
+      toast.error(error.message || "Failed to delete leave")
     }
   }
 
-  const handleManualRefresh = () => {
-    refetchCalendarEvents()
-    toast.info("Refreshing calendar events...")
-  }
+  const isBusy = updateLeaveMutation.isPending || deleteLeaveMutation.isPending
 
   const columns = [
     {
-      key: "title",
-      label: "Event",
+      key: "employee_name",
+      label: "Employee",
       sortable: true,
-      render: (value: string, row: CalendarEvent) => (
+      render: (value: string, row: Leave) => (
         <div className="flex items-center">
           <div className="h-9 w-9 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center mr-3">
-            <CalendarIcon className="h-4 w-4 text-blue-600" />
+            <User className="h-4 w-4 text-blue-600" />
           </div>
           <div className="min-w-0">
             <div className="font-medium text-gray-900 truncate max-w-[200px]">{value}</div>
-            <div className="text-xs text-gray-500 truncate max-w-[200px]">{row.department}</div>
+            <div className="text-xs text-gray-500 truncate max-w-[200px]">{row.employee_id}</div>
           </div>
         </div>
       ),
     },
     {
-      key: "event_type",
-      label: "Type",
+      key: "leave_type",
+      label: "Leave Type",
       sortable: true,
-      render: (value: string) => {
-        const key = (value || "other").toLowerCase()
-        const badgeClass = eventTypeBadgeClasses[key] || eventTypeBadgeClasses.other
-        return <Badge className={badgeClass}>{value || "Other"}</Badge>
-      },
+      render: (value: string) => <span className="text-sm text-gray-700">{value}</span>,
     },
     {
       key: "start_date",
@@ -177,19 +153,19 @@ export function CalendarEventsContent() {
       label: "Status",
       sortable: true,
       render: (value: string) => {
-        const badgeClass = statusBadgeClasses[value] || statusBadgeClasses.inactive
-        return <Badge className={badgeClass}>{value || "inactive"}</Badge>
+        const badgeClass = statusBadgeClasses[value] || "bg-gray-100 text-gray-800"
+        return <Badge className={badgeClass}>{value}</Badge>
       },
     },
     {
       key: "actions",
       label: "Actions",
-      render: (_: any, row: CalendarEvent) => (
+      render: (_: any, row: Leave) => (
         <div className="flex justify-end space-x-2">
-          <Button variant="outline" size="icon" onClick={() => handleViewEvent(row.id)} title="View Details">
+          <Button variant="outline" size="icon" onClick={() => handleViewLeave(row.id)} title="View Details">
             <Eye className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={() => handleEditEvent(row.id)} title="Edit">
+          <Button variant="outline" size="icon" onClick={() => handleEditLeave(row.id)} title="Edit">
             <Edit className="h-4 w-4" />
           </Button>
           <Button variant="outline" size="icon" onClick={() => handleOpenDeleteDialog(row.id)} title="Delete">
@@ -200,7 +176,7 @@ export function CalendarEventsContent() {
     },
   ]
 
-  if (isLoadingCalendarEvents) {
+  if (isLoadingLeaves) {
     return (
       <div className="container mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-8">
@@ -227,15 +203,15 @@ export function CalendarEventsContent() {
     )
   }
 
-  if (isCalendarEventsError) {
+  if (isLeavesError) {
     return (
       <div className="container mx-auto px-4 py-6">
         <div className="bg-white rounded-lg shadow p-6">
           <div className="text-center py-10">
-            <p className="text-red-500 font-medium">Error loading calendar events</p>
-            <p className="text-gray-600 mt-1 text-sm">{calendarEventsError?.message}</p>
+            <p className="text-red-500 font-medium">Error loading leaves</p>
+            <p className="text-gray-600 mt-1 text-sm">{leavesError?.message}</p>
             <button
-              onClick={() => refetchCalendarEvents()}
+              onClick={() => refetchLeaves()}
               className="mt-6 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium shadow-sm hover:shadow-md transition-all"
             >
               Retry Loading
@@ -251,16 +227,16 @@ export function CalendarEventsContent() {
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div className="flex items-center space-x-3">
           <div className="h-12 w-12 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center shadow-sm">
-            <CalendarIcon className="h-6 w-6 text-blue-600" />
+            <CalendarDays className="h-6 w-6 text-blue-600" />
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-              Calendar Events
+              Leave Requests
             </h1>
             <p className="text-gray-600 mt-1">
-              Manage HR calendar events
-              {calendarEventsResponse?.data && (
-                <span className="ml-2 text-sm text-gray-500">({totalCount} events)</span>
+              Manage employee leave requests
+              {leavesResponse?.data && (
+                <span className="ml-2 text-sm text-gray-500">({totalCount} leaves)</span>
               )}
             </p>
           </div>
@@ -269,18 +245,18 @@ export function CalendarEventsContent() {
           <Button
             variant="outline"
             onClick={handleManualRefresh}
-            disabled={deleteCalendarEventMutation.isPending}
+            disabled={isBusy}
             className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"
           >
             <RefreshCw className="h-4 w-4" />
             <span className="ml-2 hidden sm:inline">Refresh</span>
           </Button>
           <Button
-            onClick={handleAddEvent}
-            disabled={deleteCalendarEventMutation.isPending}
+            onClick={handleAddLeave}
+            disabled={isBusy}
             className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
           >
-            Add Event
+            Add Leave
           </Button>
         </div>
       </div>
@@ -288,7 +264,7 @@ export function CalendarEventsContent() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Total Events</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-500">Total</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center">
@@ -297,7 +273,7 @@ export function CalendarEventsContent() {
               </div>
               <div>
                 <div className="text-2xl font-bold text-gray-900">{totalCount}</div>
-                <p className="text-xs text-gray-500 mt-1">All calendar events</p>
+                <p className="text-xs text-gray-500 mt-1">All leave requests</p>
               </div>
             </div>
           </CardContent>
@@ -305,16 +281,33 @@ export function CalendarEventsContent() {
 
         <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Active</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-500">Pending</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center">
+              <div className="h-8 w-8 rounded-lg bg-yellow-100 border border-yellow-200 flex items-center justify-center mr-3">
+                <span className="text-yellow-800 font-bold">{pendingCount}</span>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900">{pendingCount}</div>
+                <p className="text-xs text-gray-500 mt-1">Awaiting approval</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-500">Approved</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center">
               <div className="h-8 w-8 rounded-lg bg-green-100 border border-green-200 flex items-center justify-center mr-3">
-                <span className="text-green-800 font-bold">{activeCount}</span>
+                <span className="text-green-800 font-bold">{approvedCount}</span>
               </div>
               <div>
-                <div className="text-2xl font-bold text-gray-900">{activeCount}</div>
-                <p className="text-xs text-gray-500 mt-1">Active events</p>
+                <div className="text-2xl font-bold text-gray-900">{approvedCount}</div>
+                <p className="text-xs text-gray-500 mt-1">Approved leaves</p>
               </div>
             </div>
           </CardContent>
@@ -322,38 +315,17 @@ export function CalendarEventsContent() {
 
         <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Inactive</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-500">Rejected</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center">
-              <div className="h-8 w-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center mr-3">
-                <span className="text-gray-800 font-bold">{inactiveCount}</span>
+              <div className="h-8 w-8 rounded-lg bg-red-100 border border-red-200 flex items-center justify-center mr-3">
+                <span className="text-red-800 font-bold">{rejectedCount}</span>
               </div>
               <div>
-                <div className="text-2xl font-bold text-gray-900">{inactiveCount}</div>
-                <p className="text-xs text-gray-500 mt-1">Inactive events</p>
+                <div className="text-2xl font-bold text-gray-900">{rejectedCount}</div>
+                <p className="text-xs text-gray-500 mt-1">Rejected leaves</p>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Departments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center">
-            <div className="h-8 w-8 rounded-lg bg-purple-100 border border-purple-200 flex items-center justify-center mr-3">
-                <span className="text-purple-800 font-bold">
-                  {new Set(sortedCalendarEvents.map((event) => event.department).filter(Boolean)).size}
-                </span>
-            </div>
-            <div>
-                <div className="text-2xl font-bold text-gray-900">
-                  {new Set(sortedCalendarEvents.map((event) => event.department).filter(Boolean)).size}
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Departments covered</p>
-            </div>
             </div>
           </CardContent>
         </Card>
@@ -363,46 +335,46 @@ export function CalendarEventsContent() {
         <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between">
             <div>
-              <CardTitle className="text-lg font-semibold text-gray-900">Calendar Events</CardTitle>
+              <CardTitle className="text-lg font-semibold text-gray-900">Leave Requests</CardTitle>
               <CardDescription className="text-gray-600">
-                View and manage HR calendar events
+                View and manage employee leave requests
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
           <DataTable
-            title="Calendar Events"
+            title="Leaves"
             columns={columns}
-            data={sortedCalendarEvents}
-            searchFields={calendarSearchFields}
-            onAdd={handleAddEvent}
+            data={sortedLeaves}
+            searchFields={leaveSearchFields}
+            onAdd={handleAddLeave}
           />
         </CardContent>
       </Card>
 
-      <AddCalendarEventDialog
+      <AddLeaveDialog
         isOpen={isAddDialogOpen}
         onClose={() => setIsAddDialogOpen(false)}
       />
 
-      <EditCalendarEventDialog
+      <EditLeaveDialog
         isOpen={isEditDialogOpen}
         onClose={() => {
           setIsEditDialogOpen(false)
-          setCurrentEvent(null)
+          setCurrentLeave(null)
         }}
-        event={currentEvent}
+        leave={currentLeave}
       />
 
-      {currentEvent && (
-        <ViewCalendarEventDialog
+      {currentLeave && (
+        <ViewLeaveDialog
           isOpen={isViewDialogOpen}
           onClose={() => {
             setIsViewDialogOpen(false)
-            setCurrentEvent(null)
+            setCurrentLeave(null)
           }}
-          event={currentEvent}
+          leave={currentLeave}
         />
       )}
 
@@ -410,13 +382,13 @@ export function CalendarEventsContent() {
         isOpen={isDeleteDialogOpen}
         onClose={() => {
           setIsDeleteDialogOpen(false)
-          setCurrentEvent(null)
+          setCurrentLeave(null)
         }}
-        onConfirm={handleDeleteEvent}
-        title="Delete Calendar Event"
-        description={`Are you sure you want to delete ${currentEvent?.title}?`}
-        itemName={currentEvent?.title || "calendar event"}
-        isLoading={deleteCalendarEventMutation.isPending}
+        onConfirm={handleDeleteLeave}
+        title="Delete Leave Request"
+        description={`Are you sure you want to delete the leave request for ${currentLeave?.employee_name}?`}
+        itemName={`${currentLeave?.employee_name || "Employee"}'s leave`}
+        isLoading={deleteLeaveMutation.isPending}
       />
     </div>
   )
