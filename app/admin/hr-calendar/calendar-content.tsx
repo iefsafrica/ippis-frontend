@@ -145,9 +145,9 @@ export function CalendarContent() {
             <Button variant="outline" size="sm" onClick={handleManualRefresh} disabled={isBusy}>
               Refresh
             </Button>
-            <Button size="sm" disabled={isBusy} onClick={() => setIsAddDialogOpen(true)}>
+            {/* <Button size="sm" disabled={isBusy} onClick={() => setIsAddDialogOpen(true)}>
               Add Event
-            </Button>
+            </Button> */}
           </div>
         </div>
       </CardHeader>
@@ -162,22 +162,25 @@ export function CalendarContent() {
               modifiersClassNames={{
                 hasEvent: "bg-blue-100 text-blue-900 font-semibold",
               }}
-              className="w-full rounded-xl border border-gray-200 bg-white p-3 shadow-sm"
+              className="w-full rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
               classNames={{
                 months: "w-full",
                 month: "w-full space-y-4",
-                caption: "flex items-center justify-between px-1",
-                caption_label: "text-sm font-semibold text-gray-900",
-                nav: "flex items-center gap-2",
-                nav_button: "h-8 w-8 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50",
+                caption: "relative flex items-center justify-center pt-1",
+                caption_label: "text-sm font-semibold text-gray-900 tracking-tight",
+                nav: "space-x-1 flex items-center",
+                nav_button:
+                  "h-8 w-8 rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 inline-flex items-center justify-center shadow-sm",
+                nav_button_previous: "absolute left-2",
+                nav_button_next: "absolute right-2",
                 table: "w-full border-collapse",
-                head_row: "flex w-full justify-between",
-                head_cell: "w-9 text-center text-[11px] font-semibold text-gray-500 uppercase",
-                row: "mt-2 flex w-full justify-between",
-                cell: "relative flex h-9 w-9 items-center justify-center p-0",
-                day: "h-9 w-9 rounded-md text-sm font-medium text-gray-900 hover:bg-gray-100",
-                day_today: "border border-blue-200 bg-blue-50",
-                day_selected: "bg-blue-600 text-white hover:bg-blue-600",
+                head_row: "grid grid-cols-7",
+                head_cell: "py-1 text-center text-[11px] font-semibold text-gray-500 uppercase",
+                row: "mt-2 grid grid-cols-7",
+                cell: "flex items-center justify-center",
+                day: "h-9 w-9 rounded-full text-sm font-medium text-gray-900 hover:bg-gray-100",
+                day_today: "border border-blue-200 bg-blue-50 rounded-full",
+                day_selected: "bg-blue-600 text-white hover:bg-blue-600 rounded-full",
                 day_outside: "text-gray-300",
                 day_disabled: "text-gray-300 opacity-60",
               }}
