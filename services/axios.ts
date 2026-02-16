@@ -57,4 +57,13 @@ export const del = async <T>(url: string, params?: object): Promise<T> => {
   return response.data as T;
 };
 
+export const delWithBody = async <T>(
+  url: string,
+  data?: object,
+  config?: AxiosRequestConfig
+): Promise<T> => {
+  const response = await api.delete(url, { data, ...config });
+  return response.data as T;
+};
+
 export default api;

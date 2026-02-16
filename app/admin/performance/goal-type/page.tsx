@@ -12,7 +12,7 @@ export default function GoalTypePage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Goal Types</h1>
       </div>
-      <div className="border rounded-lg p-6 bg-white">
+      <div className="p-6 bg-white">
         <ClientWrapper />
       </div>
     </div>
