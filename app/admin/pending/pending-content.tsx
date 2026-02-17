@@ -2681,10 +2681,11 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending_approval":
+      case "pending":
         return (
           <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50">
             <Clock className="mr-1 h-3 w-3" />
-            Pending Approval
+            Pending
           </Badge>
         )
       case "approved":
@@ -2716,7 +2717,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
           </Badge>
         )
       default:
-        return <Badge variant="secondary">{status}</Badge>
+        return <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">{status}</Badge>
     }
   }
 

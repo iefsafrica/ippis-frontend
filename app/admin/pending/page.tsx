@@ -7,11 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { addEmployee } from "@/services/endpoints/employees/employees";
+import { get } from "@/services/axios";
+import { useSearchParams } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
+import type { AxiosError } from "axios";
 
 export default function PendingEmployeesPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
+  const [listRefreshKey, setListRefreshKey] = useState(0);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newEmployee, setNewEmployee] = useState({
@@ -32,9 +37,12 @@ export default function PendingEmployeesPage() {
   // Fetch pending employee
   useEffect(() => {
     const fetchPending = async () => {
-      const res = await fetch("/api/admin/employees?status=pending");
-      const data = await res.json();
-      if (data.success) setPendingEmployees(data.data.employees);
+      try {
+        const data: any = await get("/admin/employees", { status: "pending" });
+        if (data && data.success) setPendingEmployees(data.data.employees);
+      } catch (err) {
+        console.error("Failed to fetch pending employees:", err);
+      }
     };
     fetchPending();
   }, [showAddDialog, isSubmitting]);
@@ -53,28 +61,65 @@ export default function PendingEmployeesPage() {
   };
 
   const handleAddEmployee = async () => {
-    if (!newEmployee.name || !newEmployee.email || !newEmployee.position) {
-      alert("Please fill in all required fields.");
+    const trimmedName = newEmployee.name.trim();
+    const trimmedEmail = newEmployee.email.trim();
+    const trimmedDepartment = newEmployee.department.trim();
+    const trimmedPosition = newEmployee.position.trim();
+
+    if (!trimmedName || !trimmedEmail || !trimmedDepartment || !trimmedPosition) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
       return;
     }
+
+    const nameParts = trimmedName.split(/\s+/).filter(Boolean);
+
+    const getApiErrorMessage = (
+      error: unknown,
+      fallback: string
+    ) => {
+      const axiosError = error as AxiosError<{ error?: string; message?: string }>;
+      return (
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        (axiosError.message === "Network Error"
+          ? "Unable to reach the server. Please check your connection and try again."
+          : axiosError.message) ||
+        fallback
+      );
+    };
+
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/admin/employees", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newEmployee),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        alert(errorData.error || "Failed to add employee");
+      const [firstname, ...rest] = nameParts;
+      const surname = rest.join(" ") || "N/A";
+
+      const payload = {
+        surname,
+        firstname: firstname || "",
+        email: trimmedEmail,
+        department: trimmedDepartment,
+        position: trimmedPosition,
+        status: newEmployee.status,
+      };
+      //@ts-expect-error - addEmployee returns a generic response, we need to check success manually
+      const result: any = await addEmployee(payload);
+      if (!result || !result.success) {
+        const message =
+          result?.error ||
+          result?.message ||
+          "Failed to add employee. Please try again.";
+        toast({
+          title: "Unable to add employee",
+          description: message,
+          variant: "destructive",
+        });
         return;
       }
-      // Send invite email
-      await fetch("/api/admin/employees/send-invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: newEmployee.email }),
-      });
+
       setShowAddDialog(false);
       setNewEmployee({
         name: "",
@@ -83,9 +128,19 @@ export default function PendingEmployeesPage() {
         position: "",
         status: "pending",
       });
-      alert("Employee added and invite email sent!");
+
+      toast({
+        title: "Employee added",
+        description: "Employee was added successfully.",
+        variant: "success",
+      });
+      setListRefreshKey((prev) => prev + 1);
     } catch (error) {
-      alert("Failed to add employee. Please try again.");
+      toast({
+        title: "Unable to add employee",
+        description: getApiErrorMessage(error, "Failed to add employee. Please try again."),
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -95,7 +150,7 @@ export default function PendingEmployeesPage() {
     <>
       <div className="flex items-center justify-between mb-4">
         <Button
-          className="bg-green-700 hover:bg-green-800"
+          className="bg-primary hover:bg-primary/90"
           onClick={() => setShowAddDialog(true)}
         >
           Add Employee
@@ -184,7 +239,7 @@ export default function PendingEmployeesPage() {
             <Button
               onClick={handleAddEmployee}
               disabled={isSubmitting}
-              className="bg-green-700 hover:bg-green-800"
+              className="bg-primary hover:bg-primary/90"
             >
               {isSubmitting && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -195,9 +250,9 @@ export default function PendingEmployeesPage() {
         </DialogContent>
       </Dialog>
 
-      
 
-      <ClientWrapper />
+
+      <ClientWrapper refreshKey={listRefreshKey} />
     </>
   )
 }

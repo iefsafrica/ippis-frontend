@@ -23,20 +23,16 @@ export const getRecentEmployees = async (): Promise<RecentEmployeesData> => {
 };
 
 export const addEmployee = async (payload: AddEmployeePayload): Promise<AddEmployeeResponse> => {
-  const { data } = await post<AddEmployeeResponse>("/admin/employees/add", payload);
-  //@ts-ignore
-  return data;
+  return post<AddEmployeeResponse>("/admin/employees/add", payload);
 };
 
 export const importEmployees = async (payload: ImportEmployeesPayload): Promise<ImportEmployeesResponse> => {
   const formData = new FormData();
   formData.append('file', payload.file);
 
-  const { data } = await post<ImportEmployeesResponse>("/admin/import", formData, {
+  return post<ImportEmployeesResponse>("/admin/import", formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
-    //@ts-ignore
-  return data;
 };
