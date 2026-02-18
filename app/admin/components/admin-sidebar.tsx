@@ -35,6 +35,7 @@ import {
   Wallet,
   Package,
   FolderOpen,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -114,6 +115,8 @@ export function AdminSidebar() {
     } else if (pathname?.startsWith("/admin/support-tickets")) {
       setSupportTicketsOpen(true);
       setActiveSection("support-tickets");
+    } else if (pathname?.startsWith("/admin/organization")) {
+      setActiveSection("organization");
     } else {
       setActiveSection("");
     }
@@ -240,6 +243,43 @@ export function AdminSidebar() {
           href: "/admin/performance/appraisal",
         },
       ],
+    },
+    {
+      title: "Organization",
+      icon: Building2,
+      isDropdown: true,
+      href: "/admin/organization",
+      isOpen: openDropdown === "organization",
+      section: "organization",
+      toggle: () =>
+        setOpenDropdown(openDropdown === "organization" ? null : "organization"),
+      subItems: [
+        {
+          title: "Company",
+          href: "/admin/organization/company",
+        },
+        {
+          title: "Department",
+          href: "/admin/organization/department",
+        },
+        {
+          title: "Location",
+          href: "/admin/organization/location",
+        },
+        {
+          title: "Designation",
+          href: "/admin/organization/designation",
+        },
+        {
+          title: "Announcements",
+          href: "/admin/organization/announcements",
+        },
+        {
+          title: "Company Policy",
+          href: "/admin/organization/company-policy",
+        },
+      ],
+      comingSoon: false,
     },
     {
       title: "Timesheets",
