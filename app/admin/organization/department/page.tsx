@@ -1,6 +1,5 @@
 import type { Metadata } from "next"
-import OrganizationTableContent from "../components/organization-table-content"
-import { departmentData } from "../data"
+import DepartmentContent from "./department-content"
 
 export const metadata: Metadata = {
   title: "Department | IPPIS Admin",
@@ -14,7 +13,7 @@ export default function DepartmentPage() {
         <h1 className="text-2xl font-bold tracking-tight">Department</h1>
       </div>
       <div className="p-6 bg-white">
-        <OrganizationTableContent title="Department" records={departmentData} />
+        <DepartmentContent />
       </div>
     </div>
   )
