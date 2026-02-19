@@ -15,6 +15,7 @@ import {
   Plus,
   Search,
   SlidersHorizontal,
+  FileText,
   CheckCircle,
   Clock,
   AlertTriangle,
@@ -25,6 +26,7 @@ import {
   MapPin,
   Building,
   Briefcase,
+  Hash,
   CreditCard,
   GraduationCap,
   Shield,
@@ -33,6 +35,8 @@ import {
   Printer,
   Download,
   Edit,
+  Eye,
+  X,
 } from "lucide-react"
 import { Pagination } from "../components/pagination"
 import { toast } from "sonner"
@@ -1152,56 +1156,12 @@ export default function EmployeesContent() {
                         <div className="flex justify-end space-x-2">
                           <Button
                             variant="outline"
-                            size="icon"
+                            size="sm"
                             onClick={() => handleView(employee)}
                             title="View Details"
                           >
-                            <User className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleEdit(employee)}
-                            title="Edit"
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleStatusChange(employee.id, "active", employee.name)}
-                            title="Set Active"
-                            className="text-green-600 hover:text-green-800"
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleStatusChange(employee.id, "pending", employee.name)}
-                            title="Set Pending"
-                            className="text-amber-600 hover:text-amber-800"
-                          >
-                            <Clock className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleStatusChange(employee.id, "inactive", employee.name)}
-                            title="Set Inactive"
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <AlertTriangle className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleDelete(employee)}
-                            title="Delete"
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <Trash2 className="h-4 w-4" />
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
                           </Button>
                         </div>
                       </TableCell>
@@ -1253,231 +1213,174 @@ export default function EmployeesContent() {
 
       {/* View Employee Details Dialog */}
       <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">Employee Profile</DialogTitle>
-            <DialogDescription>
-              Complete information for {selectedEmployee?.name}
-            </DialogDescription>
+        <DialogContent className="p-0 max-w-3xl overflow-hidden border border-gray-200 shadow-xl">
+          <DialogHeader className="px-8 pt-8 pb-6 border-b border-gray-100">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <User className="h-6 w-6 text-gray-700" />
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-semibold text-gray-900">
+                    Employee Details
+                  </DialogTitle>
+                  <DialogDescription className="text-gray-600 mt-1">
+                    Complete information for {selectedEmployee?.name}
+                  </DialogDescription>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowViewDialog(false)}
+                className="h-8 w-8 text-gray-500 hover:text-gray-700"
+                aria-label="Close dialog"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </DialogHeader>
+
           {selectedEmployee && (
-            <div className="space-y-6 py-2">
-              {/* Employee Header */}
-              <div className="flex items-center gap-4 pb-4 border-b">
-                <div className="flex items-center gap-4">
-                  <img
-                    src={`/abstract-geometric-shapes.png?key=n1gxi&height=60&width=60&query=${encodeURIComponent(
-                      selectedEmployee.name
-                    )}`}
-                    alt={selectedEmployee.name}
-                    className="size-[60px] rounded-full object-cover border"
-                  />
-                  <div className="flex-1">
-                    <h3 className="text-xl font-semibold">{selectedEmployee.name}</h3>
-                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                      <div className="flex items-center gap-1">
-                        <Mail className="h-4 w-4" />
-                        {selectedEmployee.email}
+            <div className="px-8 py-6 max-h-[70vh] overflow-y-auto">
+              <div className="space-y-8">
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium text-gray-900 uppercase tracking-wide">Employee Information</h3>
+
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex items-center mb-2">
+                            <User className="h-4 w-4 text-gray-500 mr-2" />
+                            <span className="text-xs text-gray-500 font-medium">Employee Name</span>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <Avatar className="h-12 w-12 border border-blue-100">
+                              <AvatarImage
+                                src={`/abstract-geometric-shapes.png?key=n1gxi&height=48&width=48&query=${encodeURIComponent(
+                                  selectedEmployee.name
+                                )}`}
+                                alt={selectedEmployee.name}
+                              />
+                              <AvatarFallback className="bg-blue-50 text-blue-700 font-semibold">
+                                {selectedEmployee.name.substring(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{selectedEmployee.name}</p>
+                              <p className="text-xs text-gray-500">{selectedEmployee.email}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex items-center mb-2">
+                            <Hash className="h-4 w-4 text-gray-500 mr-2" />
+                            <span className="text-xs text-gray-500 font-medium">Employee ID</span>
+                          </div>
+                          <p className="text-sm font-medium text-gray-900 font-mono">{selectedEmployee.id}</p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Building className="h-4 w-4" />
-                        {selectedEmployee.department}
+
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex items-center mb-2">
+                            <Building className="h-4 w-4 text-gray-500 mr-2" />
+                            <span className="text-xs text-gray-500 font-medium">Department & Position</span>
+                          </div>
+                          <p className="text-sm font-medium text-gray-900">{selectedEmployee.department}</p>
+                          <p className="text-xs text-gray-500">{selectedEmployee.position || "Not specified"}</p>
+                        </div>
+
+                        <div>
+                          <div className="flex items-center mb-2">
+                            <span className="text-xs text-gray-500 font-medium">Status</span>
+                          </div>
+                          {getStatusBadge(selectedEmployee.status)}
+                        </div>
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 border-t border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-900 uppercase tracking-wide mb-6">Employee Details</h3>
+
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        {getStatusBadge(selectedEmployee.status)}
+                        <div className="flex items-center mb-2">
+                          <Mail className="h-4 w-4 text-gray-500 mr-2" />
+                          <span className="text-xs text-gray-500 font-medium">Contact</span>
+                        </div>
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
+                          <p className="text-sm text-gray-700"><span className="font-medium">Email:</span> {selectedEmployee.email || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Phone:</span> {selectedEmployee.metadata?.["Phone Number"] || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Address:</span> {selectedEmployee.metadata?.["Residential Address"] || "N/A"}</p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center mb-2">
+                          <Briefcase className="h-4 w-4 text-gray-500 mr-2" />
+                          <span className="text-xs text-gray-500 font-medium">Employment</span>
+                        </div>
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
+                          <p className="text-sm text-gray-700"><span className="font-medium">Registration ID:</span> {selectedEmployee.registration_id || "Not assigned"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Join Date:</span> {formatDate(selectedEmployee.join_date)}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Work Location:</span> {selectedEmployee.metadata?.["Work Location"] || "N/A"}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              </div>
 
-              {/* Basic Information */}
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-900 border-b pb-2">Basic Information</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm text-gray-600">Employee ID</Label>
-                    <div className="text-sm mt-1 font-medium">{selectedEmployee.id}</div>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">Registration ID (IPPIS)</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.registration_id || "Not assigned"}</div>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">Position</Label>
-                    <div className="text-sm mt-1 font-medium">{selectedEmployee.position}</div>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">Organization</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.metadata?.Organization || "Not specified"}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Personal Details */}
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-900 border-b pb-2">Personal Details</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { label: "Title", value: selectedEmployee.metadata?.Title },
-                    { label: "Gender", value: selectedEmployee.metadata?.Gender },
-                    { label: "Surname", value: selectedEmployee.metadata?.Surname },
-                    { label: "First Name", value: selectedEmployee.metadata?.FirstName },
-                    { label: "Other Names", value: selectedEmployee.metadata?.OtherNames },
-                    { label: "Date of Birth", value: selectedEmployee.metadata?.["Date of Birth"] },
-                    { label: "Marital Status", value: selectedEmployee.metadata?.["Marital Status"] },
-                    { label: "Phone Number", value: selectedEmployee.metadata?.["Phone Number"] },
-                  ].map((field, index) => (
-                    <div key={index}>
-                      <Label className="text-sm text-gray-600">{field.label}</Label>
-                      <div className="text-sm mt-1">{field.value || "Not provided"}</div>
+                    <div>
+                      <div className="flex items-center mb-2">
+                        <FileText className="h-4 w-4 text-gray-500 mr-2" />
+                        <span className="text-xs text-gray-500 font-medium">Additional Information</span>
+                      </div>
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <p className="text-sm text-gray-700"><span className="font-medium">Gender:</span> {selectedEmployee.metadata?.Gender || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Marital Status:</span> {selectedEmployee.metadata?.["Marital Status"] || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">State of Origin:</span> {selectedEmployee.metadata?.["State of Origin"] || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">State of Residence:</span> {selectedEmployee.metadata?.["State of Residence"] || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Bank Name:</span> {selectedEmployee.metadata?.["Bank Name"] || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Account Number:</span> {selectedEmployee.metadata?.["Account Number"] || "N/A"}</p>
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
 
-              {/* Next of Kin Information */}
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-900 border-b pb-2">Next of Kin Information</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm text-gray-600">Next of Kin Name</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.metadata?.["Next of Kin Name"] || "Not provided"}</div>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">Next of Kin Phone</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.metadata?.["Next of Kin Phone"] || "Not provided"}</div>
-                  </div>
-                  <div className="col-span-2">
-                    <Label className="text-sm text-gray-600">Next of Kin Address</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.metadata?.["Next of Kin Address"] || "Not provided"}</div>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">Next of Kin Relationship</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.metadata?.["Next of Kin Relationship"] || "Not provided"}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Address Information */}
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-900 border-b pb-2">Address Information</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <Label className="text-sm text-gray-600">Residential Address</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.metadata?.["Residential Address"] || "Not provided"}</div>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">State of Residence</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.metadata?.["State of Residence"] || "Not provided"}</div>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">State of Origin</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.metadata?.["State of Origin"] || "Not provided"}</div>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">LGA</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.metadata?.LGA || "Not provided"}</div>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">Work Location</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.metadata?.["Work Location"] || "Not provided"}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Employment Information */}
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-900 border-b pb-2">Employment Information</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { label: "Employee ID", value: selectedEmployee.metadata?.["Employee ID"] },
-                    { label: "Service No", value: selectedEmployee.metadata?.["Service No"] },
-                    { label: "Employment Type", value: selectedEmployee.metadata?.["Employment Type"] },
-                    { label: "Date of First Appointment", value: selectedEmployee.metadata?.["Date of First Appointment"] },
-                    { label: "Probation Period", value: selectedEmployee.metadata?.["Probation Period"] },
-                    { label: "Salary Structure", value: selectedEmployee.metadata?.["Salary Structure"] },
-                    { label: "GL", value: selectedEmployee.metadata?.GL },
-                    { label: "Step", value: selectedEmployee.metadata?.Step },
-                    { label: "Cadre", value: selectedEmployee.metadata?.Cadre },
-                  ].map((field, index) => (
-                    <div key={index}>
-                      <Label className="text-sm text-gray-600">{field.label}</Label>
-                      <div className="text-sm mt-1">{field.value || "Not specified"}</div>
+                    <div className="pt-2 border-t border-gray-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-gray-500 font-medium mb-1">Created At</p>
+                          <p className="text-sm text-gray-600">{formatDate(selectedEmployee.created_at)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 font-medium mb-1">Last Updated</p>
+                          <p className="text-sm text-gray-600">{formatSimpleDate(selectedEmployee.updated_at)}</p>
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Education */}
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-900 border-b pb-2">Education</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm text-gray-600">Certifications</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.metadata?.Certifications || "Not provided"}</div>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">Educational Background</Label>
-                    <div className="text-sm mt-1">{selectedEmployee.metadata?.EducationalBackground || "Not provided"}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Financial Information */}
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-900 border-b pb-2">Financial Information</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { label: "Bank Name", value: selectedEmployee.metadata?.["Bank Name"] },
-                    { label: "Account Number", value: selectedEmployee.metadata?.["Account Number"] },
-                    { label: "PFA Name", value: selectedEmployee.metadata?.["PFA Name"] },
-                    { label: "RSA PIN", value: selectedEmployee.metadata?.["RSA PIN"] },
-                    { label: "Payment Method", value: selectedEmployee.metadata?.["Payment Method"] },
-                  ].map((field, index) => (
-                    <div key={index}>
-                      <Label className="text-sm text-gray-600">{field.label}</Label>
-                      <div className="text-sm mt-1">{field.value || "Not provided"}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* System Information */}
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-900 border-b pb-2">System Information</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm text-gray-600">Join Date</Label>
-                    <div className="text-sm mt-1">{formatDate(selectedEmployee.join_date)}</div>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">Created On</Label>
-                    <div className="text-sm mt-1">{formatDate(selectedEmployee.created_at)}</div>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">Updated On</Label>
-                    <div className="text-sm mt-1">{formatDate(selectedEmployee.updated_at)}</div>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">Last Updated</Label>
-                    <div className="text-sm mt-1">{formatSimpleDate(selectedEmployee.updated_at)}</div>
                   </div>
                 </div>
               </div>
             </div>
           )}
-          <DialogFooter className="pt-4 border-t">
-            <div className="flex gap-2 w-full justify-between">
-              <Button variant="outline" onClick={() => setShowViewDialog(false)}>
-                Close
-              </Button>
-              <div className="flex gap-2">
-                <Button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700">
+          <DialogFooter className="px-8 py-5 border-t border-gray-200 bg-gray-50">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4">
+              <div className="flex items-center space-x-3">
+                <Button variant="outline" onClick={() => setShowViewDialog(false)}>
+                  Close
+                </Button>
+              </div>
+              <div className="flex items-center space-x-3">
+                <Button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700 text-white">
                   <Printer className="h-4 w-4 mr-2" />
                   Print Employee Slip
                 </Button>
-                <Button 
+                <Button
                   onClick={handleDownloadPDF} 
                   variant="outline" 
                   className="border-green-600 text-green-600 hover:bg-green-50"

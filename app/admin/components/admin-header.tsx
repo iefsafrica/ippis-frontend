@@ -57,8 +57,8 @@ export function AdminHeader() {
   // Get page title based on pathname
   const getPageTitle = () => {
     if (pathname === "/admin") return "Dashboard"
-    if (pathname === "/admin/employees") return "Employees"
-    if (pathname === "/admin/pending") return "Pending Registrations"
+    if (pathname === "/admin/employees") return "Employee"
+    if (pathname === "/admin/pending") return "Pending Employee"
     if (pathname === "/admin/documents") return "Documents"
     if (pathname === "/admin/reports") return "Reports"
     if (pathname === "/admin/settings") return "Settings"

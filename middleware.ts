@@ -21,11 +21,8 @@ export function middleware(request: NextRequest) {
   response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
   response.headers.set("Pragma", "no-cache")
   response.headers.set("Expires", "0")
-
-  // Get the pathname of the request
   const path = request.nextUrl.pathname
 
-  // Define paths that are considered public (don't require authentication)
   const isPublicPath =
     path === "/auth/login" ||
     path === "/auth/forgot-password" ||
@@ -34,18 +31,13 @@ export function middleware(request: NextRequest) {
     path === "/register" ||
     path === "/track"
 
-  // Check if the path starts with /admin
+
   const isAdminPath = path.startsWith("/admin")
 
-  // Get the token from cookies
   const token = request.cookies.get("ippis_token")?.value
+  const isAuthenticated = true 
 
-  // For demo purposes, always consider the user authenticated
-  // This will prevent redirects to login page during development
-  const isAuthenticated = true // Set to true for demo purposes
 
-  // If the path is an admin path and there's no token, redirect to login
-  // But for demo purposes, we'll skip this check
   if (isAdminPath && !isAuthenticated && !token) {
     return NextResponse.redirect(new URL("/auth/login", request.url))
   }

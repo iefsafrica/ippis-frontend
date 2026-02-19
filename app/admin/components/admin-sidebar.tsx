@@ -156,8 +156,12 @@ export function AdminSidebar() {
         ),
       subItems: [
         {
-          title: "Employee",
+          title: "Pending Employee",
           href: "/admin/pending",
+        },
+        {
+          title: "Employee",
+          href: "/admin/employees",
         },
         {
           title: "Import Employees",
