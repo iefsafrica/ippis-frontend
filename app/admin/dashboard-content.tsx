@@ -191,7 +191,7 @@ export default function DashboardContent() {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 to-blue-50/30">
-      <div className="w-full space-y-4 p-0 sm:space-y-6 sm:p-4 lg:p-6">
+      <div className="w-full space-y-4 px-2 sm:space-y-6 sm:p-4 lg:p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="min-w-0">

@@ -28,31 +28,29 @@
   --radius: 0.5rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-    --border: 64, 64, 64;
-    --input: 64, 64, 64;
-    --ring: 64, 64, 64;
-    --background: 10, 10, 10;
-    --foreground: 255, 255, 255; /* Pure white text for dark mode */
-    --primary: 0, 155, 91; /* Brighter Nigerian green for dark mode */
-    --primary-foreground: 255, 255, 255;
-    --secondary: 220, 36, 66; /* Brighter Nigerian red for dark mode */
-    --secondary-foreground: 255, 255, 255;
-    --destructive: 255, 88, 88; /* Brighter destructive */
-    --destructive-foreground: 255, 255, 255;
-    --muted: 30, 30, 30;
-    --muted-foreground: 255, 255, 255; /* White muted text */
-    --accent: 30, 30, 30;
-    --accent-foreground: 255, 255, 255; /* White accent text */
-    --popover: 20, 20, 20;
-    --popover-foreground: 255, 255, 255; /* White popover text */
-    --card: 20, 20, 20;
-    --card-foreground: 255, 255, 255; /* White card text */
-  }
+.dark {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 0, 0, 0;
+  --border: 64, 64, 64;
+  --input: 64, 64, 64;
+  --ring: 64, 64, 64;
+  --background: 10, 10, 10;
+  --foreground: 255, 255, 255; /* Pure white text for dark mode */
+  --primary: 0, 155, 91; /* Brighter Nigerian green for dark mode */
+  --primary-foreground: 255, 255, 255;
+  --secondary: 220, 36, 66; /* Brighter Nigerian red for dark mode */
+  --secondary-foreground: 255, 255, 255;
+  --destructive: 255, 88, 88; /* Brighter destructive */
+  --destructive-foreground: 255, 255, 255;
+  --muted: 30, 30, 30;
+  --muted-foreground: 255, 255, 255; /* White muted text */
+  --accent: 30, 30, 30;
+  --accent-foreground: 255, 255, 255; /* White accent text */
+  --popover: 20, 20, 20;
+  --popover-foreground: 255, 255, 255; /* White popover text */
+  --card: 20, 20, 20;
+  --card-foreground: 255, 255, 255; /* White card text */
 }
 
 body {
