@@ -1,0 +1,13 @@
+export const DESIGNATION_QUERY_KEYS = {
+  DESIGNATIONS: "organization-designations",
+  DESIGNATION: "organization-designation",
+  CREATE_DESIGNATION: "organization-create-designation",
+  UPDATE_DESIGNATION: "organization-update-designation",
+  DELETE_DESIGNATION: "organization-delete-designation",
+} as const;
+
+export const GET_DESIGNATIONS = DESIGNATION_QUERY_KEYS.DESIGNATIONS;
+export const GET_DESIGNATION = DESIGNATION_QUERY_KEYS.DESIGNATION;
+export const CREATE_DESIGNATION = DESIGNATION_QUERY_KEYS.CREATE_DESIGNATION;
+export const UPDATE_DESIGNATION = DESIGNATION_QUERY_KEYS.UPDATE_DESIGNATION;
+export const DELETE_DESIGNATION = DESIGNATION_QUERY_KEYS.DELETE_DESIGNATION;

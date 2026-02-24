@@ -43,7 +43,7 @@ export default function OrganizationPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-2 sm:px-4 lg:px-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Organization</h1>
         <p className="text-muted-foreground">Select a module to manage organization data with dummy table records.</p>

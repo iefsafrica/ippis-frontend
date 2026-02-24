@@ -37,7 +37,7 @@ export default function PerformancePage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-2 sm:px-4 lg:px-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Performance Management</h1>
       </div>
