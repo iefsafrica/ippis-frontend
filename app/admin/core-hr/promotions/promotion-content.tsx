@@ -364,15 +364,15 @@ export function PromotionContent({
   ];
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="container mx-auto px-0 py-4 sm:px-4 sm:py-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-        <div className="flex items-center space-x-3">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center shadow-sm">
+      <div className="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+        <div className="flex items-center space-x-3 min-w-0">
+          <div className="hidden h-12 w-12 rounded-xl border border-green-200 bg-gradient-to-br from-green-50 to-green-100 shadow-sm sm:flex sm:items-center sm:justify-center">
             <Award className="h-6 w-6 text-green-600" />
           </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+          <div className="min-w-0">
+            <h1 className="truncate bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-2xl font-bold text-transparent md:text-3xl">
               Employee Promotions
             </h1>
             <p className="text-gray-600 mt-1">
@@ -385,7 +385,7 @@ export function PromotionContent({
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
           <AdvancedSearch
             onSearch={handleSearch}
             //@ts-ignore
@@ -402,7 +402,7 @@ export function PromotionContent({
             variant="outline"
             onClick={handleManualRefresh}
             disabled={isRefreshing || isLoading}
-            className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"
+            className="h-10 w-full rounded-lg border-gray-300 px-3.5 font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-50 sm:w-auto"
           >
             {isRefreshing ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -414,7 +414,7 @@ export function PromotionContent({
           <Button
             onClick={() => setIsAddDialogOpen(true)}
             disabled={isLoading}
-            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
+            className="h-10 w-full rounded-lg bg-gradient-to-r from-green-600 to-green-700 px-6 font-medium text-white hover:from-green-700 hover:to-green-800 sm:w-auto"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Promotion

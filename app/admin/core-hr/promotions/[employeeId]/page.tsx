@@ -274,11 +274,11 @@ export default function PromotionDetailsPage() {
   };
 
   return (
-    <div className="container mx-auto py-8 space-y-8">
+    <div className="container mx-auto space-y-8 px-0 py-4 sm:px-4 sm:py-8">
       {/* Header with Actions */}
       <div className="flex flex-col space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
             <Button 
               variant="ghost" 
               size="sm" 
@@ -295,11 +295,11 @@ export default function PromotionDetailsPage() {
             </div>
           </div>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
             <Button 
               variant="outline" 
               onClick={handleExport} 
-              className="gap-2 border-gray-300 hover:bg-gray-50"
+              className="w-full gap-2 border-gray-300 hover:bg-gray-50 sm:w-auto"
             >
               <Download className="h-4 w-4" />
               Export
@@ -307,7 +307,7 @@ export default function PromotionDetailsPage() {
             <Button 
               variant="outline" 
               onClick={handlePrint} 
-              className="gap-2 border-gray-300 hover:bg-gray-50"
+              className="w-full gap-2 border-gray-300 hover:bg-gray-50 sm:w-auto"
             >
               <Printer className="h-4 w-4" />
               Print
@@ -341,8 +341,8 @@ export default function PromotionDetailsPage() {
         {/* Employee Header Card */}
         <Card className="border-0 shadow-sm bg-gradient-to-r from-gray-50 to-white">
           <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start space-x-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex items-start space-x-4 sm:space-x-6">
                 <div className="relative">
                   <Avatar className="h-20 w-20 border-4 border-white shadow-lg">
                     <AvatarImage src={employee.avatar} alt={employee.name} />
@@ -357,8 +357,8 @@ export default function PromotionDetailsPage() {
                   </div>
                 </div>
                 
-                <div className="space-y-3">
-                  <div>
+                <div className="space-y-3 min-w-0">
+                  <div className="min-w-0">
                     <h1 className="text-2xl font-bold text-gray-900">{employee.name}</h1>
                     <div className="flex items-center space-x-2 mt-1">
                       <Badge 
@@ -368,7 +368,7 @@ export default function PromotionDetailsPage() {
                         <CheckCircle className="h-3 w-3 mr-1" />
                         {employee.status.charAt(0).toUpperCase() + employee.status.slice(1)}
                       </Badge>
-                      <span className="text-sm text-gray-500">•</span>
+                      <span className="text-sm text-gray-500">&bull;</span>
                       
                       <span className="text-sm text-gray-600">{employee.employee_id}</span>
                     </div>
@@ -393,7 +393,7 @@ export default function PromotionDetailsPage() {
                 </div>
               </div>
               
-              <div className="text-right">
+              <div className="text-left lg:text-right">
                 <div className="text-3xl font-bold text-gray-900">
                   {promotions.length}
                 </div>
@@ -561,10 +561,10 @@ export default function PromotionDetailsPage() {
         <div className="lg:col-span-3 space-y-6">
           {/* Tabs Navigation */}
           <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
+            <nav className="-mb-px flex flex-wrap gap-2 sm:gap-6">
               <button
                 onClick={() => setActiveTab('history')}
-                className={`py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
+                className={`py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
                   activeTab === 'history'
                     ? 'border-green-600 text-green-700'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -577,7 +577,7 @@ export default function PromotionDetailsPage() {
               </button>
               <button
                 onClick={() => setActiveTab('timeline')}
-                className={`py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
+                className={`py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
                   activeTab === 'timeline'
                     ? 'border-green-600 text-green-700'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -590,7 +590,7 @@ export default function PromotionDetailsPage() {
               </button>
               <button
                 onClick={() => setActiveTab('insights')}
-                className={`py-4 px-1 border-b-2 text-sm font-medium transition-colors ${
+                className={`py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
                   activeTab === 'insights'
                     ? 'border-green-600 text-green-700'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -935,3 +935,4 @@ export default function PromotionDetailsPage() {
     </div>
   );
 }
+

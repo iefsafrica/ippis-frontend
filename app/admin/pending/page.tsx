@@ -148,15 +148,6 @@ export default function PendingEmployeesPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-4">
-        <Button
-          className="bg-primary hover:bg-primary/90"
-          onClick={() => setShowAddDialog(true)}
-        >
-          Add Employee
-        </Button>
-      </div>
-
       {/* Add Employee Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="sm:max-w-[425px]">
@@ -252,7 +243,9 @@ export default function PendingEmployeesPage() {
 
 
 
-      <ClientWrapper refreshKey={listRefreshKey} />
+      <div className="px-2 sm:px-4 lg:px-6">
+        <ClientWrapper refreshKey={listRefreshKey} />
+      </div>
     </>
   )
 }

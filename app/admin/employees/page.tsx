@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function EmployeesPage() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 px-2 sm:px-4 lg:px-6">
       <div className="flex justify-end">
         <SetupDatabaseButton />
       </div>

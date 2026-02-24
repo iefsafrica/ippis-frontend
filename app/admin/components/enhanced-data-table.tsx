@@ -136,6 +136,22 @@ export function EnhancedDataTable({
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
   const currentItems = sortedData.slice(indexOfFirstItem, indexOfLastItem)
   const totalPages = Math.ceil(sortedData.length / itemsPerPage)
+  const hasStatusField = data.some((item) => item && typeof item === "object" && "status" in item)
+  const statusCounts = data.reduce<Record<string, number>>((acc, item) => {
+    const rawStatus = item?.status
+    if (!rawStatus) return acc
+    const key = String(rawStatus)
+    acc[key] = (acc[key] || 0) + 1
+    return acc
+  }, {})
+  const topStatusEntries = Object.entries(statusCounts).slice(0, 3)
+
+  const toTitle = (value: string) =>
+    value
+      .replace(/_/g, " ")
+      .split(" ")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ")
 
   // Reset to first page when filters change
   useEffect(() => {
@@ -405,6 +421,30 @@ export function EnhancedDataTable({
             >
               Clear all filters
             </Button>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-sm font-medium text-gray-500">Total {title}</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">{data.length}</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-sm font-medium text-gray-500">Filtered</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">{sortedData.length}</p>
+        </div>
+        {hasStatusField && topStatusEntries.length > 0 ? (
+          topStatusEntries.map(([status, count]) => (
+            <div key={status} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+              <p className="text-sm font-medium text-gray-500">{toTitle(status)}</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">{count}</p>
+            </div>
+          ))
+        ) : (
+          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <p className="text-sm font-medium text-gray-500">Selected</p>
+            <p className="mt-1 text-2xl font-bold text-gray-900">{selectedRows.length}</p>
           </div>
         )}
       </div>
