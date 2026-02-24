@@ -458,8 +458,8 @@ export function PromotionContent({
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="rounded-md max-h-[60vh] overflow-y-auto">
-            <Table>
+          <div className="max-h-[60vh] w-full overflow-x-auto overflow-y-auto rounded-md [-webkit-overflow-scrolling:touch]">
+            <Table className="min-w-[980px]">
               <TableHeader>
                 <TableRow>
                   {columns.map((column) => (

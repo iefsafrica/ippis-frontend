@@ -621,8 +621,8 @@ export default function PromotionDetailsPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="rounded-lg border border-gray-200 overflow-hidden">
-                  <Table>
+                <div className="w-full overflow-x-auto rounded-lg border border-gray-200 [-webkit-overflow-scrolling:touch]">
+                  <Table className="min-w-[980px]">
                     <TableHeader className="bg-gray-50">
                       <TableRow>
                         <TableHead className="font-semibold text-gray-700">Date</TableHead>

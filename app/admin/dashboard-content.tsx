@@ -191,11 +191,11 @@ export default function DashboardContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
-      <div className="p-6 space-y-6">
+      <div className="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Dashboard Overview</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 truncate">Dashboard Overview</h1>
             <p className="text-slate-600 mt-2">Welcome to your employee management dashboard</p>
           </div>
           <Button
@@ -203,7 +203,7 @@ export default function DashboardContent() {
             size="sm"
             onClick={handleRefresh}
             disabled={statsLoading || refreshing || activitiesLoading}
-            className="border-slate-300 hover:bg-white"
+            className="border-slate-300 hover:bg-white w-full sm:w-auto"
           >
             <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
             Refresh
@@ -211,7 +211,7 @@ export default function DashboardContent() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
           {statCards.map((stat, index) => (
             <Card key={stat.label} className="relative overflow-hidden border-slate-200 hover:shadow-lg transition-all duration-200 hover:border-slate-300">
               <div className={`absolute top-0 right-0 w-20 h-20 -mr-6 -mt-6 rounded-full ${stat.bgColor} opacity-50`}></div>
@@ -250,12 +250,13 @@ export default function DashboardContent() {
 
           {/* Recent Employees */}
           <Card className="border-slate-200">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <div className="flex items-center space-x-2">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 space-y-0 pb-4">
+              <div className="flex items-center space-x-2 min-w-0">
                 <UserPlus className="h-5 w-5 text-slate-700" />
-                <CardTitle className="text-lg font-semibold">Employee Management</CardTitle>
+                <CardTitle className="text-lg font-semibold truncate">Employee Management</CardTitle>
               </div>
               <Tabs
+                className="w-full sm:w-auto"
                 defaultValue={employeeTab}
                 onValueChange={(value) => {
                   if (value === "recent" || value === "pending") {
@@ -263,7 +264,7 @@ export default function DashboardContent() {
                   }
                 }}
               >
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full sm:w-[180px] grid-cols-2">
                   <TabsTrigger value="recent" className="text-xs">Recent</TabsTrigger>
                   <TabsTrigger value="pending" className="text-xs">Pending</TabsTrigger>
                 </TabsList>
@@ -281,12 +282,13 @@ export default function DashboardContent() {
 
         {/* Recent Activities */}
         <Card className="border-slate-200">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <div className="flex items-center space-x-2">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 space-y-0 pb-4">
+            <div className="flex items-center space-x-2 min-w-0">
               <Activity className="h-5 w-5 text-slate-700" />
-              <CardTitle className="text-lg font-semibold">Recent Activities</CardTitle>
+              <CardTitle className="text-lg font-semibold truncate">Recent Activities</CardTitle>
             </div>
             <Tabs
+              className="w-full sm:w-auto"
               defaultValue={activityTab}
               onValueChange={(value) => {
                 if (value === "recent" || value === "pending") {
@@ -294,7 +296,7 @@ export default function DashboardContent() {
                 }
               }}
             >
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full sm:w-[180px] grid-cols-2">
                 <TabsTrigger value="recent" className="text-xs">Recent</TabsTrigger>
                 <TabsTrigger value="pending" className="text-xs">Pending</TabsTrigger>
               </TabsList>
@@ -328,17 +330,17 @@ export default function DashboardContent() {
             ) : (
               <div className="space-y-3">
                 {activities.map((activity: RecentActivity) => (
-                  <div key={activity.id} className="flex items-center space-x-4 p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                  <div key={activity.id} className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
                     <div className="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0"></div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-900 truncate">
                         {activity.name}
                       </p>
-                      <div className="flex items-center justify-between mt-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-1">
                         <Badge variant="outline" className="text-xs capitalize">
                           {activity.type}
                         </Badge>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-[11px] sm:text-xs text-slate-500">
                           {new Date(activity.created_at).toLocaleDateString()} at {new Date(activity.created_at).toLocaleTimeString()}
                         </p>
                       </div>
@@ -435,7 +437,8 @@ export function RecentEmployeesTable({
 
   return (
     <div className="rounded-lg border border-slate-200 overflow-hidden">
-      <Table>
+      <div className="w-full overflow-x-auto">
+      <Table className="min-w-[860px]">
         <TableHeader className="bg-slate-50">
           <TableRow className="hover:bg-slate-50">
             <TableHead className="font-semibold text-slate-700">Employee</TableHead>
@@ -511,6 +514,7 @@ export function RecentEmployeesTable({
           ))}
         </TableBody>
       </Table>
+      </div>
     </div>
   )
 }

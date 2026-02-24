@@ -1041,15 +1041,15 @@ export default function EmployeesContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Employees</h1>
           <p className="text-muted-foreground">
             Manage and view all approved employees in the system.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={() => setShowAddDialog(true)}>
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+          <Button onClick={() => setShowAddDialog(true)} className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
             Add Employee
           </Button>
@@ -1067,7 +1067,7 @@ export default function EmployeesContent() {
           <CardTitle>Employee List</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="mb-6 flex flex-col gap-4 md:flex-row">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
               <Input
@@ -1078,8 +1078,8 @@ export default function EmployeesContent() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="flex flex-wrap gap-2">
-              <div className="w-[180px]">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+              <div className="w-full sm:w-[180px]">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger>
                     <div className="flex items-center gap-2">
@@ -1095,7 +1095,7 @@ export default function EmployeesContent() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="w-[180px]">
+              <div className="w-full sm:w-[180px]">
                 <Select
                   value={departmentFilter}
                   onValueChange={setDepartmentFilter}
@@ -1125,8 +1125,8 @@ export default function EmployeesContent() {
             </div>
           </div>
 
-          <div className="rounded-md border">
-            <Table>
+          <div className="w-full overflow-x-auto rounded-md border [-webkit-overflow-scrolling:touch]">
+            <Table className="min-w-[980px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Employee</TableHead>
@@ -1205,8 +1205,8 @@ export default function EmployeesContent() {
             </Table>
           </div>
 
-         <div className="flex w-full h-fit items-center justify-between mt-5">
-  <div className="flex items-center justify-end mb-2">
+         <div className="mt-5 flex h-fit w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  <div className="mb-2 flex items-center justify-end sm:mb-0">
     <label
       htmlFor="itemsPerPage"
       className="mr-2 text-sm text-muted-foreground"
@@ -1232,7 +1232,7 @@ export default function EmployeesContent() {
   </div>
 
   {paginationInfo.totalPages > 0 && (
-    <div className="mt-4 flex items-center justify-end">
+    <div className="mt-2 flex items-center justify-end sm:mt-0">
       <Pagination
         currentPage={paginationInfo.page}
         totalPages={paginationInfo.totalPages}

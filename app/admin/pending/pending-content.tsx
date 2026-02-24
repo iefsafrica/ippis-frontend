@@ -3044,8 +3044,8 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="container mx-auto px-3 py-4 sm:px-4 sm:py-6 space-y-6">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div className="flex items-center space-x-3">
           <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 flex items-center justify-center shadow-sm">
             <Users className="h-6 w-6 text-blue-600" />
@@ -3059,7 +3059,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -3076,7 +3076,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
         </div>
       </div>
 
-      <Card className="border border-gray-200 shadow-lg rounded-xl overflow-hidden">
+      <Card className="overflow-hidden rounded-xl border border-gray-200 shadow-lg">
         <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 pb-3">
           <CardTitle className="text-lg font-semibold text-gray-900">Employee Management</CardTitle>
           <CardDescription className="text-gray-600">
@@ -3084,8 +3084,8 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
-            <form onSubmit={handleSearch} className="flex w-full sm:w-auto gap-2">
+          <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row">
+            <form onSubmit={handleSearch} className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
               <div className="relative w-full sm:w-80">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -3095,11 +3095,11 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
                   className="pl-8"
                 />
               </div>
-              <Button type="submit">Search</Button>
+              <Button type="submit" className="w-full sm:w-auto">Search</Button>
             </form>
 
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
+            <div className="flex w-full items-center gap-2 sm:w-auto">
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">
                 <Filter className="mr-2 h-4 w-4" />
                 Filter
               </Button>
@@ -3107,7 +3107,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
           </div>
 
           <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:w-auto lg:inline-flex">
               <TabsTrigger value="all" className="flex items-center gap-2">
                 All
                 <Badge variant="secondary" className="ml-1 h-5 w-5 rounded-full p-0 text-xs">
@@ -3142,8 +3142,8 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="rounded-md border">
-                  <Table>
+                <div className="w-full overflow-x-auto rounded-md border [-webkit-overflow-scrolling:touch]">
+                  <Table className="min-w-[980px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead>Employee</TableHead>

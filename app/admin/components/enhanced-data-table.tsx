@@ -267,11 +267,11 @@ export function EnhancedDataTable({
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             {filterOptions.length > 0 && (
               <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="gap-1">
+                  <Button variant="outline" className="w-full gap-1 sm:w-auto">
                     <Filter className="h-4 w-4" />
                     Filter
                     <ChevronDown className="h-3 w-3 opacity-50" />
@@ -364,7 +364,7 @@ export function EnhancedDataTable({
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-1">
+                <Button variant="outline" className="w-full gap-1 sm:w-auto">
                   <Download className="h-4 w-4" />
                   Export
                   <ChevronDown className="h-3 w-3 opacity-50" />
@@ -386,7 +386,7 @@ export function EnhancedDataTable({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button onClick={onAdd} className="gap-1 bg-green-600 hover:bg-green-700">
+            <Button onClick={onAdd} className="w-full gap-1 bg-green-600 hover:bg-green-700 sm:w-auto">
               <Plus className="h-4 w-4" />
               Add New
             </Button>
@@ -409,8 +409,8 @@ export function EnhancedDataTable({
         )}
       </div>
 
-      <div className="rounded-md border bg-white">
-        <Table>
+      <div className="w-full overflow-x-auto rounded-md border bg-white [-webkit-overflow-scrolling:touch]">
+        <Table className="min-w-[980px]">
           <TableHeader>
             <TableRow>
               <TableHead className="w-[40px]">
@@ -483,7 +483,7 @@ export function EnhancedDataTable({
                         variant="ghost"
                         size="icon"
                         onClick={() => onView(row.id)}
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-8 w-8 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
                       >
                         <Eye className="h-4 w-4" />
                         <span className="sr-only">View</span>
@@ -492,7 +492,7 @@ export function EnhancedDataTable({
                         variant="ghost"
                         size="icon"
                         onClick={() => onEdit(row.id)}
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-8 w-8 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
                       >
                         <Edit className="h-4 w-4" />
                         <span className="sr-only">Edit</span>
