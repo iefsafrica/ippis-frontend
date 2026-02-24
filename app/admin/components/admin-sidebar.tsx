@@ -17,7 +17,6 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  Menu,
   Shield,
   Server,
   ChevronDown,
@@ -44,7 +43,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
 
@@ -55,6 +54,7 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { isMobile } = useMobile();
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [employeeList, setEmployeeList] = useState(false);
   const [coreHROpen, setCoreHROpen] = useState(false);
   const [performanceOpen, setPerformanceOpen] = useState(false);
@@ -121,6 +121,24 @@ export function AdminSidebar() {
       setActiveSection("");
     }
   }, [pathname]);
+
+  useEffect(() => {
+    const handleToggle = () => setMobileSidebarOpen((prev) => !prev);
+    if (typeof window !== "undefined") {
+      window.addEventListener("admin-sidebar-toggle", handleToggle as EventListener);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("admin-sidebar-toggle", handleToggle as EventListener);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isMobile) {
+      setMobileSidebarOpen(false);
+    }
+  }, [pathname, isMobile]);
 
   // Define which features are implemented and which are coming soon
   const comingSoonFeatures = [
@@ -681,8 +699,8 @@ export function AdminSidebar() {
   ];
 
   const sidebarContent = (
-    <div className="flex-1 py-5 flex flex-col justify-between bg-white  ">
-      <nav className="px-3 space-y-0.5">
+    <div className="flex-1 min-h-0 py-5 flex flex-col bg-white">
+      <nav className="flex-1 min-h-0 overflow-y-auto px-3 space-y-0.5 pr-1">
         <TooltipProvider delayDuration={0}>
           {navItems.map((item) => {
             const isActive = item.isDropdown
@@ -698,7 +716,7 @@ export function AdminSidebar() {
                       <button
                         onClick={item.toggle}
                         className={cn(
-                          "flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm font-medium transition-al",
+                          "flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm font-medium transition-all",
                           isActive
                             ? "bg-[#008751]/10 text-[#008751] font-semibold"
                             : "text-gray-700 hover:bg-[#008751]/5 hover:text-[#008751]"
@@ -914,7 +932,7 @@ export function AdminSidebar() {
         </TooltipProvider>
       </nav>
 
-      <div className="px-3 space-y-1 mt-6">
+      <div className="px-3 space-y-1 mt-4 pt-3 border-t border-gray-100">
         <TooltipProvider delayDuration={0}>
           <Tooltip delayDuration={collapsed ? 100 : 1000000}>
             <TooltipTrigger asChild>
@@ -936,14 +954,9 @@ export function AdminSidebar() {
   return (
     <>
       {isMobile ? (
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="ml-2">
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-72">
-            <div className="flex flex-col h-full bg-white">
+        <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+          <SheetContent side="left" className="p-0 w-[85vw] max-w-[320px]">
+            <div className="flex flex-col h-full bg-white overflow-hidden">
               <div className="p-4 border-b border-gray-100 flex items-center justify-start">
                 <div className="relative h-8 w-8 overflow-hidden rounded-full bg-[#008751] flex items-center justify-center">
                   <Image
@@ -962,9 +975,9 @@ export function AdminSidebar() {
           </SheetContent>
         </Sheet>
       ) : (
-        <div
+        <aside
           className={cn(
-            "bg-white border-r border-gray-100 flex flex-col transition-all duration-300 ease-in-out hidden md:flex",
+            "bg-white border-r border-gray-100 flex flex-col transition-all duration-300 ease-in-out hidden md:flex sticky top-0 h-screen",
             collapsed ? "w-[70px]" : "w-[260px]"
           )}
         >
@@ -1013,7 +1026,7 @@ export function AdminSidebar() {
             )}
           </div>
           {sidebarContent}
-        </div>
+        </aside>
       )}
     </>
   );

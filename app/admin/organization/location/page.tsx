@@ -1,6 +1,5 @@
 import type { Metadata } from "next"
-import OrganizationTableContent from "../components/organization-table-content"
-import { locationData } from "../data"
+import LocationContent from "./location-content"
 
 export const metadata: Metadata = {
   title: "Location | IPPIS Admin",
@@ -14,7 +13,7 @@ export default function LocationPage() {
         <h1 className="text-2xl font-bold tracking-tight">Location</h1>
       </div>
       <div className="p-6 bg-white">
-        <OrganizationTableContent title="Location" records={locationData} />
+        <LocationContent />
       </div>
     </div>
   )

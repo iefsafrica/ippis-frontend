@@ -81,7 +81,7 @@ const terminationSearchFields = [
     label: "Status",
     type: "select" as const,
     options: [
-      { value: "", label: "All" },
+      { value: "all", label: "All" },
       { value: "active", label: "Active" },
       { value: "pending", label: "Pending" },
       { value: "completed", label: "Completed" },

@@ -62,7 +62,7 @@ const transferSearchFields = [
     label: "Status",
     type: "select" as const,
     options: [
-      { value: "", label: "All" },
+      { value: "all", label: "All" },
       { value: "pending", label: "Pending" },
       { value: "approved", label: "Approved" },
       { value: "rejected", label: "Rejected" },

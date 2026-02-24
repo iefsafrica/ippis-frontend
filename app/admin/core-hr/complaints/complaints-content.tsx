@@ -829,7 +829,7 @@ const complaintSearchFields = [
     label: "Status",
     type: "select" as const,
     options: [
-      { value: "", label: "All" },
+      { value: "all", label: "All" },
       { value: "pending", label: "Pending" },
       { value: "in_progress", label: "In Progress" },
       { value: "resolved", label: "Resolved" },

@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { usePathname } from "next/navigation"
-import { Menu, Search, User, Settings, LogOut, ChevronDown } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { Menu, Search, User, Settings, LogOut, ChevronDown, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -25,6 +25,7 @@ import ChangePassword from "./change-password"
 
 export function AdminHeader() {
   const pathname = usePathname() || ""
+  const router = useRouter()
   const { isMobile, toggleSidebar } = useMobile()
   const [showSearch, setShowSearch] = useState(false)
   const { user, logout } = useAuth()
@@ -78,8 +79,8 @@ export function AdminHeader() {
         scrolled ? "border-b border-gray-200 shadow-sm" : "border-b border-gray-100"
       }`}
     >
-      <div className="px-4 sm:px-6 lg:px-8 flex h-16 items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="px-3 sm:px-6 lg:px-8 flex h-16 items-center justify-between gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {isMobile && (
             <Button
               variant="ghost"
@@ -94,14 +95,25 @@ export function AdminHeader() {
           <div className="relative h-9 w-9 overflow-hidden rounded-full bg-[#008751] flex items-center justify-center">
             <Image src="/images/ippis-logo.jpeg" alt="IPPIS Logo" fill className="object-contain" />
           </div>
-          <div className="flex flex-col">
-            <h1 className="text-lg font-bold text-gray-900 leading-tight">{getPageTitle()}</h1>
+          {pathname !== "/admin" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.back()}
+              className="h-8 px-2 text-gray-600 hover:text-[#008751] hover:bg-[#008751]/5 flex-shrink-0"
+            >
+              <ArrowLeft className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Back</span>
+            </Button>
+          )}
+          <div className="flex flex-col min-w-0">
+            <h1 className="text-base sm:text-lg font-bold text-gray-900 leading-tight truncate">{getPageTitle()}</h1>
             <p className="text-xs text-gray-500 hidden sm:block">Integrated Personnel and Payroll Information System</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
           {showSearch ? (
-            <div className="relative w-64">
+            <div className="relative w-40 sm:w-64">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
               <Input
                 type="search"

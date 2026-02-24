@@ -9,7 +9,6 @@ interface MobileHookReturn {
 
 export function useMobile(): MobileHookReturn {
   const [isMobile, setIsMobile] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Function to check if the screen is mobile
   const checkMobile = useCallback(() => {
@@ -20,7 +19,9 @@ export function useMobile(): MobileHookReturn {
 
   // Toggle sidebar function
   const toggleSidebar = useCallback(() => {
-    setSidebarOpen((prev) => !prev)
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("admin-sidebar-toggle"))
+    }
   }, [])
 
   // Check on mount and on resize

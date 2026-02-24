@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useMemo, useState, useRef } from "react"
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -285,6 +285,39 @@ export default function EmployeesContent() {
     setAdvancedSearchParams(params);
     setCurrentPage(1);
   };
+
+  const filteredEmployees = useMemo(() => {
+    return employees.filter((employee) => {
+      const matchesSearchTerm = !searchTerm.trim()
+        ? true
+        : [employee.name, employee.email, employee.department, employee.position, employee.registration_id]
+            .filter(Boolean)
+            .some((value) => value!.toString().toLowerCase().includes(searchTerm.toLowerCase()));
+
+      const matchesStatus = statusFilter === "all" || employee.status === statusFilter;
+      const matchesDepartment = departmentFilter === "all" || employee.department === departmentFilter;
+
+      const matchesAdvanced = Object.entries(advancedSearchParams).every(([key, rawValue]) => {
+        const queryValue = rawValue?.toString().trim().toLowerCase();
+        if (!queryValue) return true;
+        const itemValue = employee[key as keyof Employee];
+        if (itemValue == null) return false;
+
+        if (key === "join_date") {
+          const dateValue = new Date(itemValue as string);
+          if (Number.isNaN(dateValue.getTime())) {
+            return false;
+          }
+          const normalizedDate = dateValue.toISOString().slice(0, 10);
+          return normalizedDate === queryValue;
+        }
+
+        return itemValue.toString().toLowerCase().includes(queryValue);
+      });
+
+      return matchesSearchTerm && matchesStatus && matchesDepartment && matchesAdvanced;
+    });
+  }, [employees, searchTerm, statusFilter, departmentFilter, advancedSearchParams]);
 
   // Format currency for display
   const formatCurrency = (amount: number) => {
@@ -1115,14 +1148,14 @@ export default function EmployeesContent() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ) : employees.length === 0 ? (
+                ) : filteredEmployees.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="h-24 text-center">
                       No employees found.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  employees.map((employee) => (
+                  filteredEmployees.map((employee) => (
                     <TableRow key={employee.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">

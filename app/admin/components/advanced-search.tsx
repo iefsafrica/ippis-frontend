@@ -27,6 +27,7 @@ interface AdvancedSearchProps {
 }
 
 export function AdvancedSearch({ onSearch, fields, title }: AdvancedSearchProps) {
+  const ALL_OPTION_VALUE = "__all__"
   const [open, setOpen] = useState(false)
   const [searchParams, setSearchParams] = useState<Record<string, string>>({})
 
@@ -38,7 +39,13 @@ export function AdvancedSearch({ onSearch, fields, title }: AdvancedSearchProps)
   }
 
   const handleSearch = () => {
-    onSearch(searchParams)
+    const normalizedParams = Object.entries(searchParams).reduce<Record<string, string>>((acc, [key, value]) => {
+      if (value && value !== ALL_OPTION_VALUE && value.toLowerCase() !== "all") {
+        acc[key] = value
+      }
+      return acc
+    }, {})
+    onSearch(normalizedParams)
     setOpen(false)
   }
 
@@ -48,7 +55,7 @@ export function AdvancedSearch({ onSearch, fields, title }: AdvancedSearchProps)
 
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)} className="gap-1">
+      <Button variant="outline" onClick={() => setOpen(true)} className="gap-1 w-full sm:w-auto">
         <Search className="h-4 w-4" />
         Advanced Search
       </Button>
@@ -76,15 +83,15 @@ export function AdvancedSearch({ onSearch, fields, title }: AdvancedSearchProps)
                 )}
                 {field.type === "select" && (
                   <Select
-                    value={searchParams[field.name] || ""}
+                    value={searchParams[field.name] || ALL_OPTION_VALUE}
                     onValueChange={(value) => handleInputChange(field.name, value)}
                   >
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder={`Select ${field.label}`} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      {field.options?.map((option) => (
+                      <SelectItem value={ALL_OPTION_VALUE}>All</SelectItem>
+                      {field.options?.filter((option) => option.value && option.value.trim().length > 0).map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
                         </SelectItem>

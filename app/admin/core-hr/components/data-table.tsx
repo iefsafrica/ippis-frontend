@@ -259,6 +259,7 @@ export function DataTable({
   itemsPerPage = 100, // Default to 100 as requested
 }: DataTableProps) {
   const [searchTerm, setSearchTerm] = useState("")
+  const [advancedSearchParams, setAdvancedSearchParams] = useState<Record<string, string>>({})
   const [currentPage, setCurrentPage] = useState(1)
   const [sortColumn, setSortColumn] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
@@ -277,13 +278,30 @@ export function DataTable({
     if (!searchTerm) return data
 
     return data.filter((item) => {
-      return Object.values(item).some(
+      const matchesSearch = Object.values(item).some(
         (value) =>
           value &&
           value.toString().toLowerCase().includes(searchTerm.toLowerCase()),
       )
+
+      const matchesAdvancedSearch = Object.entries(advancedSearchParams).every(([key, rawValue]) => {
+        const queryValue = rawValue?.toString().toLowerCase().trim()
+        if (!queryValue) return true
+
+        const itemValue = item?.[key]
+        if (itemValue == null) return false
+
+        if (typeof itemValue === "string" && /^\d{4}-\d{2}-\d{2}$/.test(queryValue)) {
+          const dateCandidate = itemValue.slice(0, 10)
+          return dateCandidate === queryValue
+        }
+
+        return itemValue.toString().toLowerCase().includes(queryValue)
+      })
+
+      return matchesSearch && matchesAdvancedSearch
     })
-  }, [data, searchTerm])
+  }, [data, searchTerm, advancedSearchParams])
 
   // Sort data
   const sortedData = useMemo(() => {
@@ -333,7 +351,7 @@ export function DataTable({
   }
 
   const handleAdvancedSearch = (params: any) => {
-    console.log("Advanced search params:", params)
+    setAdvancedSearchParams(params || {})
     // Reset to first page after search
     setCurrentPage(1)
   }
@@ -361,7 +379,7 @@ export function DataTable({
   // Reset to page 1 when search term changes
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm])
+  }, [searchTerm, advancedSearchParams])
 
   // Generate page numbers for display - simple version like in the image
   const getPageNumbers = () => {
@@ -385,9 +403,9 @@ export function DataTable({
   }
 
   return (
-    <div className="space-y-4 px-4 py-4">
+    <div className="space-y-4 px-2 sm:px-4 py-4">
       {/* Top controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
           <Input
@@ -399,7 +417,7 @@ export function DataTable({
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full sm:w-auto flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2">
           <AdvancedSearch
             onSearch={handleAdvancedSearch}
             fields={searchFields}
@@ -415,7 +433,7 @@ export function DataTable({
 
           <Button
             onClick={onAdd}
-            className="gap-1 bg-green-600 hover:bg-green-700"
+            className="gap-1 w-full sm:w-auto bg-green-600 hover:bg-green-700"
           >
             <Plus className="h-4 w-4" />
             Add New
@@ -425,11 +443,12 @@ export function DataTable({
 
       {/* Table */}
       <div className="rounded-lg border bg-white shadow-sm overflow-hidden">
-        <Table>
+        <div className="w-full overflow-x-auto overflow-y-hidden overscroll-x-contain pb-1" style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}>
+        <Table className="min-w-[1200px] table-auto">
           <TableHeader>
             <TableRow className="bg-gray-50/50">
               {columns.map((column) => (
-                <TableHead key={column.key} className="whitespace-nowrap py-3">
+                <TableHead key={column.key} className="whitespace-nowrap py-3 hover:bg-gray-100/80 transition-colors">
                   <div className="flex items-center gap-1">
                     {column.label}
                     {column.sortable && (
@@ -485,7 +504,7 @@ export function DataTable({
               currentItems.map((row, index) => (
                 <TableRow key={row.id || index} className="hover:bg-gray-50/50 transition-colors">
                   {columns.map((column) => (
-                    <TableCell key={`${row.id || index}-${column.key}`} className="py-3">
+                    <TableCell key={`${row.id || index}-${column.key}`} className="py-3 whitespace-nowrap">
                       {column.render
                         ? column.render(row[column.key], row)
                         : row[column.key]}
@@ -496,6 +515,7 @@ export function DataTable({
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
 
       {/* Clean Pagination - Like in the image */}
