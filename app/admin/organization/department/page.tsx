@@ -7,14 +7,5 @@ export const metadata: Metadata = {
 }
 
 export default function DepartmentPage() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Department</h1>
-      </div>
-      <div className="p-6 bg-white">
-        <DepartmentContent />
-      </div>
-    </div>
-  )
+  return <DepartmentContent />
 }

@@ -338,7 +338,7 @@ export default function Home() {
               <span className="text-xl font-bold text-gray-900">IPPIS</span>
             </Link>
             <p className="text-sm text-gray-700">
-              © 2023 Office of the Accountant-General of the Federation. All rights reserved.
+              &copy; 2023 Office of the Accountant-General of the Federation. All rights reserved.
             </p>
           </div>
           <div className="flex flex-col gap-2 md:flex-row md:gap-4">

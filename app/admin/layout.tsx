@@ -53,7 +53,7 @@ export default function AdminLayout({
           <AdminSidebar />
           <div className="flex-1 flex min-w-0 flex-col min-h-0">
             <AdminHeader />
-            <main className="flex-1 min-h-0 min-w-0 overflow-y-auto bg-white p-3 sm:p-4 lg:p-6">
+            <main className="flex-1 min-h-0 min-w-0 overflow-y-auto bg-white p-0 sm:p-4 lg:p-6">
               <Suspense fallback={<AdminLoading />}>
                 {React.Children.map(children, (child, index) =>
                   React.isValidElement(child)

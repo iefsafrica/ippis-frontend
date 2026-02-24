@@ -316,7 +316,7 @@ export default function CompanyContent() {
     <div className="container mx-auto px-4 py-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div className="flex items-center space-x-3">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 flex items-center justify-center shadow-sm">
+          <div className="hidden h-12 w-12 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 shadow-sm sm:flex sm:items-center sm:justify-center">
             <Building2 className="h-6 w-6 text-blue-600" />
           </div>
           <div>

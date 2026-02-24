@@ -3044,7 +3044,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
   }
 
   return (
-    <div className="container mx-auto px-3 py-4 sm:px-4 sm:py-6 space-y-6">
+    <div className="container mx-auto px-0 py-4 sm:px-4 sm:py-6 space-y-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div className="flex items-center space-x-3">
           <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 flex items-center justify-center shadow-sm">

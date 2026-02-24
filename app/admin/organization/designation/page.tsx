@@ -8,14 +8,5 @@ export const metadata: Metadata = {
 }
 
 export default function DesignationPage() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Designation</h1>
-      </div>
-      <div className="p-6 bg-white">
-        <OrganizationTableContent title="Designation" records={designationData} />
-      </div>
-    </div>
-  )
+  return <OrganizationTableContent title="Designation" records={designationData} />
 }

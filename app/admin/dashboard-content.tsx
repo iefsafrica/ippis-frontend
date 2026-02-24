@@ -190,8 +190,8 @@ export default function DashboardContent() {
     (employeeTab === "recent" ? recentEmployeesLoading : pendingEmployeesLoading)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
-      <div className="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-6">
+    <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 to-blue-50/30">
+      <div className="w-full space-y-4 p-0 sm:space-y-6 sm:p-4 lg:p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="min-w-0">
@@ -211,9 +211,9 @@ export default function DashboardContent() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid w-full grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
           {statCards.map((stat, index) => (
-            <Card key={stat.label} className="relative overflow-hidden border-slate-200 hover:shadow-lg transition-all duration-200 hover:border-slate-300">
+            <Card key={stat.label} className="relative w-full overflow-hidden border-slate-200 transition-all duration-200 hover:border-slate-300 hover:shadow-lg">
               <div className={`absolute top-0 right-0 w-20 h-20 -mr-6 -mt-6 rounded-full ${stat.bgColor} opacity-50`}></div>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                 <CardTitle className="text-sm font-semibold text-slate-700">
@@ -236,9 +236,9 @@ export default function DashboardContent() {
         </div>
 
         {/* Charts and Employees Section */}
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Employee Trends Chart */}
-          <Card className="border-slate-200">
+          <Card className="w-full border-slate-200">
             <CardHeader className="flex flex-row items-center space-y-0 pb-4">
               <TrendingUp className="h-5 w-5 text-slate-700 mr-2" />
               <CardTitle className="text-lg font-semibold">Employee Trends</CardTitle>
@@ -249,7 +249,7 @@ export default function DashboardContent() {
           </Card>
 
           {/* Recent Employees */}
-          <Card className="border-slate-200">
+          <Card className="w-full border-slate-200">
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 space-y-0 pb-4">
               <div className="flex items-center space-x-2 min-w-0">
                 <UserPlus className="h-5 w-5 text-slate-700" />
@@ -270,7 +270,7 @@ export default function DashboardContent() {
                 </TabsList>
               </Tabs>
             </CardHeader>
-            <CardContent>
+            <CardContent className="w-full px-0 pb-4 sm:px-6">
               <RecentEmployeesTable
               //@ts-expect-error
                 data={employeeTab === "recent" ? recentEmployees : pendingEmployees}
@@ -281,7 +281,7 @@ export default function DashboardContent() {
         </div>
 
         {/* Recent Activities */}
-        <Card className="border-slate-200">
+        <Card className="w-full border-slate-200">
           <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 space-y-0 pb-4">
             <div className="flex items-center space-x-2 min-w-0">
               <Activity className="h-5 w-5 text-slate-700" />
@@ -436,9 +436,12 @@ export function RecentEmployeesTable({
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 overflow-hidden">
-      <div className="w-full overflow-x-auto">
-      <Table className="min-w-[860px]">
+    <div className="w-full rounded-lg border border-slate-200">
+      <div
+        className="w-full overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch]"
+        style={{ touchAction: "pan-x" }}
+      >
+      <Table className="min-w-[980px]">
         <TableHeader className="bg-slate-50">
           <TableRow className="hover:bg-slate-50">
             <TableHead className="font-semibold text-slate-700">Employee</TableHead>

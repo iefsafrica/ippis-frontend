@@ -403,7 +403,7 @@ export function DataTable({
   }
 
   return (
-    <div className="space-y-4 px-2 sm:px-4 py-4">
+    <div className="space-y-4 px-0 sm:px-4 py-4">
       {/* Top controls */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div className="relative w-full sm:w-64">
