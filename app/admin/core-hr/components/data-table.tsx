@@ -264,6 +264,7 @@ export function DataTable({
   const [sortColumn, setSortColumn] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
   const [isLoading, setIsLoading] = useState(true)
+  const [isMobileView, setIsMobileView] = useState(false)
 
   // Simulate loading state (remove in production)
   useEffect(() => {
@@ -271,6 +272,18 @@ export function DataTable({
       setIsLoading(false)
     }, 300)
     return () => clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    const syncViewport = () => {
+      if (typeof window !== "undefined") {
+        setIsMobileView(window.innerWidth < 768)
+      }
+    }
+
+    syncViewport()
+    window.addEventListener("resize", syncViewport)
+    return () => window.removeEventListener("resize", syncViewport)
   }, [])
 
   // Filter data
@@ -402,6 +415,17 @@ export function DataTable({
     return pages
   }
 
+  const actionColumn = columns.find((column) => column.key === "actions")
+  const detailColumns = columns.filter((column) => column.key !== "actions")
+
+  const formatValue = (value: unknown) => {
+    if (value === null || value === undefined || value === "") return "N/A"
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      return String(value)
+    }
+    return JSON.stringify(value)
+  }
+
   return (
     <div className="space-y-4 px-2 sm:px-4 py-4">
       {/* Top controls */}
@@ -441,9 +465,45 @@ export function DataTable({
         </div>
       </div>
 
-      {/* Table */}
+      {/* Data list */}
       <div className="rounded-lg border bg-white shadow-sm overflow-hidden">
-        <div className="w-full overflow-x-auto overflow-y-hidden overscroll-x-contain pb-1" style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}>
+        {isMobileView ? (
+          <div className="p-3 space-y-3">
+            {isLoading ? (
+              Array.from({ length: 4 }).map((_, index) => (
+                <div key={`mobile-skeleton-${index}`} className="rounded-lg border border-gray-200 p-3 space-y-2">
+                  <div className="h-4 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-4 bg-gray-100 rounded animate-pulse" />
+                  <div className="h-4 bg-gray-100 rounded animate-pulse" />
+                </div>
+              ))
+            ) : currentItems.length === 0 ? (
+              <div className="text-center py-10 text-gray-500">
+                <div className="text-lg font-medium mb-2">No records found</div>
+                <div className="text-sm text-gray-400">Try adjusting your search or filter</div>
+              </div>
+            ) : (
+              currentItems.map((row, index) => (
+                <div key={row.id || index} className="rounded-lg border border-gray-200 p-3 bg-white space-y-2">
+                  {detailColumns.map((column) => (
+                    <div key={`${row.id || index}-${column.key}`} className="flex items-start justify-between gap-3">
+                      <span className="text-xs font-medium text-gray-500 min-w-[110px]">{column.label}</span>
+                      <span className="text-sm text-gray-900 text-right break-words">
+                        {formatValue(row[column.key])}
+                      </span>
+                    </div>
+                  ))}
+                  {actionColumn?.render && (
+                    <div className="pt-2 border-t border-gray-100">
+                      {actionColumn.render(row[actionColumn.key], row)}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        ) : (
+          <div className="w-full overflow-x-auto overflow-y-hidden overscroll-x-contain pb-1" style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}>
         <Table className="min-w-[1200px] table-auto">
           <TableHeader>
             <TableRow className="bg-gray-50/50">
@@ -516,6 +576,7 @@ export function DataTable({
           </TableBody>
         </Table>
         </div>
+        )}
       </div>
 
       {/* Clean Pagination - Like in the image */}

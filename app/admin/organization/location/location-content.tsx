@@ -341,24 +341,24 @@ export default function LocationContent() {
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 min-w-0">
           <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 flex items-center justify-center shadow-sm">
             <Building2 className="h-6 w-6 text-blue-600" />
           </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+          <div className="min-w-0">
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent truncate">
               Location
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-gray-600 mt-1 text-sm sm:text-base break-words">
               Manage organization location records
-              <span className="ml-2 text-sm text-gray-500">({locations.length} records)</span>
+              <span className="ml-1 sm:ml-2 text-sm text-gray-500">({locations.length} records)</span>
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 w-full md:w-auto">
           <Button
             variant="outline"
-            className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"
+            className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg flex-1 md:flex-none"
             onClick={() => refetch()}
             disabled={isLoading}
           >
@@ -366,7 +366,7 @@ export default function LocationContent() {
             <span className="ml-2 hidden sm:inline">Refresh</span>
           </Button>
           <Button
-            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
+            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg flex-1 md:flex-none"
             onClick={openAddDialog}
           >
             Add Location
