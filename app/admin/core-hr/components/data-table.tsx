@@ -275,14 +275,15 @@ export function DataTable({
 
   // Filter data
   const filteredData = useMemo(() => {
-    if (!searchTerm) return data
-
     return data.filter((item) => {
-      const matchesSearch = Object.values(item).some(
-        (value) =>
-          value &&
-          value.toString().toLowerCase().includes(searchTerm.toLowerCase()),
-      )
+      const normalizedSearchTerm = searchTerm.trim().toLowerCase()
+      const matchesSearch = !normalizedSearchTerm
+        ? true
+        : Object.values(item).some(
+            (value) =>
+              value &&
+              value.toString().toLowerCase().includes(normalizedSearchTerm),
+          )
 
       const matchesAdvancedSearch = Object.entries(advancedSearchParams).every(([key, rawValue]) => {
         const queryValue = rawValue?.toString().toLowerCase().trim()

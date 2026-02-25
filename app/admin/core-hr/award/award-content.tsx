@@ -437,14 +437,6 @@ export function AwardContent() {
                 <RefreshCw className="h-4 w-4" />
               )}
             </Button>
-            <Button
-              onClick={handleAddAward}
-              disabled={isLoading}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              <Award className="h-4 w-4 mr-2" />
-              Add Award
-            </Button>
           </div>
         </div>
         

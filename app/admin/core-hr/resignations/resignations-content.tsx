@@ -921,7 +921,7 @@ export function ResignationsContent() {
 
         {/* Main Table */}
         <Card className="border border-gray-200 shadow-lg rounded-xl overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+          <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 transition-colors hover:from-gray-100 hover:to-gray-200">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between">
               <div>
                 <CardTitle className="text-lg font-semibold text-gray-900">Resignation Requests</CardTitle>

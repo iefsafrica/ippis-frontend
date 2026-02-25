@@ -111,7 +111,7 @@ interface PayslipData {
 export default function EmployeesContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("active");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [itemsPerPage, setItemsPerPage] = useState(100);
 
@@ -294,7 +294,7 @@ export default function EmployeesContent() {
             .filter(Boolean)
             .some((value) => value!.toString().toLowerCase().includes(searchTerm.toLowerCase()));
 
-      const matchesStatus = statusFilter === "all" || employee.status === statusFilter;
+      const matchesStatus = employee.status === statusFilter;
       const matchesDepartment = departmentFilter === "all" || employee.department === departmentFilter;
 
       const matchesAdvanced = Object.entries(advancedSearchParams).every(([key, rawValue]) => {
@@ -1088,7 +1088,6 @@ export default function EmployeesContent() {
                     </div>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>
