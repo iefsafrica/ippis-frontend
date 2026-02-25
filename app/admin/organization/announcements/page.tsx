@@ -1,6 +1,5 @@
 import type { Metadata } from "next"
-import OrganizationTableContent from "../components/organization-table-content"
-import { announcementsData } from "../data"
+import AnnouncementsContent from "./announcements-content"
 
 export const metadata: Metadata = {
   title: "Announcements | IPPIS Admin",
@@ -8,5 +7,5 @@ export const metadata: Metadata = {
 }
 
 export default function AnnouncementsPage() {
-  return <OrganizationTableContent title="Announcements" records={announcementsData} />
+  return <AnnouncementsContent />
 }

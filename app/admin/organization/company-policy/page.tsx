@@ -1,6 +1,5 @@
 import type { Metadata } from "next"
-import OrganizationTableContent from "../components/organization-table-content"
-import { companyPolicyData } from "../data"
+import CompanyPolicyContent from "./company-policy-content"
 
 export const metadata: Metadata = {
   title: "Company Policy | IPPIS Admin",
@@ -8,5 +7,5 @@ export const metadata: Metadata = {
 }
 
 export default function CompanyPolicyPage() {
-  return <OrganizationTableContent title="Company Policy" records={companyPolicyData} />
+  return <CompanyPolicyContent />
 }
