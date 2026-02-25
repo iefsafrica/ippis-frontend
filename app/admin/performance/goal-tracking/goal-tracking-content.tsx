@@ -21,6 +21,8 @@ import {
   useGetGoalTrackings,
   useUpdateGoalTracking,
 } from "@/services/hooks/performance/useGoalTracking"
+import { useEmployeesList } from "@/services/hooks/employees/useEmployees"
+import { useGoalTypes } from "@/services/hooks/performance/useGoalTypes"
 import type {
   CreateGoalTrackingPayload,
   GoalTracking,
@@ -63,6 +65,8 @@ const toInputDate = (value?: string | null) => {
 
 export default function GoalTrackingContent() {
   const { data, isLoading, error, refetch } = useGetGoalTrackings()
+  const { data: employeesResponse, isLoading: isLoadingEmployees } = useEmployeesList(1)
+  const { data: goalTypes, isLoading: isLoadingGoalTypes } = useGoalTypes()
   const createGoalMutation = useCreateGoalTracking()
   const updateGoalMutation = useUpdateGoalTracking()
   const deleteGoalMutation = useDeleteGoalTracking()
@@ -78,6 +82,7 @@ export default function GoalTrackingContent() {
   const { data: selectedGoalResponse, isFetching: isFetchingGoal } = useGetGoalTrackingById(selectedGoalId)
 
   const goals = data?.data || []
+  const employees = employeesResponse?.employees || []
   const selectedGoalDetails = selectedGoalResponse?.data || selectedGoal
 
   const completedCount = useMemo(
@@ -421,23 +426,45 @@ export default function GoalTrackingContent() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="goal-employee-id">Employee ID</Label>
-              <Input
-                id="goal-employee-id"
+              <Label>Employee ID</Label>
+              <Select
                 value={form.employee_id}
-                onChange={(e) => setForm((prev) => ({ ...prev, employee_id: e.target.value }))}
-                placeholder="Enter employee id (e.g. IPPIS 008)"
-              />
+                onValueChange={(value) => setForm((prev) => ({ ...prev, employee_id: value }))}
+                disabled={isLoadingEmployees}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={isLoadingEmployees ? "Loading employees..." : "Select employee"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map((employee) => {
+                    const employeeValue = employee.registration_id || employee.id
+                    return (
+                      <SelectItem key={employee.id} value={employeeValue}>
+                        {employeeValue} - {employee.name}
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="goal-type-id">Goal Type ID</Label>
-              <Input
-                id="goal-type-id"
-                type="number"
+              <Label>Goal Type ID</Label>
+              <Select
                 value={form.goal_type_id}
-                onChange={(e) => setForm((prev) => ({ ...prev, goal_type_id: e.target.value }))}
-                placeholder="Enter goal type id"
-              />
+                onValueChange={(value) => setForm((prev) => ({ ...prev, goal_type_id: value }))}
+                disabled={isLoadingGoalTypes}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={isLoadingGoalTypes ? "Loading goal types..." : "Select goal type"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(goalTypes || []).map((goalType) => (
+                    <SelectItem key={goalType.id} value={String(goalType.id)}>
+                      {goalType.id} - {goalType.goal_type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="goal-title">Title</Label>

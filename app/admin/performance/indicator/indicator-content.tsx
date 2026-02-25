@@ -1,442 +1,643 @@
 "use client"
 
-import { useState } from "react"
-import { EnhancedDataTable } from "@/app/admin/components/enhanced-data-table"
-import { EnhancedForm, type FormField } from "@/app/admin/components/enhanced-form"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
-import { format } from "date-fns"
-import { Check, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { DataTable } from "@/app/admin/core-hr/components/data-table"
+import { BarChart3, CheckCircle2, Edit, Eye, Loader2, RefreshCw, Trash2, XCircle } from "lucide-react"
+import { toast } from "sonner"
+import {
+  useCreateIndicator,
+  useDeleteIndicator,
+  useGetIndicatorById,
+  useGetIndicators,
+  useUpdateIndicator,
+} from "@/services/hooks/performance/useIndicator"
+import { useGetDepartments } from "@/services/hooks/organizations/department/useDepartment"
+import { useGetDesignations } from "@/services/hooks/organizations/designation/useDesignation"
+import type {
+  CreateIndicatorPayload,
+  Indicator,
+  UpdateIndicatorPayload,
+} from "@/types/performance/indicator"
 
-// Mock data for performance indicators
-const mockIndicators = [
-  {
-    id: "1",
-    name: "Customer Service Quality",
-    department: "Customer Service",
-    designation: "Customer Service Representative",
-    addedBy: "Admin User",
-    createdAt: "2023-03-15T08:00:00Z",
-    status: "active",
-    description: "Measures the quality of customer service provided by representatives.",
-    criteria: [
-      { name: "Response Time", weight: 25 },
-      { name: "Issue Resolution", weight: 40 },
-      { name: "Customer Feedback", weight: 35 },
-    ],
-  },
-  {
-    id: "2",
-    name: "Sales Performance",
-    department: "Sales",
-    designation: "Sales Executive",
-    addedBy: "Admin User",
-    createdAt: "2023-04-10T10:30:00Z",
-    status: "active",
-    description: "Evaluates the sales performance of executives based on targets and conversions.",
-    criteria: [
-      { name: "Sales Target Achievement", weight: 50 },
-      { name: "New Client Acquisition", weight: 30 },
-      { name: "Client Retention", weight: 20 },
-    ],
-  },
-  {
-    id: "3",
-    name: "Code Quality",
-    department: "IT",
-    designation: "Software Developer",
-    addedBy: "Admin User",
-    createdAt: "2023-05-05T14:45:00Z",
-    status: "active",
-    description: "Assesses the quality of code produced by developers.",
-    criteria: [
-      { name: "Code Readability", weight: 20 },
-      { name: "Bug-free Code", weight: 40 },
-      { name: "Documentation", weight: 15 },
-      { name: "Performance Optimization", weight: 25 },
-    ],
-  },
-  {
-    id: "4",
-    name: "Project Management Efficiency",
-    department: "Project Management",
-    designation: "Project Manager",
-    addedBy: "Admin User",
-    createdAt: "2023-06-20T09:15:00Z",
-    status: "inactive",
-    description: "Evaluates the efficiency of project managers in handling projects.",
-    criteria: [
-      { name: "On-time Delivery", weight: 35 },
-      { name: "Budget Management", weight: 30 },
-      { name: "Resource Utilization", weight: 20 },
-      { name: "Stakeholder Satisfaction", weight: 15 },
-    ],
-  },
-  {
-    id: "5",
-    name: "Financial Accuracy",
-    department: "Finance",
-    designation: "Accountant",
-    addedBy: "Admin User",
-    createdAt: "2023-07-12T11:20:00Z",
-    status: "active",
-    description: "Measures the accuracy of financial records and reports.",
-    criteria: [
-      { name: "Error-free Entries", weight: 40 },
-      { name: "Timely Reporting", weight: 30 },
-      { name: "Compliance", weight: 30 },
-    ],
-  },
-]
+type IndicatorFormState = {
+  indicator_name: string
+  department_id: string
+  designation_id: string
+  description: string
+  status: string
+  added_by: string
+}
 
-// Mock data for departments and designations
-const mockDepartments = [
-  { value: "Customer Service", label: "Customer Service" },
-  { value: "Sales", label: "Sales" },
-  { value: "IT", label: "IT" },
-  { value: "Project Management", label: "Project Management" },
-  { value: "Finance", label: "Finance" },
-  { value: "Human Resources", label: "Human Resources" },
-  { value: "Operations", label: "Operations" },
-  { value: "Marketing", label: "Marketing" },
-]
+const defaultFormState: IndicatorFormState = {
+  indicator_name: "",
+  department_id: "",
+  designation_id: "",
+  description: "",
+  status: "active",
+  added_by: "",
+}
 
-const mockDesignations = [
-  { value: "Customer Service Representative", label: "Customer Service Representative" },
-  { value: "Sales Executive", label: "Sales Executive" },
-  { value: "Software Developer", label: "Software Developer" },
-  { value: "Project Manager", label: "Project Manager" },
-  { value: "Accountant", label: "Accountant" },
-  { value: "HR Manager", label: "HR Manager" },
-  { value: "Operations Manager", label: "Operations Manager" },
-  { value: "Marketing Specialist", label: "Marketing Specialist" },
-]
-
-// Form fields for adding/editing performance indicators
-const indicatorFields: FormField[] = [
-  {
-    name: "name",
-    label: "Indicator Name",
-    type: "text",
-    placeholder: "Enter indicator name",
-    required: true,
-  },
-  {
-    name: "department",
-    label: "Department",
-    type: "select",
-    options: mockDepartments,
-    required: true,
-  },
-  {
-    name: "designation",
-    label: "Designation",
-    type: "select",
-    options: mockDesignations,
-    required: true,
-  },
-  {
-    name: "description",
-    label: "Description",
-    type: "textarea",
-    placeholder: "Enter description",
-    required: true,
-  },
-  {
-    name: "status",
-    label: "Status",
-    type: "select",
-    options: [
-      { value: "active", label: "Active" },
-      { value: "inactive", label: "Inactive" },
-    ],
-    required: true,
-  },
-]
-
-// Table columns
-const columns = [
-  {
-    key: "id",
-    label: "ID",
-    sortable: true,
-  },
-  {
-    key: "name",
-    label: "Indicator Name",
-    sortable: true,
-  },
-  {
-    key: "department",
-    label: "Department",
-    sortable: true,
-  },
-  {
-    key: "designation",
-    label: "Designation",
-    sortable: true,
-  },
-  {
-    key: "addedBy",
-    label: "Added By",
-    sortable: true,
-  },
-  {
-    key: "createdAt",
-    label: "Created Date",
-    sortable: true,
-    render: (value: string) => format(new Date(value), "PP"),
-  },
-  {
-    key: "status",
-    label: "Status",
-    sortable: true,
-    render: (value: string) => (
-      <Badge variant={value === "active" ? "success" : "secondary"} className="capitalize">
-        {value === "active" ? <Check className="mr-1 h-3 w-3" /> : <X className="mr-1 h-3 w-3" />}
-        {value}
-      </Badge>
-    ),
-  },
-]
-
-// Filter options
-const filterOptions = [
-  {
-    id: "department",
-    label: "Department",
-    type: "select" as const,
-    options: mockDepartments,
-  },
-  {
-    id: "designation",
-    label: "Designation",
-    type: "select" as const,
-    options: mockDesignations,
-  },
-  {
-    id: "status",
-    label: "Status",
-    type: "select" as const,
-    options: [
-      { value: "active", label: "Active" },
-      { value: "inactive", label: "Inactive" },
-    ],
-  },
-]
+const formatDate = (value?: string | null) => {
+  if (!value) return "N/A"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "N/A"
+  return date.toLocaleString()
+}
 
 export default function IndicatorContent() {
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [selectedIndicator, setSelectedIndicator] = useState<any>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { data, isLoading, error, refetch } = useGetIndicators()
+  const { data: departmentsResponse, isLoading: isLoadingDepartments } = useGetDepartments()
+  const { data: designationsResponse, isLoading: isLoadingDesignations } = useGetDesignations()
+  const createIndicatorMutation = useCreateIndicator()
+  const updateIndicatorMutation = useUpdateIndicator()
+  const deleteIndicatorMutation = useDeleteIndicator()
 
-  const handleAdd = () => {
-    setIsAddDialogOpen(true)
+  const [showAddDialog, setShowAddDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showViewDialog, setShowViewDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [selectedIndicator, setSelectedIndicator] = useState<Indicator | null>(null)
+  const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | number | undefined>(undefined)
+  const [form, setForm] = useState<IndicatorFormState>(defaultFormState)
+
+  const { data: selectedIndicatorResponse, isFetching: isFetchingIndicator } = useGetIndicatorById(selectedIndicatorId)
+
+  const indicators = data?.data || []
+  const departments = departmentsResponse?.data || []
+  const designations = designationsResponse?.data || []
+  const selectedIndicatorDetails = selectedIndicatorResponse?.data || selectedIndicator
+
+  const activeCount = useMemo(
+    () => indicators.filter((row) => row.status?.toLowerCase() === "active").length,
+    [indicators]
+  )
+  const inactiveCount = useMemo(
+    () => indicators.filter((row) => row.status?.toLowerCase() === "inactive").length,
+    [indicators]
+  )
+  const recentCount = useMemo(() => {
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    return indicators.filter((row) => {
+      const value = row.created_at || row.updated_at
+      if (!value) return false
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return false
+      return date >= sevenDaysAgo
+    }).length
+  }, [indicators])
+
+  const searchFields = [
+    { name: "indicator_name", label: "Indicator Name", type: "text" as const },
+    { name: "department_id", label: "Department ID", type: "text" as const },
+    { name: "designation_id", label: "Designation ID", type: "text" as const },
+    { name: "added_by", label: "Added By", type: "text" as const },
+    {
+      name: "status",
+      label: "Status",
+      type: "select" as const,
+      options: [
+        { value: "active", label: "Active" },
+        { value: "inactive", label: "Inactive" },
+      ],
+    },
+  ]
+
+  const resetForm = () => setForm(defaultFormState)
+
+  const openAddDialog = () => {
+    resetForm()
+    setShowAddDialog(true)
   }
 
-  const handleEdit = (id: string) => {
-    const indicator = mockIndicators.find((item) => item.id === id)
+  const openEditDialog = (indicator: Indicator) => {
     setSelectedIndicator(indicator)
-    setIsEditDialogOpen(true)
+    setSelectedIndicatorId(indicator.id)
+    setForm({
+      indicator_name: indicator.indicator_name || "",
+      department_id: String(indicator.department_id ?? ""),
+      designation_id: String(indicator.designation_id ?? ""),
+      description: indicator.description || "",
+      status: indicator.status || "active",
+      added_by: indicator.added_by || "",
+    })
+    setShowEditDialog(true)
   }
 
-  const handleView = (id: string) => {
-    const indicator = mockIndicators.find((item) => item.id === id)
+  const openViewDialog = (indicator: Indicator) => {
     setSelectedIndicator(indicator)
-    setIsViewDialogOpen(true)
+    setSelectedIndicatorId(indicator.id)
+    setShowViewDialog(true)
   }
 
-  const handleDelete = (id: string) => {
-    // In a real app, this would call an API to delete the indicator
-    console.log("Delete indicator with ID:", id)
+  const openDeleteDialog = (indicator: Indicator) => {
+    setSelectedIndicator(indicator)
+    setSelectedIndicatorId(indicator.id)
+    setShowDeleteDialog(true)
   }
 
-  const handleSubmitAdd = (data: Record<string, any>) => {
-    setIsSubmitting(true)
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Add indicator:", data)
-      setIsSubmitting(false)
-      setIsAddDialogOpen(false)
-    }, 1000)
+  const handleCreateIndicator = async () => {
+    if (!form.indicator_name.trim() || !form.department_id.trim() || !form.designation_id.trim() || !form.description.trim() || !form.added_by.trim()) {
+      toast.error("Please fill all required fields")
+      return
+    }
+
+    const payload: CreateIndicatorPayload = {
+      indicator_name: form.indicator_name.trim(),
+      department_id: Number(form.department_id),
+      designation_id: Number(form.designation_id),
+      description: form.description.trim(),
+      status: form.status,
+      added_by: form.added_by.trim(),
+    }
+
+    try {
+      await createIndicatorMutation.mutateAsync(payload)
+      toast.success("Indicator created successfully")
+      setShowAddDialog(false)
+      resetForm()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create indicator"
+      toast.error(message)
+    }
   }
 
-  const handleSubmitEdit = (data: Record<string, any>) => {
-    setIsSubmitting(true)
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Edit indicator:", { id: selectedIndicator.id, ...data })
-      setIsSubmitting(false)
-      setIsEditDialogOpen(false)
-    }, 1000)
+  const handleUpdateIndicator = async () => {
+    if (!selectedIndicator) return
+    if (!form.department_id.trim() || !form.description.trim() || !form.status.trim()) {
+      toast.error("Please fill all required fields")
+      return
+    }
+
+    const payload: UpdateIndicatorPayload = {
+      id: selectedIndicator.id,
+      department_id: Number(form.department_id),
+      designation_id: form.designation_id ? Number(form.designation_id) : undefined,
+      indicator_name: form.indicator_name.trim() || undefined,
+      description: form.description.trim(),
+      status: form.status,
+      added_by: form.added_by.trim() || undefined,
+    }
+
+    try {
+      await updateIndicatorMutation.mutateAsync(payload)
+      toast.success("Indicator updated successfully")
+      setShowEditDialog(false)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to update indicator"
+      toast.error(message)
+    }
+  }
+
+  const handleDeleteIndicator = async () => {
+    if (!selectedIndicator) return
+    try {
+      await deleteIndicatorMutation.mutateAsync(selectedIndicator.id)
+      toast.success("Indicator deleted successfully")
+      setShowDeleteDialog(false)
+      setSelectedIndicator(null)
+      setSelectedIndicatorId(undefined)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to delete indicator"
+      toast.error(message)
+    }
+  }
+
+  const getStatusBadge = (status: string) => {
+    if (status?.toLowerCase() === "active") {
+      return (
+        <Badge className="bg-green-100 text-green-800 hover:bg-green-100 py-1 px-2" variant="outline">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          Active
+        </Badge>
+      )
+    }
+    return (
+      <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100 py-1 px-2" variant="outline">
+        <XCircle className="h-3 w-3 mr-1" />
+        {status || "Inactive"}
+      </Badge>
+    )
+  }
+
+  const columns = [
+    {
+      key: "indicator_name",
+      label: "Indicator",
+      sortable: true,
+      render: (value: string, row: Indicator) => (
+        <div className="flex items-center">
+          <div className="h-9 w-9 rounded-md bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center mr-2 flex-shrink-0">
+            <BarChart3 className="h-4 w-4 text-blue-600" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-medium text-gray-900 truncate max-w-[220px]">{value}</div>
+            <div className="text-xs text-gray-500">
+              Dept: {row.department_name || row.department_id} | Desig: {row.designation_name || row.designation_id}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "added_by",
+      label: "Added By",
+      sortable: true,
+      render: (value: string) => <div className="text-sm text-gray-700">{value || "N/A"}</div>,
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      render: (value: string) => getStatusBadge(value),
+    },
+    {
+      key: "created_at",
+      label: "Created At",
+      sortable: true,
+      render: (value: string) => <div className="text-sm text-gray-700">{formatDate(value)}</div>,
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      render: (_: unknown, row: Indicator) => (
+        <div className="flex justify-start space-x-2">
+          <Button variant="outline" size="icon" onClick={() => openViewDialog(row)}>
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" className="text-blue-600 hover:text-blue-800" onClick={() => openEditDialog(row)}>
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="text-red-600 hover:text-red-800"
+            onClick={() => openDeleteDialog(row)}
+            disabled={deleteIndicatorMutation.isPending}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ]
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[320px]">
+        <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[320px] gap-3">
+        <p className="text-red-600 text-sm">{error.message || "Failed to load indicators"}</p>
+        <Button variant="outline" onClick={() => refetch()}>
+          Retry
+        </Button>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6">
-      <EnhancedDataTable
-        title="Performance Indicators"
-        description="Manage key performance indicators"
-        columns={columns}
-        data={mockIndicators}
-        filterOptions={filterOptions}
-        onAdd={handleAdd}
-        onEdit={handleEdit}
-        onView={handleView}
-        onDelete={handleDelete}
-      />
+    <div className="container mx-auto px-4 py-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div className="flex items-center space-x-3">
+          <div className="hidden h-12 w-12 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 shadow-sm sm:flex sm:items-center sm:justify-center">
+            <BarChart3 className="h-6 w-6 text-blue-600" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+              Performance Indicators
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Manage key performance indicators
+              <span className="ml-2 text-sm text-gray-500">({indicators.length} records)</span>
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"
+            onClick={() => refetch()}
+            disabled={isLoading}
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span className="ml-2 hidden sm:inline">Refresh</span>
+          </Button>
+          <Button
+            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
+            onClick={openAddDialog}
+          >
+            Add Indicator
+          </Button>
+        </div>
+      </div>
 
-      {/* Add Indicator Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Add New Performance Indicator</DialogTitle>
-          </DialogHeader>
-          <EnhancedForm
-            fields={indicatorFields}
-            onSubmit={handleSubmitAdd}
-            onCancel={() => setIsAddDialogOpen(false)}
-            isSubmitting={isSubmitting}
-            submitLabel="Add Indicator"
-            initialValues={{
-              status: "active",
-            }}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-500">Active Indicators</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">{activeCount}</div>
+          </CardContent>
+        </Card>
+        <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-500">Inactive Indicators</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">{inactiveCount}</div>
+          </CardContent>
+        </Card>
+        <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-500">Recent Indicators</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">{recentCount}</div>
+          </CardContent>
+        </Card>
+        <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-500">Total Indicators</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">{indicators.length}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="border border-gray-200 shadow-sm">
+        <CardContent className="p-0">
+          <DataTable
+            title="Performance Indicators"
+            columns={columns}
+            data={indicators}
+            searchFields={searchFields}
+            onAdd={openAddDialog}
           />
+        </CardContent>
+      </Card>
+
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="sm:max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle>Add Performance Indicator</DialogTitle>
+            <DialogDescription>Create a new performance indicator.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="indicator-name">Indicator Name</Label>
+              <Input
+                id="indicator-name"
+                value={form.indicator_name}
+                onChange={(e) => setForm((prev) => ({ ...prev, indicator_name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Department ID</Label>
+              <Select
+                value={form.department_id}
+                onValueChange={(value) => setForm((prev) => ({ ...prev, department_id: value }))}
+                disabled={isLoadingDepartments}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={isLoadingDepartments ? "Loading departments..." : "Select department"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((department) => (
+                    <SelectItem key={department.id} value={String(department.id)}>
+                      {department.id} - {department.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Designation ID</Label>
+              <Select
+                value={form.designation_id}
+                onValueChange={(value) => setForm((prev) => ({ ...prev, designation_id: value }))}
+                disabled={isLoadingDesignations}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={isLoadingDesignations ? "Loading designations..." : "Select designation"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {designations.map((designation) => (
+                    <SelectItem key={designation.id} value={String(designation.id)}>
+                      {designation.id} - {designation.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="indicator-description">Description</Label>
+              <Textarea
+                id="indicator-description"
+                value={form.description}
+                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                rows={4}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="added-by">Added By</Label>
+              <Input
+                id="added-by"
+                value={form.added_by}
+                onChange={(e) => setForm((prev) => ({ ...prev, added_by: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateIndicator} disabled={createIndicatorMutation.isPending}>
+              {createIndicatorMutation.isPending ? "Creating..." : "Create"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Indicator Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-[560px]">
           <DialogHeader>
             <DialogTitle>Edit Performance Indicator</DialogTitle>
+            <DialogDescription>Update indicator details.</DialogDescription>
           </DialogHeader>
-          <EnhancedForm
-            fields={indicatorFields}
-            onSubmit={handleSubmitEdit}
-            onCancel={() => setIsEditDialogOpen(false)}
-            isSubmitting={isSubmitting}
-            submitLabel="Update Indicator"
-            initialValues={selectedIndicator}
-          />
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Department ID</Label>
+              <Select
+                value={form.department_id}
+                onValueChange={(value) => setForm((prev) => ({ ...prev, department_id: value }))}
+                disabled={isLoadingDepartments}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={isLoadingDepartments ? "Loading departments..." : "Select department"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((department) => (
+                    <SelectItem key={department.id} value={String(department.id)}>
+                      {department.id} - {department.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Designation ID</Label>
+              <Select
+                value={form.designation_id}
+                onValueChange={(value) => setForm((prev) => ({ ...prev, designation_id: value }))}
+                disabled={isLoadingDesignations}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={isLoadingDesignations ? "Loading designations..." : "Select designation"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {designations.map((designation) => (
+                    <SelectItem key={designation.id} value={String(designation.id)}>
+                      {designation.id} - {designation.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-indicator-description">Description</Label>
+              <Textarea
+                id="edit-indicator-description"
+                value={form.description}
+                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                rows={4}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={updateIndicatorMutation.isPending}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateIndicator} disabled={updateIndicatorMutation.isPending}>
+              {updateIndicatorMutation.isPending ? "Updating..." : "Update"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* View Indicator Dialog */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+      <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
         <DialogContent className="sm:max-w-[700px]">
           <DialogHeader>
-            <DialogTitle>Performance Indicator Details</DialogTitle>
+            <DialogTitle>Indicator Details</DialogTitle>
+            <DialogDescription>View full indicator record.</DialogDescription>
           </DialogHeader>
-          {selectedIndicator && (
-            <Tabs defaultValue="details" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="criteria">Evaluation Criteria</TabsTrigger>
-              </TabsList>
-              <TabsContent value="details" className="space-y-4 pt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <h3 className="text-sm font-medium text-gray-500">Indicator Name</h3>
-                    <p className="text-base">{selectedIndicator.name}</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <h3 className="text-sm font-medium text-gray-500">Department</h3>
-                    <p className="text-base">{selectedIndicator.department}</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <h3 className="text-sm font-medium text-gray-500">Designation</h3>
-                    <p className="text-base">{selectedIndicator.designation}</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <h3 className="text-sm font-medium text-gray-500">Added By</h3>
-                    <p className="text-base">{selectedIndicator.addedBy}</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <h3 className="text-sm font-medium text-gray-500">Created Date</h3>
-                    <p className="text-base">{format(new Date(selectedIndicator.createdAt), "PPP")}</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <h3 className="text-sm font-medium text-gray-500">Status</h3>
-                    <Badge
-                      variant={selectedIndicator.status === "active" ? "success" : "secondary"}
-                      className="capitalize"
-                    >
-                      {selectedIndicator.status === "active" ? (
-                        <Check className="mr-1 h-3 w-3" />
-                      ) : (
-                        <X className="mr-1 h-3 w-3" />
-                      )}
-                      {selectedIndicator.status}
-                    </Badge>
-                  </div>
-                  <div className="space-y-1.5 col-span-2">
-                    <h3 className="text-sm font-medium text-gray-500">Description</h3>
-                    <p className="text-base">{selectedIndicator.description}</p>
-                  </div>
+          {isFetchingIndicator ? (
+            <div className="flex items-center justify-center min-h-[120px]">
+              <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
+            </div>
+          ) : selectedIndicatorDetails ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs text-gray-500">Indicator Name</Label>
+                  <p className="text-sm text-gray-900 mt-1">{selectedIndicatorDetails.indicator_name || "N/A"}</p>
                 </div>
-              </TabsContent>
-              <TabsContent value="criteria" className="space-y-4 pt-4">
-                <div className="rounded-md border">
-                  <div className="bg-gray-50 px-4 py-3 border-b">
-                    <h3 className="text-sm font-medium">Evaluation Criteria</h3>
-                  </div>
-                  <div className="p-4">
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-12 text-sm font-medium text-gray-500 pb-2 border-b">
-                        <div className="col-span-6">Criteria</div>
-                        <div className="col-span-3 text-center">Weight (%)</div>
-                        <div className="col-span-3 text-center">Rating Scale</div>
-                      </div>
-                      {selectedIndicator.criteria.map((criterion: any, index: number) => (
-                        <div key={index} className="grid grid-cols-12 text-sm">
-                          <div className="col-span-6">{criterion.name}</div>
-                          <div className="col-span-3 text-center">{criterion.weight}%</div>
-                          <div className="col-span-3 text-center">1-5</div>
-                        </div>
-                      ))}
-                      <div className="grid grid-cols-12 text-sm font-medium pt-2 border-t">
-                        <div className="col-span-6">Total</div>
-                        <div className="col-span-3 text-center">
-                          {selectedIndicator.criteria.reduce((sum: number, item: any) => sum + item.weight, 0)}%
-                        </div>
-                        <div className="col-span-3"></div>
-                      </div>
-                    </div>
-                    <div className="mt-6 space-y-2">
-                      <h4 className="text-sm font-medium">Rating Scale Description</h4>
-                      <div className="grid grid-cols-5 gap-2 text-xs">
-                        <div className="p-2 bg-gray-50 rounded-md">
-                          <div className="font-medium">1 - Poor</div>
-                          <div className="text-gray-500 mt-1">Performance is significantly below expectations</div>
-                        </div>
-                        <div className="p-2 bg-gray-50 rounded-md">
-                          <div className="font-medium">2 - Below Average</div>
-                          <div className="text-gray-500 mt-1">Performance is somewhat below expectations</div>
-                        </div>
-                        <div className="p-2 bg-gray-50 rounded-md">
-                          <div className="font-medium">3 - Average</div>
-                          <div className="text-gray-500 mt-1">Performance meets basic expectations</div>
-                        </div>
-                        <div className="p-2 bg-gray-50 rounded-md">
-                          <div className="font-medium">4 - Good</div>
-                          <div className="text-gray-500 mt-1">Performance exceeds expectations</div>
-                        </div>
-                        <div className="p-2 bg-gray-50 rounded-md">
-                          <div className="font-medium">5 - Excellent</div>
-                          <div className="text-gray-500 mt-1">Performance far exceeds expectations</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Added By</Label>
+                  <p className="text-sm text-gray-900 mt-1">{selectedIndicatorDetails.added_by || "N/A"}</p>
                 </div>
-              </TabsContent>
-            </Tabs>
+                <div>
+                  <Label className="text-xs text-gray-500">Department</Label>
+                  <p className="text-sm text-gray-900 mt-1">
+                    {selectedIndicatorDetails.department_name || selectedIndicatorDetails.department_id || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Designation</Label>
+                  <p className="text-sm text-gray-900 mt-1">
+                    {selectedIndicatorDetails.designation_name || selectedIndicatorDetails.designation_id || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Status</Label>
+                  <div className="mt-1">{getStatusBadge(selectedIndicatorDetails.status || "inactive")}</div>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Created At</Label>
+                  <p className="text-sm text-gray-900 mt-1">{formatDate(selectedIndicatorDetails.created_at)}</p>
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs text-gray-500">Description</Label>
+                <div className="mt-1 rounded-md border border-gray-200 bg-gray-50 p-3 text-sm text-gray-900 whitespace-pre-wrap">
+                  {selectedIndicatorDetails.description || "N/A"}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">No record selected.</p>
           )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowViewDialog(false)}>
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmationDialog
+        isOpen={showDeleteDialog}
+        onClose={() => {
+          setShowDeleteDialog(false)
+          setSelectedIndicator(null)
+          setSelectedIndicatorId(undefined)
+        }}
+        onConfirm={handleDeleteIndicator}
+        title="Delete Indicator"
+        description={`Are you sure you want to delete ${selectedIndicator?.indicator_name || "this indicator"}?`}
+        itemName={selectedIndicator?.indicator_name || "this indicator"}
+        isLoading={deleteIndicatorMutation.isPending}
+      />
     </div>
   )
 }
