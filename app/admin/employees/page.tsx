@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
-import EmployeesClientWrapper from "./client-wrapper"
 import { SetupDatabaseButton } from "../components/setup-database-button"
+import EmployeeSections from "./employee-sections"
 
 export const metadata: Metadata = {
   title: "IPPIS - Employees",
@@ -13,7 +13,7 @@ export default function EmployeesPage() {
       <div className="flex justify-end">
         <SetupDatabaseButton />
       </div>
-      <EmployeesClientWrapper />
+      <EmployeeSections />
     </div>
   )
 }

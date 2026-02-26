@@ -205,7 +205,7 @@ export function ImportContent() {
         setFile(null)
         setValidationResults(null)
         setTimeout(() => {
-          router.push("/admin/pending")
+          router.push("/admin/employees?tab=pending")
           router.refresh() 
         }, 1500)
       } else {
@@ -336,18 +336,7 @@ Brown,Robert,robert.brown@example.com,Operations,Operations Manager`
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center shadow-sm">
-            <Upload className="h-6 w-6 text-green-600" />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-              Import Employees
-            </h1>
-            <p className="text-gray-600 mt-1">Upload CSVs to add employees to pending approvals.</p>
-          </div>
-        </div>
+      <div className="flex items-center justify-end">
         <Button variant="destructive" size="sm" onClick={handleClearData} disabled={isClearing}>
           <Trash2 className="mr-2 h-4 w-4" />
           {isClearing ? "Clearing..." : "Clear All Pending"}

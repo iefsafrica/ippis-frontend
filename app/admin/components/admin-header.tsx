@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Menu, Search, User, Settings, LogOut, ChevronDown, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +25,7 @@ import ChangePassword from "./change-password"
 
 export function AdminHeader() {
   const pathname = usePathname() || ""
+  const searchParams = useSearchParams()
   const router = useRouter()
   const { isMobile, toggleSidebar } = useMobile()
   const [showSearch, setShowSearch] = useState(false)
@@ -58,7 +59,12 @@ export function AdminHeader() {
   // Get page title based on pathname
   const getPageTitle = () => {
     if (pathname === "/admin") return "Dashboard"
-    if (pathname === "/admin/employees") return "Employee"
+    if (pathname === "/admin/employees") {
+      const employeeTab = searchParams.get("tab")
+      if (employeeTab === "pending") return "Pending Employee"
+      if (employeeTab === "import") return "Import Employees"
+      return "Employee"
+    }
     if (pathname === "/admin/pending") return "Pending Employee"
     if (pathname === "/admin/documents") return "Documents"
     if (pathname === "/admin/reports") return "Reports"

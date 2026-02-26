@@ -178,14 +178,6 @@ export function AdminSidebar() {
           href: "/admin/employees",
         },
         {
-          title: "Pending Employee",
-          href: "/admin/pending",
-        },
-        {
-          title: "Import Employees",
-          href: "/admin/import",
-        },
-        {
           title: "Documents",
           href: "/admin/documents",
         },

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -1041,13 +1041,7 @@ export default function EmployeesContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Employees</h1>
-          <p className="text-muted-foreground">
-            Manage and view all approved employees in the system.
-          </p>
-        </div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           <Button onClick={() => setShowAddDialog(true)} className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
@@ -1063,10 +1057,7 @@ export default function EmployeesContent() {
       </div>
 
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Employee List</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="mb-6 flex flex-col gap-4 md:flex-row">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
@@ -1124,7 +1115,7 @@ export default function EmployeesContent() {
             </div>
           </div>
 
-          <div className="w-full overflow-x-auto rounded-md border [-webkit-overflow-scrolling:touch]">
+          <div className="w-full overflow-x-auto rounded-md [-webkit-overflow-scrolling:touch]">
             <Table className="min-w-[980px]">
               <TableHeader>
                 <TableRow>

@@ -3045,45 +3045,24 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
 
   return (
     <div className="container mx-auto px-0 py-4 sm:px-4 sm:py-6 space-y-6">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div className="flex items-center space-x-3">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 flex items-center justify-center shadow-sm">
-            <Users className="h-6 w-6 text-blue-600" />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-              Pending Employees
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Manage and review employee submissions awaiting approval
-            </p>
-          </div>
-        </div>
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button onClick={handleRefresh} variant="outline" size="sm">
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Refresh data</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <ClearPendingEmployeesButton onSuccess={handleRefresh} />
-        </div>
+      <div className="flex w-full flex-wrap items-center justify-end gap-2">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button onClick={handleRefresh} variant="outline" size="sm">
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Refresh data</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <ClearPendingEmployeesButton onSuccess={handleRefresh} />
       </div>
 
       <Card className="overflow-hidden rounded-xl border border-gray-200 shadow-lg">
-        <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 pb-3">
-          <CardTitle className="text-lg font-semibold text-gray-900">Employee Management</CardTitle>
-          <CardDescription className="text-gray-600">
-            Search, filter, and manage pending employee submissions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row">
             <form onSubmit={handleSearch} className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
               <div className="relative w-full sm:w-80">
@@ -3106,27 +3085,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
             </div>
           </div>
 
-          <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:w-auto lg:inline-flex">
-              <TabsTrigger value="all" className="flex items-center gap-2">
-                All
-                <Badge variant="secondary" className="ml-1 h-5 w-5 rounded-full p-0 text-xs">
-                  {pendingEmployees.filter(emp => emp.status !== "active" && emp.status !== "approved").length}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="pending_approval" className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Pending
-              </TabsTrigger>
-              <TabsTrigger value="document_verification" className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Documents
-              </TabsTrigger>
-              <TabsTrigger value="data_incomplete" className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" />
-                Incomplete
-              </TabsTrigger>
-            </TabsList>
+          <Tabs defaultValue="all">
 
             <TabsContent value="all" className="space-y-4 mt-6">
               {pendingEmployees.length === 0 ? (
