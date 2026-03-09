@@ -52,7 +52,9 @@ export default function AdminLayout({
           <GlobalPatch />
           <AdminSidebar />
           <div className="flex-1 flex min-w-0 flex-col min-h-0">
-            <AdminHeader />
+            <Suspense fallback={<AdminLoading />}>
+              <AdminHeader />
+            </Suspense>
             <main className="flex-1 min-h-0 min-w-0 overflow-y-auto bg-white pt-4 sm:px-4 sm:pt-6 lg:px-6 lg:pt-6">
               <Suspense fallback={<AdminLoading />}>
                 {React.Children.map(children, (child, index) =>
