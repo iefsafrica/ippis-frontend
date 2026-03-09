@@ -26,7 +26,72 @@ import {
   type EmployeeGrowthData,
   type PayrollStats,
 } from "../services/real-reports-service"
-import { PieChart as TremorPieChart } from "@tremor/react";
+import { getEmployeesList } from "@/services/endpoints/employees/employees"
+import { getPendingEmployees, getDocuments } from "@/services/endpoints/employees/pendingEmployees"
+
+const isWithinDateRange = (rawDate: string, startDate: Date, endDate: Date) => {
+  const value = new Date(rawDate)
+  if (Number.isNaN(value.getTime())) return false
+  return value >= startDate && value <= endDate
+}
+
+const normalizeDepartment = (department: string | undefined | null) =>
+  String(department ?? "").trim().toLowerCase()
+
+const departmentMatches = (employeeDepartment: string | undefined | null, selectedDepartment: string) => {
+  const selected = normalizeDepartment(selectedDepartment)
+  const current = normalizeDepartment(employeeDepartment)
+
+  if (selected === "all") return true
+  if (current === selected) return true
+
+  if (selected === "hr") return current === "human resources"
+  if (selected === "it") return current === "information technology"
+  return false
+}
+
+const getMonthLabels = (startDate: Date, endDate: Date) => {
+  const labels: string[] = []
+  const cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
+  const end = new Date(endDate.getFullYear(), endDate.getMonth(), 1)
+
+  while (cursor <= end) {
+    labels.push(format(cursor, "MMM yyyy"))
+    cursor.setMonth(cursor.getMonth() + 1)
+  }
+
+  return labels
+}
+
+const getEmployeesForAllPages = async () => {
+  const firstPage = await getEmployeesList(1)
+  const totalPages = firstPage?.pagination?.totalPages ?? 1
+  const firstEmployees = firstPage?.employees ?? []
+
+  if (totalPages <= 1) return firstEmployees
+
+  const remaining = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, idx) => getEmployeesList(idx + 2)),
+  )
+
+  const merged = [...firstEmployees, ...remaining.flatMap((page) => page.employees ?? [])]
+  return Array.from(new Map(merged.map((employee) => [employee.id, employee])).values())
+}
+
+const getPendingForAllPages = async () => {
+  const pageSize = 100
+  const firstPage = await getPendingEmployees(1, pageSize)
+  const totalPages = firstPage?.data?.pagination?.totalPages ?? 1
+  const firstEmployees = firstPage?.data?.employees ?? []
+
+  if (totalPages <= 1) return firstEmployees
+
+  const remaining = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, idx) => getPendingEmployees(idx + 2, pageSize)),
+  )
+
+  return [...firstEmployees, ...remaining.flatMap((page) => page.data?.employees ?? [])]
+}
 export function ReportsContent() {
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [startDate, setStartDate] = useState<Date>(subMonths(new Date(), 12))
@@ -57,22 +122,145 @@ export function ReportsContent() {
 
         switch (activeTab) {
           case "overview":
-            const stats = await ReportsService.getOverviewStats(filters)
-            setOverviewStats(stats)
+            const [allEmployees, allPendingEmployees, documentsResponse] = await Promise.all([
+              getEmployeesForAllPages(),
+              getPendingForAllPages(),
+              getDocuments().catch(() => null),
+            ])
 
-            const growthData = await ReportsService.getEmployeeGrowthData(filters)
+            const employeesInScope = allEmployees.filter((employee) => {
+              return departmentMatches(employee.department, selectedDepartment)
+            })
+
+            const pendingInScope = allPendingEmployees.filter((employee) => {
+              return departmentMatches(employee.department, selectedDepartment)
+            })
+
+            const currentYear = new Date().getFullYear()
+            const lastYear = currentYear - 1
+
+            const newHires = employeesInScope.filter((employee) => {
+              const joinDate = new Date(employee.join_date)
+              return !Number.isNaN(joinDate.getTime()) && joinDate.getFullYear() === currentYear
+            }).length
+
+            const lastYearHires = employeesInScope.filter((employee) => {
+              const joinDate = new Date(employee.join_date)
+              return !Number.isNaN(joinDate.getTime()) && joinDate.getFullYear() === lastYear
+            }).length
+
+            const growthRate =
+              lastYearHires > 0
+                ? ((newHires - lastYearHires) / lastYearHires) * 100
+                : newHires > 0
+                  ? 100
+                  : 0
+
+            const totalEmployees = employeesInScope.length
+            const pendingApprovals = pendingInScope.length
+            const approvalRate =
+              totalEmployees + pendingApprovals > 0
+                ? (totalEmployees / (totalEmployees + pendingApprovals)) * 100
+                : 0
+
+            const hasDepartmentFilter = normalizeDepartment(selectedDepartment) !== "all"
+            const employeesByRegistration = new Map(
+              employeesInScope
+                .filter((employee) => employee.registration_id)
+                .map((employee) => [String(employee.registration_id), employee]),
+            )
+
+            const docsData = Array.isArray(documentsResponse)
+              ? documentsResponse
+              : (documentsResponse?.data ?? [])
+            const documentSubmissions = docsData.filter((row) => {
+              if (!row.uploadedAt) return false
+              if (!isWithinDateRange(row.uploadedAt, startDate, endDate)) return false
+              if (!hasDepartmentFilter) return true
+              const matchedEmployee = employeesByRegistration.get(String(row.registrationId))
+              return departmentMatches(matchedEmployee?.department, selectedDepartment)
+            }).length
+
+            const overview: OverviewStats = {
+              totalEmployees,
+              newHires,
+              pendingApprovals,
+              documentSubmissions,
+              growthRate: Number(growthRate.toFixed(1)),
+              approvalRate: Number(approvalRate.toFixed(1)),
+            }
+
+            const labels = getMonthLabels(startDate, endDate)
+            const trendData = labels.map((label) => {
+              const [monthLabel, yearLabel] = label.split(" ")
+              const monthStart = new Date(`${monthLabel} 1, ${yearLabel}`)
+              const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
+              return employeesInScope.filter((employee) => {
+                const joinDate = new Date(employee.join_date)
+                return !Number.isNaN(joinDate.getTime()) && joinDate <= monthEnd
+              }).length
+            })
+
+            const growthData: EmployeeGrowthData = {
+              labels,
+              datasets: [{ label: "Employees", data: trendData }],
+            }
+
+            const departmentCountMap = new Map<string, number>()
+            employeesInScope.forEach((employee) => {
+              const key = employee.department || "Unassigned"
+              departmentCountMap.set(key, (departmentCountMap.get(key) ?? 0) + 1)
+            })
+
+            const deptStats: DepartmentStats[] = Array.from(departmentCountMap.entries()).map(([name, count]) => ({
+              name,
+              count,
+              percentage: totalEmployees > 0 ? Number(((count / totalEmployees) * 100).toFixed(1)) : 0,
+            }))
+
+            setOverviewStats(overview)
             setEmployeeGrowthData(growthData)
-
-            const deptStats = await ReportsService.getDepartmentStats(filters)
             setDepartmentStats(deptStats)
             break
 
           case "employees":
-            const empGrowthData = await ReportsService.getEmployeeGrowthData(filters)
-            setEmployeeGrowthData(empGrowthData)
+            const employeesForTab = await getEmployeesForAllPages()
+            const scopedEmployeesForTab = employeesForTab.filter((employee) => {
+              return departmentMatches(employee.department, selectedDepartment)
+            })
 
-            const empDeptStats = await ReportsService.getDepartmentStats(filters)
-            setDepartmentStats(empDeptStats)
+            const labelsForTab = getMonthLabels(startDate, endDate)
+            const trendDataForTab = labelsForTab.map((label) => {
+              const [monthLabel, yearLabel] = label.split(" ")
+              const monthStart = new Date(`${monthLabel} 1, ${yearLabel}`)
+              const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
+              return scopedEmployeesForTab.filter((employee) => {
+                const joinDate = new Date(employee.join_date)
+                return !Number.isNaN(joinDate.getTime()) && joinDate <= monthEnd
+              }).length
+            })
+
+            setEmployeeGrowthData({
+              labels: labelsForTab,
+              datasets: [{ label: "Employees", data: trendDataForTab }],
+            })
+
+            const departmentMapForTab = new Map<string, number>()
+            scopedEmployeesForTab.forEach((employee) => {
+              const key = employee.department || "Unassigned"
+              departmentMapForTab.set(key, (departmentMapForTab.get(key) ?? 0) + 1)
+            })
+
+            setDepartmentStats(
+              Array.from(departmentMapForTab.entries()).map(([name, count]) => ({
+                name,
+                count,
+                percentage:
+                  scopedEmployeesForTab.length > 0
+                    ? Number(((count / scopedEmployeesForTab.length) * 100).toFixed(1))
+                    : 0,
+              })),
+            )
             break
 
           case "payroll":
@@ -234,9 +422,9 @@ export function ReportsContent() {
           ) : (
             <>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
+                <Card className="rounded-xl border border-gray-200 bg-white shadow-sm transition-colors hover:border-emerald-200">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
+                    <CardTitle className="text-sm font-medium text-slate-600">
                       Total Employees
                     </CardTitle>
                     <svg
@@ -266,9 +454,9 @@ export function ReportsContent() {
                     </p>
                   </CardContent>
                 </Card>
-                <Card>
+                <Card className="rounded-xl border border-gray-200 bg-white shadow-sm transition-colors hover:border-emerald-200">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
+                    <CardTitle className="text-sm font-medium text-slate-600">
                       New Hires
                     </CardTitle>
                     <svg
@@ -295,9 +483,9 @@ export function ReportsContent() {
                     </p>
                   </CardContent>
                 </Card>
-                <Card>
+                <Card className="rounded-xl border border-gray-200 bg-white shadow-sm transition-colors hover:border-emerald-200">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
+                    <CardTitle className="text-sm font-medium text-slate-600">
                       Pending Approvals
                     </CardTitle>
                     <svg
@@ -323,9 +511,9 @@ export function ReportsContent() {
                     </p>
                   </CardContent>
                 </Card>
-                <Card>
+                <Card className="rounded-xl border border-gray-200 bg-white shadow-sm transition-colors hover:border-emerald-200">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
+                    <CardTitle className="text-sm font-medium text-slate-600">
                       Document Submissions
                     </CardTitle>
                     <svg
@@ -353,7 +541,7 @@ export function ReportsContent() {
               </div>
 
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <Card className="col-span-4">
+                <Card className="col-span-4 rounded-xl border border-gray-200 bg-white shadow-sm transition-colors hover:border-emerald-200">
                   <CardHeader>
                     <CardTitle>Employee Growth</CardTitle>
                     <CardDescription>
@@ -362,7 +550,7 @@ export function ReportsContent() {
                   </CardHeader>
                   <CardContent className="pl-2">
                     {employeeGrowthData ? (
-                      <div className="h-[300px] w-full flex items-center justify-center bg-muted/20 rounded-md">
+                      <div className="h-[300px] w-full flex items-center justify-center rounded-lg border border-gray-200 bg-muted/20 transition-colors hover:border-emerald-200">
                         <LineChart className="h-16 w-16 text-muted" />
                         <span className="ml-2 text-muted">
                           Employee Growth Chart
@@ -375,15 +563,15 @@ export function ReportsContent() {
                     )}
                   </CardContent>
                 </Card>
-                <Card className="col-span-3">
+                <Card className="col-span-3 rounded-xl border border-gray-200 bg-white shadow-sm transition-colors hover:border-emerald-200">
                   <CardHeader>
                     <CardTitle>Department Distribution</CardTitle>
                     <CardDescription>Employees by department</CardDescription>
                   </CardHeader>
                   <CardContent>
                     {departmentStats && departmentStats.length > 0 ? (
-                      <div className="h-[300px] w-full flex items-center justify-center bg-muted/20 rounded-md">
-                        <TremorPieChart className="h-16 w-16 text-muted" />
+                      <div className="h-[300px] w-full flex items-center justify-center rounded-lg border border-gray-200 bg-muted/20 transition-colors hover:border-emerald-200">
+                        <LucidePieChart className="h-16 w-16 text-muted" />
                         <span className="ml-2 text-muted">
                           Department Distribution Chart
                         </span>
@@ -407,7 +595,7 @@ export function ReportsContent() {
               <span className="ml-2">Loading employee data...</span>
             </div>
           ) : (
-            <Card>
+            <Card className="rounded-xl border border-gray-200 bg-white shadow-sm transition-colors hover:border-emerald-200">
               <CardHeader>
                 <CardTitle>Employee Demographics</CardTitle>
                 <CardDescription>
@@ -415,7 +603,7 @@ export function ReportsContent() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-[400px] w-full flex items-center justify-center bg-muted/20 rounded-md">
+                <div className="h-[400px] w-full flex items-center justify-center rounded-lg border border-gray-200 bg-muted/20 transition-colors hover:border-emerald-200">
                   <BarChart className="h-16 w-16 text-muted" />
                   <span className="ml-2 text-muted">
                     Employee Demographics Chart
@@ -433,7 +621,7 @@ export function ReportsContent() {
               <span className="ml-2">Loading payroll data...</span>
             </div>
           ) : (
-            <Card>
+            <Card className="rounded-xl border border-gray-200 bg-white shadow-sm transition-colors hover:border-emerald-200">
               <CardHeader>
                 <CardTitle>Payroll Analysis</CardTitle>
                 <CardDescription>
@@ -441,7 +629,7 @@ export function ReportsContent() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-[400px] w-full flex items-center justify-center bg-muted/20 rounded-md">
+                <div className="h-[400px] w-full flex items-center justify-center rounded-lg border border-gray-200 bg-muted/20 transition-colors hover:border-emerald-200">
                   <BarChart className="h-16 w-16 text-muted" />
                   <span className="ml-2 text-muted">
                     Payroll Analysis Chart

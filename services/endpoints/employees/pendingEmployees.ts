@@ -11,11 +11,7 @@ export const getPendingEmployees = async (
   page: number = 1,
   limit: number = 10
 ): Promise<PendingEmployeesResponse> => {
-  const { data } = await get<PendingEmployeesResponse>(`/admin/pending`, {
-    params: { page, limit },
-  });
-  // @ts-expect-error axios response mismatch
-  return data;
+  return get<PendingEmployeesResponse>(`/admin/pending`, { page, limit });
 };
 
 export const updateEmployeeStatus = async (
