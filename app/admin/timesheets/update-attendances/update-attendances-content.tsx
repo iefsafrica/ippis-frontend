@@ -1,119 +1,139 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Search, Save, Calendar, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/components/ui/use-toast"
+import { useAttendances, useUpdateAttendance } from "@/services/hooks/timesheets/attendance"
+import { AttendanceFilterParams, AttendanceStatus } from "@/types/timesheets/attendance"
+
+type EditableAttendanceRow = {
+  id: number
+  employeeId: string
+  name: string
+  department: string
+  status: AttendanceStatus
+  clockIn: string
+  clockOut: string
+  notes: string
+}
 
 export function UpdateAttendancesContent() {
-  const [date, setDate] = useState("2023-05-08")
+  const defaultDate = new Date().toISOString().split("T")[0]
+  const [date, setDate] = useState(defaultDate)
   const [department, setDepartment] = useState("all")
-  const [isLoading, setIsLoading] = useState(false)
+  const [searchFilters, setSearchFilters] = useState<AttendanceFilterParams>({
+    attendance_date: defaultDate,
+  })
+  const [attendanceData, setAttendanceData] = useState<EditableAttendanceRow[]>([])
   const [isSaving, setIsSaving] = useState(false)
+  const attendancesQuery = useAttendances(searchFilters)
+  const updateAttendanceMutation = useUpdateAttendance()
 
-  // Mock data for demonstration
-  const [attendanceData, setAttendanceData] = useState([
-    {
-      id: "1",
-      employeeId: "EMP001",
-      name: "John Doe",
-      department: "IT",
-      status: "present",
-      clockIn: "08:30",
-      clockOut: "17:15",
-      notes: "",
-    },
-    {
-      id: "2",
-      employeeId: "EMP002",
-      name: "Jane Smith",
-      department: "HR",
-      status: "late",
-      clockIn: "09:05",
-      clockOut: "18:00",
-      notes: "Traffic delay",
-    },
-    {
-      id: "3",
-      employeeId: "EMP003",
-      name: "Robert Johnson",
-      department: "Finance",
-      status: "present",
-      clockIn: "08:00",
-      clockOut: "16:30",
-      notes: "",
-    },
-    {
-      id: "4",
-      employeeId: "EMP004",
-      name: "Emily Davis",
-      department: "Marketing",
-      status: "absent",
-      clockIn: "",
-      clockOut: "",
-      notes: "Sick",
-    },
-    {
-      id: "5",
-      employeeId: "EMP005",
-      name: "Michael Wilson",
-      department: "Operations",
-      status: "present",
-      clockIn: "08:45",
-      clockOut: "17:30",
-      notes: "",
-    },
-  ])
+  useEffect(() => {
+    if (!attendancesQuery.data) {
+      setAttendanceData([])
+      return
+    }
+
+    setAttendanceData(
+      attendancesQuery.data.map((attendance) => ({
+        id: attendance.id,
+        employeeId: attendance.employee_code ?? "",
+        name: attendance.employee_name,
+        department: attendance.department ?? "",
+        status: attendance.status,
+        clockIn: attendance.clock_in ?? "",
+        clockOut: attendance.clock_out ?? "",
+        notes: attendance.notes ?? "",
+      })),
+    )
+  }, [attendancesQuery.data])
 
   const handleSearch = () => {
-    setIsLoading(true)
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false)
-    }, 1000)
+    const filters: AttendanceFilterParams = {}
+    if (date) {
+      filters.attendance_date = date
+    }
+    if (department && department !== "all") {
+      filters.department = department
+    }
+    setSearchFilters(filters)
   }
 
-  const handleSaveChanges = () => {
+  const handleSaveChanges = async () => {
+    if (attendanceData.length === 0) {
+      toast({
+        title: "No records",
+        description: "Load attendance records before saving.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsSaving(true)
-    // Simulate API call
-    setTimeout(() => {
-      setIsSaving(false)
+    try {
+      await Promise.all(
+        attendanceData.map((item) =>
+          updateAttendanceMutation.mutateAsync({
+            id: item.id,
+            clock_in: item.clockIn,
+            clock_out: item.clockOut,
+            status: item.status,
+            notes: item.notes,
+          }),
+        ),
+      )
       toast({
         title: "Changes saved",
         description: "Attendance records have been updated successfully.",
+        variant: "success",
       })
-    }, 1500)
+      attendancesQuery.refetch()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to save changes"
+      toast({
+        title: "Save failed",
+        description: message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  const handleStatusChange = (id: string, value: string) => {
+  const handleStatusChange = (id: number, value: AttendanceStatus) => {
     setAttendanceData((prev) =>
       prev.map((item) => {
-        if (item.id === id) {
-          const updatedItem = { ...item, status: value }
-          // If status is absent, clear clock in/out times
-          if (value === "absent") {
-            updatedItem.clockIn = ""
-            updatedItem.clockOut = ""
-          }
-          return updatedItem
+        if (item.id !== id) {
+          return item
         }
-        return item
+        const updatedItem = { ...item, status: value }
+        if (value === "absent") {
+          updatedItem.clockIn = ""
+          updatedItem.clockOut = ""
+        }
+        return updatedItem
       }),
     )
   }
 
-  const handleClockInChange = (id: string, value: string) => {
-    setAttendanceData((prev) => prev.map((item) => (item.id === id ? { ...item, clockIn: value } : item)))
+  const handleClockInChange = (id: number, value: string) => {
+    setAttendanceData((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, clockIn: value } : item)),
+    )
   }
 
-  const handleClockOutChange = (id: string, value: string) => {
-    setAttendanceData((prev) => prev.map((item) => (item.id === id ? { ...item, clockOut: value } : item)))
+  const handleClockOutChange = (id: number, value: string) => {
+    setAttendanceData((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, clockOut: value } : item)),
+    )
   }
 
-  const handleNotesChange = (id: string, value: string) => {
+  const handleNotesChange = (id: number, value: string) => {
     setAttendanceData((prev) => prev.map((item) => (item.id === id ? { ...item, notes: value } : item)))
   }
 
@@ -166,12 +186,12 @@ export function UpdateAttendancesContent() {
               </select>
             </div>
             <div className="flex items-end">
-              <Button onClick={handleSearch} disabled={isLoading}>
-                {isLoading ? (
-                  <span className="flex items-center">
-                    <svg
-                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
+            <Button onClick={handleSearch} disabled={attendancesQuery.isFetching}>
+              {attendancesQuery.isFetching ? (
+                <span className="flex items-center">
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
                       fill="none"
                       viewBox="0 0 24 24"
                     >
@@ -215,7 +235,7 @@ export function UpdateAttendancesContent() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
+                {attendancesQuery.isFetching ? (
                   Array.from({ length: 5 }).map((_, index) => (
                     <TableRow key={`loading-${index}`}>
                       {Array.from({ length: 7 }).map((_, cellIndex) => (

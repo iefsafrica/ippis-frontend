@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { EnhancedDataTable } from "@/app/admin/components/enhanced-data-table"
 import { EnhancedForm, type FormField } from "@/app/admin/components/enhanced-form"
 import { Badge } from "@/components/ui/badge"
@@ -9,71 +9,57 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { UserCheck, FileUp, Download } from "lucide-react"
 import { format } from "date-fns"
 
+import { useToast } from "@/components/ui/use-toast"
+import {
+  useAttendances,
+  useDeleteAttendance,
+  useMarkAttendance,
+  useUpdateAttendance,
+} from "@/services/hooks/timesheets/attendance"
+import {
+  AttendanceRecord,
+  MarkAttendancePayload,
+  UpdateAttendancePayload,
+} from "@/types/timesheets/attendance"
+
 export function AttendancesContent() {
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<AttendanceRecord | null>(null)
+  const { toast } = useToast()
 
-  // Mock data for demonstration
-  const attendanceData = [
-    {
-      id: "1",
-      employeeId: "EMP001",
-      name: "John Doe",
-      department: "IT",
-      date: "2023-05-08",
-      clockIn: "08:30 AM",
-      clockOut: "05:15 PM",
-      status: "present",
-      notes: "",
-    },
-    {
-      id: "2",
-      employeeId: "EMP002",
-      name: "Jane Smith",
-      department: "HR",
-      date: "2023-05-08",
-      clockIn: "09:05 AM",
-      clockOut: "06:00 PM",
-      status: "late",
-      notes: "Traffic delay",
-    },
-    {
-      id: "3",
-      employeeId: "EMP003",
-      name: "Robert Johnson",
-      department: "Finance",
-      date: "2023-05-08",
-      clockIn: "08:00 AM",
-      clockOut: "04:30 PM",
-      status: "present",
-      notes: "",
-    },
-    {
-      id: "4",
-      employeeId: "EMP004",
-      name: "Emily Davis",
-      department: "Marketing",
-      date: "2023-05-08",
-      clockIn: "",
-      clockOut: "",
-      status: "absent",
-      notes: "Sick",
-    },
-    {
-      id: "5",
-      employeeId: "EMP005",
-      name: "Michael Wilson",
-      department: "Operations",
-      date: "2023-05-08",
-      clockIn: "08:45 AM",
-      clockOut: "05:30 PM",
-      status: "present",
-      notes: "",
-    },
-  ]
+  const attendancesQuery = useAttendances()
+  const markAttendanceMutation = useMarkAttendance()
+  const updateAttendanceMutation = useUpdateAttendance()
+  const deleteAttendanceMutation = useDeleteAttendance()
+
+  const tableData = useMemo(
+    () =>
+      attendancesQuery.data?.map((attendance) => ({
+        id: attendance.id.toString(),
+        employeeId: attendance.employee_code ?? "",
+        name: attendance.employee_name,
+        department: attendance.department,
+        date: attendance.attendance_date,
+        clockIn: attendance.clock_in ?? "",
+        clockOut: attendance.clock_out ?? "",
+        status: attendance.status,
+        notes: attendance.notes ?? "",
+      })) ?? [],
+    [attendancesQuery.data],
+  )
+
+  const formatDateForForm = (value?: string) => (value ? new Date(value).toISOString().split("T")[0] : "")
+
+  const handleMutationError = (error: unknown, title: string) => {
+    const description = error instanceof Error ? error.message : "Something went wrong"
+    toast({
+      title,
+      description,
+      variant: "destructive",
+    })
+  }
 
   const columns = [
     {
@@ -209,44 +195,83 @@ export function AttendancesContent() {
   ]
 
   const handleAdd = () => {
+    setSelectedItem(null)
     setAddDialogOpen(true)
   }
 
   const handleEdit = (id: string) => {
-    const item = attendanceData.find((item) => item.id === id)
-    setSelectedItem(item)
+    const attendance = attendancesQuery.data?.find((item) => item.id.toString() === id)
+    if (!attendance) return
+    setSelectedItem(attendance)
     setEditDialogOpen(true)
   }
 
   const handleView = (id: string) => {
-    const item = attendanceData.find((item) => item.id === id)
-    setSelectedItem(item)
+    const attendance = attendancesQuery.data?.find((item) => item.id.toString() === id)
+    if (!attendance) return
+    setSelectedItem(attendance)
     setViewDialogOpen(true)
   }
 
   const handleDelete = (id: string) => {
-    console.log("Delete item with ID:", id)
-    // Implement delete logic here
+    deleteAttendanceMutation.mutate(Number(id), {
+      onSuccess: () => {
+        toast({
+          title: "Attendance removed",
+          description: "The record has been deleted.",
+          variant: "success",
+        })
+      },
+      onError: (error) => handleMutationError(error, "Unable to delete attendance"),
+    })
   }
 
   const handleSubmitAdd = (data: Record<string, any>) => {
-    console.log("Add attendance:", data)
-    setIsLoading(true)
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false)
-      setAddDialogOpen(false)
-    }, 1000)
+    const payload: MarkAttendancePayload = {
+      employee_code: data.employeeId,
+      attendance_date: data.date,
+      clock_in: data.clockIn,
+      clock_out: data.clockOut,
+      status: data.status,
+      notes: data.notes ?? "",
+    }
+
+    markAttendanceMutation.mutate(payload, {
+      onSuccess: () => {
+        toast({
+          title: "Attendance recorded",
+          description: "The attendance entry has been saved.",
+          variant: "success",
+        })
+        setAddDialogOpen(false)
+      },
+      onError: (error) => handleMutationError(error, "Unable to mark attendance"),
+    })
   }
 
   const handleSubmitEdit = (data: Record<string, any>) => {
-    console.log("Edit attendance:", data)
-    setIsLoading(true)
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false)
-      setEditDialogOpen(false)
-    }, 1000)
+    if (!selectedItem) return
+
+    const payload: UpdateAttendancePayload = {
+      id: selectedItem.id,
+      clock_in: data.clockIn,
+      clock_out: data.clockOut,
+      status: data.status,
+      notes: data.notes ?? "",
+    }
+
+    updateAttendanceMutation.mutate(payload, {
+      onSuccess: () => {
+        toast({
+          title: "Attendance updated",
+          description: "The changes have been saved.",
+          variant: "success",
+        })
+        setEditDialogOpen(false)
+        setSelectedItem(null)
+      },
+      onError: (error) => handleMutationError(error, "Unable to update attendance"),
+    })
   }
 
   return (

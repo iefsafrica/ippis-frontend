@@ -23,6 +23,8 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useToast } from "@/components/ui/use-toast"
+import { useImportAttendance } from "@/services/hooks/timesheets/attendance"
 
 export function ImportAttendancesContent() {
   const [file, setFile] = useState<File | null>(null)
@@ -32,6 +34,8 @@ export function ImportAttendancesContent() {
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [previewData, setPreviewData] = useState<any[]>([])
   const [activeTab, setActiveTab] = useState("upload")
+  const importAttendanceMutation = useImportAttendance()
+  const { toast } = useToast()
 
   // Mock data for preview
   const mockPreviewData = [
@@ -141,13 +145,36 @@ export function ImportAttendancesContent() {
   }
 
   const handleImport = () => {
-    console.log("Importing data...")
-    // Implement import logic
+    if (!file) {
+      toast({
+        title: "No file selected",
+        description: "Please upload a CSV before importing.",
+        variant: "destructive",
+      })
+      return
+    }
 
-    // Simulate success
-    setTimeout(() => {
-      setActiveTab("success")
-    }, 1500)
+    importAttendanceMutation.mutate(
+      { file },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Import successful",
+            description: "Attendance records have been imported.",
+            variant: "success",
+          })
+          setActiveTab("success")
+        },
+        onError: (error) => {
+          const message = error instanceof Error ? error.message : "Failed to import attendance"
+          toast({
+            title: "Import failed",
+            description: message,
+            variant: "destructive",
+          })
+        },
+      },
+    )
   }
 
   const handleExportCSV = () => {
@@ -352,7 +379,12 @@ export function ImportAttendancesContent() {
               <Button variant="outline" onClick={() => setActiveTab("upload")}>
                 Back
               </Button>
-              <Button onClick={handleImport}>Import Data</Button>
+              <Button
+                onClick={handleImport}
+                disabled={!file || importAttendanceMutation.isLoading || validationErrors.length > 0}
+              >
+                {importAttendanceMutation.isLoading ? "Importing..." : "Import Data"}
+              </Button>
             </CardFooter>
           </Card>
         </TabsContent>
