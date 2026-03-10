@@ -3,7 +3,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { SessionProvider } from "next-auth/react";
 import { AuthProvider } from "@/lib/auth-context";
 import { AdminSidebar } from "./components/admin-sidebar";
 import { AdminHeader } from "./components/admin-header";
@@ -42,8 +41,7 @@ export default function AdminLayout({
   }
 
   return (
-    <SessionProvider>
-      <AuthProvider>
+    <AuthProvider>
         <Head>
           <link rel="icon" href="/favicon.ico" sizes="any" />
           <link rel="apple-touch-icon" href="/apple-icon.png" />
@@ -67,7 +65,6 @@ export default function AdminLayout({
           </div>
         </div>
         <Toaster />
-      </AuthProvider>
-    </SessionProvider>
+    </AuthProvider>
   );
 }

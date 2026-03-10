@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { format } from "date-fns"
+import { format, isValid } from "date-fns"
 import { CalendarIcon, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Switch } from "@/components/ui/switch"
@@ -51,6 +51,16 @@ export interface FormField {
     maxLength?: number
     message?: string
   }
+  datePickerVariant?: "popover" | "input"
+}
+
+const getDateFromValue = (value: unknown): Date | undefined => {
+  if (!value) return undefined
+  if (value instanceof Date) {
+    return isValid(value) ? value : undefined
+  }
+  const parsed = new Date(value as string)
+  return isValid(parsed) ? parsed : undefined
 }
 
 interface EnhancedFormProps {
@@ -268,7 +278,45 @@ export function EnhancedForm({
           </div>
         )
 
-      case "date":
+      case "date": {
+        const selectedDate = getDateFromValue(value)
+        const datePickerVariant = field.datePickerVariant ?? "popover"
+
+        if (datePickerVariant === "input") {
+          const inputValue = selectedDate
+            ? format(selectedDate, "yyyy-MM-dd")
+            : typeof value === "string"
+              ? value
+              : ""
+
+          return (
+            <div className="space-y-2">
+              <Label htmlFor={name} className="flex items-center gap-1">
+                {label}
+                {required && <span className="text-red-500">*</span>}
+              </Label>
+              <Input
+                {...commonProps}
+                type="date"
+                placeholder={placeholder}
+                value={inputValue}
+                onChange={(e) => handleChange(name, e.target.value)}
+                className={cn(error ? "border-red-500" : "")}
+              />
+              {description && !error && (
+                <p id={`${name}-description`} className="text-sm text-gray-500">
+                  {description}
+                </p>
+              )}
+              {error && (
+                <p id={`${name}-error`} className="text-sm text-red-500">
+                  {error}
+                </p>
+              )}
+            </div>
+          )
+        }
+
         return (
           <div className="space-y-2">
             <Label htmlFor={name} className="flex items-center gap-1">
@@ -282,19 +330,21 @@ export function EnhancedForm({
                   variant="outline"
                   className={cn(
                     "w-full justify-start text-left font-normal",
-                    !value && "text-muted-foreground",
+                    !selectedDate && "text-muted-foreground",
                     error && "border-red-500",
                   )}
                   disabled={disabled || isSubmitting}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {value ? format(new Date(value), "PPP") : <span>{placeholder || "Pick a date"}</span>}
+                  {selectedDate
+                    ? format(selectedDate, "PPP")
+                    : <span>{placeholder || "Pick a date"}</span>}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={value ? new Date(value) : undefined}
+                  selected={selectedDate}
                   onSelect={(date) => handleChange(name, date)}
                   initialFocus
                 />
@@ -312,6 +362,7 @@ export function EnhancedForm({
             )}
           </div>
         )
+      }
 
       case "switch":
         return (

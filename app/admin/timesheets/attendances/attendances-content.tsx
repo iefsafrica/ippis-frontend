@@ -1,15 +1,22 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { EnhancedDataTable } from "@/app/admin/components/enhanced-data-table"
+import { format, isValid } from "date-fns"
+import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import { EnhancedForm, type FormField } from "@/app/admin/components/enhanced-form"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { UserCheck, FileUp, Download } from "lucide-react"
-import { format } from "date-fns"
-
-import { useToast } from "@/components/ui/use-toast"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { toast } from "sonner"
 import {
   useAttendances,
   useDeleteAttendance,
@@ -21,26 +28,79 @@ import {
   MarkAttendancePayload,
   UpdateAttendancePayload,
 } from "@/types/timesheets/attendance"
+import { Calendar, Download, Edit, Eye, FileUp, RefreshCw, Trash2, UserCheck } from "lucide-react"
+
+const ATTENDANCE_STATUS_OPTIONS = [
+  { value: "present", label: "Present" },
+  { value: "absent", label: "Absent" },
+  { value: "late", label: "Late" },
+  { value: "leave", label: "Leave" },
+]
+
+const STATUS_BADGE_STYLES: Record<string, string> = {
+  present: "bg-green-100 text-green-800",
+  absent: "bg-red-100 text-red-800",
+  late: "bg-yellow-100 text-yellow-800",
+  leave: "bg-blue-100 text-blue-800",
+  unknown: "bg-gray-100 text-gray-800",
+}
+
+type AttendanceRow = {
+  id: string
+  employeeId: string
+  name: string
+  department: string | null
+  date: string
+  clockIn: string
+  clockOut: string
+  status: string
+  notes: string
+}
+
+const parseDateValue = (value?: string) => {
+  if (!value) return null
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+const formatDateForForm = (value?: string) => {
+  const parsed = parseDateValue(value)
+  return parsed ? parsed.toISOString().split("T")[0] : ""
+}
+
+const getIsoDateValue = (value?: unknown) => {
+  if (!value) return ""
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value
+  }
+  const parsed = value instanceof Date ? value : new Date(value as string)
+  if (isValid(parsed)) {
+    return format(parsed, "yyyy-MM-dd")
+  }
+  return ""
+}
 
 export function AttendancesContent() {
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<AttendanceRecord | null>(null)
-  const { toast } = useToast()
-
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [attendanceToDelete, setAttendanceToDelete] = useState<AttendanceRecord | null>(null)
   const attendancesQuery = useAttendances()
   const markAttendanceMutation = useMarkAttendance()
   const updateAttendanceMutation = useUpdateAttendance()
   const deleteAttendanceMutation = useDeleteAttendance()
 
-  const tableData = useMemo(
+  const isLoading = attendancesQuery.isFetching
+
+  const tableData = useMemo<AttendanceRow[]>(
     () =>
       attendancesQuery.data?.map((attendance) => ({
         id: attendance.id.toString(),
         employeeId: attendance.employee_code ?? "",
         name: attendance.employee_name,
-        department: attendance.department,
+        department: attendance.department ?? null,
         date: attendance.attendance_date,
         clockIn: attendance.clock_in ?? "",
         clockOut: attendance.clock_out ?? "",
@@ -50,16 +110,135 @@ export function AttendancesContent() {
     [attendancesQuery.data],
   )
 
-  const formatDateForForm = (value?: string) => (value ? new Date(value).toISOString().split("T")[0] : "")
+  const departmentOptions = useMemo(() => {
+    const unique = new Set<string>()
+    tableData.forEach((row) => {
+      if (row.department?.trim()) unique.add(row.department)
+    })
+    return Array.from(unique).map((department) => ({ value: department, label: department }))
+  }, [tableData])
 
-  const handleMutationError = (error: unknown, title: string) => {
-    const description = error instanceof Error ? error.message : "Something went wrong"
+  const searchFields = useMemo(
+    () => [
+      { name: "employeeId", label: "Employee ID", type: "text" },
+      { name: "name", label: "Name", type: "text" },
+      {
+        name: "department",
+        label: "Department",
+        type: "select",
+        options: departmentOptions,
+      },
+      {
+        name: "status",
+        label: "Status",
+        type: "select",
+        options: ATTENDANCE_STATUS_OPTIONS,
+      },
+      { name: "date", label: "Date", type: "date" },
+    ],
+    [departmentOptions],
+  )
+
+  const statusCounts = useMemo(() => {
+    return tableData.reduce<Record<string, number>>((acc, row) => {
+      const key = row.status?.toLowerCase() ?? "unknown"
+      acc[key] = (acc[key] ?? 0) + 1
+      return acc
+    }, {})
+  }, [tableData])
+
+  const totalRecords = tableData.length
+
+  const statsCards = useMemo(
+    () => [
+      { title: "Present", value: statusCounts.present ?? 0, description: "Employees checked in today" },
+      { title: "Absent", value: statusCounts.absent ?? 0, description: "Records marked absent" },
+      { title: "Late", value: statusCounts.late ?? 0, description: "Employees who clocked in late" },
+      { title: "Total", value: totalRecords, description: "Attendance entries tracked" },
+    ],
+    [statusCounts, totalRecords],
+  )
+
+  const handleRefresh = () => {
+    attendancesQuery.refetch()
     toast({
-      title,
-      description,
-      variant: "destructive",
+      title: "Attendance refreshed",
+      description: "Showing the latest records.",
     })
   }
+
+  const formFields = useMemo<FormField[]>(
+    () => [
+      {
+        name: "employeeId",
+        label: "Employee",
+        type: "select",
+        required: true,
+        options: [
+          { value: "EMP001", label: "EMP001 - John Doe" },
+          { value: "EMP002", label: "EMP002 - Jane Smith" },
+          { value: "EMP003", label: "EMP003 - Robert Johnson" },
+          { value: "EMP004", label: "EMP004 - Emily Davis" },
+          { value: "EMP005", label: "EMP005 - Michael Wilson" },
+        ],
+      },
+      {
+        name: "date",
+        label: "Date",
+        type: "date",
+        required: true,
+        placeholder: "Select attendance date",
+        datePickerVariant: "input",
+      },
+      {
+        name: "clockIn",
+        label: "Clock In",
+        type: "text",
+        placeholder: "HH:MM AM/PM",
+      },
+      {
+        name: "clockOut",
+        label: "Clock Out",
+        type: "text",
+        placeholder: "HH:MM AM/PM",
+      },
+      {
+        name: "status",
+        label: "Status",
+        type: "select",
+        required: true,
+        options: ATTENDANCE_STATUS_OPTIONS,
+      },
+      {
+        name: "notes",
+        label: "Notes",
+        type: "textarea",
+        placeholder: "Add any additional notes here",
+        wrapperClassName: "md:col-span-2",
+      },
+    ],
+    [],
+  )
+
+  const editFields = useMemo(
+    () =>
+      formFields.map((field) => {
+        if (field.name === "employeeId" || field.name === "date") {
+          return { ...field, disabled: true, required: false }
+        }
+        return field
+      }),
+    [formFields],
+  )
+
+  const editInitialValues = useMemo(() => {
+    if (!selectedItem) return undefined
+    return {
+      ...selectedItem,
+      employeeId: selectedItem.employee_code ?? selectedItem.employeeId ?? "",
+      date: formatDateForForm(selectedItem.attendance_date),
+    }
+  }, [selectedItem])
 
   const columns = [
     {
@@ -81,7 +260,28 @@ export function AttendancesContent() {
       key: "date",
       label: "Date",
       sortable: true,
-      render: (value: string) => format(new Date(value), "PPP"),
+      render: (value: string) => {
+        const parsedDate = parseDateValue(value)
+        if (!parsedDate) {
+          return <span className="text-sm text-gray-500">Not set</span>
+        }
+        return (
+          <div className="flex items-center">
+            <div className="h-9 w-9 rounded-md border border-blue-100 bg-gradient-to-br from-blue-50 to-blue-100 shadow-sm flex flex-col items-center justify-center mr-2 flex-shrink-0">
+              <Calendar className="h-3 w-3 text-blue-600 mb-0.5" />
+              <span className="text-xs font-medium text-blue-700">{parsedDate.getDate()}</span>
+            </div>
+            <div className="min-w-0">
+              <div className="font-medium text-gray-900">
+                {parsedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              </div>
+              <div className="text-xs text-gray-500">
+                {parsedDate.toLocaleDateString("en-US", { year: "numeric" })}
+              </div>
+            </div>
+          </div>
+        )
+      },
     },
     {
       key: "clockIn",
@@ -98,99 +298,33 @@ export function AttendancesContent() {
       label: "Status",
       sortable: true,
       render: (value: string) => {
-        const statusStyles = {
-          present: "bg-green-100 text-green-800",
-          absent: "bg-red-100 text-red-800",
-          late: "bg-yellow-100 text-yellow-800",
-          leave: "bg-blue-100 text-blue-800",
-        }
-        const style = statusStyles[value as keyof typeof statusStyles] || "bg-gray-100 text-gray-800"
-        return <Badge className={`${style} capitalize`}>{value}</Badge>
+        const normalized = value?.toLowerCase() ?? "unknown"
+        const style = STATUS_BADGE_STYLES[normalized] ?? STATUS_BADGE_STYLES.unknown
+        return <Badge className={`${style} capitalize`}>{normalized || "Unknown"}</Badge>
       },
     },
-  ]
-
-  const filterOptions = [
     {
-      id: "department",
-      label: "Department",
-      type: "select" as const,
-      options: [
-        { value: "IT", label: "IT" },
-        { value: "HR", label: "HR" },
-        { value: "Finance", label: "Finance" },
-        { value: "Marketing", label: "Marketing" },
-        { value: "Operations", label: "Operations" },
-      ],
-    },
-    {
-      id: "status",
-      label: "Status",
-      type: "select" as const,
-      options: [
-        { value: "present", label: "Present" },
-        { value: "absent", label: "Absent" },
-        { value: "late", label: "Late" },
-        { value: "leave", label: "Leave" },
-      ],
-    },
-    {
-      id: "date",
-      label: "Date",
-      type: "date" as const,
-      options: [],
-    },
-  ]
-
-  const formFields: FormField[] = [
-    {
-      name: "employeeId",
-      label: "Employee",
-      type: "select",
-      required: true,
-      options: [
-        { value: "EMP001", label: "EMP001 - John Doe" },
-        { value: "EMP002", label: "EMP002 - Jane Smith" },
-        { value: "EMP003", label: "EMP003 - Robert Johnson" },
-        { value: "EMP004", label: "EMP004 - Emily Davis" },
-        { value: "EMP005", label: "EMP005 - Michael Wilson" },
-      ],
-    },
-    {
-      name: "date",
-      label: "Date",
-      type: "date",
-      required: true,
-    },
-    {
-      name: "clockIn",
-      label: "Clock In",
-      type: "text",
-      placeholder: "HH:MM AM/PM",
-    },
-    {
-      name: "clockOut",
-      label: "Clock Out",
-      type: "text",
-      placeholder: "HH:MM AM/PM",
-    },
-    {
-      name: "status",
-      label: "Status",
-      type: "select",
-      required: true,
-      options: [
-        { value: "present", label: "Present" },
-        { value: "absent", label: "Absent" },
-        { value: "late", label: "Late" },
-        { value: "leave", label: "Leave" },
-      ],
-    },
-    {
-      name: "notes",
-      label: "Notes",
-      type: "textarea",
-      placeholder: "Add any additional notes here",
+      key: "actions",
+      label: "Actions",
+      render: (_: unknown, row: AttendanceRow) => (
+        <div className="flex justify-start space-x-2">
+          <Button variant="outline" size="icon" onClick={() => handleView(row.id)}>
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" className="text-blue-600 hover:text-blue-800" onClick={() => handleEdit(row.id)}>
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="text-red-600 hover:text-red-800"
+            onClick={() => openDeleteDialog(row.id)}
+            disabled={deleteAttendanceMutation.isPending}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
     },
   ]
 
@@ -213,23 +347,44 @@ export function AttendancesContent() {
     setViewDialogOpen(true)
   }
 
-  const handleDelete = (id: string) => {
-    deleteAttendanceMutation.mutate(Number(id), {
+  const openDeleteDialog = (id: string) => {
+    const attendance = attendancesQuery.data?.find((item) => item.id.toString() === id)
+    if (!attendance) return
+    setAttendanceToDelete(attendance)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDelete = () => {
+    if (!attendanceToDelete) return
+    deleteAttendanceMutation.mutate(Number(attendanceToDelete.id), {
       onSuccess: () => {
         toast({
           title: "Attendance removed",
           description: "The record has been deleted.",
           variant: "success",
         })
+        attendancesQuery.refetch()
+        setDeleteDialogOpen(false)
+        setAttendanceToDelete(null)
       },
       onError: (error) => handleMutationError(error, "Unable to delete attendance"),
     })
   }
 
   const handleSubmitAdd = (data: Record<string, any>) => {
+    const attendanceDate = getIsoDateValue(data.date)
+    if (!attendanceDate) {
+      toast({
+        title: "Select a valid date",
+        description: "Please choose an attendance date before saving.",
+        variant: "destructive",
+      })
+      return
+    }
+
     const payload: MarkAttendancePayload = {
-      employee_code: data.employeeId,
-      attendance_date: data.date,
+      employee_code: "EMP10564",
+      attendance_date: attendanceDate,
       clock_in: data.clockIn,
       clock_out: data.clockOut,
       status: data.status,
@@ -240,9 +395,10 @@ export function AttendancesContent() {
       onSuccess: () => {
         toast({
           title: "Attendance recorded",
-          description: "The attendance entry has been saved.",
+          description: "The attendance entry for EMP10564 has been saved.",
           variant: "success",
         })
+        attendancesQuery.refetch()
         setAddDialogOpen(false)
       },
       onError: (error) => handleMutationError(error, "Unable to mark attendance"),
@@ -253,7 +409,7 @@ export function AttendancesContent() {
     if (!selectedItem) return
 
     const payload: UpdateAttendancePayload = {
-      id: selectedItem.id,
+      id: Number(selectedItem.id),
       clock_in: data.clockIn,
       clock_out: data.clockOut,
       status: data.status,
@@ -267,6 +423,7 @@ export function AttendancesContent() {
           description: "The changes have been saved.",
           variant: "success",
         })
+        attendancesQuery.refetch()
         setEditDialogOpen(false)
         setSelectedItem(null)
       },
@@ -274,129 +431,238 @@ export function AttendancesContent() {
     })
   }
 
+  const handleMutationError = (error: unknown, title: string) => {
+    const description = error instanceof Error ? error.message : "Something went wrong"
+    toast({
+      title,
+      description,
+      variant: "destructive",
+    })
+  }
+
+  const closeEditModal = () => {
+    setEditDialogOpen(false)
+    setSelectedItem(null)
+  }
+
+  const closeViewModal = () => {
+    setViewDialogOpen(false)
+    setSelectedItem(null)
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Attendances</h1>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+    <div className="container mx-auto px-4 py-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex items-center space-x-3">
+          <div className="hidden h-12 w-12 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 shadow-sm sm:flex sm:items-center sm:justify-center">
+            <UserCheck className="h-6 w-6 text-blue-600" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+              Attendance
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Track employee attendance records
+              <span className="ml-2 text-sm text-gray-500">({totalRecords} records)</span>
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"
+            onClick={handleRefresh}
+            disabled={isLoading}
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span className="ml-2 hidden sm:inline">Refresh</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-10 px-3.5 border-gray-300 text-gray-700 font-medium rounded-lg"
+          >
             <FileUp className="mr-2 h-4 w-4" />
             Import
           </Button>
-          <Button variant="outline" size="sm">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-10 px-3.5 border-gray-300 text-gray-700 font-medium rounded-lg"
+          >
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <Button size="sm" onClick={handleAdd}>
+          <Button
+            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
+            onClick={handleAdd}
+          >
             <UserCheck className="mr-2 h-4 w-4" />
             Mark Attendance
           </Button>
         </div>
       </div>
 
-      <EnhancedDataTable
-        title="Attendance Records"
-        description="View and manage employee attendance records"
-        columns={columns}
-        data={attendanceData}
-        filterOptions={filterOptions}
-        onAdd={handleAdd}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onView={handleView}
-        isLoading={isLoading}
-      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {statsCards.map((card) => (
+          <Card
+            key={card.title}
+            className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200"
+          >
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-500">{card.title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-900">{card.value}</div>
+              <p className="text-xs text-gray-500 mt-1">{card.description}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-      {/* Add Attendance Dialog */}
+      <Card className="border border-gray-200 shadow-sm">
+        <CardContent className="p-0">
+          <DataTable
+            title="Attendance Records"
+            columns={columns}
+            data={tableData}
+            searchFields={searchFields}
+            onAdd={handleAdd}
+            itemsPerPage={20}
+          />
+        </CardContent>
+      </Card>
+
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Mark Attendance</DialogTitle>
+            <DialogDescription>Capture daily in/out times and status for payroll accuracy.</DialogDescription>
           </DialogHeader>
           <EnhancedForm
             fields={formFields}
             onSubmit={handleSubmitAdd}
             onCancel={() => setAddDialogOpen(false)}
-            isSubmitting={isLoading}
+            isSubmitting={markAttendanceMutation.isPending}
             submitLabel="Save Attendance"
+            formClassName="grid gap-4 md:grid-cols-2"
           />
         </DialogContent>
       </Dialog>
 
-      {/* Edit Attendance Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Edit Attendance</DialogTitle>
+      <Dialog open={editDialogOpen} onOpenChange={(open) => (open ? setEditDialogOpen(true) : closeEditModal())}>
+        <DialogContent className="p-0 max-w-2xl overflow-hidden border border-gray-200 shadow-xl">
+          <DialogHeader className="px-8 pt-8 pb-6 border-b border-gray-100">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <UserCheck className="h-6 w-6 text-gray-700" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-semibold text-gray-900">Edit Attendance</DialogTitle>
+                <DialogDescription className="text-gray-600 mt-1">
+                  Adjust clock-in/out times, status, or notes for the selected record.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
-          <EnhancedForm
-            fields={formFields}
-            onSubmit={handleSubmitEdit}
-            onCancel={() => setEditDialogOpen(false)}
-            isSubmitting={isLoading}
-            submitLabel="Update Attendance"
-            initialValues={selectedItem}
-          />
+          <div className="px-8 py-6 max-h-[70vh] overflow-y-auto">
+            <EnhancedForm
+              fields={editFields}
+              onSubmit={handleSubmitEdit}
+              onCancel={closeEditModal}
+              isSubmitting={updateAttendanceMutation.isPending}
+              submitLabel="Update Attendance"
+              initialValues={editInitialValues}
+              formClassName="grid gap-4 md:grid-cols-2"
+            />
+          </div>
         </DialogContent>
       </Dialog>
 
-      {/* View Attendance Dialog */}
-      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Attendance Details</DialogTitle>
+      <DeleteConfirmationDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false)
+          setAttendanceToDelete(null)
+        }}
+        onConfirm={handleDelete}
+        title="Delete Attendance"
+        description={`Are you sure you want to delete the attendance for ${attendanceToDelete?.employee_name || attendanceToDelete?.employee_code || "this record"}?`}
+        itemName={attendanceToDelete?.employee_name || attendanceToDelete?.employee_code || "this record"}
+        isLoading={deleteAttendanceMutation.isPending}
+      />
+
+      <Dialog open={viewDialogOpen} onOpenChange={(open) => (open ? setViewDialogOpen(true) : closeViewModal())}>
+        <DialogContent className="p-0 max-w-3xl overflow-hidden border border-gray-200 shadow-xl">
+          <DialogHeader className="px-8 pt-8 pb-6 border-b border-gray-100">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <UserCheck className="h-6 w-6 text-gray-700" />
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-semibold text-gray-900">Attendance Details</DialogTitle>
+                  <DialogDescription className="text-gray-600 mt-1">
+                    Review the recorded shift for the selected employee.
+                  </DialogDescription>
+                </div>
+              </div>
+            </div>
           </DialogHeader>
           {selectedItem && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-medium text-sm">Employee</h3>
-                  <p>
-                    {selectedItem.employeeId} - {selectedItem.name}
-                  </p>
+            <div className="px-8 py-6">
+              <div className="grid gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="font-medium text-sm">Employee</h3>
+                    <p>
+                      {selectedItem.employeeId} - {selectedItem.employee_name || selectedItem.employeeId}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-sm">Department</h3>
+                    <p>{selectedItem.department || "N/A"}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="font-medium text-sm">Date</h3>
+                    <p>
+                      {(() => {
+                        const parsed = parseDateValue(selectedItem.attendance_date)
+                        return parsed ? format(parsed, "PPP") : "Not set"
+                      })()}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-sm">Status</h3>
+                    <Badge
+                      className={`${STATUS_BADGE_STYLES[selectedItem.status?.toLowerCase() ?? "unknown"] ?? STATUS_BADGE_STYLES.unknown} capitalize mt-1`}
+                    >
+                      {selectedItem.status}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="font-medium text-sm">Clock In</h3>
+                    <p>{selectedItem.clock_in || "—"}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-sm">Clock Out</h3>
+                    <p>{selectedItem.clock_out || "—"}</p>
+                  </div>
                 </div>
                 <div>
-                  <h3 className="font-medium text-sm">Department</h3>
-                  <p>{selectedItem.department}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium text-sm">Date</h3>
-                  <p>{format(new Date(selectedItem.date), "PPP")}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium text-sm">Status</h3>
-                  <Badge
-                    className={`${
-                      selectedItem.status === "present"
-                        ? "bg-green-100 text-green-800"
-                        : selectedItem.status === "absent"
-                          ? "bg-red-100 text-red-800"
-                          : selectedItem.status === "late"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-blue-100 text-blue-800"
-                    } capitalize mt-1`}
-                  >
-                    {selectedItem.status}
-                  </Badge>
-                </div>
-                <div>
-                  <h3 className="font-medium text-sm">Clock In</h3>
-                  <p>{selectedItem.clockIn || "N/A"}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium text-sm">Clock Out</h3>
-                  <p>{selectedItem.clockOut || "N/A"}</p>
-                </div>
-                <div className="col-span-2">
                   <h3 className="font-medium text-sm">Notes</h3>
                   <p>{selectedItem.notes || "No notes"}</p>
                 </div>
               </div>
-              <div className="flex justify-end">
-                <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+              <DialogFooter className="mt-4 px-0">
+                <Button variant="outline" className="w-full" onClick={closeViewModal}>
                   Close
                 </Button>
-              </div>
+              </DialogFooter>
             </div>
           )}
         </DialogContent>
