@@ -14,61 +14,22 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useVerifyNin } from "@/services/hooks/verify";
+import { VerifyNinData } from "@/types/verify";
 
 // Props Interface
 interface VerificationStepProps {
   formData: { bvn: string; nin: string };
-  onSubmit: (data: { bvn: string; nin: string }) => void;
+  onSubmit: (data: { bvn: string; nin: string; manualVerification?: boolean }) => void;
   loading: boolean;
   ninVerified: boolean;
   setNinVerified: (v: boolean) => void;
-  setVerifiedNIN: React.Dispatch<React.SetStateAction<any[]>>;
+  setVerifiedNIN: React.Dispatch<React.SetStateAction<VerifyNinData | null>>;
+  advanceToPersonalInfo?: () => void;
 }
 
 // Util
 const isValidElevenDigits = (val: string) => /^\d{11}$/.test(val);
-
-// Retry Helper
-const verifyWithRetries = async (
-  url: string,
-  data: any,
-  setVerifiedNIN: React.Dispatch<React.SetStateAction<any[]>>,
-  retries = 3,
-  delay = 1000,
-): Promise<{ success: boolean; result?: any; error?: string }> => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const res = await fetch(url, {
-         method: "POST",
-         headers: { "Content-Type": "application/json" },
-         body: JSON.stringify(data),
-      });
-      const result = await res.json();
-      setVerifiedNIN(result.data)
-
-      if (res.ok && result.verified) {
-        return { success: true, result };
-      }
-
-      if (i < retries - 1) await new Promise((r) => setTimeout(r, delay));
-    } catch (err) {
-      if (i < retries - 1) await new Promise((r) => setTimeout(r, delay));
-    }
-  }
-  return { success: false, error: "Verification failed after retries." };
-};
-
-// NIN Verifier Function
-const verifyNIN = async (
-  nin: string,
-  setVerifiedNIN: React.Dispatch<React.SetStateAction<any[]>>
-) => {
-  if (!isValidElevenDigits(nin)) {
-    return { success: false, error: "NIN must be 11 digits." };
-  }
-
-  return await verifyWithRetries("/api/verify/nin", { nin }, setVerifiedNIN);
-};
 
 // Main Component
 const VerificationStep: React.FC<VerificationStepProps> = ({
@@ -78,6 +39,7 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
   ninVerified,
   setNinVerified,
   setVerifiedNIN,
+  advanceToPersonalInfo,
 }) => {
   const [bvn, setBvn] = useState(formData.bvn || "");
   const [nin, setNin] = useState(formData.nin || "");
@@ -85,6 +47,24 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
   const [showModal, setShowModal] = useState(false);
   const [errors, setErrors] = useState<{ bvn?: string; nin?: string }>({});
   const [buttonLoading, setButtonLoading] = useState(false);
+  const verifyMutation = useVerifyNin();
+
+  const verifyNIN = async (ninValue: string) => {
+    if (!isValidElevenDigits(ninValue)) {
+      return { success: false, error: "NIN must be 11 digits." };
+    }
+
+    try {
+      const response = await verifyMutation.mutateAsync({ nin: ninValue });
+      const verifiedData = response.data ?? null;
+      setVerifiedNIN(verifiedData);
+      const isVerified = verifiedData?.verified ?? false;
+      return { success: true, verified: isVerified };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "NIN verification failed";
+      return { success: false, error: message };
+    }
+  };
 
   const validateInputs = () => {
     const errs: typeof errors = {};
@@ -104,17 +84,21 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
       return;
     }
 
-    const { success, error } = await verifyNIN(nin, setVerifiedNIN);
+    const { success, error, verified } = await verifyNIN(nin);
     if (!success) {
-      setErrors((prev) => ({ ...prev, nin: error }));
-      setButtonLoading(false);
-      return;
+      setErrors((prev) => ({
+        ...prev,
+        nin: error || "NIN verification failed; please continue manually.",
+      }));
     }
 
-    setNinVerified?.(true);
+    setNinVerified?.(verified);
     setBvnVerified(true);
-    setShowModal(true);
-    onSubmit({ bvn, nin });
+    if (verified) {
+      setShowModal(true);
+    }
+    onSubmit({ bvn, nin, manualVerification: !verified });
+    advanceToPersonalInfo?.();
     setButtonLoading(false);
   };
 

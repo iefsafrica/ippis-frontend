@@ -9,10 +9,13 @@ import EmploymentInfoStep from "@/app/register/employment-info-stepII";
 // import { FileUploader } from "./file-uploader";
 import DocumentUploadStep from "./document-upload-step";
 import { PreviewStep } from "./preview-step";
+import { VerifyNinData } from "@/types/verify";
+
+const SKIP_VERIFICATION_STEP = false;
 
 export default function RegisterForm() {
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(SKIP_VERIFICATION_STEP ? 2 : 1);
   const [registrationId, setRegistrationId] = useState("");
   const [ninVerified, setNinVerified] = useState(false);
 
@@ -117,6 +120,11 @@ export default function RegisterForm() {
   }, []);
 
   const handleVerificationSubmit = async (verificationData: any) => {
+    const manualContinue = verificationData.manualVerification ?? false;
+    if (manualContinue) {
+      setCurrentStep(2);
+    }
+
     try {
       setLoading(true);
       setError("");
@@ -132,31 +140,57 @@ export default function RegisterForm() {
         }),
       });
 
-      const data = await response.json();
+      const data = await response
+        .json()
+        .catch(() => ({ success: false } as Record<string, unknown>));
 
-      if (data.success) {
+      if (!data) {
+        setError("Invalid verification response");
+        return;
+      }
+
+      const {
+        success: verificationSuccess,
+        verified,
+        message,
+        bvnVerified,
+        ninVerified,
+        error: responseError,
+      } = data as {
+        success?: boolean
+        verified?: boolean
+        message?: string
+        bvnVerified?: boolean
+        ninVerified?: boolean
+        error?: string
+      };
+
+      if (response.ok) {
         setFormData((prev) => ({
           ...prev,
           ...verificationData,
-          bvnVerified: data.bvnVerified,
-          ninVerified: data.ninVerified,
+          bvnVerified,
+          ninVerified,
         }));
 
-        if (data.bvnVerified && data.ninVerified) {
-          setSuccess("Verification successful");
-          alert("SUCCESS");
-          setCurrentStep(2);
-        } else {
-          setError("Verification failed. Please check your BVN and NIN.");
-        }
+        setSuccess(
+          verificationSuccess
+            ? "Verification successful"
+            : message || "Could not verify NIN; please continue manually.",
+        );
+
+        setCurrentStep(2);
       } else {
-        setError(data.error || "Failed to verify information");
+        console.warn("Register verification endpoint unavailable:", responseError);
       }
     } catch (err) {
-      setError("An error occurred during verification");
-      console.error(err);
+      console.error("Verification submit failed:", err);
+      if (manualContinue) {
+        setCurrentStep(2);
+      }
     } finally {
       setLoading(false);
+      setCurrentStep((prev) => (prev < 2 ? 2 : prev));
     }
   };
 
@@ -393,7 +427,7 @@ export default function RegisterForm() {
     setCurrentStep(4); // Instead of assigning the component
   };
 
-  const [verifiedNIN, setVerifiedNIN] = useState<any[]>([]);
+  const [verifiedNIN, setVerifiedNIN] = useState<VerifyNinData | null>(null);
   
 
   const renderStep = () => {
@@ -407,6 +441,7 @@ export default function RegisterForm() {
             formData={formData}
             onSubmit={handleVerificationSubmit}
             setVerifiedNIN={setVerifiedNIN}
+            advanceToPersonalInfo={() => setCurrentStep(2)}
           />
         );
       case 2:

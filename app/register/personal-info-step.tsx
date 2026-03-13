@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { useState, useEffect } from "react";
 import { nigerianStates, getLgasByState } from "./nigeria-data";
+import { VerifyNinData } from "@/types/verify";
 // import LoadingSpinner from "@/components/loading-spinner";
 
 // Form Schema
@@ -55,12 +56,12 @@ export const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 interface PersonalInfoStepProps {
-  formData: any;
-  updateFormData: (data: any) => void;
-  validateStep: () => boolean;
-  handlePersonalInfoSubmit: (data: any) => void;
-  loading: boolean;
-  verifiedNIN: any;
+formData: any;
+updateFormData: (data: any) => void;
+validateStep: () => boolean;
+handlePersonalInfoSubmit: (data: any) => void;
+loading: boolean;
+verifiedNIN: VerifyNinData | null;
 }
 
 export default function ProfileForm({
@@ -71,7 +72,7 @@ export default function ProfileForm({
   verifiedNIN,
 }: PersonalInfoStepProps) {
   const [availableLgas, setAvailableLgas] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Format date from DD-MM-YYYY to YYYY-MM-DD
   const formatDate = (dateStr?: string): string => {
@@ -152,17 +153,17 @@ export default function ProfileForm({
       };
 
       reset(initialValues, {
-      keepDefaultValues: false, // Important to clear previous state
-      keepErrors: false,
-      keepDirty: true, // Maintain dirty state
-      keepIsSubmitted: false,
-      keepTouched: false,
-      keepIsValid: false,
-      keepSubmitCount: false,
-    });
-    
-    setIsLoading(false);
+        keepDefaultValues: false,
+        keepErrors: false,
+        keepDirty: true,
+        keepIsSubmitted: false,
+        keepTouched: false,
+        keepIsValid: false,
+        keepSubmitCount: false,
+      });
     }
+
+    setIsLoading(false);
   }, [verifiedNIN, reset, trigger]);
 
   // Update LGAs when state of origin changes
@@ -231,8 +232,8 @@ const onSubmit: SubmitHandler<FormValues> = (data) => {
                   <SelectTrigger>
                     <SelectValue placeholder="Select title" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {verifiedNIN.title && verifiedNIN.title.length >= 1 ? (
+                <SelectContent>
+                    {verifiedNIN?.title && verifiedNIN.title.length >= 1 ? (
                       <SelectItem value={verifiedNIN.title}>
                         {verifiedNIN.title}
                       </SelectItem>
@@ -459,7 +460,7 @@ const onSubmit: SubmitHandler<FormValues> = (data) => {
                     <SelectValue placeholder="Select LGA" />
                   </SelectTrigger>
                   <SelectContent>
-                    {verifiedNIN.birthlga && verifiedNIN.birthlga.length > 1 ? (
+                    {verifiedNIN?.birthlga && verifiedNIN.birthlga.length > 1 ? (
                     <SelectItem value={verifiedNIN.birthlga}>
                      {verifiedNIN.birthlga}
                     </SelectItem>
