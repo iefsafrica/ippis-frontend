@@ -581,14 +581,6 @@ export function TravelContent() {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <Button
-              onClick={handleAddTravel}
-              disabled={isLoading}
-              className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
-            >
-              <Plane className="h-4 w-4 mr-2" />
-              Add Travel
-            </Button>
           </div>
         </div>
 

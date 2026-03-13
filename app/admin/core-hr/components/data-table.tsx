@@ -246,7 +246,7 @@ interface DataTableProps {
     type: "text" | "select" | "date"
     options?: Array<{ value: string; label: string }>
   }>
-  onAdd: () => void
+  onAdd?: () => void
   itemsPerPage?: number
   defaultSortColumn?: string
   defaultSortDirection?: "asc" | "desc"
@@ -436,13 +436,15 @@ export function DataTable({
             title={title}
           />
 
-          <Button
-            onClick={onAdd}
-            className="gap-1 w-full sm:w-auto bg-green-600 hover:bg-green-700"
-          >
-            <Plus className="h-4 w-4" />
-            Add New
-          </Button>
+          {onAdd && (
+            <Button
+              onClick={onAdd}
+              className="gap-1 w-full sm:w-auto bg-green-600 hover:bg-green-700"
+            >
+              <Plus className="h-4 w-4" />
+              Add New
+            </Button>
+          )}
         </div>
       </div>
 

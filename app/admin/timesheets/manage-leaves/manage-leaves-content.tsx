@@ -1,609 +1,578 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { useMemo, useState } from "react"
+import { format, differenceInDays, isValid } from "date-fns"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  Printer,
-  FileSpreadsheet,
-  FileIcon as FilePdf,
-  Search,
-  Plus,
-  Pencil,
-  Trash2,
-  Eye,
-  Check,
-  X,
-} from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { format, differenceInDays } from "date-fns"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { EnhancedForm, type FormField } from "@/app/admin/components/enhanced-form"
+import { DataTable } from "@/app/admin/core-hr/components/data-table"
+import { toast } from "sonner"
+import { Download, FileUp, RefreshCw, Trash2, UserCheck, Eye, Pencil } from "lucide-react"
+import {
+  useCreateLeave,
+  useDeleteLeave,
+  useLeaves,
+  useUpdateLeave,
+} from "@/services/hooks/timesheets/leaves"
+import { useEmployeesList } from "@/services/hooks/employees/useEmployees"
+import {
+  CreateLeavePayload,
+  LeaveRecord,
+  UpdateLeavePayload,
+} from "@/types/timesheets/leaves"
+
+const LEAVE_TYPE_OPTIONS = [
+  { value: "Annual Leave", label: "Annual Leave" },
+  { value: "Sick Leave", label: "Sick Leave" },
+  { value: "Casual Leave", label: "Casual Leave" },
+  { value: "Maternity Leave", label: "Maternity Leave" },
+  { value: "Paternity Leave", label: "Paternity Leave" },
+  { value: "Bereavement Leave", label: "Bereavement Leave" },
+]
+
+const LEAVE_STATUS_OPTIONS = [
+  { value: "pending", label: "Pending" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+]
+
+const STATUS_BADGE_STYLES: Record<string, string> = {
+  pending: "bg-yellow-100 text-yellow-800",
+  approved: "bg-green-100 text-green-800",
+  rejected: "bg-red-100 text-red-800",
+}
+
+const parseDateValue = (value?: string | null) => {
+  if (!value) return null
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+const formatDateForDisplay = (value?: string | null) => {
+  const parsed = parseDateValue(value)
+  return parsed ? format(parsed, "PPP") : "Not set"
+}
+
+const getIsoDateValue = (value?: string) => {
+  if (!value) return ""
+  const parsed = new Date(value)
+  return isValid(parsed) ? parsed.toISOString() : ""
+}
+
+type LeaveRow = {
+  id: string
+  employeeCode: string
+  name: string
+  department: string
+  leaveType: string
+  fromDate: string
+  toDate: string
+  days: number
+  status: string
+  reason: string
+}
 
 export function ManageLeavesContent() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
+  const leavesQuery = useLeaves()
+  const createLeaveMutation = useCreateLeave()
+  const updateLeaveMutation = useUpdateLeave()
+  const deleteLeaveMutation = useDeleteLeave()
+  const employeesQuery = useEmployeesList()
+
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<any>(null)
-  const [rejectionReason, setRejectionReason] = useState("")
+  const [selectedLeave, setSelectedLeave] = useState<LeaveRecord | null>(null)
+  const [leaveToDelete, setLeaveToDelete] = useState<LeaveRecord | null>(null)
 
-  // Mock data for demonstration
-  const leaveData = [
+  const tableData = useMemo<LeaveRow[]>(
+    () =>
+      leavesQuery.data?.map((leave) => {
+        const fromDate = parseDateValue(leave.from_date)
+        const toDate = parseDateValue(leave.to_date)
+        const days =
+          fromDate && toDate
+            ? differenceInDays(toDate, fromDate) + 1
+            : leave.days ?? 0
+        return {
+          id: leave.id.toString(),
+          employeeCode: leave.employee_code,
+          name: leave.employee_name,
+          department: leave.department,
+          leaveType: leave.leave_type,
+          fromDate: leave.from_date,
+          toDate: leave.to_date,
+          days,
+          status: leave.status,
+          reason: leave.reason,
+        }
+      }) ?? [],
+    [leavesQuery.data],
+  )
+
+  const statusCounts = useMemo(() => {
+    return tableData.reduce<Record<string, number>>((acc, row) => {
+      const key = row.status?.toLowerCase() ?? "pending"
+      acc[key] = (acc[key] ?? 0) + 1
+      return acc
+    }, {})
+  }, [tableData])
+
+  const statsCards = useMemo(
+    () => [
+      { title: "Pending", value: statusCounts.pending ?? 0, description: "Awaiting review" },
+      { title: "Approved", value: statusCounts.approved ?? 0, description: "Leave granted" },
+      { title: "Rejected", value: statusCounts.rejected ?? 0, description: "Declined requests" },
+      { title: "Total", value: tableData.length, description: "Leave entries" },
+    ],
+    [statusCounts, tableData],
+  )
+
+  const employeeOptions = useMemo(() => {
+    return (employeesQuery.data?.employees ?? []).map((employee) => ({
+      value: employee.registration_id?.replace(/\s+/g, "") ?? employee.id,
+      label: `${employee.name} (${employee.registration_id ?? employee.id})`,
+    }))
+  }, [employeesQuery.data])
+
+  const departmentOptions = useMemo(() => {
+    const departments = tableData.map((row) => row.department).filter(Boolean)
+    return Array.from(new Set(departments)).map((department) => ({
+      value: department,
+      label: department,
+    }))
+  }, [tableData])
+
+  const searchFields = useMemo<FormField[]>(
+    () => [
+      { name: "employeeCode", label: "Employee Code", type: "text" },
+      { name: "name", label: "Name", type: "text" },
+      {
+        name: "department",
+        label: "Department",
+        type: "select",
+        options: departmentOptions,
+      },
+      {
+        name: "status",
+        label: "Status",
+        type: "select",
+        options: LEAVE_STATUS_OPTIONS,
+      },
+    ],
+    [departmentOptions],
+  )
+
+  const formFields = useMemo<FormField[]>(
+    () => [
+      {
+        name: "employeeCode",
+        label: "Employee",
+        type: "select",
+        placeholder: "Select employee",
+        required: true,
+        options: employeeOptions,
+      },
+      {
+        name: "leaveType",
+        label: "Leave Type",
+        type: "select",
+        placeholder: "Select leave type",
+        required: true,
+        options: LEAVE_TYPE_OPTIONS,
+      },
+      {
+        name: "fromDate",
+        label: "From Date",
+        type: "date",
+        required: true,
+        datePickerVariant: "input",
+      },
+      {
+        name: "toDate",
+        label: "To Date",
+        type: "date",
+        required: true,
+        datePickerVariant: "input",
+      },
+      {
+        name: "reason",
+        label: "Reason",
+        type: "textarea",
+        placeholder: "Tell us why this leave is needed",
+      },
+      {
+        name: "status",
+        label: "Status",
+        type: "select",
+        options: LEAVE_STATUS_OPTIONS,
+        defaultValue: "pending",
+      },
+    ],
+    [employeeOptions],
+  )
+
+  const editInitialValues = useMemo(() => {
+    if (!selectedLeave) return undefined
+    return {
+      employeeCode: selectedLeave.employee_code,
+      leaveType: selectedLeave.leave_type,
+      fromDate: selectedLeave.from_date?.split("T")[0] ?? "",
+      toDate: selectedLeave.to_date?.split("T")[0] ?? "",
+      reason: selectedLeave.reason,
+      status: selectedLeave.status,
+    }
+  }, [selectedLeave])
+
+  const columns = [
+    { key: "employeeCode", label: "Employee Code", sortable: true },
+    { key: "name", label: "Name", sortable: true },
+    { key: "department", label: "Department", sortable: true },
+    { key: "leaveType", label: "Leave Type", sortable: true },
     {
-      id: "1",
-      employeeId: "EMP001",
-      employeeName: "John Doe",
-      department: "IT",
-      leaveType: "Annual Leave",
-      fromDate: "2023-05-15",
-      toDate: "2023-05-19",
-      reason: "Family vacation",
-      status: "approved",
-      appliedOn: "2023-05-01",
+      key: "fromDate",
+      label: "From",
+      sortable: true,
+      render: (value: string) => formatDateForDisplay(value),
     },
     {
-      id: "2",
-      employeeId: "EMP002",
-      employeeName: "Jane Smith",
-      department: "HR",
-      leaveType: "Sick Leave",
-      fromDate: "2023-05-08",
-      toDate: "2023-05-09",
-      reason: "Not feeling well",
-      status: "approved",
-      appliedOn: "2023-05-07",
+      key: "toDate",
+      label: "To",
+      sortable: true,
+      render: (value: string) => formatDateForDisplay(value),
+    },
+    { key: "days", label: "Days" },
+    {
+      key: "status",
+      label: "Status",
+      render: (value: string) => (
+        <Badge className={`capitalize ${STATUS_BADGE_STYLES[value?.toLowerCase() ?? "pending"] ?? STATUS_BADGE_STYLES.pending}`}>
+          {value || "Pending"}
+        </Badge>
+      ),
     },
     {
-      id: "3",
-      employeeId: "EMP003",
-      employeeName: "Robert Johnson",
-      department: "Finance",
-      leaveType: "Casual Leave",
-      fromDate: "2023-05-22",
-      toDate: "2023-05-22",
-      reason: "Personal work",
-      status: "pending",
-      appliedOn: "2023-05-10",
-    },
-    {
-      id: "4",
-      employeeId: "EMP004",
-      employeeName: "Emily Davis",
-      department: "Marketing",
-      leaveType: "Maternity Leave",
-      fromDate: "2023-06-01",
-      toDate: "2023-08-31",
-      reason: "Maternity leave",
-      status: "approved",
-      appliedOn: "2023-04-15",
-    },
-    {
-      id: "5",
-      employeeId: "EMP005",
-      employeeName: "Michael Wilson",
-      department: "Operations",
-      leaveType: "Annual Leave",
-      fromDate: "2023-05-25",
-      toDate: "2023-05-26",
-      reason: "Short break",
-      status: "rejected",
-      appliedOn: "2023-05-12",
-      rejectionReason: "Insufficient staff during this period",
+      key: "actions",
+      label: "Actions",
+      render: (_: unknown, row: LeaveRow) => (
+        <div className="flex items-center justify-start gap-2">
+          <Button variant="outline" size="icon" onClick={() => handleView(row.id)}>
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => handleEdit(row.id)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="text-red-600 hover:text-red-800"
+            onClick={() => openDeleteDialog(row.id)}
+            disabled={deleteLeaveMutation.isPending}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
     },
   ]
 
+  const isLoading = leavesQuery.isFetching
+
+  const handleRefresh = () => {
+    leavesQuery.refetch()
+    toast.success("Leaves refreshed", {
+      description: "Showing the latest leave requests.",
+    })
+  }
+
   const handleAdd = () => {
+    setSelectedLeave(null)
     setAddDialogOpen(true)
   }
 
-  const handleEdit = (item: any) => {
-    setSelectedItem(item)
+  const handleEdit = (id: string) => {
+    const leave = leavesQuery.data?.find((item) => item.id.toString() === id)
+    if (!leave) return
+    setSelectedLeave(leave)
     setEditDialogOpen(true)
   }
 
-  const handleView = (item: any) => {
-    setSelectedItem(item)
+  const handleView = (id: string) => {
+    const leave = leavesQuery.data?.find((item) => item.id.toString() === id)
+    if (!leave) return
+    setSelectedLeave(leave)
     setViewDialogOpen(true)
   }
 
-  const handleDelete = (item: any) => {
-    setSelectedItem(item)
+  const openDeleteDialog = (id: string) => {
+    const leave = leavesQuery.data?.find((item) => item.id.toString() === id)
+    if (!leave) return
+    setLeaveToDelete(leave)
     setDeleteDialogOpen(true)
   }
 
-  const handleApprove = (item: any) => {
-    console.log("Approving leave:", item.id)
-    // Implement approve logic
+  const handleDelete = () => {
+    if (!leaveToDelete) return
+    deleteLeaveMutation.mutate(Number(leaveToDelete.id), {
+      onSuccess: () => {
+        toast.success("Leave deleted", {
+          description: "The leave request has been removed.",
+        })
+        leavesQuery.refetch()
+        setDeleteDialogOpen(false)
+        setLeaveToDelete(null)
+      },
+      onError: (error) => {
+        const description = error instanceof Error ? error.message : "Unable to delete leave"
+        toast.error("Delete failed", { description })
+        setDeleteDialogOpen(false)
+      },
+    })
   }
 
-  const handleReject = (item: any) => {
-    setSelectedItem(item)
-    setRejectDialogOpen(true)
+  const handleSubmitAdd = (data: Record<string, any>) => {
+    const payload: CreateLeavePayload = {
+      employee_code: data.employeeCode,
+      leave_type: data.leaveType,
+      from_date: getIsoDateValue(data.fromDate),
+      to_date: getIsoDateValue(data.toDate),
+      reason: data.reason ?? "",
+      status: data.status ?? "pending",
+    }
+
+    createLeaveMutation.mutate(payload, {
+      onSuccess: () => {
+        toast.success("Leave created", { description: "Leave request has been saved." })
+        leavesQuery.refetch()
+        setAddDialogOpen(false)
+      },
+      onError: (error) => {
+        const description = error instanceof Error ? error.message : "Unable to create leave"
+        toast.error("Creation failed", { description })
+      },
+    })
   }
 
-  const handleSubmitReject = () => {
-    console.log("Rejecting leave:", selectedItem.id, "Reason:", rejectionReason)
-    setRejectDialogOpen(false)
-    setRejectionReason("")
-    // Implement reject logic
+  const handleSubmitEdit = (data: Record<string, any>) => {
+    if (!selectedLeave) return
+
+    const payload: UpdateLeavePayload = {
+      id: Number(selectedLeave.id),
+      leave_type: data.leaveType,
+      from_date: getIsoDateValue(data.fromDate),
+      to_date: getIsoDateValue(data.toDate),
+      reason: data.reason ?? "",
+      status: data.status ?? selectedLeave.status,
+    }
+
+    updateLeaveMutation.mutate(payload, {
+      onSuccess: () => {
+        toast.success("Leave updated", { description: "Changes have been applied." })
+        leavesQuery.refetch()
+        setEditDialogOpen(false)
+        setSelectedLeave(null)
+      },
+      onError: (error) => {
+        const description = error instanceof Error ? error.message : "Unable to update leave"
+        toast.error("Update failed", { description })
+      },
+    })
   }
 
-  const handleExportCSV = () => {
-    console.log("Exporting to CSV...")
-    // Implement CSV export logic
+  const closeEditModal = () => {
+    setEditDialogOpen(false)
+    setSelectedLeave(null)
   }
 
-  const handleExportPDF = () => {
-    console.log("Exporting to PDF...")
-    // Implement PDF export logic
+  const closeViewModal = () => {
+    setViewDialogOpen(false)
+    setSelectedLeave(null)
   }
-
-  const handlePrint = () => {
-    console.log("Printing...")
-    window.print()
-  }
-
-  const filteredData = leaveData.filter((item) => {
-    const matchesSearch =
-      item.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.leaveType.toLowerCase().includes(searchTerm.toLowerCase())
-
-    const matchesStatus = statusFilter === "all" || item.status === statusFilter
-
-    return matchesSearch && matchesStatus
-  })
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Manage Leaves</h1>
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleExportCSV}>
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                Export to CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportPDF}>
-                <FilePdf className="mr-2 h-4 w-4" />
-                Export to PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handlePrint}>
-                <Printer className="mr-2 h-4 w-4" />
-                Print
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button onClick={handleAdd}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Leave
+    <div className="container mx-auto px-4 py-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex items-center space-x-3">
+          <div className="hidden h-12 w-12 rounded-xl border border-green-200 bg-gradient-to-br from-green-50 to-white shadow-sm sm:flex sm:items-center sm:justify-center">
+            <UserCheck className="h-6 w-6 text-green-600" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Manage Leaves</h1>
+            <p className="text-gray-600 mt-1">
+              Review and process leave requests
+              <span className="ml-2 text-sm text-gray-500">({tableData.length} entries)</span>
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"
+            onClick={handleRefresh}
+            disabled={isLoading}
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span className="ml-2 hidden sm:inline">Refresh</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-10 px-3.5 border-gray-300 text-gray-700 font-medium rounded-lg"
+          >
+            <FileUp className="mr-2 h-4 w-4" />
+            Import
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-10 px-3.5 border-gray-300 text-gray-700 font-medium rounded-lg"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export
           </Button>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Leave Management</CardTitle>
-          <CardDescription>View and manage employee leave requests and balances</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4 flex items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-              <Input
-                type="search"
-                placeholder="Search leaves..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <div className="w-[200px]">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {statsCards.map((card) => (
+          <Card key={card.title} className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-500">{card.title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-900">{card.value}</div>
+              <p className="text-xs text-gray-500 mt-1">{card.description}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Leave Type</TableHead>
-                  <TableHead>From Date</TableHead>
-                  <TableHead>To Date</TableHead>
-                  <TableHead>Days</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredData.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center">
-                      No leaves found.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredData.map((leave) => (
-                    <TableRow key={leave.id}>
-                      <TableCell className="font-medium">{leave.employeeName}</TableCell>
-                      <TableCell>{leave.department}</TableCell>
-                      <TableCell>{leave.leaveType}</TableCell>
-                      <TableCell>{format(new Date(leave.fromDate), "PPP")}</TableCell>
-                      <TableCell>{format(new Date(leave.toDate), "PPP")}</TableCell>
-                      <TableCell>{differenceInDays(new Date(leave.toDate), new Date(leave.fromDate)) + 1}</TableCell>
-                      <TableCell>
-                        <Badge
-                          className={`capitalize ${
-                            leave.status === "approved"
-                              ? "bg-green-100 text-green-800"
-                              : leave.status === "pending"
-                                ? "bg-yellow-100 text-yellow-800"
-                                : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {leave.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          {leave.status === "pending" && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                onClick={() => handleApprove(leave)}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                onClick={() => handleReject(leave)}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                          <Button variant="ghost" size="icon" onClick={() => handleView(leave)}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(leave)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(leave)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+      <Card className="border border-gray-200 shadow-sm">
+        <CardContent className="p-0">
+          <DataTable
+            title="Leave Requests"
+            columns={columns}
+            data={tableData}
+            searchFields={searchFields}
+            onAdd={handleAdd}
+            itemsPerPage={10}
+          />
         </CardContent>
       </Card>
 
-      {/* Add Leave Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
-            <DialogTitle>Add New Leave</DialogTitle>
+            <DialogTitle>New Leave Request</DialogTitle>
+            <DialogDescription>Capture leave dates, type, and reason before submitting for approval.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="employee">Employee</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select employee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="emp001">John Doe (EMP001)</SelectItem>
-                    <SelectItem value="emp002">Jane Smith (EMP002)</SelectItem>
-                    <SelectItem value="emp003">Robert Johnson (EMP003)</SelectItem>
-                    <SelectItem value="emp004">Emily Davis (EMP004)</SelectItem>
-                    <SelectItem value="emp005">Michael Wilson (EMP005)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="leaveType">Leave Type</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select leave type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="annual">Annual Leave</SelectItem>
-                    <SelectItem value="sick">Sick Leave</SelectItem>
-                    <SelectItem value="casual">Casual Leave</SelectItem>
-                    <SelectItem value="maternity">Maternity Leave</SelectItem>
-                    <SelectItem value="paternity">Paternity Leave</SelectItem>
-                    <SelectItem value="bereavement">Bereavement Leave</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="fromDate">From Date</Label>
-                <Input id="fromDate" type="date" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="toDate">To Date</Label>
-                <Input id="toDate" type="date" />
-              </div>
-              <div className="col-span-2 space-y-2">
-                <Label htmlFor="reason">Reason</Label>
-                <Textarea id="reason" placeholder="Enter reason for leave" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Select defaultValue="pending">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => setAddDialogOpen(false)}>Save Leave</Button>
-          </DialogFooter>
+          <EnhancedForm
+            fields={formFields}
+            onSubmit={handleSubmitAdd}
+            onCancel={() => setAddDialogOpen(false)}
+            isSubmitting={createLeaveMutation.isPending}
+            submitLabel="Save Leave"
+            formClassName="grid gap-4 md:grid-cols-2"
+          />
         </DialogContent>
       </Dialog>
 
-      {/* Edit Leave Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+      <Dialog open={editDialogOpen} onOpenChange={(open) => (open ? setEditDialogOpen(true) : closeEditModal())}>
+        <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
-            <DialogTitle>Edit Leave</DialogTitle>
+            <DialogTitle>Edit Leave Request</DialogTitle>
+            <DialogDescription>Update dates, reason, or status for the selected request.</DialogDescription>
           </DialogHeader>
-          {selectedItem && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-employee">Employee</Label>
-                  <Select defaultValue={selectedItem.employeeId.toLowerCase()}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select employee" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="emp001">John Doe (EMP001)</SelectItem>
-                      <SelectItem value="emp002">Jane Smith (EMP002)</SelectItem>
-                      <SelectItem value="emp003">Robert Johnson (EMP003)</SelectItem>
-                      <SelectItem value="emp004">Emily Davis (EMP004)</SelectItem>
-                      <SelectItem value="emp005">Michael Wilson (EMP005)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-leaveType">Leave Type</Label>
-                  <Select defaultValue={selectedItem.leaveType.toLowerCase().replace(/\s+/g, "")}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select leave type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="annual">Annual Leave</SelectItem>
-                      <SelectItem value="sick">Sick Leave</SelectItem>
-                      <SelectItem value="casual">Casual Leave</SelectItem>
-                      <SelectItem value="maternity">Maternity Leave</SelectItem>
-                      <SelectItem value="paternity">Paternity Leave</SelectItem>
-                      <SelectItem value="bereavement">Bereavement Leave</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-fromDate">From Date</Label>
-                  <Input id="edit-fromDate" type="date" defaultValue={selectedItem.fromDate} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-toDate">To Date</Label>
-                  <Input id="edit-toDate" type="date" defaultValue={selectedItem.toDate} />
-                </div>
-                <div className="col-span-2 space-y-2">
-                  <Label htmlFor="edit-reason">Reason</Label>
-                  <Textarea id="edit-reason" defaultValue={selectedItem.reason} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-status">Status</Label>
-                  <Select defaultValue={selectedItem.status}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => setEditDialogOpen(false)}>Update Leave</Button>
-          </DialogFooter>
+          <EnhancedForm
+            fields={formFields}
+            onSubmit={handleSubmitEdit}
+            onCancel={closeEditModal}
+            isSubmitting={updateLeaveMutation.isPending}
+            submitLabel="Update Leave"
+            initialValues={editInitialValues}
+            formClassName="grid gap-4 md:grid-cols-2"
+          />
         </DialogContent>
       </Dialog>
 
-      {/* View Leave Dialog */}
-      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Leave Details</DialogTitle>
+      <DeleteConfirmationDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false)
+          setLeaveToDelete(null)
+        }}
+        onConfirm={handleDelete}
+        title="Delete Leave"
+        description={`Remove leave for ${leaveToDelete?.employee_name ?? leaveToDelete?.employee_code ?? "this employee"}?`}
+        itemName={leaveToDelete?.employee_name ?? leaveToDelete?.employee_code ?? "this request"}
+        isLoading={deleteLeaveMutation.isPending}
+      />
+
+      <Dialog open={viewDialogOpen} onOpenChange={(open) => (open ? setViewDialogOpen(true) : closeViewModal())}>
+        <DialogContent className="p-0 sm:max-w-3xl">
+          <DialogHeader className="px-8 pt-8 pb-6 border-b border-gray-100">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-gradient-to-br from-green-50 to-white rounded-2xl border border-green-100 shadow-sm">
+                <UserCheck className="h-6 w-6 text-green-700" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-semibold text-gray-900">Leave Details</DialogTitle>
+                <DialogDescription className="text-gray-600 mt-1">
+                  Review the leave request before taking action.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
-          {selectedItem && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-medium text-sm">Employee</h3>
-                  <p>{selectedItem.employeeName}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium text-sm">Department</h3>
-                  <p>{selectedItem.department}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium text-sm">Leave Type</h3>
-                  <p>{selectedItem.leaveType}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium text-sm">Status</h3>
+          {selectedLeave && (
+            <div className="space-y-6 px-8 pb-8 pt-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Employee</h3>
+                  <p className="mt-2 text-lg font-semibold text-gray-900">
+                    {selectedLeave.employee_code} - {selectedLeave.employee_name}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">{selectedLeave.department}</p>
+                </section>
+
+                <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Status</h3>
                   <Badge
-                    className={`${
-                      selectedItem.status === "approved"
-                        ? "bg-green-100 text-green-800"
-                        : selectedItem.status === "pending"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-red-100 text-red-800"
-                    } capitalize mt-1`}
+                    className={`mt-3 px-3 py-1.5 text-sm capitalize ${STATUS_BADGE_STYLES[selectedLeave.status?.toLowerCase() ?? "pending"] ?? STATUS_BADGE_STYLES.pending}`}
                   >
-                    {selectedItem.status}
+                    {selectedLeave.status}
                   </Badge>
-                </div>
-                <div>
-                  <h3 className="font-medium text-sm">From Date</h3>
-                  <p>{format(new Date(selectedItem.fromDate), "PPP")}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium text-sm">To Date</h3>
-                  <p>{format(new Date(selectedItem.toDate), "PPP")}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium text-sm">Number of Days</h3>
-                  <p>{differenceInDays(new Date(selectedItem.toDate), new Date(selectedItem.fromDate)) + 1}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium text-sm">Applied On</h3>
-                  <p>{format(new Date(selectedItem.appliedOn), "PPP")}</p>
-                </div>
-                <div className="col-span-2">
-                  <h3 className="font-medium text-sm">Reason</h3>
-                  <p>{selectedItem.reason}</p>
-                </div>
-                {selectedItem.status === "rejected" && selectedItem.rejectionReason && (
-                  <div className="col-span-2">
-                    <h3 className="font-medium text-sm">Rejection Reason</h3>
-                    <p>{selectedItem.rejectionReason}</p>
-                  </div>
-                )}
+                  <p className="text-xs text-gray-500 mt-2">{formatDateForDisplay(selectedLeave.created_at)}</p>
+                </section>
               </div>
 
-              {selectedItem.status === "pending" && (
-                <DialogFooter className="flex justify-end gap-2 pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setViewDialogOpen(false)
-                      handleReject(selectedItem)
-                    }}
-                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                  >
-                    <X className="mr-2 h-4 w-4" />
-                    Reject
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setViewDialogOpen(false)
-                      handleApprove(selectedItem)
-                    }}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <Check className="mr-2 h-4 w-4" />
-                    Approve
-                  </Button>
-                </DialogFooter>
-              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <section className="rounded-2xl border border-dashed border-gray-200 bg-white p-5 shadow-sm">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">From</h3>
+                  <p className="mt-3 text-lg font-medium text-gray-900">{formatDateForDisplay(selectedLeave.from_date)}</p>
+                </section>
+                <section className="rounded-2xl border border-dashed border-gray-200 bg-white p-5 shadow-sm">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">To</h3>
+                  <p className="mt-3 text-lg font-medium text-gray-900">{formatDateForDisplay(selectedLeave.to_date)}</p>
+                </section>
+              </div>
+
+              <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Reason</h3>
+                <p className="mt-2 text-gray-700">{selectedLeave.reason || "No reason provided."}</p>
+              </section>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p>Are you sure you want to delete this leave request? This action cannot be undone.</p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={() => setDeleteDialogOpen(false)}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reject Leave Dialog */}
-      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Reject Leave Request</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="space-y-2">
-              <Label htmlFor="rejectionReason">Reason for Rejection</Label>
-              <Textarea
-                id="rejectionReason"
-                placeholder="Please provide a reason for rejecting this leave request"
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleSubmitReject} disabled={!rejectionReason.trim()}>
-              Reject Leave
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

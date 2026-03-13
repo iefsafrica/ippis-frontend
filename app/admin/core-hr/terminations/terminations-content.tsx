@@ -595,14 +595,6 @@ export function TerminationsContent() {
             )}
             <span className="ml-2 hidden sm:inline">Refresh</span>
           </Button>
-          <Button
-            onClick={handleAddTermination}
-            disabled={isLoading}
-            className="h-10 px-6 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-medium rounded-lg"
-          >
-            <XCircle className="h-4 w-4 mr-2" />
-            Add Termination
-          </Button>
         </div>
       </div>
 

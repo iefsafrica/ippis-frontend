@@ -837,14 +837,6 @@ export function ResignationsContent() {
               )}
               <span className="ml-2 hidden sm:inline">Refresh</span>
             </Button>
-            <Button
-              onClick={handleAddResignation}
-              disabled={isLoading}
-              className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Add Resignation
-            </Button>
           </div>
         </div>
 

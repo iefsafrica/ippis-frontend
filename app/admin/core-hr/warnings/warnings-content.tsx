@@ -649,16 +649,6 @@ export function WarningsContent() {
                   Manage and review employee disciplinary warnings
                 </CardDescription>
               </div>
-              <div className="mt-4 sm:mt-0">
-                <Button
-                  onClick={handleAdd}
-                  disabled={isLoading}
-                  className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
-                >
-                  <AlertTriangle className="h-4 w-4 mr-2" />
-                  Add Warning
-                </Button>
-              </div>
             </div>
           </CardHeader>
           <CardContent className="p-0">
