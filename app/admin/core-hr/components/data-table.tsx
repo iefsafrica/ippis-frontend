@@ -248,6 +248,8 @@ interface DataTableProps {
   }>
   onAdd: () => void
   itemsPerPage?: number
+  defaultSortColumn?: string
+  defaultSortDirection?: "asc" | "desc"
 }
 
 export function DataTable({
@@ -257,12 +259,14 @@ export function DataTable({
   searchFields,
   onAdd,
   itemsPerPage = 100, // Default to 100 as requested
+  defaultSortColumn,
+  defaultSortDirection = "asc",
 }: DataTableProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [advancedSearchParams, setAdvancedSearchParams] = useState<Record<string, string>>({})
   const [currentPage, setCurrentPage] = useState(1)
-  const [sortColumn, setSortColumn] = useState<string | null>(null)
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
+  const [sortColumn, setSortColumn] = useState<string | null>(defaultSortColumn ?? null)
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">(defaultSortDirection)
   const [isLoading, setIsLoading] = useState(true)
 
   // Simulate loading state (remove in production)
@@ -345,7 +349,7 @@ export function DataTable({
       setSortDirection(sortDirection === "asc" ? "desc" : "asc")
     } else {
       setSortColumn(column)
-      setSortDirection("asc")
+      setSortDirection(defaultSortDirection)
     }
     // Reset to first page when sorting
     setCurrentPage(1)
