@@ -7,7 +7,7 @@ import ClientErrorHandler from "./client-error-handler"
 import Image from "next/image"
 import GlobalErrorHandler from "./global-error-handler"
 import Script from "next/script"
-import { Toaster } from "sonner" // ADD THIS IMPORT
+import { GlobalToaster } from "@/components/ui/global-toaster"
 
 import Providers from "./providers"
 
@@ -158,22 +158,7 @@ export default function RootLayout({
     <ClientErrorHandler />
     {children}
 
-    {/* ✅ Updated Sonner Toaster */}
-    <Toaster
-      position="bottom-right"
-      theme="light" // must be "light", "dark", or "system"
-      richColors
-      closeButton
-      expand={false}
-      duration={4000}
-      toastOptions={{
-        style: {
-          borderLeft: '4px solid #22c55e', // Tailwind green-500
-          background: '#f0fdf4', // subtle green background
-          color: '#166534', // deep green text
-        },
-      }}
-    />
+    <GlobalToaster />
 
     <footer className="bg-white border-t border-gray-200 py-4">
       <div className="container mx-auto flex items-center justify-center">

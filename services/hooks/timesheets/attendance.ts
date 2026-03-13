@@ -29,6 +29,8 @@ export const useAttendances = (params?: AttendanceFilterParams) => {
     params?.department ?? null,
     params?.employee_code ?? null,
     params?.id ?? null,
+    params?.start_date ?? null,
+    params?.end_date ?? null,
   ]
 
   return useQuery<AttendancesData, Error>({

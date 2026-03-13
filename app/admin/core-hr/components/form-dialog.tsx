@@ -95,13 +95,13 @@ export function FormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[600px] max-h-fit lg:max-h-screen py-4 gap-2.5">
+      <DialogContent className="max-w-[600px] w-full max-h-[calc(100vh-4rem)] overflow-y-auto py-4 gap-2.5">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? `Edit ${title}` : `Add New ${title}`}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="space-y-6 pb-32">
           <div className="grid lg:gap-2 gap-4 lg:py-2 py-4">
             {fields.map((field) => (
               <div
@@ -176,7 +176,7 @@ export function FormDialog({
               </div>
             ))}
           </div>
-          <DialogFooter>
+          <DialogFooter className="sticky bottom-0 z-10 mt-4 flex items-center justify-end gap-3 border-t border-gray-200 bg-white/90 px-6 py-4 backdrop-blur-md">
             <Button
               type="button"
               variant="outline"

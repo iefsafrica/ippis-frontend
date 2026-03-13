@@ -42,6 +42,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CommentDialog } from "../components/comment-dialog"
 import { useDocuments } from "@/services/hooks/employees/usePendingEmployees"
+import { buttonHoverEnhancements } from "../employees/button-hover"
 
 // Define the Document interface to match the API response
 interface DocumentByEmployee {
@@ -404,7 +405,7 @@ export default function DocumentsContent() {
             <div className="flex gap-2">
               <div className="w-[180px]">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger>
+                  <SelectTrigger className={buttonHoverEnhancements}>
                     <div className="flex items-center gap-2">
                       <Filter className="h-4 w-4" />
                       <SelectValue placeholder="Status" />
@@ -420,7 +421,7 @@ export default function DocumentsContent() {
               </div>
               <div className="w-[180px]">
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger>
+                  <SelectTrigger className={buttonHoverEnhancements}>
                     <div className="flex items-center gap-2">
                       <SlidersHorizontal className="h-4 w-4" />
                       <SelectValue placeholder="Document Type" />
@@ -449,7 +450,7 @@ export default function DocumentsContent() {
               <p>Failed to load documents. Please try again.</p>
               <Button
                 variant="outline"
-                className="mt-4"
+                className={`${buttonHoverEnhancements} mt-4`}
                 onClick={() => refetch()}
               >
                 Retry
@@ -491,7 +492,7 @@ export default function DocumentsContent() {
                           <div className="flex gap-2">
                             <Button
                               size="sm"
-                              className="bg-green-600 hover:bg-green-700"
+                              className={`${buttonHoverEnhancements} bg-green-600 hover:bg-green-700`}
                               onClick={() => handleApproveAllForEmployee(document)}
                             >
                               <ThumbsUp className="h-4 w-4 mr-1" /> Verify All
@@ -499,6 +500,7 @@ export default function DocumentsContent() {
                             <Button
                               size="sm"
                               variant="destructive"
+                              className={buttonHoverEnhancements}
                               onClick={() => handleRejectAllForEmployee(document)}
                             >
                               <ThumbsDown className="h-4 w-4 mr-1" /> Reject All
@@ -545,6 +547,7 @@ export default function DocumentsContent() {
                                       <Button
                                         variant="outline"
                                         size="icon"
+                                        className={buttonHoverEnhancements}
                                         onClick={() => handlePreviewDocument(document, type)}
                                         title="Preview Document"
                                       >
@@ -553,6 +556,7 @@ export default function DocumentsContent() {
                                       <Button
                                         variant="outline"
                                         size="icon"
+                                        className={buttonHoverEnhancements}
                                         onClick={() => handleViewDetails(document, type)}
                                         title="View Details"
                                       >
@@ -561,6 +565,7 @@ export default function DocumentsContent() {
                                       <Button
                                         variant="outline"
                                         size="icon"
+                                        className={buttonHoverEnhancements}
                                         title="Download"
                                       >
                                         <Download className="h-4 w-4" />
@@ -572,7 +577,7 @@ export default function DocumentsContent() {
                                             size="icon"
                                             onClick={() => handleOpenApproveDialog(document, type)}
                                             title="Approve"
-                                            className="text-green-600 hover:text-green-800"
+                                            className={`${buttonHoverEnhancements} text-green-600 hover:text-green-800`}
                                           >
                                             <CheckCircle className="h-4 w-4" />
                                           </Button>
@@ -581,7 +586,7 @@ export default function DocumentsContent() {
                                             size="icon"
                                             onClick={() => handleOpenRejectDialog(document, type)}
                                             title="Reject"
-                                            className="text-red-600 hover:text-red-800"
+                                            className={`${buttonHoverEnhancements} text-red-600 hover:text-red-800`}
                                           >
                                             <AlertTriangle className="h-4 w-4" />
                                           </Button>
@@ -594,7 +599,7 @@ export default function DocumentsContent() {
                                       size="icon"
                                       title="Document not uploaded"
                                       disabled
-                                      className="disabled:opacity-60 disabled:cursor-not-allowed"
+                                      className={`${buttonHoverEnhancements} disabled:opacity-60 disabled:cursor-not-allowed`}
                                     >
                                       <File className="h-4 w-4" />
                                     </Button>
@@ -637,7 +642,7 @@ export default function DocumentsContent() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowPreviewDialog(false)}
-                className="h-8 w-8 text-gray-500 hover:text-gray-700"
+                className={`${buttonHoverEnhancements} h-8 w-8 text-gray-500 hover:text-gray-700`}
                 aria-label="Close dialog"
               >
                 <X className="h-4 w-4" />
@@ -667,7 +672,7 @@ export default function DocumentsContent() {
                       <p className="text-sm text-gray-500 mt-2">
                         Document preview not available
                       </p>
-                      <Button className="mt-4">Download Document</Button>
+                      <Button className={`${buttonHoverEnhancements} mt-4`}>Download Document</Button>
                     </div>
                   )
                 )}
@@ -705,7 +710,7 @@ export default function DocumentsContent() {
                 {selectedDocument?.status === "pending" && selectedDocumentType && getDocumentUrl(selectedDocument, selectedDocumentType) && (
                   <div className="flex gap-2 mt-6">
                     <Button
-                      className="bg-green-600 hover:bg-green-700"
+                      className={`${buttonHoverEnhancements} bg-green-600 hover:bg-green-700`}
                       onClick={() => {
                         setShowPreviewDialog(false)
                         if (selectedDocument && selectedDocumentType) handleOpenApproveDialog(selectedDocument, selectedDocumentType)
@@ -715,6 +720,7 @@ export default function DocumentsContent() {
                     </Button>
                     <Button
                       variant="destructive"
+                      className={buttonHoverEnhancements}
                       onClick={() => {
                         setShowPreviewDialog(false)
                         if (selectedDocument && selectedDocumentType) handleOpenRejectDialog(selectedDocument, selectedDocumentType)
@@ -731,7 +737,11 @@ export default function DocumentsContent() {
                     </div>
 
           <DialogFooter className="px-8 py-5 border-t border-gray-200 bg-gray-50">
-            <Button variant="outline" onClick={() => setShowPreviewDialog(false)} className="border-gray-300 hover:bg-gray-100 text-gray-700">
+            <Button
+              variant="outline"
+              onClick={() => setShowPreviewDialog(false)}
+              className={`${buttonHoverEnhancements} border-gray-300 hover:bg-gray-100 text-gray-700`}
+            >
               Close
             </Button>
           </DialogFooter>
@@ -760,7 +770,7 @@ export default function DocumentsContent() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowDetailsDialog(false)}
-                className="h-8 w-8 text-gray-500 hover:text-gray-700"
+                className={`${buttonHoverEnhancements} h-8 w-8 text-gray-500 hover:text-gray-700`}
                 aria-label="Close dialog"
               >
                 <X className="h-4 w-4" />
@@ -861,7 +871,7 @@ export default function DocumentsContent() {
                       )}
                     </div>
                     {getDocumentUrl(selectedDocument!, selectedDocumentType) && (
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" className={buttonHoverEnhancements}>
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </Button>
@@ -875,7 +885,7 @@ export default function DocumentsContent() {
             {selectedDocument?.status === "pending" && selectedDocumentType && getDocumentUrl(selectedDocument, selectedDocumentType) && (
               <div className="flex gap-3 pt-4 border-t">
                 <Button
-                  className="bg-green-600 hover:bg-green-700 flex-1"
+                  className={`${buttonHoverEnhancements} bg-green-600 hover:bg-green-700 flex-1`}
                   onClick={() => {
                     setShowDetailsDialog(false)
                     if (selectedDocument && selectedDocumentType) handleOpenApproveDialog(selectedDocument, selectedDocumentType)
@@ -885,7 +895,7 @@ export default function DocumentsContent() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="flex-1"
+                  className={`${buttonHoverEnhancements} flex-1`}
                   onClick={() => {
                     setShowDetailsDialog(false)
                     if (selectedDocument && selectedDocumentType) handlePreviewDocument(selectedDocument, selectedDocumentType)
@@ -895,7 +905,7 @@ export default function DocumentsContent() {
                 </Button>
                 <Button
                   variant="destructive"
-                  className="flex-1"
+                  className={`${buttonHoverEnhancements} flex-1`}
                   onClick={() => {
                     setShowDetailsDialog(false)
                     if (selectedDocument && selectedDocumentType) handleOpenRejectDialog(selectedDocument, selectedDocumentType)
@@ -908,7 +918,11 @@ export default function DocumentsContent() {
           </div>
 
           <DialogFooter className="px-8 py-5 border-t border-gray-200 bg-gray-50">
-            <Button variant="outline" onClick={() => setShowDetailsDialog(false)} className="border-gray-300 hover:bg-gray-100 text-gray-700">
+            <Button
+              variant="outline"
+              onClick={() => setShowDetailsDialog(false)}
+              className={`${buttonHoverEnhancements} border-gray-300 hover:bg-gray-100 text-gray-700`}
+            >
               Close
             </Button>
           </DialogFooter>

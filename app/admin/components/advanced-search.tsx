@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { Search, X } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { buttonHoverEnhancements } from "../employees/button-hover"
 
 interface AdvancedSearchProps {
   onSearch: (searchParams: any) => void
@@ -55,7 +56,11 @@ export function AdvancedSearch({ onSearch, fields, title }: AdvancedSearchProps)
 
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)} className="gap-1 w-full sm:w-auto">
+      <Button
+        variant="outline"
+        onClick={() => setOpen(true)}
+        className={`${buttonHoverEnhancements} gap-1 w-full sm:w-auto`}
+      >
         <Search className="h-4 w-4" />
         Advanced Search
       </Button>
@@ -86,7 +91,7 @@ export function AdvancedSearch({ onSearch, fields, title }: AdvancedSearchProps)
                     value={searchParams[field.name] || ALL_OPTION_VALUE}
                     onValueChange={(value) => handleInputChange(field.name, value)}
                   >
-                    <SelectTrigger className="col-span-3">
+                    <SelectTrigger className={`${buttonHoverEnhancements} col-span-3`}>
                       <SelectValue placeholder={`Select ${field.label}`} />
                     </SelectTrigger>
                     <SelectContent>
@@ -113,11 +118,20 @@ export function AdvancedSearch({ onSearch, fields, title }: AdvancedSearchProps)
           </div>
 
           <DialogFooter className="flex justify-between">
-            <Button variant="outline" onClick={handleClear} type="button">
+            <Button
+              variant="outline"
+              onClick={handleClear}
+              type="button"
+              className={`${buttonHoverEnhancements} gap-2`}
+            >
               <X className="mr-2 h-4 w-4" />
               Clear
             </Button>
-            <Button onClick={handleSearch} type="submit">
+            <Button
+              onClick={handleSearch}
+              type="submit"
+              className={`${buttonHoverEnhancements} gap-2`}
+            >
               <Search className="mr-2 h-4 w-4" />
               Search
             </Button>

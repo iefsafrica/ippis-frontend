@@ -28,6 +28,7 @@ import {
 } from "../services/real-reports-service"
 import { getEmployeesList } from "@/services/endpoints/employees/employees"
 import { getPendingEmployees, getDocuments } from "@/services/endpoints/employees/pendingEmployees"
+import { buttonHoverEnhancements } from "../employees/button-hover"
 
 const isWithinDateRange = (rawDate: string, startDate: Date, endDate: Date) => {
   const value = new Date(rawDate)
@@ -335,7 +336,11 @@ export function ReportsContent() {
             <p className="text-gray-600 mt-1">Insights and trends across employees and payroll.</p>
           </div>
         </div>
-        <Button onClick={handleExportData} disabled={loading}>
+        <Button
+          onClick={handleExportData}
+          disabled={loading}
+          className={`${buttonHoverEnhancements} bg-emerald-600 text-white shadow-sm hover:bg-emerald-800 hover:!bg-emerald-800`}
+        >
           <Download className="mr-2 h-4 w-4" />
           Export Data
         </Button>
@@ -346,7 +351,7 @@ export function ReportsContent() {
           value={selectedDepartment}
           onValueChange={setSelectedDepartment}
         >
-          <SelectTrigger className="w-[180px]">
+        <SelectTrigger className={`${buttonHoverEnhancements} w-[180px]`}>
             <SelectValue placeholder="Department" />
           </SelectTrigger>
           <SelectContent>
@@ -362,7 +367,7 @@ export function ReportsContent() {
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className="w-[240px] justify-start text-left font-normal"
+              className={`${buttonHoverEnhancements} w-[240px] justify-start text-left font-normal`}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {date ? format(date, "PPP") : <span>Pick a date</span>}
@@ -387,6 +392,7 @@ export function ReportsContent() {
             setEndDate(new Date());
             setSelectedDepartment("all");
           }}
+          className={buttonHoverEnhancements}
         >
           <Filter className="mr-2 h-4 w-4" />
           Reset Filters

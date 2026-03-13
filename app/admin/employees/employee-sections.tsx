@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useEmployeesList } from "@/services/hooks/employees/useEmployees"
 import { usePendingEmployees } from "@/services/hooks/employees/usePendingEmployees"
+import { buttonHoverEnhancements } from "./button-hover"
 
 type EmployeeTab = "employee" | "pending" | "import"
 
@@ -119,19 +120,19 @@ export default function EmployeeSections() {
     <div className="space-y-4">
       <div className="inline-flex flex-wrap gap-2 rounded-xl border border-emerald-100 bg-emerald-50/40 p-2 shadow-sm">
         {tabs.map((tab) => (
-          <Button
-            key={tab.key}
-            type="button"
-            variant={activeTab === tab.key ? "default" : "outline"}
-            className={
-              activeTab === tab.key
-                ? "rounded-lg border border-[#008751] bg-[#008751] text-white shadow-sm transition-colors hover:bg-[#006f43]"
-                : "rounded-lg border border-emerald-200 bg-white text-emerald-800 transition-colors hover:border-emerald-400 hover:bg-emerald-100 hover:text-emerald-900"
-            }
-            onClick={() => onTabChange(tab.key)}
-          >
-            {tab.label}
-          </Button>
+            <Button
+              key={tab.key}
+              type="button"
+              variant={activeTab === tab.key ? "default" : "outline"}
+              className={
+                activeTab === tab.key
+                  ? `${buttonHoverEnhancements} rounded-lg border border-[#008751] bg-[#008751] text-white shadow-sm transition-colors hover:bg-[#006f43] hover:!bg-[#006f43]`
+                  : `${buttonHoverEnhancements} rounded-lg border border-emerald-200 bg-white text-emerald-800 transition-colors hover:border-emerald-400 hover:bg-emerald-100 hover:text-emerald-900 hover:bg-emerald-100`
+              }
+              onClick={() => onTabChange(tab.key)}
+            >
+              {tab.label}
+            </Button>
         ))}
       </div>
 

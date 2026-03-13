@@ -135,6 +135,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Download, FileText, Printer } from "lucide-react"
+import { buttonHoverEnhancements } from "../employees/button-hover"
 
 interface DataExportMenuProps {
   onExportPDF: () => void
@@ -152,21 +153,33 @@ export function DataExportMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="gap-1 w-full sm:w-auto">
+        <Button
+          variant="outline"
+          className={`${buttonHoverEnhancements} gap-1 w-full sm:w-auto`}
+        >
           <Download className="h-4 w-4" />
           Export
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={onExportPDF} className="gap-2">
+      <DropdownMenuContent align="end" className="rounded-xl border border-gray-200 bg-white shadow-lg">
+        <DropdownMenuItem
+          onClick={onExportPDF}
+          className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-700 transition-colors hover:bg-slate-50"
+        >
           <FileText className="h-4 w-4" />
           Export as PDF
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={onExportCSV} className="gap-2">
+        <DropdownMenuItem
+          onClick={onExportCSV}
+          className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-700 transition-colors hover:bg-slate-50"
+        >
           <FileText className="h-4 w-4" />
           Export as CSV
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={onPrint} className="gap-2">
+        <DropdownMenuItem
+          onClick={onPrint}
+          className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-700 transition-colors hover:bg-slate-50"
+        >
           <Printer className="h-4 w-4" />
           Print
         </DropdownMenuItem>

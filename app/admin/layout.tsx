@@ -9,7 +9,6 @@ import { AdminHeader } from "./components/admin-header";
 import { Suspense } from "react";
 import AdminLoading from "./loading";
 import GlobalPatch from "./global-patch";
-import { Toaster } from "@/components/ui/toaster";
 import Head from "next/head";
 import React from "react";
 
@@ -35,7 +34,6 @@ export default function AdminLayout({
         </Head>
         <GlobalPatch />
         {children}
-        <Toaster />
       </>
     );
   }
@@ -64,7 +62,6 @@ export default function AdminLayout({
             </main>
           </div>
         </div>
-        <Toaster />
     </AuthProvider>
   );
 }

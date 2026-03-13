@@ -1,125 +1,205 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState, useEffect } from "react"
+import { format, parse, differenceInMinutes, isValid, endOfMonth, startOfMonth } from "date-fns"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Download, Search, FileText, Printer } from "lucide-react"
+import { Download, Search, FileText, Printer, ChevronLeft, ChevronRight } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { toast } from "sonner"
+import { useAttendances } from "@/services/hooks/timesheets/attendance"
+import { AttendanceFilterParams, AttendanceRecord } from "@/types/timesheets/attendance"
+
+const parseClockDate = (date: string, time?: string) => {
+  if (!date || !time) return null
+  const cleanTime = time.trim()
+  const formats = ["yyyy-MM-dd hh:mm a", "yyyy-MM-dd HH:mm", "yyyy-MM-dd HH:mm:ss"]
+  for (const fmt of formats) {
+    const parsed = parse(`${date} ${cleanTime}`, fmt, new Date())
+    if (isValid(parsed)) return parsed
+  }
+  return null
+}
+
+const formatMinutesToHours = (minutes: number) => {
+  if (!minutes) return "--"
+  const hrs = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  return `${hrs}h ${mins.toString().padStart(2, "0")}m`
+}
+
+const getMonthRange = (month: number, year: number) => {
+  const start = startOfMonth(new Date(year, month - 1, 1))
+  const end = endOfMonth(start)
+  return {
+    start: format(start, "yyyy-MM-dd"),
+    end: format(end, "yyyy-MM-dd"),
+    label: format(start, "MMMM yyyy"),
+  }
+}
+
+type AggregatedEmployee = {
+  key: string
+  employeeCode?: string | null
+  employeeName?: string | null
+  department?: string | null
+  present: number
+  absent: number
+  leave: number
+  late: number
+  earlyDeparture: number
+  totalMinutes: number
+}
 
 export function MonthlyAttendancesContent() {
   const [month, setMonth] = useState("5")
   const [year, setYear] = useState("2023")
-  const [department, setDepartment] = useState("all")
+  const initialRange = useMemo(() => getMonthRange(Number(month), Number(year)), [month, year])
+  const [filters, setFilters] = useState<AttendanceFilterParams | undefined>(undefined)
+  const [rangeLabel, setRangeLabel] = useState("All records")
+  const [department, setDepartment] = useState("ALL")
   const [isLoading, setIsLoading] = useState(false)
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
-  const [selectedEmployee, setSelectedEmployee] = useState<any>(null)
+  const [selectedEmployee, setSelectedEmployee] = useState<AggregatedEmployee | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
 
-  // Mock data for demonstration
-  const monthlyData = [
-    {
-      id: "1",
-      name: "John Doe",
-      department: "IT",
-      present: 18,
-      absent: 0,
-      leave: 2,
-      late: 3,
-      earlyDeparture: 1,
-      totalHours: "168.5",
-    },
-    {
-      id: "2",
-      name: "Jane Smith",
-      department: "HR",
-      present: 20,
-      absent: 1,
-      leave: 0,
-      late: 2,
-      earlyDeparture: 0,
-      totalHours: "175.0",
-    },
-    {
-      id: "3",
-      name: "Robert Johnson",
-      department: "Finance",
-      present: 21,
-      absent: 0,
-      leave: 0,
-      late: 1,
-      earlyDeparture: 2,
-      totalHours: "182.5",
-    },
-    {
-      id: "4",
-      name: "Emily Davis",
-      department: "Marketing",
-      present: 15,
-      absent: 2,
-      leave: 4,
-      late: 0,
-      earlyDeparture: 0,
-      totalHours: "131.25",
-    },
-    {
-      id: "5",
-      name: "Michael Wilson",
-      department: "Operations",
-      present: 19,
-      absent: 0,
-      leave: 2,
-      late: 1,
-      earlyDeparture: 3,
-      totalHours: "166.0",
-    },
-  ]
+  const attendancesQuery = useAttendances(filters)
+  const attendanceRecords = attendancesQuery.data ?? []
 
-  // Mock data for employee details
-  const employeeDetailData = [
-    { date: "2023-05-01", status: "Present", clockIn: "08:30 AM", clockOut: "05:15 PM", hours: "8.75" },
-    { date: "2023-05-02", status: "Present", clockIn: "08:45 AM", clockOut: "05:30 PM", hours: "8.75" },
-    { date: "2023-05-03", status: "Leave", clockIn: "--", clockOut: "--", hours: "0.00" },
-    { date: "2023-05-04", status: "Present", clockIn: "08:15 AM", clockOut: "05:00 PM", hours: "8.75" },
-    { date: "2023-05-05", status: "Late", clockIn: "09:30 AM", clockOut: "06:15 PM", hours: "8.75" },
-    { date: "2023-05-08", status: "Present", clockIn: "08:30 AM", clockOut: "05:15 PM", hours: "8.75" },
-    { date: "2023-05-09", status: "Present", clockIn: "08:30 AM", clockOut: "05:15 PM", hours: "8.75" },
-    { date: "2023-05-10", status: "Present", clockIn: "08:30 AM", clockOut: "05:15 PM", hours: "8.75" },
-    { date: "2023-05-11", status: "Late", clockIn: "09:15 AM", clockOut: "06:00 PM", hours: "8.75" },
-    { date: "2023-05-12", status: "Present", clockIn: "08:30 AM", clockOut: "05:15 PM", hours: "8.75" },
-  ]
+  useEffect(() => {
+    if (attendancesQuery.isFetching) {
+      setIsLoading(true)
+    } else {
+      const timer = setTimeout(() => setIsLoading(false), 100)
+      return () => clearTimeout(timer)
+    }
+  }, [attendancesQuery.isFetching])
+
+  const aggregatedData = useMemo<AggregatedEmployee[]>(() => {
+    const map = new Map<string, AggregatedEmployee>()
+
+    attendanceRecords.forEach((record) => {
+      if (department !== "ALL" && record.department?.toUpperCase() !== department.toUpperCase()) {
+        return
+      }
+
+      const key = record.employee_code ?? record.employee_name ?? record.id.toString()
+      const existing = map.get(key) ?? {
+        key,
+        employeeCode: record.employee_code ?? null,
+        employeeName: record.employee_name ?? null,
+        department: record.department ?? null,
+        present: 0,
+        absent: 0,
+        leave: 0,
+        late: 0,
+        earlyDeparture: 0,
+        totalMinutes: 0,
+      }
+
+      switch (record.status) {
+        case "present":
+          existing.present += 1
+          break
+        case "absent":
+          existing.absent += 1
+          break
+        case "leave":
+          existing.leave += 1
+          break
+        case "late":
+          existing.late += 1
+          break
+        default:
+          break
+      }
+
+      const clockInDate = parseClockDate(record.attendance_date, record.clock_in ?? undefined)
+      const clockOutDate = parseClockDate(record.attendance_date, record.clock_out ?? undefined)
+      if (clockInDate && clockOutDate && isValid(clockOutDate) && isValid(clockInDate)) {
+        const minutes = differenceInMinutes(clockOutDate, clockInDate)
+        if (minutes > 0) {
+          existing.totalMinutes += minutes
+        }
+      }
+
+      map.set(key, existing)
+    })
+
+    return Array.from(map.values())
+  }, [attendanceRecords, department])
+
+  const itemsPerPage = 5
+  const totalItems = aggregatedData.length
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage))
+  const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1
+  const endIndex = Math.min(currentPage * itemsPerPage, totalItems)
+  const pagedData = aggregatedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [aggregatedData.length])
 
   const handleSearch = () => {
-    setIsLoading(true)
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false)
-    }, 1000)
+    const { start, end, label } = getMonthRange(Number(month), Number(year))
+    setFilters({
+      start_date: start,
+      end_date: end,
+      department: department === "ALL" ? undefined : department,
+    })
+    setRangeLabel(label)
+    setCurrentPage(1)
   }
 
   const handleExport = () => {
-    console.log("Exporting report...")
-    // Implement export logic
+    toast.success("Export queued", {
+      description: "Preparing the monthly attendance report.",
+    })
   }
 
   const handlePrint = () => {
     window.print()
   }
 
-  const handleViewDetails = (employee: any) => {
+  const handleViewDetails = (employee: AggregatedEmployee) => {
     setSelectedEmployee(employee)
     setDetailsDialogOpen(true)
   }
+
+  const selectedEmployeeDetails = useMemo(() => {
+    if (!selectedEmployee) return []
+    return attendanceRecords.filter(
+      (record) =>
+        (record.employee_code && record.employee_code === selectedEmployee.employeeCode) ||
+        (record.employee_name === selectedEmployee.employeeName),
+    )
+  }, [attendanceRecords, selectedEmployee])
+
+  const handlePreviousPage = () => setCurrentPage((prev) => Math.max(1, prev - 1))
+  const handleNextPage = () => setCurrentPage((prev) => Math.min(totalPages, prev + 1))
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Monthly Attendances</h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            className="transition-colors duration-150 hover:bg-[#effaf0]"
+          >
             <FileText className="mr-2 h-4 w-4" />
             Export CSV
           </Button>
-          <Button variant="outline" size="sm" onClick={handlePrint}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePrint}
+            className="transition-colors duration-150 hover:bg-[#effaf0]"
+          >
             <Printer className="mr-2 h-4 w-4" />
             Print
           </Button>
@@ -129,61 +209,60 @@ export function MonthlyAttendancesContent() {
       <Card>
         <CardHeader>
           <CardTitle>Monthly Attendance Report</CardTitle>
-          <CardDescription>View attendance summary for a specific month</CardDescription>
+          <CardDescription>{rangeLabel}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">Month</label>
               <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background transition-colors duration-150 hover:bg-[#f3fdf4]"
                 value={month}
                 onChange={(e) => setMonth(e.target.value)}
               >
-                <option value="1">January</option>
-                <option value="2">February</option>
-                <option value="3">March</option>
-                <option value="4">April</option>
-                <option value="5">May</option>
-                <option value="6">June</option>
-                <option value="7">July</option>
-                <option value="8">August</option>
-                <option value="9">September</option>
-                <option value="10">October</option>
-                <option value="11">November</option>
-                <option value="12">December</option>
+                {Array.from({ length: 12 }, (_, idx) => {
+                  const value = (idx + 1).toString()
+                  const label = format(new Date(2023, idx, 1), "MMMM")
+                  return (
+                    <option value={value} key={value}>
+                      {label}
+                    </option>
+                  )
+                })}
               </select>
             </div>
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">Year</label>
-              <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+              <Input
+                type="number"
+                min={2021}
+                max={2030}
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
-              >
-                <option value="2021">2021</option>
-                <option value="2022">2022</option>
-                <option value="2023">2023</option>
-                <option value="2024">2024</option>
-              </select>
+                className="transition-colors duration-150 hover:bg-[#f3fdf4]"
+              />
             </div>
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">Department</label>
               <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background transition-colors duration-150 hover:bg-[#f3fdf4]"
                 value={department}
                 onChange={(e) => setDepartment(e.target.value)}
               >
-                <option value="all">All Departments</option>
-                <option value="it">IT</option>
-                <option value="hr">HR</option>
-                <option value="finance">Finance</option>
-                <option value="marketing">Marketing</option>
-                <option value="operations">Operations</option>
+                <option value="ALL">All Departments</option>
+                <option value="IT">IT</option>
+                <option value="HR">HR</option>
+                <option value="Finance">Finance</option>
+                <option value="Marketing">Marketing</option>
+                <option value="Operations">Operations</option>
               </select>
             </div>
-            <div className="flex items-end">
-              <Button onClick={handleSearch} disabled={isLoading}>
+            <div className="flex items-end gap-3">
+              <Button
+                onClick={handleSearch}
+                disabled={isLoading}
+                className="h-10 px-5 bg-gradient-to-r from-[#159E3B] to-[#0F7A2B] text-white font-medium rounded-lg shadow-sm hover:from-[#0F7A2B] hover:to-[#0C6321]"
+              >
                 {isLoading ? (
                   <span className="flex items-center">
                     <svg
@@ -192,14 +271,7 @@ export function MonthlyAttendancesContent() {
                       fill="none"
                       viewBox="0 0 24 24"
                     >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path
                         className="opacity-75"
                         fill="currentColor"
@@ -244,23 +316,23 @@ export function MonthlyAttendancesContent() {
                       ))}
                     </TableRow>
                   ))
-                ) : monthlyData.length === 0 ? (
+                ) : totalItems === 0 ? (
                   <TableRow>
                     <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                       No records found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  monthlyData.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.name}</TableCell>
-                      <TableCell>{item.department}</TableCell>
+                  pagedData.map((item) => (
+                    <TableRow key={item.key}>
+                      <TableCell>{item.employeeName ?? item.employeeCode ?? "—"}</TableCell>
+                      <TableCell>{item.department || "N/A"}</TableCell>
                       <TableCell>{item.present}</TableCell>
                       <TableCell>{item.absent}</TableCell>
                       <TableCell>{item.leave}</TableCell>
                       <TableCell>{item.late}</TableCell>
                       <TableCell>{item.earlyDeparture}</TableCell>
-                      <TableCell>{item.totalHours}</TableCell>
+                      <TableCell>{formatMinutesToHours(item.totalMinutes)}</TableCell>
                       <TableCell>
                         <Button variant="ghost" size="sm" onClick={() => handleViewDetails(item)}>
                           Details
@@ -272,39 +344,76 @@ export function MonthlyAttendancesContent() {
               </TableBody>
             </Table>
           </div>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-2">
+            <div className="text-sm text-gray-600">
+              Showing {totalItems === 0 ? 0 : startIndex}-{endIndex} of {totalItems} employees
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 1}
+                  className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-40"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(page)}
+                    className="h-8 w-8 px-0 border"
+                  >
+                    {page}
+                  </Button>
+                ))}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                  className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-40"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
-      {/* Employee Details Dialog */}
       <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
         <DialogContent className="sm:max-w-[800px]">
           <DialogHeader>
-            <DialogTitle>{selectedEmployee?.name} - Attendance Details (May 2023)</DialogTitle>
+            <DialogTitle>{selectedEmployee?.employeeName || selectedEmployee?.employeeCode} - Attendance Details</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <p className="text-sm font-medium">Department</p>
-              <p>{selectedEmployee?.department}</p>
+              <p>{selectedEmployee?.department || "N/A"}</p>
             </div>
             <div>
               <p className="text-sm font-medium">Total Hours</p>
-              <p>{selectedEmployee?.totalHours}</p>
+              <p>{formatMinutesToHours(selectedEmployee?.totalMinutes ?? 0)}</p>
             </div>
             <div>
               <p className="text-sm font-medium">Present Days</p>
-              <p>{selectedEmployee?.present}</p>
+              <p>{selectedEmployee?.present ?? 0}</p>
             </div>
             <div>
               <p className="text-sm font-medium">Absent Days</p>
-              <p>{selectedEmployee?.absent}</p>
+              <p>{selectedEmployee?.absent ?? 0}</p>
             </div>
             <div>
               <p className="text-sm font-medium">Leave Days</p>
-              <p>{selectedEmployee?.leave}</p>
+              <p>{selectedEmployee?.leave ?? 0}</p>
             </div>
             <div>
               <p className="text-sm font-medium">Late Days</p>
-              <p>{selectedEmployee?.late}</p>
+              <p>{selectedEmployee?.late ?? 0}</p>
             </div>
           </div>
           <div className="rounded-md border">
@@ -319,15 +428,34 @@ export function MonthlyAttendancesContent() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {employeeDetailData.map((detail, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{detail.date}</TableCell>
-                    <TableCell>{detail.status}</TableCell>
-                    <TableCell>{detail.clockIn}</TableCell>
-                    <TableCell>{detail.clockOut}</TableCell>
-                    <TableCell>{detail.hours}</TableCell>
+                {selectedEmployeeDetails.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-6 text-gray-500">
+                      No detailed records found
+                    </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  selectedEmployeeDetails.map((detail) => {
+                    const clockIn = detail.clock_in || "--"
+                    const clockOut = detail.clock_out || "--"
+                    let minutes = 0
+                    const clockInDate = parseClockDate(detail.attendance_date, detail.clock_in ?? undefined)
+                    const clockOutDate = parseClockDate(detail.attendance_date, detail.clock_out ?? undefined)
+                    if (clockInDate && clockOutDate) {
+                      const diff = differenceInMinutes(clockOutDate, clockInDate)
+                      if (diff > 0) minutes = diff
+                    }
+                    return (
+                      <TableRow key={`${detail.id}-${detail.attendance_date}`}>
+                        <TableCell>{detail.attendance_date}</TableCell>
+                        <TableCell>{detail.status}</TableCell>
+                        <TableCell>{clockIn}</TableCell>
+                        <TableCell>{clockOut}</TableCell>
+                        <TableCell>{formatMinutesToHours(minutes)}</TableCell>
+                      </TableRow>
+                    )
+                  })
+                )}
               </TableBody>
             </Table>
           </div>

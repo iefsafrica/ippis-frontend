@@ -28,6 +28,7 @@ import {
   MarkAttendancePayload,
   UpdateAttendancePayload,
 } from "@/types/timesheets/attendance"
+import { useEmployeesList } from "@/services/hooks/employees/useEmployees"
 import { Calendar, Download, Edit, Eye, FileUp, RefreshCw, Trash2, UserCheck } from "lucide-react"
 
 const ATTENDANCE_STATUS_OPTIONS = [
@@ -91,6 +92,7 @@ export function AttendancesContent() {
   const markAttendanceMutation = useMarkAttendance()
   const updateAttendanceMutation = useUpdateAttendance()
   const deleteAttendanceMutation = useDeleteAttendance()
+  const employeesQuery = useEmployeesList()
 
   const isLoading = attendancesQuery.isFetching
 
@@ -161,11 +163,26 @@ export function AttendancesContent() {
 
   const handleRefresh = () => {
     attendancesQuery.refetch()
-    toast({
-      title: "Attendance refreshed",
+    toast.success("Attendance refreshed", {
       description: "Showing the latest records.",
     })
   }
+
+  const employeeOptions = useMemo(
+    () =>
+      (employeesQuery.data?.employees ?? []).map((employee) => {
+        const registrationId = employee.registration_id?.trim()
+        const sanitizedCode =
+          registrationId && registrationId.length
+            ? registrationId.replace(/\s+/g, "")
+            : employee.id
+        return {
+          value: sanitizedCode,
+          label: `${registrationId ?? employee.id} - ${employee.name}`,
+        }
+      }),
+    [employeesQuery.data],
+  )
 
   const formFields = useMemo<FormField[]>(
     () => [
@@ -174,13 +191,7 @@ export function AttendancesContent() {
         label: "Employee",
         type: "select",
         required: true,
-        options: [
-          { value: "EMP001", label: "EMP001 - John Doe" },
-          { value: "EMP002", label: "EMP002 - Jane Smith" },
-          { value: "EMP003", label: "EMP003 - Robert Johnson" },
-          { value: "EMP004", label: "EMP004 - Emily Davis" },
-          { value: "EMP005", label: "EMP005 - Michael Wilson" },
-        ],
+        options: employeeOptions,
       },
       {
         name: "date",
@@ -217,7 +228,7 @@ export function AttendancesContent() {
         wrapperClassName: "md:col-span-2",
       },
     ],
-    [],
+    [employeeOptions],
   )
 
   const editFields = useMemo(
@@ -358,10 +369,8 @@ export function AttendancesContent() {
     if (!attendanceToDelete) return
     deleteAttendanceMutation.mutate(Number(attendanceToDelete.id), {
       onSuccess: () => {
-        toast({
-          title: "Attendance removed",
+        toast.success("Attendance removed", {
           description: "The record has been deleted.",
-          variant: "success",
         })
         attendancesQuery.refetch()
         setDeleteDialogOpen(false)
@@ -374,16 +383,14 @@ export function AttendancesContent() {
   const handleSubmitAdd = (data: Record<string, any>) => {
     const attendanceDate = getIsoDateValue(data.date)
     if (!attendanceDate) {
-      toast({
-        title: "Select a valid date",
+      toast.error("Select a valid date", {
         description: "Please choose an attendance date before saving.",
-        variant: "destructive",
       })
       return
     }
 
     const payload: MarkAttendancePayload = {
-      employee_code: "EMP10564",
+      employee_code: data.employeeId,
       attendance_date: attendanceDate,
       clock_in: data.clockIn,
       clock_out: data.clockOut,
@@ -393,10 +400,8 @@ export function AttendancesContent() {
 
     markAttendanceMutation.mutate(payload, {
       onSuccess: () => {
-        toast({
-          title: "Attendance recorded",
-          description: "The attendance entry for EMP10564 has been saved.",
-          variant: "success",
+        toast.success("Attendance recorded", {
+          description: `The attendance entry for ${payload.employee_code} has been saved.`,
         })
         attendancesQuery.refetch()
         setAddDialogOpen(false)
@@ -418,10 +423,8 @@ export function AttendancesContent() {
 
     updateAttendanceMutation.mutate(payload, {
       onSuccess: () => {
-        toast({
-          title: "Attendance updated",
+        toast.success("Attendance updated", {
           description: "The changes have been saved.",
-          variant: "success",
         })
         attendancesQuery.refetch()
         setEditDialogOpen(false)
@@ -433,10 +436,8 @@ export function AttendancesContent() {
 
   const handleMutationError = (error: unknown, title: string) => {
     const description = error instanceof Error ? error.message : "Something went wrong"
-    toast({
-      title,
+    toast.error(title, {
       description,
-      variant: "destructive",
     })
   }
 
@@ -528,7 +529,7 @@ export function AttendancesContent() {
             data={tableData}
             searchFields={searchFields}
             onAdd={handleAdd}
-            itemsPerPage={20}
+            itemsPerPage={10}
           />
         </CardContent>
       </Card>
@@ -595,10 +596,10 @@ export function AttendancesContent() {
       <Dialog open={viewDialogOpen} onOpenChange={(open) => (open ? setViewDialogOpen(true) : closeViewModal())}>
         <DialogContent className="p-0 max-w-3xl overflow-hidden border border-gray-200 shadow-xl">
           <DialogHeader className="px-8 pt-8 pb-6 border-b border-gray-100">
-            <div className="flex items-start justify-between">
+            <div className="flex items-start">
               <div className="flex items-center space-x-4">
-                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <UserCheck className="h-6 w-6 text-gray-700" />
+                <div className="p-3 bg-gradient-to-br from-green-50 to-white rounded-2xl border border-green-100 shadow-sm">
+                  <UserCheck className="h-6 w-6 text-green-700" />
                 </div>
                 <div>
                   <DialogTitle className="text-lg font-semibold text-gray-900">Attendance Details</DialogTitle>
@@ -610,59 +611,49 @@ export function AttendancesContent() {
             </div>
           </DialogHeader>
           {selectedItem && (
-            <div className="px-8 py-6">
-              <div className="grid gap-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="font-medium text-sm">Employee</h3>
-                    <p>
-                      {selectedItem.employeeId} - {selectedItem.employee_name || selectedItem.employeeId}
-                    </p>
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-sm">Department</h3>
-                    <p>{selectedItem.department || "N/A"}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="font-medium text-sm">Date</h3>
-                    <p>
-                      {(() => {
-                        const parsed = parseDateValue(selectedItem.attendance_date)
-                        return parsed ? format(parsed, "PPP") : "Not set"
-                      })()}
-                    </p>
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-sm">Status</h3>
+            <div className="space-y-6 px-8 pb-8 pt-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Employee</h3>
+                  <p className="mt-2 text-lg font-semibold text-gray-900">
+                    {selectedItem.employeeId} - {selectedItem.employee_name || selectedItem.employeeId}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">{selectedItem.department || "Department not assigned"}</p>
+                </section>
+
+                <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Status & Date</h3>
+                  <div className="mt-3 flex items-center justify-between">
                     <Badge
-                      className={`${STATUS_BADGE_STYLES[selectedItem.status?.toLowerCase() ?? "unknown"] ?? STATUS_BADGE_STYLES.unknown} capitalize mt-1`}
+                      className={`${STATUS_BADGE_STYLES[selectedItem.status?.toLowerCase() ?? "unknown"] ?? STATUS_BADGE_STYLES.unknown} capitalize px-3 py-1.5 text-sm`}
                     >
                       {selectedItem.status}
                     </Badge>
+                    <span className="text-sm font-medium text-gray-500">
+                      {(() => {
+                        const parsed = parseDateValue(selectedItem.attendance_date)
+                        return parsed ? format(parsed, "PPP") : "Date not set"
+                      })()}
+                    </span>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="font-medium text-sm">Clock In</h3>
-                    <p>{selectedItem.clock_in || "—"}</p>
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-sm">Clock Out</h3>
-                    <p>{selectedItem.clock_out || "—"}</p>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="font-medium text-sm">Notes</h3>
-                  <p>{selectedItem.notes || "No notes"}</p>
-                </div>
+                </section>
               </div>
-              <DialogFooter className="mt-4 px-0">
-                <Button variant="outline" className="w-full" onClick={closeViewModal}>
-                  Close
-                </Button>
-              </DialogFooter>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <section className="rounded-2xl border border-dashed border-gray-200 bg-white p-5 shadow-sm">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Clock In</h3>
+                  <p className="mt-3 text-lg font-medium text-gray-900">{selectedItem.clock_in || "—"}</p>
+                </section>
+                <section className="rounded-2xl border border-dashed border-gray-200 bg-white p-5 shadow-sm">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Clock Out</h3>
+                  <p className="mt-3 text-lg font-medium text-gray-900">{selectedItem.clock_out || "—"}</p>
+                </section>
+              </div>
+
+              <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</h3>
+                <p className="mt-2 text-gray-700">{selectedItem.notes || "No notes added for this record."}</p>
+              </section>
             </div>
           )}
         </DialogContent>

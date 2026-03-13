@@ -30,6 +30,8 @@ export interface AttendanceFilterParams {
   employee_code?: string
   department?: string
   attendance_date?: string
+  start_date?: string
+  end_date?: string
 }
 
 export interface MarkAttendancePayload {

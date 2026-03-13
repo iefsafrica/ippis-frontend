@@ -55,6 +55,7 @@ import ExportService from "../services/export-service"
 import { Employee } from "@/types/employees/employee-management";
 import { useEmployeesList, useAddEmployee } from "@/services/hooks/employees/useEmployees"
 import { AddEmployeePayload } from "@/types/employees/employee-management"
+import { buttonHoverEnhancements } from "./button-hover"
 
 interface PaginationInfo {
   page: number
@@ -1033,7 +1034,9 @@ export default function EmployeesContent() {
           <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-gray-900 mb-2">Error Loading Employees</h2>
           <p className="text-gray-600 mb-4">{error.message}</p>
-          <Button onClick={() => refetch()}>Try Again</Button>
+          <Button onClick={() => refetch()} className={buttonHoverEnhancements}>
+            Try Again
+          </Button>
         </div>
       </div>
     );
@@ -1043,7 +1046,10 @@ export default function EmployeesContent() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-          <Button onClick={() => setShowAddDialog(true)} className="w-full sm:w-auto">
+          <Button
+            onClick={() => setShowAddDialog(true)}
+            className={`${buttonHoverEnhancements} bg-green-600 text-white shadow-sm w-full sm:w-auto hover:bg-green-800 hover:!bg-green-800`}
+          >
             <Plus className="h-4 w-4 mr-2" />
             Add Employee
           </Button>
@@ -1070,9 +1076,9 @@ export default function EmployeesContent() {
               />
             </div>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-              <div className="w-full sm:w-[180px]">
+                <div className="w-full sm:w-[180px]">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger>
+                  <SelectTrigger className={`${buttonHoverEnhancements} border border-gray-300 rounded`} >
                     <div className="flex items-center gap-2">
                       <Filter className="h-4 w-4" />
                       <SelectValue placeholder="Status" />
@@ -1085,12 +1091,12 @@ export default function EmployeesContent() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="w-full sm:w-[180px]">
+                <div className="w-full sm:w-[180px]">
                 <Select
                   value={departmentFilter}
                   onValueChange={setDepartmentFilter}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={`${buttonHoverEnhancements} border border-gray-300 rounded`}>
                     <div className="flex items-center gap-2">
                       <SlidersHorizontal className="h-4 w-4" />
                       <SelectValue placeholder="Department" />
@@ -1182,6 +1188,7 @@ export default function EmployeesContent() {
                             size="sm"
                             onClick={() => handleView(employee)}
                             title="View Details"
+                            className={buttonHoverEnhancements}
                           >
                             <Eye className="h-4 w-4 mr-2" />
                             View
@@ -1203,14 +1210,14 @@ export default function EmployeesContent() {
     >
       Rows per page:
     </label>
-    <Select
-      value={itemsPerPage.toString()}
-      onValueChange={(value) => {
-        setItemsPerPage(Number(value));
-        setCurrentPage(1);
-      }}
-    >
-      <SelectTrigger className="w-[100px]">
+      <Select
+        value={itemsPerPage.toString()}
+        onValueChange={(value) => {
+          setItemsPerPage(Number(value));
+          setCurrentPage(1);
+        }}
+      >
+        <SelectTrigger className={`${buttonHoverEnhancements} w-[100px]`}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -1256,7 +1263,7 @@ export default function EmployeesContent() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowViewDialog(false)}
-                className="h-8 w-8 text-gray-500 hover:text-gray-700"
+                className={`${buttonHoverEnhancements} h-8 w-8 text-gray-500 hover:text-gray-700`}
                 aria-label="Close dialog"
               >
                 <X className="h-4 w-4" />
@@ -1394,19 +1401,26 @@ export default function EmployeesContent() {
           <DialogFooter className="px-8 py-5 border-t border-gray-200 bg-gray-50">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4">
               <div className="flex items-center space-x-3">
-                <Button variant="outline" onClick={() => setShowViewDialog(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowViewDialog(false)}
+                  className={buttonHoverEnhancements}
+                >
                   Close
                 </Button>
               </div>
               <div className="flex items-center space-x-3">
-                <Button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700 text-white">
+                <Button
+                  onClick={handlePrint}
+                  className={`${buttonHoverEnhancements} bg-blue-600 hover:bg-blue-700 text-white`}
+                >
                   <Printer className="h-4 w-4 mr-2" />
                   Print Employee Slip
                 </Button>
                 <Button
-                  onClick={handleDownloadPDF} 
-                  variant="outline" 
-                  className="border-green-600 text-green-600 hover:bg-green-50"
+                  onClick={handleDownloadPDF}
+                  variant="outline"
+                  className={`${buttonHoverEnhancements} border-green-600 text-green-600 hover:bg-green-50`}
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Download PDF
@@ -1472,9 +1486,9 @@ export default function EmployeesContent() {
                     Department <span className="text-red-500">*</span>
                   </Label>
                   <Select defaultValue={selectedEmployee.department}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select department" />
-                    </SelectTrigger>
+                  <SelectTrigger className={buttonHoverEnhancements}>
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Finance">Finance</SelectItem>
                       <SelectItem value="HR">HR</SelectItem>
@@ -1502,7 +1516,7 @@ export default function EmployeesContent() {
                   Status <span className="text-red-500">*</span>
                 </Label>
                 <Select defaultValue={selectedEmployee.status}>
-                  <SelectTrigger>
+                  <SelectTrigger className={buttonHoverEnhancements}>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1532,8 +1546,8 @@ export default function EmployeesContent() {
                       Gender
                     </Label>
                     <Select defaultValue={selectedEmployee.metadata?.Gender || ""}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select gender" />
+                    <SelectTrigger className={buttonHoverEnhancements}>
+                    <SelectValue placeholder="Select gender" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Male">Male</SelectItem>
@@ -1582,13 +1596,16 @@ export default function EmployeesContent() {
           )}
           <DialogFooter className="pt-4 border-t">
             <div className="flex gap-2 w-full justify-between">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setShowEditDialog(false)}
+                className={buttonHoverEnhancements}
               >
                 Cancel
               </Button>
-              <Button className="bg-blue-600 hover:bg-blue-700">
+              <Button
+                className={`${buttonHoverEnhancements} bg-blue-600 hover:bg-blue-700`}
+              >
                 Update Employee
               </Button>
             </div>
@@ -1659,7 +1676,7 @@ export default function EmployeesContent() {
                   setNewEmployee({ ...newEmployee, department: value })
                 }
               >
-                <SelectTrigger className="col-span-3">
+                <SelectTrigger className={`${buttonHoverEnhancements} col-span-3`}>
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1696,7 +1713,7 @@ export default function EmployeesContent() {
                   setNewEmployee({ ...newEmployee, status: value })
                 }
               >
-                <SelectTrigger className="col-span-3">
+                <SelectTrigger className={`${buttonHoverEnhancements} col-span-3`}>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1708,13 +1725,17 @@ export default function EmployeesContent() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowAddDialog(false)}
+              className={buttonHoverEnhancements}
+            >
               Cancel
             </Button>
             <Button
               onClick={handleAddEmployee}
               disabled={addEmployeeMutation.isPending}
-              className="bg-green-700 hover:bg-green-800"
+              className={`${buttonHoverEnhancements} bg-green-700 hover:bg-green-800 hover:!bg-green-800`}
             >
               {addEmployeeMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

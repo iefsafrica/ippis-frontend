@@ -15,6 +15,11 @@ import {
 } from '@/types/timesheets/attendance'
 
 export const getAttendances = async (params?: AttendanceFilterParams): Promise<AttendancesData> => {
+  if (params?.start_date && params?.end_date) {
+    const response = await get<AttendanceListResponse>('/timesheets/attendance/date-range', params)
+    return response.data
+  }
+
   const response = await get<AttendanceListResponse>('/timesheets/attendance', params)
   return response.data
 }

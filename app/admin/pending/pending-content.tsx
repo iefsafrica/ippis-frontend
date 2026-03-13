@@ -2610,9 +2610,9 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
   const rejectPendingEmployeeMutation = useRejectPendingEmployee()
  
   // @ts-expect-error axios response mismatch
-  const pendingEmployees: Employee3[] = data?.employees || []
+  const pendingEmployees: Employee3[] = data?.data?.employees || []
   // @ts-expect-error axios response mismatch
-  const pagination = data?.pagination || {
+  const pagination = data?.data?.pagination || {
     total: 0,
     page: currentPage,
     limit: 10,

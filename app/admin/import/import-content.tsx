@@ -15,6 +15,10 @@ import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
 import { useImportEmployees } from "@/services/hooks/employees/useEmployees"
 import { toast } from "sonner"
+import { buttonHoverEnhancements } from "../employees/button-hover"
+
+const importTabTriggerClasses =
+  "rounded-full border border-emerald-200 bg-white px-5 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-white/80 data-[state=active]:bg-emerald-600 data-[state=active]:border-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg"
 
 export function ImportContent() {
   const router = useRouter()
@@ -337,17 +341,27 @@ Brown,Robert,robert.brown@example.com,Operations,Operations Manager`
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-end">
-        <Button variant="destructive" size="sm" onClick={handleClearData} disabled={isClearing}>
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={handleClearData}
+          disabled={isClearing}
+          className={buttonHoverEnhancements}
+        >
           <Trash2 className="mr-2 h-4 w-4" />
           {isClearing ? "Clearing..." : "Clear All Pending"}
         </Button>
       </div>
 
       <Tabs defaultValue="upload" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="upload">Upload CSV</TabsTrigger>
-          <TabsTrigger value="template">Download Template</TabsTrigger>
-        </TabsList>
+      <TabsList className="mx-auto grid w-full max-w-md grid-cols-2 gap-1 rounded-full border border-emerald-200 bg-white/80 p-1 shadow-sm">
+        <TabsTrigger value="upload" className={importTabTriggerClasses}>
+          Upload CSV
+        </TabsTrigger>
+        <TabsTrigger value="template" className={importTabTriggerClasses}>
+          Download Template
+        </TabsTrigger>
+      </TabsList>
 
         <TabsContent value="upload" className="space-y-4">
           <Card>
@@ -392,14 +406,19 @@ Brown,Robert,robert.brown@example.com,Operations,Operations Manager`
                     <p className="text-sm font-medium truncate">{file.name}</p>
                     <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setFile(null)} className="ml-auto">
+                  <Button variant="outline" size="sm" onClick={() => setFile(null)} className={`${buttonHoverEnhancements} ml-auto`}>
                     Remove
                   </Button>
                 </div>
               )}
 
               <div className="flex flex-col gap-2">
-                <Button onClick={downloadWorkingSample} variant="outline" size="sm" className="w-full">
+                <Button
+                  onClick={downloadWorkingSample}
+                  variant="outline"
+                  size="sm"
+                  className={`${buttonHoverEnhancements} w-full`}
+                >
                   <Download className="mr-2 h-4 w-4" />
                   Download Working Sample CSV
                 </Button>
@@ -496,15 +515,20 @@ Brown,Robert,robert.brown@example.com,Operations,Operations Manager`
               )}
             </CardContent>
             <CardFooter className="flex justify-between">
-              <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
+              <Button variant="outline" onClick={() => router.back()} className={buttonHoverEnhancements}>Cancel</Button>
               {!validationResults ? (
-                <Button onClick={handleUpload} disabled={!file || uploading}>
+                <Button
+                  onClick={handleUpload}
+                  disabled={!file || uploading}
+                  className={buttonHoverEnhancements}
+                >
                   {uploading ? "Validating..." : "Upload & Validate"}
                 </Button>
               ) : (
                 <Button
                   onClick={handleImport}
                   disabled={validationResults.errors.length > 0 || importEmployeesMutation.isPending || importComplete}
+                  className={buttonHoverEnhancements}
                 >
                   {importEmployeesMutation.isPending ? "Importing..." : "Import & Save to Pending"}
                 </Button>
@@ -523,17 +547,29 @@ Brown,Robert,robert.brown@example.com,Operations,Operations Manager`
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-col gap-4">
-                <Button onClick={downloadTemplate} variant="default" className="w-full">
+                <Button
+                  onClick={downloadTemplate}
+                  variant="default"
+                  className={`${buttonHoverEnhancements} w-full`}
+                >
                   <Download className="mr-2 h-4 w-4" />
                   Download Full CSV Template
                 </Button>
 
-                <Button onClick={downloadWorkingSample} variant="outline" className="w-full">
+                <Button
+                  onClick={downloadWorkingSample}
+                  variant="outline"
+                  className={`${buttonHoverEnhancements} w-full`}
+                >
                   <Download className="mr-2 h-4 w-4" />
                   Download Working Sample CSV
                 </Button>
 
-                <Button onClick={downloadSimpleTemplate} variant="outline" className="w-full">
+                <Button
+                  onClick={downloadSimpleTemplate}
+                  variant="outline"
+                  className={`${buttonHoverEnhancements} w-full`}
+                >
                   <Download className="mr-2 h-4 w-4" />
                   Download Simple CSV Template
                 </Button>

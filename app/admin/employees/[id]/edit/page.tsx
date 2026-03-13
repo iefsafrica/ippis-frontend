@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { buttonHoverEnhancements } from "../button-hover";
 
 export default function EditEmployeePage() {
   const router = useRouter();
@@ -59,7 +60,13 @@ export default function EditEmployeePage() {
         <Input name="department" value={employee.department} onChange={handleChange} placeholder="Department" required />
         <Input name="position" value={employee.position} onChange={handleChange} placeholder="Position" required />
         <Input name="status" value={employee.status} onChange={handleChange} placeholder="Status" required />
-        <Button type="submit" disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
+        <Button
+          type="submit"
+          disabled={saving}
+          className={`${buttonHoverEnhancements} w-full`}
+        >
+          {saving ? "Saving..." : "Save"}
+        </Button>
       </form>
     </div>
   );

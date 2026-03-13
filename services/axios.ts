@@ -1,13 +1,19 @@
 import axios, { AxiosRequestConfig } from "axios";
+import Cookies from "js-cookie";
+
+const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? ""
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "https://ippis-backend.onrender.com/api",
-  withCredentials: true,
+  baseURL: baseUrl,
+  withCredentials: !!baseUrl,
 });
 
 api.interceptors.request.use(
   (config) => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const cookieToken = Cookies.get("token") || Cookies.get("ippis_token");
+    const storedToken =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = cookieToken || storedToken;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -19,7 +25,11 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error("API Error:", error.response?.data || error.message);
+    console.error("API Error:", {
+      status: error.response?.status,
+      payload: error.response?.data,
+      message: error.message,
+    });
     return Promise.reject(error);
   }
 );

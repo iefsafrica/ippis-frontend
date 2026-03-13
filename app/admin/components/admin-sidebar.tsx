@@ -234,7 +234,7 @@ export function AdminSidebar() {
       title: "Performance",
       icon: TrendingUp,
       isDropdown: true,
-      href: "/admin/performance",
+      toggleOnly: true,
       isOpen: openDropdown === "performance", // for performance
       section: "performance",
       toggle: () =>
@@ -262,7 +262,7 @@ export function AdminSidebar() {
       title: "Organization",
       icon: Building2,
       isDropdown: true,
-      href: "/admin/organization",
+      toggleOnly: true,
       isOpen: openDropdown === "organization",
       section: "organization",
       toggle: () =>
@@ -299,7 +299,7 @@ export function AdminSidebar() {
       title: "Timesheets",
       icon: Clock,
       isDropdown: true,
-      href: "/admin/timesheets",
+      toggleOnly: true,
       isOpen: openDropdown === "timesheets", // for performance
       section: "timesheets",
       toggle: () =>

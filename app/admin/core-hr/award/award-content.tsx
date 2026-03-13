@@ -291,6 +291,41 @@ export function AwardContent() {
   const isLoading = isLoadingAwards || createAwardMutation.isPending || updateAwardMutation.isPending || deleteAwardMutation.isPending
 
   // Define columns inside the component so they have access to the handlers
+  const totalAwards = localAwards.length
+  const uniqueEmployees = new Set(localAwards.map((award) => award.employeeId)).size
+  const statusCounts = localAwards.reduce(
+    (acc, award) => {
+      const status = (award.status || "active").toLowerCase()
+      if (status === "pending") {
+        acc.pending += 1
+      } else if (status === "inactive") {
+        acc.inactive += 1
+      } else {
+        acc.active += 1
+      }
+      return acc
+    },
+    { active: 0, pending: 0, inactive: 0 },
+  )
+
+  const awardStats = [
+    {
+      label: "Total awards",
+      value: totalAwards,
+      description: "Recognitions recorded",
+    },
+    {
+      label: "Unique employees",
+      value: uniqueEmployees,
+      description: "Individuals honored",
+    },
+    {
+      label: "Pending approvals",
+      value: statusCounts.pending,
+      description: "Awaiting review",
+    },
+  ]
+
   const columns = [
     {
       key: "employeeId",
@@ -439,7 +474,22 @@ export function AwardContent() {
             </Button>
           </div>
         </div>
-        
+
+        <div className="grid gap-4 sm:grid-cols-3 mb-6">
+          {awardStats.map((stat) => (
+            <div
+              key={stat.label}
+              className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm"
+            >
+              <div className="text-xs uppercase tracking-[0.2em] text-gray-500">
+                {stat.label}
+              </div>
+              <div className="mt-2 text-3xl font-bold text-gray-900">{stat.value}</div>
+              <p className="text-xs text-gray-500 mt-1">{stat.description}</p>
+            </div>
+          ))}
+        </div>
+
         <div className="bg-white rounded-lg shadow">
           <DataTable
             title="Awards"

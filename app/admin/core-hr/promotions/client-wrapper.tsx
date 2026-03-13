@@ -39,15 +39,6 @@ const transformToCreateRequest = (data: Omit<TablePromotion, 'id'>): CreatePromo
   }
 }
 
-// Search params type
-export interface SearchParams {
-  employee?: string;
-  company?: string;
-  promotionTitle?: string;
-  dateFrom?: string;
-  dateTo?: string;
-}
-
 // Extend TablePromotion type to include promotionId
 interface ExtendedTablePromotion extends TablePromotion {
   promotionId?: number;
@@ -188,54 +179,12 @@ export default function ClientWrapper() {
     }
   }
 
-  // Function to handle search
-  const handleSearch = (searchParams: SearchParams) => {
-    // If no search params, reset to original data
-    if (!Object.values(searchParams).some((value) => value)) {
-      setTablePromotions(originalPromotions)
-      return
-    }
-
-    const filtered = originalPromotions.filter((promotion) => {
-      return Object.entries(searchParams).every(([key, value]) => {
-        if (!value) return true
-
-        const searchValue = String(value).toLowerCase()
-        
-        if (key === "employee" && value) {
-          return promotion.employee.toLowerCase().includes(searchValue)
-        }
-
-        if (key === "company" && value) {
-          //@ts-expect-error - company exists on promotion
-          return promotion.company.toLowerCase().includes(searchValue)
-        }
-
-        if (key === "promotionTitle" && value) {
-          return promotion.promotionTitle.toLowerCase().includes(searchValue)
-        }
-
-        if (key === "dateFrom" && value) {
-          const promotionDate = new Date(promotion.date)
-          return promotionDate >= new Date(value)
-        }
-
-        if (key === "dateTo" && value) {
-          const promotionDate = new Date(promotion.date)
-          return promotionDate <= new Date(value)
-        }
-
-        return true
-      })
-    })
-
-    // Keep the search results sorted by promotionId descending
-    const sortedFiltered = sortDataByPromotionIdDescending(filtered);
-    setTablePromotions(sortedFiltered)
-  }
-
   // Combine loading states
-  const isLoading = isLoadingPromotions || createPromotionMutation.isPending || deletePromotionMutation.isPending || isManualRefreshing
+  const isLoading =
+    isLoadingPromotions ||
+    createPromotionMutation.isPending ||
+    deletePromotionMutation.isPending ||
+    isManualRefreshing
 
   return (
     <PromotionContent
@@ -243,7 +192,8 @@ export default function ClientWrapper() {
       isLoading={isLoading}
       onAddPromotion={handleAddPromotion}
       onDeletePromotion={handleDeletePromotion}
-      onSearch={handleSearch}
+      onRefresh={refreshPromotionsData}
+      isRefreshing={isManualRefreshing}
     />
   )
 }

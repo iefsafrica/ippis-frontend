@@ -12,6 +12,7 @@ import { get } from "@/services/axios";
 import { useSearchParams } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import type { AxiosError } from "axios";
+import { buttonHoverEnhancements } from "../employees/button-hover";
 
 export default function PendingEmployeesPage() {
   const searchParams = useSearchParams();
@@ -224,13 +225,17 @@ export default function PendingEmployeesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowAddDialog(false)}
+              className={buttonHoverEnhancements}
+            >
               Cancel
             </Button>
             <Button
               onClick={handleAddEmployee}
               disabled={isSubmitting}
-              className="bg-primary hover:bg-primary/90"
+              className={`${buttonHoverEnhancements} bg-primary hover:bg-primary/90`}
             >
               {isSubmitting && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
