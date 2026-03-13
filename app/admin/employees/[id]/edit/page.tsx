@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { buttonHoverEnhancements } from "../button-hover";
+import { buttonHoverEnhancements } from "../../button-hover";
 
 export default function EditEmployeePage() {
   const router = useRouter();
