@@ -1,7 +1,9 @@
 import axios, { AxiosRequestConfig } from "axios";
 import Cookies from "js-cookie";
 
-const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? ""
+const baseUrl =
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  "https://ippis-backend.onrender.com/api";
 
 const api = axios.create({
   baseURL: baseUrl,
