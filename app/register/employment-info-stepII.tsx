@@ -87,6 +87,31 @@ export default function EmploymentInfoStep({
     // validateStep(3, Object.keys(newErrors).length === 0);
   }, [formState]);
 
+  useEffect(() => {
+    setFormState({
+      employmentIdNo: formData.employmentIdNo || "",
+      serviceNo: formData.serviceNo || "",
+      fileNo: formData.fileNo || "",
+      rankPosition: formData.rankPosition || "",
+      department: formData.department || "",
+      organization: formData.organization || "",
+      employmentType: formData.employmentType || "",
+      probationPeriod: formData.probationPeriod || "",
+      workLocation: formData.workLocation || "",
+      dateOfFirstAppointment: formData.dateOfFirstAppointment || "",
+      gl: formData.gl || "",
+      step: formData.step || "",
+      salaryStructure: formData.salaryStructure || "",
+      cadre: formData.cadre || "",
+      nameOfBank: formData.nameOfBank || "",
+      accountNumber: formData.accountNumber || "",
+      pfaName: formData.pfaName || "",
+      rsapin: formData.rsapin || "",
+      educationalBackground: formData.educationalBackground || "",
+      certifications: formData.certifications || "",
+    });
+  }, [formData]);
+
   const handleLocalSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (Object.keys(errors).length === 0) {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { StepIndicator } from "./step-indicator";
 import VerificationStep from "./verification-step";
@@ -21,6 +22,9 @@ export default function RegisterForm() {
   const [currentStep, setCurrentStep] = useState(SKIP_VERIFICATION_STEP ? 2 : 1);
   const [registrationId, setRegistrationId] = useState("");
   const [ninVerified, setNinVerified] = useState(false);
+  const [maxVisitedStep, setMaxVisitedStep] = useState(
+    SKIP_VERIFICATION_STEP ? 2 : 1
+  );
 
   const [formData, setFormData] = useState({
     // Verification step
@@ -394,11 +398,13 @@ export default function RegisterForm() {
           declaration: finalData.declaration,
         }));
 
-        setSuccess("Registration submitted successfully");
-      setShowSuccessCard(true);
-      successTimeoutRef.current = window.setTimeout(() => {
-        router.push(`/track?id=${registrationId}`);
-      }, 1200);
+        const successMessage = "Registration submitted successfully";
+        setSuccess(successMessage);
+        toast.success(successMessage, { icon: "🎉" });
+        setShowSuccessCard(true);
+        successTimeoutRef.current = window.setTimeout(() => {
+          router.push(`/track?id=${registrationId}`);
+        }, 1200);
       } else {
         setError(response.message || "Failed to submit registration");
       }
@@ -410,6 +416,11 @@ export default function RegisterForm() {
           ? err.message
           : "An error occurred while submitting registration",
       );
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "An error occurred while submitting registration";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -426,6 +437,19 @@ export default function RegisterForm() {
   const stepThreeHandle = () => {
     setCurrentStep(3); // Instead of assigning the component
   };
+
+  const handleStepSelect = useCallback(
+    (stepNumber: number) => {
+      if (stepNumber <= maxVisitedStep) {
+        setCurrentStep(stepNumber);
+      }
+    },
+    [maxVisitedStep]
+  );
+
+  useEffect(() => {
+    setMaxVisitedStep((prev) => Math.max(prev, currentStep));
+  }, [currentStep]);
 
   useEffect(() => {
     return () => {
@@ -583,7 +607,11 @@ export default function RegisterForm() {
         </div>
       ) : null}
 
-      <StepIndicator currentStep={currentStep} totalSteps={5} />
+      <StepIndicator
+        currentStep={currentStep}
+        onStepSelect={handleStepSelect}
+        maxVisitedStep={maxVisitedStep}
+      />
 
       <div className="mt-6">{renderStep()}</div>
     </div>

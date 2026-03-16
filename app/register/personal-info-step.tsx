@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { nigerianStates, getLgasByState } from "./nigeria-data";
 import { VerifyNinData } from "@/types/verify";
 // import LoadingSpinner from "@/components/loading-spinner";
@@ -119,59 +119,111 @@ export default function ProfileForm({
  });
 
   // Set form values when NIN data is available
-  useEffect(() => {
-    if (verifiedNIN) {
-      const initialValues = {
-        title: verifiedNIN.title || "",
-        surname: verifiedNIN.surname || "",
-        firstname: verifiedNIN.firstname || "",
-        othername: verifiedNIN.othername || "",
-        contact: verifiedNIN.telephoneno || "",
-        email: verifiedNIN.email || "",
-        dob: formatDate(verifiedNIN.birthdate) || "",
-        sex:
-          verifiedNIN.gender === "m"
-            ? "male"
-            : verifiedNIN.gender === "f"
-            ? "female"
-            : "",
-        maritalStatus: verifiedNIN.maritalstatus || "",
-        stateorigin: verifiedNIN.state_of_origin || "",
-        lga: verifiedNIN.birthlga || "",
-        stateres: verifiedNIN.residence_state || "",
-        address: verifiedNIN.address || "",
-        nok_name:
-          verifiedNIN.nok_firstname && verifiedNIN.nok_surname
-            ? `${verifiedNIN.nok_firstname} ${verifiedNIN.nok_surname}`
-            : "",
-        nok_relationship: verifiedNIN.nok_relationship || "",
-        nok_phone: "",
-        nok_address: verifiedNIN.nok_address1 || "",
-      };
+  const verificationInitializedRef = useRef(false);
 
-      reset(initialValues, {
-        keepDefaultValues: false,
-        keepErrors: false,
-        keepDirty: true,
-        keepIsSubmitted: false,
-        keepTouched: false,
-        keepIsValid: false,
-        keepSubmitCount: false,
-      });
+  useEffect(() => {
+    if (!verifiedNIN || verificationInitializedRef.current) {
+      setIsLoading(false);
+      return;
     }
 
+    const initialValues = {
+      title: verifiedNIN.title || "",
+      surname: verifiedNIN.surname || "",
+      firstname: verifiedNIN.firstname || "",
+      othername: verifiedNIN.othername || "",
+      contact: verifiedNIN.telephoneno || "",
+      email: verifiedNIN.email || "",
+      dob: formatDate(verifiedNIN.birthdate) || "",
+      sex:
+        verifiedNIN.gender === "m"
+          ? "male"
+          : verifiedNIN.gender === "f"
+          ? "female"
+          : "",
+      maritalStatus: verifiedNIN.maritalstatus || "",
+      stateorigin: verifiedNIN.state_of_origin || "",
+      lga: verifiedNIN.birthlga || "",
+      stateres: verifiedNIN.residence_state || "",
+      address: verifiedNIN.address || "",
+      nok_name:
+        verifiedNIN.nok_firstname && verifiedNIN.nok_surname
+          ? `${verifiedNIN.nok_firstname} ${verifiedNIN.nok_surname}`
+          : "",
+      nok_relationship: verifiedNIN.nok_relationship || "",
+      nok_phone: "",
+      nok_address: verifiedNIN.nok_address1 || "",
+    };
+
+    reset(initialValues, {
+      keepDefaultValues: false,
+      keepErrors: false,
+      keepDirty: true,
+      keepIsSubmitted: false,
+      keepTouched: false,
+      keepIsValid: false,
+      keepSubmitCount: false,
+    });
+
+    verificationInitializedRef.current = true;
     setIsLoading(false);
   }, [verifiedNIN, reset, trigger]);
 
-  // Update LGAs when state of origin changes
   useEffect(() => {
-    const state = watch("stateorigin");
-    if (state) {
-      const lgas = getLgasByState(state);
-      setAvailableLgas(lgas);
-      setValue("lga", lgas[0] || "");
+    const storedValues = {
+      title: formData.title || "",
+      surname: formData.surname || "",
+      firstname: formData.firstName || "",
+      othername: formData.otherNames || "",
+      contact: formData.phoneNumber || "",
+      email: formData.email || "",
+      dob: formData.dateOfBirth || "",
+      sex: formData.sex || "",
+      maritalStatus: formData.maritalStatus || "",
+      stateorigin: formData.stateOfOrigin || "",
+      lga: formData.lga || "",
+      stateres: formData.stateOfResidence || "",
+      address: formData.addressStateOfResidence || "",
+      nok_name: formData.nextOfKinName || "",
+      nok_relationship: formData.nextOfKinRelationship || "",
+      nok_phone: formData.nextOfKinPhoneNumber || "",
+      nok_address: formData.nextOfKinAddress || "",
+    };
+
+    reset(storedValues, {
+      keepDefaultValues: false,
+      keepErrors: false,
+      keepDirty: true,
+      keepIsSubmitted: false,
+      keepTouched: false,
+      keepIsValid: false,
+      keepSubmitCount: false,
+    });
+
+    Object.entries(storedValues).forEach(([key, value]) => {
+      if (value !== "" && value !== null && value !== undefined) {
+        setValue(key as keyof FormValues, value, { shouldValidate: false, shouldTouch: false });
+      }
+    });
+  }, [formData, reset, setValue]);
+
+  // Update LGAs when state of origin changes
+  const selectedState = watch("stateorigin");
+  const selectedLga = watch("lga");
+
+  useEffect(() => {
+    if (!selectedState) {
+      setAvailableLgas([]);
+      return;
     }
-  }, [watch("stateorigin"), setValue]);
+
+    const lgas = getLgasByState(selectedState);
+    setAvailableLgas(lgas);
+
+    if (!selectedLga && lgas.length > 0) {
+      setValue("lga", lgas[0]);
+    }
+  }, [selectedState, selectedLga, setValue]);
 
 const transformToFormData = (values: FormValues) => ({
   title: values.title,
