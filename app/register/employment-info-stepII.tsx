@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, FormEvent } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,20 +16,14 @@ import {
 
 interface EmploymentInfoStepProps {
   formData: any;
-  updateFormData: (data: any) => void;
-  validateStep: (step: number, isValid: boolean) => void;
   handleEmploymentInfoSubmit: (data: any) => void;
   loading: boolean;
-  stepFourHandle: () => void;
 }
 
 export default function EmploymentInfoStep({
   formData,
-  updateFormData,
-  validateStep,
   handleEmploymentInfoSubmit,
   loading,
-  stepFourHandle,
 }: EmploymentInfoStepProps) {
   const [formState, setFormState] = useState({
     employmentIdNo: formData.employmentIdNo || "",
@@ -57,9 +51,7 @@ export default function EmploymentInfoStep({
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const handleChange = (field: string, value: string) => {
-    const updatedForm = { ...formState, [field]: value };
-    setFormState(updatedForm);
-    updateFormData(updatedForm);
+    setFormState((prev) => ({ ...prev, [field]: value }));
   };
 
   useEffect(() => {
@@ -93,17 +85,15 @@ export default function EmploymentInfoStep({
 
     setErrors(newErrors);
     // validateStep(3, Object.keys(newErrors).length === 0);
-  }, [formState, validateStep]);
+  }, [formState]);
 
-  const handleLocalSubmit = (e: React.FormEvent) => {
+  const handleLocalSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // if (Object.keys(errors).length === 0) {
-      // handleEmploymentInfoSubmit(formState);
-    // } else {
-    //   window.scrollTo(0, 0);
-    // }
-    stepFourHandle();
-
+    if (Object.keys(errors).length === 0) {
+      handleEmploymentInfoSubmit(formState);
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   return (

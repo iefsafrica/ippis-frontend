@@ -1,20 +1,23 @@
 
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { 
-  getEmployeesList, 
-  addEmployee, 
-  importEmployees, 
-  getRecentEmployees 
+import {
+  getEmployeesList,
+  addEmployee,
+  importEmployees,
+  getRecentEmployees,
+  registerEmployee,
 } from "@/services/endpoints/employees/employees";
 import { QUERY_KEYS } from "@/services/constants/employees";
-import { 
-  EmployeesData, 
-  AddEmployeePayload, 
-  AddEmployeeResponse, 
-  ImportEmployeesPayload, 
+import {
+  EmployeesData,
+  AddEmployeePayload,
+  AddEmployeeResponse,
+  ImportEmployeesPayload,
   ImportEmployeesResponse,
-  RecentEmployeesData
+  RecentEmployeesData,
+  EmployeeRegistrationPayload,
+  EmployeeRegistrationResponse,
 } from "@/types/employees/employee-management";
 
 export const useEmployeesList = (page: number = 1) => {
@@ -53,5 +56,11 @@ export const useImportEmployees = () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.EMPLOYEES_LIST] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.RECENT_EMPLOYEES] });
     },
+  });
+};
+
+export const useRegisterEmployee = () => {
+  return useMutation<EmployeeRegistrationResponse, Error, EmployeeRegistrationPayload>({
+    mutationFn: registerEmployee,
   });
 };

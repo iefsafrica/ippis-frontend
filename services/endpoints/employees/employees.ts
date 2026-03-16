@@ -1,15 +1,17 @@
 
 
 import { get, post } from "@/services/axios";
-import { 
-  EmployeesResponse, 
+import {
+  EmployeesResponse,
   EmployeesData,
   AddEmployeePayload,
   AddEmployeeResponse,
   ImportEmployeesPayload,
   ImportEmployeesResponse,
   RecentEmployeesResponse,
-  RecentEmployeesData
+  RecentEmployeesData,
+  EmployeeRegistrationPayload,
+  EmployeeRegistrationResponse,
 } from "@/types/employees/employee-management";
 
 export const getEmployeesList = async (page: number = 1): Promise<EmployeesData> => {
@@ -22,17 +24,23 @@ export const getRecentEmployees = async (): Promise<RecentEmployeesData> => {
   return data;
 };
 
+export const registerEmployee = async (
+  payload: EmployeeRegistrationPayload,
+): Promise<EmployeeRegistrationResponse> => {
+  return post<EmployeeRegistrationResponse>("/admin/employees/register", payload);
+};
+
 export const addEmployee = async (payload: AddEmployeePayload): Promise<AddEmployeeResponse> => {
   return post<AddEmployeeResponse>("/admin/employees/add", payload);
 };
 
 export const importEmployees = async (payload: ImportEmployeesPayload): Promise<ImportEmployeesResponse> => {
   const formData = new FormData();
-  formData.append('file', payload.file);
+  formData.append("file", payload.file);
 
   return post<ImportEmployeesResponse>("/admin/import", formData, {
     headers: {
-      'Content-Type': 'multipart/form-data',
+      "Content-Type": "multipart/form-data",
     },
   });
 };

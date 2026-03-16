@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { StepIndicator } from "./step-indicator";
 import VerificationStep from "./verification-step";
@@ -10,6 +11,8 @@ import EmploymentInfoStep from "@/app/register/employment-info-stepII";
 import DocumentUploadStep from "./document-upload-step";
 import { PreviewStep } from "./preview-step";
 import { VerifyNinData } from "@/types/verify";
+import { useRegisterEmployee } from "@/services/hooks/employees/useEmployees";
+import type { EmployeeRegistrationPayload } from "@/types/employees/employee-management";
 
 const SKIP_VERIFICATION_STEP = false;
 
@@ -82,6 +85,9 @@ export default function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const registerMutation = useRegisterEmployee();
+  const [showSuccessCard, setShowSuccessCard] = useState(false);
+  const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Initialize registration when form loads
   useEffect(() => {
@@ -329,39 +335,81 @@ export default function RegisterForm() {
     }
   };
 
+  const buildRegistrationPayload = (
+    declaration: boolean,
+  ): EmployeeRegistrationPayload => ({
+    registration_id: registrationId,
+    nin: formData.nin,
+    firstname: formData.firstName,
+    surname: formData.surname,
+    middlename: formData.otherNames || undefined,
+    email: formData.email,
+    gender: formData.sex,
+    telephoneno: formData.phoneNumber,
+    birthdate: formData.dateOfBirth,
+    state_of_origin: formData.stateOfOrigin,
+    residence_address: formData.addressStateOfResidence,
+    residence_state: formData.stateOfResidence,
+    residence_lga: formData.lga,
+    profession: formData.rankPosition,
+    maritalstatus: formData.maritalStatus,
+    employment_id: formData.employmentIdNo,
+    service_number: formData.serviceNo,
+    file_number: formData.fileNo,
+    rank_position: formData.rankPosition,
+    department: formData.department,
+    organization: formData.organization,
+    employment_type: formData.employmentType,
+    probation_period: formData.probationPeriod,
+    work_location: formData.workLocation,
+    date_of_first_appointment: formData.dateOfFirstAppointment,
+    grade_level: formData.gl,
+    salary_structure: formData.salaryStructure,
+    cadre: formData.cadre,
+    bank_name: formData.nameOfBank,
+    account_number: formData.accountNumber,
+    pfa_name: formData.pfaName,
+    rsapin: formData.rsapin,
+    educational_background: formData.educationalBackground,
+    certifications: formData.certifications,
+    next_of_kin_name: formData.nextOfKinName,
+    next_of_kin_relationship: formData.nextOfKinRelationship,
+    next_of_kin_phone_number: formData.nextOfKinPhoneNumber,
+    next_of_kin_address: formData.nextOfKinAddress,
+    declaration,
+  });
+
   const handleFinalSubmit = async (finalData: any) => {
     try {
       setLoading(true);
       setError("");
+      setShowSuccessCard(false);
 
-      const response = await fetch("/api/register/submit", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          registrationId,
-          declaration: finalData.declaration,
-        }),
-      });
+      const payload = buildRegistrationPayload(finalData.declaration);
+      const response = await registerMutation.mutateAsync(payload);
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (response.success) {
         setFormData((prev) => ({
           ...prev,
           declaration: finalData.declaration,
         }));
-        setSuccess("Registration submitted successfully");
 
-        // Redirect to success page
+        setSuccess("Registration submitted successfully");
+      setShowSuccessCard(true);
+      successTimeoutRef.current = window.setTimeout(() => {
         router.push(`/track?id=${registrationId}`);
+      }, 1200);
       } else {
-        setError(data.error || "Failed to submit registration");
+        setError(response.message || "Failed to submit registration");
       }
     } catch (err) {
-      setError("An error occurred while submitting registration");
-      console.error(err);
+      console.error("Registration submission failed:", err);
+      setShowSuccessCard(false);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "An error occurred while submitting registration",
+      );
     } finally {
       setLoading(false);
     }
@@ -378,6 +426,37 @@ export default function RegisterForm() {
   const stepThreeHandle = () => {
     setCurrentStep(3); // Instead of assigning the component
   };
+
+  useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const updateFormData = useCallback((data: any) => {
+    setFormData((prev) => ({
+      ...prev,
+      ...data,
+    }));
+  }, []);
+
+  const documentFieldUpdate = useCallback((data: any) => {
+    const fieldName = Object.keys(data)[0];
+    const value = data[fieldName];
+    setFormData((prev) => ({
+      ...prev,
+      [fieldName]: value,
+    }));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`registration_${fieldName}`, value);
+    }
+  }, []);
+
+  const validateStep = useCallback((_step: number, _isValid: boolean) => {
+    // Placeholder for future step validation if needed
+  }, []);
 
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -418,15 +497,6 @@ export default function RegisterForm() {
       }
     });
   }, []);
-  const handleDocsUploadSubmit = async (documentData: any) => {
-    setSuccess("Files saved to local storage only. No upload to server.");
-    setCurrentStep(5);
-  };
-
-  const stepFourHandle = () => {
-    setCurrentStep(4); // Instead of assigning the component
-  };
-
   const [verifiedNIN, setVerifiedNIN] = useState<VerifyNinData | null>(null);
   
 
@@ -454,41 +524,34 @@ export default function RegisterForm() {
             verifiedNIN={verifiedNIN}
           />
         );
-      case 3:
+        case 3:
+          return (
+            <EmploymentInfoStep
+              formData={formData}
+              handleEmploymentInfoSubmit={handleEmploymentInfoSubmit}
+              loading={loading}
+            />
+          );
+        case 4:
         return (
-          <EmploymentInfoStep
-            formData={formData}
-            onSubmit={handleEmploymentInfoSubmit}
-            loading={loading}
-            stepFourHandle={stepFourHandle}
-          />
-        );
-      case 4:
-        return (
-          <DocumentUploadStep
-            formData={formData}
-            updateFormData={(data: any) => {
-              const fieldName = Object.keys(data)[0];
-              const value = data[fieldName];
-              setFormData((prev) => ({
-                ...prev,
-                [fieldName]: value,
-              }));
-              localStorage.setItem(`registration_${fieldName}`, value);
-            }}
-            validateStep={() => true}
-            handleDocsUploadSubmit={handleDocsUploadSubmit}
-            loading={loading}
-          />
-        );
-      case 5:
-        return (
-          <PreviewStep
-            formData={formData}
-            onSubmit={handleFinalSubmit}
-            loading={loading}
-          />
-        );
+            <DocumentUploadStep
+              formData={formData}
+              updateFormData={documentFieldUpdate}
+              validateStep={() => true}
+              onSubmit={handleDocumentUploadSubmit}
+              loading={loading}
+            />
+          );
+        case 5:
+          return (
+            <PreviewStep
+              formData={formData}
+              updateFormData={updateFormData}
+              validateStep={validateStep}
+              onSubmit={handleFinalSubmit}
+              loading={loading}
+            />
+          );
       default:
         return null;
     }
@@ -500,11 +563,25 @@ export default function RegisterForm() {
         <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>
       )}
 
-      {success && (
+      {showSuccessCard ? (
+        <div className="mb-4 rounded-2xl border border-green-200 bg-gradient-to-r from-white via-green-50 to-green-50 p-4 shadow-inner shadow-green-100">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+            <div>
+              <p className="text-sm font-semibold text-slate-900">
+                Application submitted
+              </p>
+              <p className="text-sm text-slate-600">
+                {success || "Your registration has been submitted successfully."}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : success ? (
         <div className="mb-4 p-3 bg-green-100 text-green-700 rounded">
           {success}
         </div>
-      )}
+      ) : null}
 
       <StepIndicator currentStep={currentStep} totalSteps={5} />
 

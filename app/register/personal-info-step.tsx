@@ -56,18 +56,15 @@ export const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 interface PersonalInfoStepProps {
-formData: any;
-updateFormData: (data: any) => void;
-validateStep: () => boolean;
-handlePersonalInfoSubmit: (data: any) => void;
-loading: boolean;
-verifiedNIN: VerifyNinData | null;
+  formData: any;
+  onSubmit: (data: any) => void;
+  loading: boolean;
+  verifiedNIN: VerifyNinData | null;
 }
 
 export default function ProfileForm({
   formData,
-  updateFormData,
-  handlePersonalInfoSubmit,
+  onSubmit,
   loading,
   verifiedNIN,
 }: PersonalInfoStepProps) {
@@ -176,19 +173,32 @@ export default function ProfileForm({
     }
   }, [watch("stateorigin"), setValue]);
 
-const onSubmit: SubmitHandler<FormValues> = (data) => {
+const transformToFormData = (values: FormValues) => ({
+  title: values.title,
+  surname: values.surname,
+  firstName: values.firstname,
+  otherNames: values.othername || "",
+  phoneNumber: values.contact,
+  email: values.email,
+  dateOfBirth: values.dob,
+  sex: values.sex,
+  maritalStatus: values.maritalStatus,
+  stateOfOrigin: values.stateorigin,
+  lga: values.lga,
+  stateOfResidence: values.stateres,
+  addressStateOfResidence: values.address,
+  nextOfKinName: values.nok_name,
+  nextOfKinRelationship: values.nok_relationship,
+  nextOfKinPhoneNumber: values.nok_phone,
+  nextOfKinAddress: values.nok_address,
+});
+
+const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
   try {
-    // 1. Save to localStorage
     localStorage.setItem("personalInfoData", JSON.stringify(data));
-
-    // 2. Log for debugging
-    console.log("Personal info saved:", data);
-
-    // 3. Call your existing submission handler
-    // handlePersonalInfoSubmit(data);
+    onSubmit(transformToFormData(data));
   } catch (error) {
     console.error("Failed to save personal info:", error);
-    // You might want to show an error message to the user here
   }
 };
 
@@ -212,7 +222,7 @@ const onSubmit: SubmitHandler<FormValues> = (data) => {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
         {/* Personal Information Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Title */}

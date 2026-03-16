@@ -1,38 +1,94 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 
 interface PreviewStepProps {
   formData: any;
   updateFormData: (data: any) => void;
   validateStep: (step: number, isValid: boolean) => void;
+  onSubmit: (data: { declaration: boolean }) => void;
+  loading?: boolean;
+}
+
+const isBlobLike = (value: unknown): value is Blob => {
+  if (typeof Blob === "undefined") {
+    return false;
+  }
+  return value instanceof Blob;
+};
+
+function usePreviewUrl(value: File | string | null | undefined) {
+  const [url, setUrl] = useState<string>("/placeholder.svg");
+
+  useEffect(() => {
+    if (!value) {
+      setUrl("/placeholder.svg");
+      return;
+    }
+
+    if (typeof value === "string") {
+      setUrl(value);
+      return;
+    }
+
+    if (!isBlobLike(value) || typeof URL === "undefined") {
+      setUrl("/placeholder.svg");
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(value);
+    setUrl(objectUrl);
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [value]);
+
+  return url;
 }
 
 export function PreviewStep({
   formData,
   updateFormData,
   validateStep,
+  onSubmit,
+  loading,
 }: PreviewStepProps) {
-  // const [declaration, setDeclaration] = useState(formData.declaration || false);
+  const profilePreviewSrc = usePreviewUrl(formData.profileImage);
+  const signaturePreviewSrc = usePreviewUrl(formData.signature);
+  const [declaration, setDeclaration] = useState<boolean>(
+    () => formData.declaration ?? false,
+  );
+  const prevDeclarationRef = useRef<boolean>(declaration);
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+    return date.toLocaleDateString("en-NG", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
 
-  // useEffect(() => {
-  //   updateFormData({ declaration });
-  //   validateStep(5, true); // This step is always valid, but we need the declaration for submission
-  // }, [declaration, updateFormData, validateStep]);
+  useEffect(() => {
+    if (prevDeclarationRef.current !== declaration) {
+      updateFormData({ declaration });
+      prevDeclarationRef.current = declaration;
+    }
+    validateStep(5, declaration);
+  }, [declaration, updateFormData, validateStep]);
 
-  // const formatDate = (dateString) => {
-  //   if (!dateString) return "";
-  //   const date = new Date(dateString);
-  //   return date.toLocaleDateString("en-NG", {
-  //     day: "numeric",
-  //     month: "long",
-  //     year: "numeric",
-  //   });
-  // };
+  const handleSubmit = () => {
+    if (!declaration || loading) return;
+    onSubmit({ declaration });
+  };
 
   return (
     <div className="space-y-8">
@@ -48,12 +104,22 @@ export function PreviewStep({
       </div>
 
       <Tabs defaultValue="verification" className="w-full">
-        <TabsList className="grid grid-cols-5 mb-4">
-          <TabsTrigger value="verification">Verification</TabsTrigger>
-          <TabsTrigger value="personal">Personal</TabsTrigger>
-          <TabsTrigger value="employment">Employment</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="declaration">Declaration</TabsTrigger>
+        <TabsList className="flex flex-wrap justify-center gap-2 rounded-3xl border border-green-100 bg-white/80 p-1 shadow-sm mb-4">
+          {[
+            { value: "verification", label: "Verification" },
+            { value: "personal", label: "Personal" },
+            { value: "employment", label: "Employment" },
+            { value: "documents", label: "Documents" },
+            { value: "declaration", label: "Declaration" },
+          ].map((tab) => (
+            <TabsTrigger
+              key={tab.value}
+              value={tab.value}
+              className="flex-1 min-w-[120px] rounded-full border border-transparent bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm transition duration-200 hover:text-slate-900 focus-visible:text-slate-900 data-[state=active]:border-green-600 data-[state=active]:bg-green-200 data-[state=active]:text-slate-900 data-[state=active]:shadow-lg"
+            >
+              {tab.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         <TabsContent value="verification">
@@ -410,10 +476,7 @@ export function PreviewStep({
                   </p>
                   {formData.profileImage ? (
                     <img
-                      src={
-                        URL.createObjectURL(formData.profileImage) ||
-                        "/placeholder.svg"
-                      }
+                      src={profilePreviewSrc}
                       alt="Profile preview"
                       className="h-16 w-16 object-cover rounded-md mt-1"
                     />
@@ -425,10 +488,7 @@ export function PreviewStep({
                   <p className="text-sm font-medium text-gray-500">Signature</p>
                   {formData.signature ? (
                     <img
-                      src={
-                        URL.createObjectURL(formData.signature) ||
-                        "/placeholder.svg"
-                      }
+                      src={signaturePreviewSrc}
                       alt="Signature preview"
                       className="h-12 w-24 object-contain mt-1"
                     />
@@ -460,10 +520,10 @@ export function PreviewStep({
                 <div className="flex items-start space-x-2">
                   <Checkbox
                     id="declaration"
-                    // checked={declaration}
-                    // onCheckedChange={(checked) =>
-                    //   setDeclaration(checked as boolean)
-                    // }
+                    checked={declaration}
+                    onCheckedChange={(checked) =>
+                      setDeclaration(checked as boolean)
+                    }
                   />
                   <Label
                     htmlFor="declaration"
@@ -477,6 +537,19 @@ export function PreviewStep({
           </Card>
         </TabsContent>
       </Tabs>
+
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-500">
+          Check the box and click submit to save everything to the database.
+        </p>
+        <Button
+          onClick={handleSubmit}
+          disabled={!declaration || loading}
+          className="text-white"
+        >
+          {loading ? "Submitting…" : "Submit Application"}
+        </Button>
+      </div>
     </div>
   );
 }

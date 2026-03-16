@@ -113,3 +113,51 @@ export interface ImportEmployeesResponse {
   message: string;
   data: ImportEmployeeData[];
 }
+
+export interface EmployeeRegistrationPayload {
+  registration_id?: string;
+  nin: string;
+  firstname: string;
+  surname: string;
+  middlename?: string;
+  email: string;
+  gender?: string;
+  telephoneno?: string;
+  birthdate?: string;
+  state_of_origin?: string;
+  residence_address?: string;
+  residence_state?: string;
+  residence_lga?: string;
+  profession?: string;
+  maritalstatus?: string;
+  employment_id?: string;
+  service_number?: string;
+  file_number?: string;
+  rank_position?: string;
+  department?: string;
+  organization?: string;
+  employment_type?: string;
+  probation_period?: string;
+  work_location?: string;
+  date_of_first_appointment?: string;
+  grade_level?: string;
+  salary_structure?: string;
+  cadre?: string;
+  bank_name?: string;
+  account_number?: string;
+  pfa_name?: string;
+  rsapin?: string;
+  educational_background?: string;
+  certifications?: string;
+  next_of_kin_name?: string;
+  next_of_kin_relationship?: string;
+  next_of_kin_phone_number?: string;
+  next_of_kin_address?: string;
+  declaration?: boolean;
+}
+
+export interface EmployeeRegistrationResponse {
+  success: boolean;
+  message: string;
+  data?: Record<string, unknown>;
+}

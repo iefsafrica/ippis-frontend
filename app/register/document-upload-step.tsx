@@ -12,7 +12,7 @@ import { Button } from "@tremor/react";
 interface DocumentUploadStepProps {
   formData: any;
   updateFormData: (data: any) => void;
-  handleDocsUploadSubmit: (data: any) => void;
+  onSubmit: (data: any) => void;
   validateStep: (step: number, isValid: boolean) => void;
 }
 
@@ -29,7 +29,7 @@ export default function DocumentUploadStep({
   formData,
   updateFormData,
   validateStep,
-  handleDocsUploadSubmit,
+  onSubmit,
 }: DocumentUploadStepProps) {
   const [errors, setErrors] = useState({
     appointmentLetter: "",
@@ -77,11 +77,20 @@ export default function DocumentUploadStep({
   // No server upload, just notify user
 
   // Helper to preview image if base64 or File
-  const getImageSrc = (value: any) => {
-    if (!value) return "/placeholder.svg";
-    if (typeof value === "string") return value;
-    return URL.createObjectURL(value);
-  };
+const isBlobLike = (value: unknown): value is Blob => {
+  if (typeof Blob === "undefined") {
+    return false;
+  }
+
+  return value instanceof Blob;
+};
+
+const getImageSrc = (value: any) => {
+  if (!value) return "/placeholder.svg";
+  if (typeof value === "string") return value;
+  if (!isBlobLike(value)) return "/placeholder.svg";
+  return URL.createObjectURL(value);
+};
 
   return (
     <div className="space-y-8">
@@ -248,7 +257,7 @@ export default function DocumentUploadStep({
                 </div>
               )}
             </div>
-            <Button onClick={handleDocsUploadSubmit}>Submit Documents</Button>
+            <Button onClick={() => onSubmit(formData)}>Submit Documents</Button>
           </div>
         </CardContent>
       </Card>

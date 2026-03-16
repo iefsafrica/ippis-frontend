@@ -1,9 +1,24 @@
 import axios, { AxiosRequestConfig } from "axios";
 import Cookies from "js-cookie";
 
-const baseUrl =
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "https://ippis-backend.onrender.com/api";
+const resolveBaseUrl = () => {
+  // Prefer the public API base URL when explicitly configured.
+  const envUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  if (envUrl) {
+    return envUrl;
+  }
+
+  // Fallback to the internal backend service URL (e.g., set on Vercel).
+  const fallbackUrl = process.env.BACKEND_SERVICE_URL?.trim();
+  if (fallbackUrl) {
+    return fallbackUrl;
+  }
+
+  // Final fallback for local development.
+  return "https://ippis-backend.onrender.com/api";
+};
+
+const baseUrl = resolveBaseUrl();
 
 const api = axios.create({
   baseURL: baseUrl,
