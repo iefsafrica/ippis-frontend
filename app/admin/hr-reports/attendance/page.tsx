@@ -1,188 +1,254 @@
-import { Calendar, Users, Clock } from "lucide-react"
+"use client"
+
+import { Calendar, Users, Clock, AlertTriangle } from "lucide-react"
+import { ReportLayout } from "../components/report-layout"
+import { DateFilter } from "../components/date-filter"
+import { useHrAttendances } from "@/services/hooks/hr-reports/attendance"
+import type { AttendanceRecord, AttendanceStatus } from "@/types/timesheets/attendance"
+import { useMemo } from "react"
+import type { ReactNode } from "react"
+
+const statusCardDefinition: {
+  status: AttendanceStatus
+  label: string
+  bgClass: string
+  textClass: string
+  icon: ReactNode
+}[] = [
+  {
+    status: "present",
+    label: "Present",
+    bgClass: "bg-green-50",
+    textClass: "text-green-700",
+    icon: <Users className="h-5 w-5 text-green-600" />,
+  },
+  {
+    status: "absent",
+    label: "Absent",
+    bgClass: "bg-red-50",
+    textClass: "text-red-700",
+    icon: <Users className="h-5 w-5 text-red-600" />,
+  },
+  {
+    status: "late",
+    label: "Late",
+    bgClass: "bg-yellow-50",
+    textClass: "text-yellow-700",
+    icon: <Clock className="h-5 w-5 text-yellow-600" />,
+  },
+  {
+    status: "leave",
+    label: "On Leave",
+    bgClass: "bg-blue-50",
+    textClass: "text-blue-700",
+    icon: <Calendar className="h-5 w-5 text-blue-600" />,
+  },
+]
+
+const statusBadgeClasses: Record<AttendanceStatus, string> = {
+  present: "bg-green-100 text-green-800",
+  absent: "bg-red-100 text-red-800",
+  late: "bg-amber-100 text-amber-800",
+  leave: "bg-blue-100 text-blue-800",
+}
+
+const parseTimeToMinutes = (value?: string) => {
+  if (!value) return null
+  const [hours, minutes, seconds] = value.split(":").map((segment) => parseInt(segment, 10))
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null
+  return hours * 60 + minutes + (Number.isNaN(seconds) ? 0 : seconds / 60)
+}
+
+const formatDuration = (minutes: number) => {
+  if (minutes <= 0) return "-"
+  const wholeHours = Math.floor(minutes / 60)
+  const remainingMinutes = Math.round(minutes - wholeHours * 60)
+  return `${wholeHours}h ${remainingMinutes}m`
+}
+
+const getWorkingHours = (clockIn?: string | null, clockOut?: string | null) => {
+  const start = parseTimeToMinutes(clockIn ?? undefined)
+  const end = parseTimeToMinutes(clockOut ?? undefined)
+  if (start === null || end === null || end <= start) {
+    return "-"
+  }
+  return formatDuration(end - start)
+}
+
+const formatDate = (value?: string) => {
+  if (!value) return "-"
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return "-"
+  return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+}
 
 export default function AttendanceReportPage() {
+  const { data, isLoading, isError } = useHrAttendances()
+  const attendanceRecords: AttendanceRecord[] = data ?? []
+
+  const totals = useMemo(() => {
+    const base: Record<AttendanceStatus, number> = {
+      present: 0,
+      absent: 0,
+      late: 0,
+      leave: 0,
+    }
+
+    attendanceRecords.forEach((record) => {
+      const status = record.status || "present"
+      if (status in base) {
+        base[status] += 1
+      }
+    })
+
+    return base
+  }, [attendanceRecords])
+
+  const isEmpty = !attendanceRecords.length && !isLoading
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-        <h3 className="text-xl font-semibold">Attendance Report</h3>
+    <ReportLayout title="Attendance Report" description="Track check-ins, check-outs, and daily statuses">
+      <DateFilter />
 
-        <div className="mt-4 sm:mt-0 flex space-x-2">
-          <select className="px-3 py-2 border border-gray-300 rounded-md text-sm">
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-            <option value="yearly">Yearly</option>
-          </select>
-
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">Export</button>
-        </div>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-full mr-3">
-              <Users className="h-5 w-5 text-green-600" />
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {statusCardDefinition.map((card) => (
+            <div key={card.status} className={`p-4 rounded-lg border ${card.bgClass} border-gray-200`}>
+              <div className="flex items-center">
+                <div className="p-2 rounded-full bg-white/60 mr-3">{card.icon}</div>
+                <div>
+                  <p className="text-sm text-gray-500">{card.label}</p>
+                  <p className={`text-2xl font-semibold ${card.textClass}`}>
+                    {isLoading ? "..." : totals[card.status].toLocaleString()}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Based on latest pull</p>
+                </div>
+              </div>
             </div>
+          ))}
+        </div>
+
+        <div className="border rounded-lg p-6 bg-white shadow-sm">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
             <div>
-              <p className="text-sm text-gray-500">Present</p>
-              <p className="text-xl font-semibold">142</p>
+              <h3 className="text-lg font-semibold">Attendance Trends</h3>
+              <p className="text-sm text-muted-foreground">Showing live totals from the attendance endpoint.</p>
             </div>
+            <div className="flex items-center gap-2">
+              <button className="px-4 py-2 text-sm font-medium text-blue-600 rounded-md border border-blue-200 hover:bg-blue-50">
+                Export
+              </button>
+              <button
+                className="px-4 py-2 text-sm font-medium bg-gray-100 text-gray-700 rounded-md border border-gray-200 hover:bg-gray-200"
+                onClick={() => window.location.reload()}
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+          <div className="h-[220px] bg-gray-50 rounded-md border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-500">
+            <AlertTriangle className="h-10 w-10 mb-3" />
+            <p className="text-sm">Trend chart placeholder (real chart coming soon)</p>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-          <div className="flex items-center">
-            <div className="p-2 bg-red-100 rounded-full mr-3">
-              <Users className="h-5 w-5 text-red-600" />
-            </div>
+        <div className="border rounded-lg bg-white shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <div>
-              <p className="text-sm text-gray-500">Absent</p>
-              <p className="text-xl font-semibold">8</p>
+              <h3 className="text-lg font-semibold">Attendance Details</h3>
+              <p className="text-sm text-muted-foreground">
+                Latest {attendanceRecords.length ?? 0} entries from the API.
+              </p>
             </div>
+            {isError && !isLoading && (
+              <div className="text-sm text-red-600">Unable to load attendance right now.</div>
+            )}
           </div>
-        </div>
 
-        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-          <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-full mr-3">
-              <Clock className="h-5 w-5 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Late</p>
-              <p className="text-xl font-semibold">15</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-full mr-3">
-              <Calendar className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">On Leave</p>
-              <p className="text-xl font-semibold">5</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Chart Placeholder */}
-      <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-        <h4 className="text-lg font-medium mb-4">Attendance Trends</h4>
-        <div className="h-64 bg-gray-50 flex items-center justify-center border border-dashed border-gray-300 rounded-md">
-          <div className="text-center">
-            <Calendar className="h-10 w-10 text-gray-400 mx-auto mb-2" />
-            <p className="text-gray-500">Attendance trend chart will appear here</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Data Table */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h4 className="text-lg font-medium">Attendance Details</h4>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Employee
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Department
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Status
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Check In
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Check Out
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Working Hours
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {[...Array(5)].map((_, index) => (
-                <tr key={index}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 mr-3">
-                        {String.fromCharCode(65 + index)}
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">Employee {index + 1}</div>
-                        <div className="text-sm text-gray-500">employee{index + 1}@example.com</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {["IT", "HR", "Finance", "Marketing", "Operations"][index]}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        index % 4 === 0
-                          ? "bg-green-100 text-green-800"
-                          : index % 4 === 1
-                            ? "bg-red-100 text-red-800"
-                            : index % 4 === 2
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-blue-100 text-blue-800"
-                      }`}
-                    >
-                      {index % 4 === 0 ? "Present" : index % 4 === 1 ? "Absent" : index % 4 === 2 ? "Late" : "On Leave"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {index % 4 === 0 ? "08:55 AM" : index % 4 === 1 ? "—" : index % 4 === 2 ? "09:15 AM" : "—"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {index % 4 === 0 ? "05:02 PM" : index % 4 === 1 ? "—" : index % 4 === 2 ? "05:30 PM" : "—"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {index % 4 === 0 ? "8h 7m" : index % 4 === 1 ? "—" : index % 4 === 2 ? "8h 15m" : "—"}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Employee
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Department
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Check In
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Check Out
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Working Hours
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-          <div className="text-sm text-gray-500">Showing 5 of 150 entries</div>
-          <div className="flex space-x-2">
-            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm">Previous</button>
-            <button className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm">Next</button>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {isLoading && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-6 text-sm text-muted-foreground">
+                      Loading attendance records...
+                    </td>
+                  </tr>
+                )}
+                {isEmpty && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-6 text-sm text-muted-foreground">
+                      No attendance data available right now.
+                    </td>
+                  </tr>
+                )}
+                {!isLoading &&
+                  attendanceRecords.map((record) => (
+                    <tr key={record.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{record.employee_name}</div>
+                        <div className="text-xs text-gray-500">{record.employee_code ?? "—"}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.department}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            statusBadgeClasses[record.status] ?? "bg-slate-100 text-slate-800"
+                          }`}
+                        >
+                          {record.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.clock_in ?? "—"}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.clock_out ?? "—"}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {getWorkingHours(record.clock_in, record.clock_out)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(record.attendance_date)}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
           </div>
+
+          {(!isLoading && !isEmpty) && (
+            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between text-sm text-gray-500">
+              <span>Showing {attendanceRecords.length} of {attendanceRecords.length} entries</span>
+              <div className="flex items-center space-x-2">
+                <button className="px-3 py-1 border border-gray-300 rounded-md text-sm">Previous</button>
+                <button className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm">Next</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </ReportLayout>
   )
 }

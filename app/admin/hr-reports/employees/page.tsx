@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react"
 import { ReportLayout } from "../components/report-layout"
 import { DateFilter } from "../components/date-filter"
-import { useEmployeesList } from "@/services/hooks/employees/useEmployees"
-import { getEmployeesList } from "@/services/endpoints/employees/employees"
+import { useHrEmployeesList } from "@/services/hooks/hr-reports/employees"
+import { getEmployeesList } from "@/services/endpoints/hr-reports/employees"
 import { useGetLeaves } from "@/services/hooks/calendar/leaves"
 import type { Employee } from "@/types/employees/employee-management"
 
@@ -15,8 +15,15 @@ const isDateWithinRange = (value: Date, start: Date, end: Date) => {
   return dayValue >= dayStart && dayValue <= dayEnd
 }
 
+const formatReportDate = (value?: string) => {
+  if (!value) return "-"
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return "-"
+  return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+}
+
 export default function EmployeesReportPage() {
-  const { data: firstPageEmployees, isLoading: isEmployeesLoading } = useEmployeesList(1)
+  const { data: firstPageEmployees, isLoading: isEmployeesLoading } = useHrEmployeesList(1)
   const { data: leavesResponse, isLoading: isLeavesLoading } = useGetLeaves()
   const [allEmployees, setAllEmployees] = useState<Employee[]>([])
   const [isHydratingEmployees, setIsHydratingEmployees] = useState(false)
@@ -104,6 +111,12 @@ export default function EmployeesReportPage() {
   const activePercent = stats.totalEmployees > 0 ? ((stats.activeEmployees / stats.totalEmployees) * 100).toFixed(1) : "0.0"
   const onLeavePercent = stats.totalEmployees > 0 ? ((stats.onLeaveEmployees / stats.totalEmployees) * 100).toFixed(1) : "0.0"
   const inactivePercent = stats.totalEmployees > 0 ? ((stats.inactiveEmployees / stats.totalEmployees) * 100).toFixed(1) : "0.0"
+  const displayedEmployees = allEmployees.length ? allEmployees : firstPageEmployees?.employees ?? []
+  const statusBadgeClasses: Record<string, string> = {
+    active: "bg-green-100 text-green-800",
+    inactive: "bg-red-100 text-red-800",
+    pending: "bg-slate-100 text-slate-800",
+  }
 
   return (
     <ReportLayout title="Employees Report" description="Comprehensive employee data, demographics, and statistics">
@@ -183,20 +196,40 @@ export default function EmployeesReportPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {Array(5)
-                  .fill(0)
-                  .map((_, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm">EMP-{1000 + i}</td>
-                      <td className="px-4 py-3 text-sm">John Doe</td>
-                      <td className="px-4 py-3 text-sm">IT</td>
-                      <td className="px-4 py-3 text-sm">Software Engineer</td>
-                      <td className="px-4 py-3 text-sm">2020-06-15</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Active</span>
-                      </td>
-                    </tr>
-                  ))}
+                {isStatsLoading && (
+                  <tr>
+                    <td colSpan={6} className="text-center text-sm text-muted-foreground py-6">
+                      Loading employee data...
+                    </td>
+                  </tr>
+                )}
+                {!isStatsLoading && displayedEmployees.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="text-center text-sm text-muted-foreground py-6">
+                      No employee records available right now.
+                    </td>
+                  </tr>
+                )}
+                {!isStatsLoading &&
+                  displayedEmployees.map((employee) => {
+                    const statusKey = (employee.status ?? "unknown").toLowerCase()
+                    const badgeClass = statusBadgeClasses[statusKey] ?? "bg-slate-100 text-slate-800"
+
+                    return (
+                      <tr key={employee.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-semibold">{employee.id}</td>
+                        <td className="px-4 py-3 text-sm">{employee.name}</td>
+                        <td className="px-4 py-3 text-sm">{employee.department}</td>
+                        <td className="px-4 py-3 text-sm">{employee.position}</td>
+                        <td className="px-4 py-3 text-sm">{formatReportDate(employee.join_date)}</td>
+                        <td className="px-4 py-3 text-sm">
+                          <span className={`px-2 py-1 text-xs rounded-full font-semibold ${badgeClass}`}>
+                            {employee.status ?? "Unknown"}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
               </tbody>
             </table>
           </div>

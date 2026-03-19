@@ -15,17 +15,24 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useVerifyNin } from "@/services/hooks/verify";
-import { VerifyNinData } from "@/types/verify";
+import { VerifyNinData, VerifyNinPayload } from "@/types/verify";
 
 // Props Interface
 interface VerificationStepProps {
   formData: { bvn: string; nin: string };
-  onSubmit: (data: { bvn: string; nin: string; manualVerification?: boolean }) => void;
+  onSubmit: (data: {
+    bvn: string;
+    nin: string;
+    registrationId?: string;
+    registration_id?: string;
+    manualVerification?: boolean;
+  }) => void;
   loading: boolean;
   ninVerified: boolean;
   setNinVerified: (v: boolean) => void;
   setVerifiedNIN: React.Dispatch<React.SetStateAction<VerifyNinData | null>>;
   advanceToPersonalInfo?: () => void;
+  initialRegistrationId?: string;
 }
 
 // Util
@@ -40,6 +47,7 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
   setNinVerified,
   setVerifiedNIN,
   advanceToPersonalInfo,
+  initialRegistrationId,
 }) => {
   const [bvn, setBvn] = useState(formData.bvn || "");
   const [nin, setNin] = useState(formData.nin || "");
@@ -49,17 +57,45 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
   const [buttonLoading, setButtonLoading] = useState(false);
   const verifyMutation = useVerifyNin();
 
-  const verifyNIN = async (ninValue: string) => {
+  const verifyNIN = async (ninValue: string, initId?: string) => {
     if (!isValidElevenDigits(ninValue)) {
       return { success: false, error: "NIN must be 11 digits." };
     }
 
     try {
-      const response = await verifyMutation.mutateAsync({ nin: ninValue });
-      const verifiedData = response.data ?? null;
+      const payload: VerifyNinPayload = { nin: ninValue };
+      if (initId) {
+        payload.registration_id = initId;
+      }
+      const response = await verifyMutation.mutateAsync(payload);
+      console.log("Verification response", response);
+      const registrationIdFromResponse =
+        response.registration_id ||
+        response.registrationId ||
+        response.data?.registration_id ||
+        response.data?.registrationId ||
+        undefined;
+      const isVerified =
+        typeof response.verified === "boolean"
+          ? response.verified
+          : response.data?.verified ?? response.success;
+      const verifiedData = response.data ?? {
+        nin: ninValue,
+        verified: isVerified,
+        registration_id: registrationIdFromResponse,
+      };
       setVerifiedNIN(verifiedData);
-      const isVerified = verifiedData?.verified ?? false;
-      return { success: true, verified: isVerified };
+      if (registrationIdFromResponse) {
+        console.log("Verification response payload:", JSON.stringify(response, null, 2));
+        if (typeof window !== "undefined") {
+          localStorage.setItem("registration_id", registrationIdFromResponse);
+        }
+      }
+      return {
+        success: response.success,
+        verified: isVerified,
+        registrationId: registrationIdFromResponse,
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : "NIN verification failed";
       return { success: false, error: message };
@@ -84,7 +120,8 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
       return;
     }
 
-    const { success, error, verified } = await verifyNIN(nin);
+    const { success, error, verified, registrationId: registrationIdFromVerify } =
+      await verifyNIN(nin, initialRegistrationId);
     if (!success) {
       setErrors((prev) => ({
         ...prev,
@@ -97,7 +134,13 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
     if (verified) {
       setShowModal(true);
     }
-    onSubmit({ bvn, nin, manualVerification: !verified });
+    onSubmit({
+      bvn,
+      nin,
+      manualVerification: !verified,
+      registrationId: registrationIdFromVerify,
+      registration_id: registrationIdFromVerify,
+    });
     advanceToPersonalInfo?.();
     setButtonLoading(false);
   };

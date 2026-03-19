@@ -18,12 +18,18 @@ interface EmploymentInfoStepProps {
   formData: any;
   handleEmploymentInfoSubmit: (data: any) => void;
   loading: boolean;
+  registrationIdInput: string;
+  isRegistrationIdConfirmed: boolean;
+  onRegistrationIdChange: (value: string) => void;
 }
 
 export default function EmploymentInfoStep({
   formData,
   handleEmploymentInfoSubmit,
   loading,
+  registrationIdInput,
+  isRegistrationIdConfirmed,
+  onRegistrationIdChange,
 }: EmploymentInfoStepProps) {
   const [formState, setFormState] = useState({
     employmentIdNo: formData.employmentIdNo || "",
@@ -112,10 +118,53 @@ export default function EmploymentInfoStep({
     });
   }, [formData]);
 
+  const normalizeEmploymentPayload = (values: typeof formState) => ({
+    employmentIdNo: values.employmentIdNo,
+    employment_id_no: values.employmentIdNo,
+    employment_id: values.employmentIdNo,
+    serviceNo: values.serviceNo,
+    service_no: values.serviceNo,
+    service_number: values.serviceNo,
+    fileNo: values.fileNo,
+    file_no: values.fileNo,
+    file_number: values.fileNo,
+    rankPosition: values.rankPosition,
+    rank_position: values.rankPosition,
+    department: values.department,
+    organization: values.organization,
+    employmentType: values.employmentType,
+    employment_type: values.employmentType,
+    probationPeriod: values.probationPeriod,
+    probation_period: values.probationPeriod,
+    workLocation: values.workLocation,
+    work_location: values.workLocation,
+    dateOfFirstAppointment: values.dateOfFirstAppointment,
+    date_of_first_appointment: values.dateOfFirstAppointment,
+    current_appointment_date: values.dateOfFirstAppointment,
+    gl: values.gl,
+    grade_level: values.gl,
+    gradeLevel: values.gl,
+    step: values.step,
+    salaryStructure: values.salaryStructure,
+    salary_structure: values.salaryStructure,
+    cadre: values.cadre,
+    nameOfBank: values.nameOfBank,
+    bank_name: values.nameOfBank,
+    bankName: values.nameOfBank,
+    accountNumber: values.accountNumber,
+    account_number: values.accountNumber,
+    pfaName: values.pfaName,
+    pfa_name: values.pfaName,
+    rsapin: values.rsapin,
+    educationalBackground: values.educationalBackground,
+    educational_background: values.educationalBackground,
+    certifications: values.certifications,
+  });
+
   const handleLocalSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (Object.keys(errors).length === 0) {
-      handleEmploymentInfoSubmit(formState);
+      handleEmploymentInfoSubmit(normalizeEmploymentPayload(formState));
     } else {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
@@ -135,6 +184,27 @@ export default function EmploymentInfoStep({
 
       <Card className="border-red-200">
         <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="employmentRegistrationId">Registration ID</Label>
+              <Input
+                id="employmentRegistrationId"
+                value={registrationIdInput}
+                onChange={(event) =>
+                  onRegistrationIdChange(event.target.value)
+                }
+                placeholder="Enter the IPPIS code here"
+                className={
+                  !isRegistrationIdConfirmed ? "border-yellow-500" : undefined
+                }
+              />
+              {!isRegistrationIdConfirmed && (
+                <p className="text-yellow-600 text-xs">
+                  Confirm the registration ID from the verification modal first.
+                </p>
+              )}
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="employmentIdNo">Employment ID No*</Label>

@@ -116,11 +116,15 @@ export interface ImportEmployeesResponse {
 
 export interface EmployeeRegistrationPayload {
   registration_id?: string;
-  nin: string;
-  firstname: string;
-  surname: string;
+  registrationId?: string;
+  nin?: string;
+  firstname?: string;
+  firstName?: string;
+  first_name?: string;
+  surname?: string;
   middlename?: string;
-  email: string;
+  middle_name?: string;
+  email?: string;
   gender?: string;
   telephoneno?: string;
   birthdate?: string;

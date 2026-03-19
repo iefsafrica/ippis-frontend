@@ -60,6 +60,9 @@ interface PersonalInfoStepProps {
   onSubmit: (data: any) => void;
   loading: boolean;
   verifiedNIN: VerifyNinData | null;
+  registrationIdInput: string;
+  isRegistrationIdConfirmed: boolean;
+  onRegistrationIdChange: (value: string) => void;
 }
 
 export default function ProfileForm({
@@ -67,6 +70,9 @@ export default function ProfileForm({
   onSubmit,
   loading,
   verifiedNIN,
+  registrationIdInput,
+  isRegistrationIdConfirmed,
+  onRegistrationIdChange,
 }: PersonalInfoStepProps) {
   const [availableLgas, setAvailableLgas] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -228,21 +234,36 @@ export default function ProfileForm({
 const transformToFormData = (values: FormValues) => ({
   title: values.title,
   surname: values.surname,
+  firstname: values.firstname,
   firstName: values.firstname,
+  first_name: values.firstname,
   otherNames: values.othername || "",
+  other_name: values.othername || "",
   phoneNumber: values.contact,
+  phone_number: values.contact,
+  telephoneno: values.contact,
   email: values.email,
   dateOfBirth: values.dob,
+  date_of_birth: values.dob,
   sex: values.sex,
+  gender: values.sex,
   maritalStatus: values.maritalStatus,
+  marital_status: values.maritalStatus,
   stateOfOrigin: values.stateorigin,
+  state_of_origin: values.stateorigin,
   lga: values.lga,
   stateOfResidence: values.stateres,
+  state_of_residence: values.stateres,
   addressStateOfResidence: values.address,
+  address_state_of_residence: values.address,
   nextOfKinName: values.nok_name,
+  next_of_kin_name: values.nok_name,
   nextOfKinRelationship: values.nok_relationship,
+  next_of_kin_relationship: values.nok_relationship,
   nextOfKinPhoneNumber: values.nok_phone,
+  next_of_kin_phone_number: values.nok_phone,
   nextOfKinAddress: values.nok_address,
+  next_of_kin_address: values.nok_address,
 });
 
 const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
@@ -276,6 +297,25 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
 
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
         {/* Personal Information Section */}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="registrationId">Registration ID</Label>
+            <Input
+              id="registrationId"
+              value={registrationIdInput}
+              onChange={(event) => onRegistrationIdChange(event.target.value)}
+              placeholder="Enter the IPPIS code you got from verification"
+              className={
+                !isRegistrationIdConfirmed ? "border-yellow-500" : undefined
+              }
+            />
+            {!isRegistrationIdConfirmed && (
+              <p className="text-yellow-600 text-xs">
+                Confirm the registration ID from the modal before submitting.
+              </p>
+            )}
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Title */}
           <div>

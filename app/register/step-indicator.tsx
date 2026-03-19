@@ -17,8 +17,7 @@ export function StepIndicator({
     { number: 1, title: "Verification" },
     { number: 2, title: "Personal Information" },
     { number: 3, title: "Employment Information" },
-    { number: 4, title: "Document Upload" },
-    { number: 5, title: "Review & Submit" },
+    { number: 4, title: "Review & Submit" },
   ]
 
   const handleStepClick = (stepNumber: number) => {
