@@ -426,7 +426,8 @@ export default function RegisterForm() {
         }));
         console.log("Document upload response", data);
         setSuccess("Documents uploaded successfully");
-        setCurrentStep(4);
+        setMaxVisitedStep((prev) => Math.max(prev, 5));
+        setCurrentStep(5);
       } else {
         setError(data.error || "Failed to upload documents");
       }
@@ -666,18 +667,30 @@ export default function RegisterForm() {
             onRegistrationIdChange={handleManualRegistrationIdChange}
           />
         );
-      case 3:
-        return (
-          <EmploymentInfoStep
-            formData={formData}
-            handleEmploymentInfoSubmit={handleEmploymentInfoSubmit}
-            loading={loading}
-            registrationIdInput={manualRegistrationIdInput}
-            isRegistrationIdConfirmed={registrationIdConfirmed}
-            onRegistrationIdChange={handleManualRegistrationIdChange}
-          />
-        );
+        case 3:
+          return (
+            <EmploymentInfoStep
+              formData={formData}
+              handleEmploymentInfoSubmit={handleEmploymentInfoSubmit}
+              loading={loading}
+              registrationIdInput={manualRegistrationIdInput}
+              isRegistrationIdConfirmed={registrationIdConfirmed}
+              onRegistrationIdChange={handleManualRegistrationIdChange}
+            />
+          );
         case 4:
+          return (
+            <DocumentUploadStep
+              formData={formData}
+              updateFormData={documentFieldUpdate}
+              validateStep={() => true}
+              onSubmit={handleDocumentUploadSubmit}
+              loading={loading}
+              registrationIdInput={manualRegistrationIdInput}
+              isRegistrationIdConfirmed={registrationIdConfirmed}
+            />
+          );
+        case 5:
           return (
             <PreviewStep
               formData={formData}

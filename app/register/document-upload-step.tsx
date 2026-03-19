@@ -14,6 +14,8 @@ interface DocumentUploadStepProps {
   updateFormData: (data: any) => void;
   onSubmit: (data: any) => void;
   validateStep: (step: number, isValid: boolean) => void;
+  registrationIdInput?: string;
+  isRegistrationIdConfirmed?: boolean;
 }
 
 const fileToBase64 = (file: File): Promise<string> => {
