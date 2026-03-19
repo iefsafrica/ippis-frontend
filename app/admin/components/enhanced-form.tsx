@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
+import { Calendar, type CalendarProps } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format, isValid } from "date-fns"
 import { CalendarIcon, Loader2 } from "lucide-react"
@@ -51,7 +51,12 @@ export interface FormField {
     maxLength?: number
     message?: string
   }
-  datePickerVariant?: "popover" | "input"
+  datePickerVariant?: "popover" | "input" | "calendar"
+  calendarClassName?: string
+  calendarWrapperClassName?: string
+  calendarClassNames?: CalendarProps["classNames"]
+  calendarModifiers?: CalendarProps["modifiers"]
+  calendarModifiersClassNames?: CalendarProps["modifiersClassNames"]
 }
 
 const getDateFromValue = (value: unknown): Date | undefined => {
@@ -61,6 +66,31 @@ const getDateFromValue = (value: unknown): Date | undefined => {
   }
   const parsed = new Date(value as string)
   return isValid(parsed) ? parsed : undefined
+}
+
+const attendanceCalendarWrapperClassName =
+  "w-full rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
+
+const attendanceCalendarClassNames: CalendarProps["classNames"] = {
+  months: "w-full",
+  month: "w-full space-y-4",
+  caption: "relative flex items-center justify-center pt-1",
+  caption_label: "text-sm font-semibold text-gray-900 tracking-tight",
+  nav: "space-x-1 flex items-center",
+  nav_button:
+    "h-8 w-8 rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 inline-flex items-center justify-center shadow-sm",
+  nav_button_previous: "absolute left-2",
+  nav_button_next: "absolute right-2",
+  table: "w-full border-collapse",
+  head_row: "grid grid-cols-7",
+  head_cell: "py-1 text-center text-[11px] font-semibold text-gray-500 uppercase",
+  row: "mt-2 grid grid-cols-7",
+  cell: "flex items-center justify-center",
+  day: "h-9 w-9 rounded-full text-sm font-medium text-gray-900 hover:bg-gray-100",
+  day_today: "border border-blue-200 bg-blue-50 rounded-full",
+  day_selected: "bg-blue-600 text-white hover:bg-blue-600 rounded-full",
+  day_outside: "text-gray-300",
+  day_disabled: "text-gray-300 opacity-60",
 }
 
 interface EnhancedFormProps {
@@ -303,6 +333,49 @@ export function EnhancedForm({
                 onChange={(e) => handleChange(name, e.target.value)}
                 className={cn(error ? "border-red-500" : "")}
               />
+              {description && !error && (
+                <p id={`${name}-description`} className="text-sm text-gray-500">
+                  {description}
+                </p>
+              )}
+              {error && (
+                <p id={`${name}-error`} className="text-sm text-red-500">
+                  {error}
+                </p>
+              )}
+            </div>
+          )
+        }
+
+        if (datePickerVariant === "calendar") {
+          const isDisabled = disabled || isSubmitting
+          const wrapperClassName = field.calendarWrapperClassName ?? attendanceCalendarWrapperClassName
+          const calendarClassName = field.calendarClassName ?? ""
+          const calendarClassNames = field.calendarClassNames ?? attendanceCalendarClassNames
+          const placeholderText = placeholder || `Select ${label.toLowerCase()}`
+
+          return (
+            <div className="space-y-2">
+              <Label htmlFor={name} className="flex items-center gap-1">
+                {label}
+                {required && <span className="text-red-500">*</span>}
+              </Label>
+              <div className={wrapperClassName}>
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && handleChange(name, date)}
+                  className={calendarClassName}
+                  classNames={calendarClassNames}
+                  modifiers={field.calendarModifiers}
+                  modifiersClassNames={field.calendarModifiersClassNames}
+                  disabled={isDisabled}
+                  initialFocus
+                />
+              </div>
+              <p className="text-sm text-gray-500">
+                {selectedDate ? format(selectedDate, "PPP") : placeholderText}
+              </p>
               {description && !error && (
                 <p id={`${name}-description`} className="text-sm text-gray-500">
                   {description}

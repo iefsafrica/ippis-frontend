@@ -1,609 +1,440 @@
 "use client"
 
-import { useState } from "react"
-import { EnhancedDataTable } from "@/app/admin/components/enhanced-data-table"
-import type { FormField } from "@/app/admin/components/enhanced-form"
-import { Badge } from "@/components/ui/badge"
+import { useEffect, useMemo, useState } from "react"
 import { format } from "date-fns"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
-// Mock data
-const candidates = [
-  {
-    id: "1",
-    name: "John Smith",
-    email: "john.smith@example.com",
-    phone: "+234 812 345 6789",
-    jobAppliedFor: "Software Engineer",
-    jobId: "SE-001",
-    applicationDate: "2023-05-15T00:00:00.000Z",
-    status: "shortlisted",
-    experience: "5 years",
-    education: "BSc Computer Science",
-    skills: ["JavaScript", "React", "Node.js", "TypeScript"],
-    resumeUrl: "/documents/john-smith-resume.pdf",
-    coverLetterUrl: "/documents/john-smith-cover-letter.pdf",
-    photo: "/thoughtful-man.png",
-    source: "LinkedIn",
-    rating: 4.5,
-    interviewDate: "2023-05-25T10:00:00.000Z",
-    notes: "Strong technical skills, good cultural fit",
-  },
-  {
-    id: "2",
-    name: "Sarah Johnson",
-    email: "sarah.johnson@example.com",
-    phone: "+234 813 456 7890",
-    jobAppliedFor: "UI/UX Designer",
-    jobId: "UID-002",
-    applicationDate: "2023-05-14T00:00:00.000Z",
-    status: "interviewing",
-    experience: "3 years",
-    education: "BA Graphic Design",
-    skills: ["Figma", "Adobe XD", "UI Design", "User Research"],
-    resumeUrl: "/documents/sarah-johnson-resume.pdf",
-    coverLetterUrl: "/documents/sarah-johnson-cover-letter.pdf",
-    photo: "/diverse-woman-portrait.png",
-    source: "Indeed",
-    rating: 4.0,
-    interviewDate: "2023-05-20T14:00:00.000Z",
-    notes: "Excellent portfolio, good communication skills",
-  },
-  {
-    id: "3",
-    name: "Michael Brown",
-    email: "michael.brown@example.com",
-    phone: "+234 814 567 8901",
-    jobAppliedFor: "Project Manager",
-    jobId: "PM-003",
-    applicationDate: "2023-05-12T00:00:00.000Z",
-    status: "rejected",
-    experience: "7 years",
-    education: "MBA",
-    skills: ["Project Management", "Agile", "Scrum", "Team Leadership"],
-    resumeUrl: "/documents/michael-brown-resume.pdf",
-    coverLetterUrl: "/documents/michael-brown-cover-letter.pdf",
-    photo: "/thoughtful-man.png",
-    source: "Company Website",
-    rating: 3.0,
-    interviewDate: null,
-    notes: "Not enough experience in our industry",
-  },
-  {
-    id: "4",
-    name: "Emily Davis",
-    email: "emily.davis@example.com",
-    phone: "+234 815 678 9012",
-    jobAppliedFor: "Data Analyst",
-    jobId: "DA-004",
-    applicationDate: "2023-05-10T00:00:00.000Z",
-    status: "hired",
-    experience: "4 years",
-    education: "MSc Data Science",
-    skills: ["Python", "SQL", "Data Visualization", "Statistical Analysis"],
-    resumeUrl: "/documents/emily-davis-resume.pdf",
-    coverLetterUrl: "/documents/emily-davis-cover-letter.pdf",
-    photo: "/diverse-woman-portrait.png",
-    source: "Referral",
-    rating: 4.8,
-    interviewDate: "2023-05-15T11:00:00.000Z",
-    notes: "Excellent technical skills, great cultural fit",
-  },
-  {
-    id: "5",
-    name: "David Wilson",
-    email: "david.wilson@example.com",
-    phone: "+234 816 789 0123",
-    jobAppliedFor: "DevOps Engineer",
-    jobId: "DOE-005",
-    applicationDate: "2023-05-08T00:00:00.000Z",
-    status: "new",
-    experience: "6 years",
-    education: "BSc Computer Engineering",
-    skills: ["AWS", "Docker", "Kubernetes", "CI/CD", "Linux"],
-    resumeUrl: "/documents/david-wilson-resume.pdf",
-    coverLetterUrl: "/documents/david-wilson-cover-letter.pdf",
-    photo: "/thoughtful-man.png",
-    source: "LinkedIn",
-    rating: null,
-    interviewDate: null,
-    notes: "",
-  },
-]
+import { DataTable } from "@/app/admin/core-hr/components/data-table"
+import { EnhancedForm, type FormField } from "@/app/admin/components/enhanced-form"
+import { DetailsView } from "@/app/admin/components/details-view"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { Eye, Edit, Trash2 } from "lucide-react"
+import {
+  useCreateRecruitmentCandidate,
+  useDeleteRecruitmentCandidate,
+  useRecruitmentCandidates,
+  useUpdateRecruitmentCandidate,
+} from "@/services/hooks/recruitment/candidates"
+import { useRecruitmentJobs } from "@/services/hooks/recruitment/jobs"
+import { RECRUITMENT_CANDIDATE_STATUS_OPTIONS } from "@/services/constants/recruitment/candidates"
+import {
+  RecruitmentCandidate,
+  RecruitmentCandidateFilters,
+  RecruitmentCandidatePayload,
+} from "@/types/recruitment/candidates"
 
-// Form fields for adding/editing candidates
-const candidateFields: FormField[] = [
+const baseCandidateFields: FormField[] = [
   {
-    name: "name",
-    label: "Full Name",
+    name: "candidate_name",
+    label: "Candidate Name",
     type: "text",
-    placeholder: "Enter candidate's full name",
+    placeholder: "Full name",
     required: true,
   },
   {
     name: "email",
     label: "Email",
     type: "email",
-    placeholder: "Enter candidate's email",
+    placeholder: "name@example.com",
     required: true,
   },
   {
-    name: "phone",
-    label: "Phone",
-    type: "tel",
-    placeholder: "Enter candidate's phone number",
+    name: "phone_number",
+    label: "Phone Number",
+    type: "text",
+    placeholder: "+234 800 000 0000",
     required: true,
   },
   {
-    name: "jobAppliedFor",
-    label: "Job Applied For",
+    name: "job_id",
+    label: "Job ID",
     type: "select",
-    options: [
-      { value: "Software Engineer", label: "Software Engineer" },
-      { value: "UI/UX Designer", label: "UI/UX Designer" },
-      { value: "Project Manager", label: "Project Manager" },
-      { value: "Data Analyst", label: "Data Analyst" },
-      { value: "DevOps Engineer", label: "DevOps Engineer" },
-    ],
+    placeholder: "Select a job",
     required: true,
   },
   {
-    name: "applicationDate",
+    name: "application_date",
     label: "Application Date",
     type: "date",
+    datePickerVariant: "input",
+    placeholder: "Select date",
     required: true,
   },
   {
     name: "status",
     label: "Status",
     type: "select",
-    options: [
-      { value: "new", label: "New" },
-      { value: "screening", label: "Screening" },
-      { value: "shortlisted", label: "Shortlisted" },
-      { value: "interviewing", label: "Interviewing" },
-      { value: "offered", label: "Offered" },
-      { value: "hired", label: "Hired" },
-      { value: "rejected", label: "Rejected" },
-      { value: "withdrawn", label: "Withdrawn" },
-    ],
+    options: RECRUITMENT_CANDIDATE_STATUS_OPTIONS,
     required: true,
   },
   {
     name: "experience",
     label: "Experience",
     type: "text",
-    placeholder: "Enter years of experience",
-    required: true,
+    placeholder: "e.g. 3 years",
   },
   {
     name: "education",
     label: "Education",
     type: "text",
-    placeholder: "Enter highest education qualification",
-    required: true,
+    placeholder: "Highest education",
   },
   {
     name: "skills",
     label: "Skills",
-    type: "text",
-    placeholder: "Enter skills separated by commas",
-    required: true,
-  },
-  {
-    name: "resumeUrl",
-    label: "Resume/CV",
-    type: "file",
-    accept: ".pdf,.doc,.docx",
-    description: "Upload candidate's resume/CV",
-    required: true,
-  },
-  {
-    name: "coverLetterUrl",
-    label: "Cover Letter",
-    type: "file",
-    accept: ".pdf,.doc,.docx",
-    description: "Upload candidate's cover letter",
-  },
-  {
-    name: "source",
-    label: "Source",
-    type: "select",
-    options: [
-      { value: "LinkedIn", label: "LinkedIn" },
-      { value: "Indeed", label: "Indeed" },
-      { value: "Company Website", label: "Company Website" },
-      { value: "Referral", label: "Referral" },
-      { value: "Job Fair", label: "Job Fair" },
-      { value: "Other", label: "Other" },
-    ],
-    required: true,
-  },
-  {
-    name: "rating",
-    label: "Rating",
-    type: "number",
-    min: 1,
-    max: 5,
-    step: 0.5,
-    placeholder: "Rate candidate from 1 to 5",
-  },
-  {
-    name: "notes",
-    label: "Notes",
     type: "textarea",
-    placeholder: "Enter notes about the candidate",
+    placeholder: "List skills or technologies",
   },
 ]
+
+const buildCandidateFields = (jobOptions: Array<{ value: string; label: string }>): FormField[] => {
+  return baseCandidateFields.map((field) =>
+    field.name === "job_id" ? { ...field, options: jobOptions } : field,
+  )
+}
+
+const sanitizeCandidatePayload = (values: Record<string, any>): RecruitmentCandidatePayload => ({
+  candidate_name: values.candidate_name,
+  email: values.email,
+  phone_number: values.phone_number,
+  job_id: values.job_id,
+  application_date: values.application_date,
+  status: values.status,
+  experience: values.experience,
+  education: values.education,
+  skills: values.skills,
+})
 
 export function JobCandidatesContent() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
-  const [selectedCandidate, setSelectedCandidate] = useState<any>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedCandidate, setSelectedCandidate] = useState<RecruitmentCandidate | null>(null)
+  const [viewCandidate, setViewCandidate] = useState<RecruitmentCandidate | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [candidateToDelete, setCandidateToDelete] = useState<RecruitmentCandidate | null>(null)
+  const [addFormValues, setAddFormValues] = useState<Partial<RecruitmentCandidatePayload>>({})
+  const [editFormValues, setEditFormValues] = useState<Partial<RecruitmentCandidatePayload>>({})
+  const [statusFilter, setStatusFilter] = useState("")
 
-  const handleAdd = async (data: Record<string, any>) => {
-    setIsSubmitting(true)
-    try {
-      console.log("Adding candidate:", data)
-      // Here you would typically make an API call to add the candidate
-      // For this mockup, we're just logging the data
-      setTimeout(() => {
-        setIsSubmitting(false)
+  const candidatesQuery = useRecruitmentCandidates()
+  const createCandidateMutation = useCreateRecruitmentCandidate()
+  const updateCandidateMutation = useUpdateRecruitmentCandidate()
+  const deleteCandidateMutation = useDeleteRecruitmentCandidate()
+  const jobsQuery = useRecruitmentJobs()
+
+  const candidateList = candidatesQuery.data?.data ?? []
+  const jobOptions = useMemo(() => {
+    const jobs = jobsQuery.data?.data ?? []
+    return jobs.map((job) => ({
+      value: job.id,
+      label: job.job_title ? `${job.job_title} (${job.location || job.status})` : job.id,
+    }))
+  }, [jobsQuery.data?.data])
+  const candidateFields = useMemo(() => buildCandidateFields(jobOptions), [jobOptions])
+
+  useEffect(() => {
+    if (!isAddDialogOpen) {
+      setAddFormValues({})
+    }
+  }, [isAddDialogOpen])
+
+  useEffect(() => {
+    if (!isEditDialogOpen) {
+      setEditFormValues({})
+      setSelectedCandidate(null)
+    }
+  }, [isEditDialogOpen])
+
+  useEffect(() => {
+    if (!isViewDialogOpen) {
+      setViewCandidate(null)
+    }
+  }, [isViewDialogOpen])
+
+  useEffect(() => {
+    if (!isDeleteDialogOpen) {
+      setCandidateToDelete(null)
+    }
+  }, [isDeleteDialogOpen])
+
+  const statsCards = useMemo(() => {
+    const counts = candidateList.reduce<Record<string, number>>((acc, candidate) => {
+      const key = candidate.status?.toLowerCase() ?? "unknown"
+      acc[key] = (acc[key] ?? 0) + 1
+      return acc
+    }, {})
+
+    return [
+      { title: "Applied", value: counts.applied ?? 0, description: "Recent applications" },
+      { title: "Interview", value: counts.interview ?? 0, description: "Candidates under evaluation" },
+      { title: "Offered", value: counts.offered ?? 0, description: "Offers pending" },
+      { title: "Hired", value: counts.hired ?? 0, description: "Accepted offers" },
+    ]
+  }, [candidateList])
+
+  const filteredCandidates = useMemo(() => {
+    if (!statusFilter) return candidateList
+    return candidateList.filter((candidate) => candidate.status?.toLowerCase() === statusFilter.toLowerCase())
+  }, [candidateList, statusFilter])
+
+  const searchFields: RecruitmentCandidateFilters[] = useMemo(
+    () => [
+      { status: "" }, // placeholder
+    ],
+    [],
+  )
+
+  const handleAdd = (data: Record<string, any>) => {
+    const payload = sanitizeCandidatePayload({ ...addFormValues, ...data })
+    createCandidateMutation.mutate(payload, {
+      onSuccess: () => {
         setIsAddDialogOpen(false)
-      }, 1000)
-    } catch (error) {
-      console.error("Error adding candidate:", error)
-      setIsSubmitting(false)
-    }
+      },
+    })
   }
 
-  const handleEdit = async (data: Record<string, any>) => {
-    setIsSubmitting(true)
-    try {
-      console.log("Editing candidate:", data)
-      // Here you would typically make an API call to update the candidate
-      // For this mockup, we're just logging the data
-      setTimeout(() => {
-        setIsSubmitting(false)
-        setIsEditDialogOpen(false)
-      }, 1000)
-    } catch (error) {
-      console.error("Error editing candidate:", error)
-      setIsSubmitting(false)
+  const handleEdit = (idOrValues: string | Record<string, any>) => {
+    if (typeof idOrValues === "string") {
+      const candidate = candidateList.find((item) => item.id === idOrValues)
+      if (candidate) {
+        setSelectedCandidate(candidate)
+        setEditFormValues(candidate)
+        setIsEditDialogOpen(true)
+      }
+      return
     }
-  }
-
-  const handleDelete = (id: string) => {
-    console.log("Deleting candidate:", id)
-    // Here you would typically make an API call to delete the candidate
-    // For this mockup, we're just logging the data
+    if (!selectedCandidate) return
+    const payload = sanitizeCandidatePayload({ ...editFormValues, ...idOrValues })
+    updateCandidateMutation.mutate(
+      { id: selectedCandidate.id, payload },
+      {
+        onSuccess: () => {
+          setIsEditDialogOpen(false)
+        },
+      },
+    )
   }
 
   const handleView = (id: string) => {
-    const candidate = candidates.find((candidate) => candidate.id === id)
+    const candidate = candidateList.find((item) => item.id === id)
     if (candidate) {
-      setSelectedCandidate(candidate)
+      setViewCandidate(candidate)
       setIsViewDialogOpen(true)
     }
   }
 
-  const handleEdit2 = (id: string) => {
-    const candidate = candidates.find((candidate) => candidate.id === id)
-    if (candidate) {
-      setSelectedCandidate(candidate)
-      setIsEditDialogOpen(true)
-    }
+  const handleConfirmDelete = async () => {
+    if (!candidateToDelete) return
+    await deleteCandidateMutation.mutateAsync(candidateToDelete.id)
+    setIsDeleteDialogOpen(false)
   }
 
-  const renderStatusBadge = (status: string) => {
-    switch (status) {
-      case "new":
-        return <Badge variant="outline">New</Badge>
-      case "screening":
-        return <Badge className="bg-blue-500">Screening</Badge>
-      case "shortlisted":
-        return <Badge className="bg-purple-500">Shortlisted</Badge>
-      case "interviewing":
-        return <Badge className="bg-yellow-500">Interviewing</Badge>
-      case "offered":
-        return <Badge className="bg-orange-500">Offered</Badge>
-      case "hired":
-        return <Badge className="bg-green-500">Hired</Badge>
-      case "rejected":
-        return <Badge variant="destructive">Rejected</Badge>
-      case "withdrawn":
-        return <Badge variant="secondary">Withdrawn</Badge>
-      default:
-        return <Badge variant="outline">{status}</Badge>
-    }
-  }
+  const candidateColumns = useMemo(
+    () => [
+      { key: "candidate_name", label: "Candidate" },
+      { key: "email", label: "Email" },
+      { key: "phone_number", label: "Phone" },
+      {
+        key: "job_id",
+        label: "Job ID",
+        render: (value: string) => value || "N/A",
+      },
+      {
+        key: "application_date",
+        label: "Application Date",
+        render: (value: string) => (value ? format(new Date(value), "MMM dd, yyyy") : "N/A"),
+      },
+      {
+        key: "status",
+        label: "Status",
+        render: (value: string) => {
+          const normalized = value?.toLowerCase()
+          if (!normalized) {
+            return <Badge variant="outline">Unknown</Badge>
+          }
+          return <Badge className="uppercase">{normalized}</Badge>
+        },
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        render: (_: unknown, row: RecruitmentCandidate) => (
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" size="icon" onClick={() => handleView(row.id)} title="View">
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => handleEdit(row.id)} title="Edit">
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                setCandidateToDelete(row)
+                setIsDeleteDialogOpen(true)
+              }}
+              title="Delete"
+              className="text-red-600 hover:text-red-800"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [handleEdit, handleView],
+  )
 
   return (
     <div className="space-y-6">
-      <EnhancedDataTable
-        title="Job Candidates"
-        description="Manage and track job applicants"
-        columns={[
-          {
-            key: "name",
-            label: "Candidate Name",
-            sortable: true,
-            render: (value, row) => (
-              <div className="flex items-center gap-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={row.photo || "/placeholder.svg"} alt={value} />
-                  <AvatarFallback>
-                    {value
-                      .split(" ")
-                      .map((n: string) => n[0])
-                      .join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="font-medium">{value}</div>
-                  <div className="text-xs text-gray-500">{row.email}</div>
-                </div>
-              </div>
-            ),
-          },
-          {
-            key: "jobAppliedFor",
-            label: "Job Applied For",
-            sortable: true,
-          },
-          {
-            key: "applicationDate",
-            label: "Application Date",
-            sortable: true,
-            render: (value) => format(new Date(value), "MMM dd, yyyy"),
-          },
-          {
-            key: "status",
-            label: "Status",
-            sortable: true,
-            render: (value) => renderStatusBadge(value),
-          },
-          {
-            key: "experience",
-            label: "Experience",
-            sortable: true,
-          },
-          {
-            key: "education",
-            label: "Education",
-            sortable: true,
-          },
-          {
-            key: "skills",
-            label: "Skills",
-            render: (value) => (
-              <div className="flex flex-wrap gap-1">
-                {value.slice(0, 2).map((skill: string) => (
-                  <Badge key={skill} variant="outline" className="bg-gray-100">
-                    {skill}
-                  </Badge>
-                ))}
-                {value.length > 2 && (
-                  <Badge variant="outline" className="bg-gray-100">
-                    +{value.length - 2}
-                  </Badge>
-                )}
-              </div>
-            ),
-          },
-        ]}
-        data={candidates}
-        filterOptions={[
-          {
-            id: "jobAppliedFor",
-            label: "Job Position",
-            type: "select",
-            options: [
-              { value: "Software Engineer", label: "Software Engineer" },
-              { value: "UI/UX Designer", label: "UI/UX Designer" },
-              { value: "Project Manager", label: "Project Manager" },
-              { value: "Data Analyst", label: "Data Analyst" },
-              { value: "DevOps Engineer", label: "DevOps Engineer" },
-            ],
-          },
-          {
-            id: "status",
-            label: "Status",
-            type: "select",
-            options: [
-              { value: "new", label: "New" },
-              { value: "screening", label: "Screening" },
-              { value: "shortlisted", label: "Shortlisted" },
-              { value: "interviewing", label: "Interviewing" },
-              { value: "offered", label: "Offered" },
-              { value: "hired", label: "Hired" },
-              { value: "rejected", label: "Rejected" },
-              { value: "withdrawn", label: "Withdrawn" },
-            ],
-          },
-          {
-            id: "applicationDate",
-            label: "Application Date",
-            type: "date",
-          },
-          {
-            id: "source",
-            label: "Source",
-            type: "select",
-            options: [
-              { value: "LinkedIn", label: "LinkedIn" },
-              { value: "Indeed", label: "Indeed" },
-              { value: "Company Website", label: "Company Website" },
-              { value: "Referral", label: "Referral" },
-              { value: "Job Fair", label: "Job Fair" },
-              { value: "Other", label: "Other" },
-            ],
-          },
-        ]}
-        onAdd={() => setIsAddDialogOpen(true)}
-        onEdit={handleEdit2}
-        onDelete={handleDelete}
-        onView={handleView}
-        formFields={candidateFields}
-        formTitle="Candidate Information"
-        formDescription="Add or edit candidate details"
-        onSubmit={handleAdd}
-        onUpdate={handleEdit}
-        isSubmitting={isSubmitting}
-        isAddDialogOpen={isAddDialogOpen}
-        setIsAddDialogOpen={setIsAddDialogOpen}
-        isEditDialogOpen={isEditDialogOpen}
-        setIsEditDialogOpen={setIsEditDialogOpen}
-        isViewDialogOpen={isViewDialogOpen}
-        setIsViewDialogOpen={setIsViewDialogOpen}
-        selectedItem={selectedCandidate}
-        exportOptions={{
-          csv: true,
-          pdf: true,
-          print: true,
-        }}
-        additionalActions={[
-          {
-            label: "Schedule Interview",
-            onClick: (id) => {
-              console.log("Scheduling interview for candidate:", id)
-              // Here you would typically navigate to the interview scheduling page
-              // or open a dialog to schedule an interview
-            },
-            icon: "Calendar",
-            showIf: (row) => row.status === "shortlisted" || row.status === "screening",
-          },
-          {
-            label: "Send Email",
-            onClick: (id) => {
-              console.log("Sending email to candidate:", id)
-              // Here you would typically open an email composition dialog
-            },
-            icon: "Mail",
-          },
-          {
-            label: "Change Status",
-            onClick: (id) => {
-              console.log("Changing status for candidate:", id)
-              // Here you would typically open a status change dialog
-            },
-            icon: "RefreshCw",
-          },
-        ]}
-        viewRenderer={(item) => (
-          <div className="space-y-4 p-4">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-16 w-16">
-                <AvatarImage src={item.photo || "/placeholder.svg"} alt={item.name} />
-                <AvatarFallback>
-                  {item.name
-                    .split(" ")
-                    .map((n: string) => n[0])
-                    .join("")}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <h2 className="text-2xl font-bold">{item.name}</h2>
-                <p className="text-gray-500">
-                  {item.email} • {item.phone}
-                </p>
-              </div>
-              <div className="ml-auto">{renderStatusBadge(item.status)}</div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {statsCards.map((card) => (
+          <Card key={card.title} className="border border-gray-200 shadow-sm">
+            <CardContent className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">{card.title}</p>
+              <p className="text-3xl font-bold text-gray-900">{card.value}</p>
+              <p className="text-sm text-gray-500">{card.description}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="border border-gray-200 shadow-lg rounded-xl overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-lg font-semibold text-gray-900">Candidates</CardTitle>
+              <CardDescription className="text-gray-600">Manage all candidate submissions</CardDescription>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-md border p-3">
-                <h3 className="font-semibold">Application Details</h3>
-                <div className="mt-2 space-y-1 text-sm">
-                  <p>
-                    <span className="font-medium">Job Applied For:</span> {item.jobAppliedFor}
-                  </p>
-                  <p>
-                    <span className="font-medium">Application Date:</span>{" "}
-                    {format(new Date(item.applicationDate), "MMMM dd, yyyy")}
-                  </p>
-                  <p>
-                    <span className="font-medium">Source:</span> {item.source}
-                  </p>
-                  {item.rating && (
-                    <p>
-                      <span className="font-medium">Rating:</span> {item.rating}/5
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="rounded-md border p-3">
-                <h3 className="font-semibold">Qualifications</h3>
-                <div className="mt-2 space-y-1 text-sm">
-                  <p>
-                    <span className="font-medium">Experience:</span> {item.experience}
-                  </p>
-                  <p>
-                    <span className="font-medium">Education:</span> {item.education}
-                  </p>
-                  <div>
-                    <span className="font-medium">Skills:</span>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {item.skills.map((skill: string) => (
-                        <Badge key={skill} variant="outline" className="bg-gray-100">
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-md border p-3">
-              <h3 className="font-semibold">Documents</h3>
-              <div className="mt-2 flex gap-4">
-                <a
-                  href={item.resumeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 rounded-md border bg-gray-50 px-3 py-2 text-sm hover:bg-gray-100"
-                >
-                  <span>View Resume/CV</span>
-                </a>
-                {item.coverLetterUrl && (
-                  <a
-                    href={item.coverLetterUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 rounded-md border bg-gray-50 px-3 py-2 text-sm hover:bg-gray-100"
-                  >
-                    <span>View Cover Letter</span>
-                  </a>
-                )}
-              </div>
-            </div>
-
-            {item.interviewDate && (
-              <div className="rounded-md border p-3">
-                <h3 className="font-semibold">Interview Details</h3>
-                <div className="mt-2 text-sm">
-                  <p>
-                    <span className="font-medium">Scheduled for:</span>{" "}
-                    {format(new Date(item.interviewDate), "MMMM dd, yyyy 'at' h:mm a")}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {item.notes && (
-              <div className="rounded-md border p-3">
-                <h3 className="font-semibold">Notes</h3>
-                <div className="mt-2 text-sm">
-                  <p>{item.notes}</p>
-                </div>
-              </div>
-            )}
           </div>
-        )}
+        </CardHeader>
+        <CardContent className="p-0">
+          <DataTable
+            title="Candidates"
+            columns={candidateColumns}
+            data={filteredCandidates}
+            searchFields={[]}
+            onAdd={() => setIsAddDialogOpen(true)}
+            onEdit={(id) => handleEdit(id)}
+            onDelete={(id) => {
+              const candidate = candidateList.find((item) => item.id === id)
+              if (candidate) {
+                setCandidateToDelete(candidate)
+                setIsDeleteDialogOpen(true)
+              }
+            }}
+            onView={handleView}
+            showActions
+            defaultSortColumn="application_date"
+            defaultSortDirection="desc"
+            extraSearchControls={
+              <Select value={statusFilter || "all"} onValueChange={(value) => setStatusFilter(value === "all" ? "" : value)}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  {RECRUITMENT_CANDIDATE_STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            }
+            emptyMessage={
+              <div className="text-center py-12">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No candidates yet</h3>
+                <p className="text-sm text-gray-600 mb-4">Start by adding a candidate to a job</p>
+                <Button onClick={() => setIsAddDialogOpen(true)} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800">
+                  Add Candidate
+                </Button>
+              </div>
+            }
+          />
+        </CardContent>
+      </Card>
+
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Candidate</DialogTitle>
+          </DialogHeader>
+          <EnhancedForm fields={candidateFields} onSubmit={handleAdd} cancelLabel="Cancel" submitLabel="Save Candidate" />
+        </DialogContent>
+      </Dialog>
+
+      {selectedCandidate && (
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Candidate</DialogTitle>
+            </DialogHeader>
+            <EnhancedForm
+              fields={candidateFields}
+              onSubmit={handleEdit}
+              initialValues={selectedCandidate}
+              cancelLabel="Cancel"
+              submitLabel="Update Candidate"
+              isSubmitting={updateCandidateMutation.isLoading}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {viewCandidate && (
+        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DetailsView
+              title={viewCandidate.candidate_name}
+              subtitle={`${viewCandidate.email} • ${viewCandidate.phone_number}`}
+              data={viewCandidate}
+              tabs={[
+                {
+                  id: "overview",
+                  label: "Overview",
+                  sections: [
+                    {
+                      title: "Candidate Info",
+                      fields: [
+                        { label: "Candidate Name", value: viewCandidate.candidate_name },
+                        { label: "Email", value: viewCandidate.email },
+                        { label: "Phone", value: viewCandidate.phone_number },
+                        { label: "Job ID", value: viewCandidate.job_id },
+                        { label: "Application Date", value: viewCandidate.application_date, type: "date" },
+                        { label: "Status", value: viewCandidate.status, type: "badge" },
+                        { label: "Experience", value: viewCandidate.experience },
+                        { label: "Education", value: viewCandidate.education },
+                        { label: "Skills", value: viewCandidate.skills },
+                      ],
+                    },
+                  ],
+                },
+              ]}
+              onBack={() => setIsViewDialogOpen(false)}
+              onEdit={() => {
+                setIsViewDialogOpen(false)
+                handleEdit(viewCandidate.id)
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      <DeleteConfirmationDialog
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Candidate"
+        description="Removing this candidate cannot be undone."
+        itemName={candidateToDelete?.candidate_name ?? "this candidate"}
+        isLoading={deleteCandidateMutation.isLoading}
       />
     </div>
   )

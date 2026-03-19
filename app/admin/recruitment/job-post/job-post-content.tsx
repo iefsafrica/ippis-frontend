@@ -1,143 +1,58 @@
 "use client"
 
-import { useState } from "react"
-import { EnhancedDataTable } from "@/app/admin/components/enhanced-data-table"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { format } from "date-fns"
+
 import { EnhancedForm, type FormField } from "@/app/admin/components/enhanced-form"
 import { DetailsView } from "@/app/admin/components/details-view"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { format } from "date-fns"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DataTable } from "@/app/admin/core-hr/components/data-table"
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { Eye, Edit, Trash2 } from "lucide-react"
+import { buttonHoverEnhancements } from "@/app/admin/employees/button-hover"
+import { toast } from "sonner"
+import {
+  useCreateRecruitmentJob,
+  useDeleteRecruitmentJob,
+  useRecruitmentJobs,
+  useUpdateRecruitmentJob,
+} from "@/services/hooks/recruitment/jobs"
+import { RecruitmentJob, RecruitmentJobPayload } from "@/services/endpoints/recruitment/jobs"
 
-// Mock data
-const jobPosts = [
-  {
-    id: "1",
-    title: "Senior Software Engineer",
-    department: "Engineering",
-    positions: 3,
-    postedDate: "2023-05-15T00:00:00.000Z",
-    closingDate: "2023-06-15T00:00:00.000Z",
-    status: "active",
-    location: "Lagos, Nigeria",
-    jobType: "Full-time",
-    experience: "5+ years",
-    salary: "₦500,000 - ₦800,000",
-    description: "We are looking for a Senior Software Engineer to join our team...",
-    requirements: "Bachelor's degree in Computer Science or related field...",
-    responsibilities: "Design and develop high-quality software solutions...",
-    createdAt: "2023-05-10T00:00:00.000Z",
-    updatedAt: "2023-05-12T00:00:00.000Z",
-    applications: 12,
-    author: "John Doe",
-  },
-  {
-    id: "2",
-    title: "HR Manager",
-    department: "Human Resources",
-    positions: 1,
-    postedDate: "2023-05-10T00:00:00.000Z",
-    closingDate: "2023-06-10T00:00:00.000Z",
-    status: "active",
-    location: "Abuja, Nigeria",
-    jobType: "Full-time",
-    experience: "3+ years",
-    salary: "₦400,000 - ₦600,000",
-    description: "We are seeking an experienced HR Manager to oversee all HR functions...",
-    requirements: "Bachelor's degree in Human Resources or related field...",
-    responsibilities: "Develop and implement HR strategies and initiatives...",
-    createdAt: "2023-05-08T00:00:00.000Z",
-    updatedAt: "2023-05-09T00:00:00.000Z",
-    applications: 8,
-    author: "Jane Smith",
-  },
-  {
-    id: "3",
-    title: "Financial Analyst",
-    department: "Finance",
-    positions: 2,
-    postedDate: "2023-05-05T00:00:00.000Z",
-    closingDate: "2023-05-25T00:00:00.000Z",
-    status: "closed",
-    location: "Lagos, Nigeria",
-    jobType: "Full-time",
-    experience: "2+ years",
-    salary: "₦350,000 - ₦500,000",
-    description: "We are looking for a Financial Analyst to join our Finance team...",
-    requirements: "Bachelor's degree in Finance, Accounting, or related field...",
-    responsibilities: "Perform financial forecasting, reporting, and analysis...",
-    createdAt: "2023-05-01T00:00:00.000Z",
-    updatedAt: "2023-05-26T00:00:00.000Z",
-    applications: 15,
-    author: "Michael Johnson",
-  },
-  {
-    id: "4",
-    title: "Marketing Specialist",
-    department: "Marketing",
-    positions: 1,
-    postedDate: "2023-05-20T00:00:00.000Z",
-    closingDate: "2023-06-20T00:00:00.000Z",
-    status: "active",
-    location: "Remote",
-    jobType: "Contract",
-    experience: "2+ years",
-    salary: "₦300,000 - ₦450,000",
-    description: "We are seeking a Marketing Specialist to help grow our brand...",
-    requirements: "Bachelor's degree in Marketing or related field...",
-    responsibilities: "Develop and implement marketing strategies...",
-    createdAt: "2023-05-18T00:00:00.000Z",
-    updatedAt: "2023-05-19T00:00:00.000Z",
-    applications: 5,
-    author: "Sarah Williams",
-  },
-  {
-    id: "5",
-    title: "Customer Support Representative",
-    department: "Customer Service",
-    positions: 5,
-    postedDate: "2023-05-18T00:00:00.000Z",
-    closingDate: "2023-06-18T00:00:00.000Z",
-    status: "active",
-    location: "Port Harcourt, Nigeria",
-    jobType: "Full-time",
-    experience: "1+ years",
-    salary: "₦200,000 - ₦300,000",
-    description: "We are looking for Customer Support Representatives to join our team...",
-    requirements: "High school diploma or equivalent...",
-    responsibilities: "Respond to customer inquiries via phone, email, and chat...",
-    createdAt: "2023-05-15T00:00:00.000Z",
-    updatedAt: "2023-05-16T00:00:00.000Z",
-    applications: 20,
-    author: "David Brown",
-  },
-  {
-    id: "6",
-    title: "Project Manager",
-    department: "Operations",
-    positions: 1,
-    postedDate: "2023-05-22T00:00:00.000Z",
-    closingDate: "2023-06-22T00:00:00.000Z",
-    status: "draft",
-    location: "Lagos, Nigeria",
-    jobType: "Full-time",
-    experience: "4+ years",
-    salary: "₦600,000 - ₦900,000",
-    description: "We are looking for a Project Manager to lead our project teams...",
-    requirements: "Bachelor's degree in Business Administration or related field...",
-    responsibilities: "Plan, execute, and close projects on time and within budget...",
-    createdAt: "2023-05-20T00:00:00.000Z",
-    updatedAt: "2023-05-21T00:00:00.000Z",
-    applications: 0,
-    author: "Emily Davis",
-  },
+const DEPARTMENT_OPTIONS = [
+  { value: "Engineering", label: "Engineering" },
+  { value: "Human Resources", label: "Human Resources" },
+  { value: "Finance", label: "Finance" },
+  { value: "Marketing", label: "Marketing" },
+  { value: "Customer Service", label: "Customer Service" },
+  { value: "Operations", label: "Operations" },
+  { value: "Sales", label: "Sales" },
 ]
 
-// Form fields for adding/editing job posts
+const STATUS_OPTIONS = [
+  { value: "active", label: "Active" },
+  { value: "closed", label: "Closed" },
+  { value: "draft", label: "Draft" },
+]
+
+const JOB_TYPE_OPTIONS = [
+  { value: "full-time", label: "Full-time" },
+  { value: "part-time", label: "Part-time" },
+  { value: "contract", label: "Contract" },
+  { value: "internship", label: "Internship" },
+]
+
+const JOB_TAB_SEQUENCE = ["basic", "details", "requirements"] as const
+type JobPostTab = (typeof JOB_TAB_SEQUENCE)[number]
+
 const jobPostFields: FormField[] = [
   {
-    name: "title",
+    name: "job_title",
     label: "Job Title",
     type: "text",
     placeholder: "Enter job title",
@@ -147,45 +62,37 @@ const jobPostFields: FormField[] = [
     name: "department",
     label: "Department",
     type: "select",
-    options: [
-      { value: "Engineering", label: "Engineering" },
-      { value: "Human Resources", label: "Human Resources" },
-      { value: "Finance", label: "Finance" },
-      { value: "Marketing", label: "Marketing" },
-      { value: "Customer Service", label: "Customer Service" },
-      { value: "Operations", label: "Operations" },
-      { value: "Sales", label: "Sales" },
-    ],
+    options: DEPARTMENT_OPTIONS,
     required: true,
   },
   {
-    name: "positions",
+    name: "number_of_positions",
     label: "Number of Positions",
     type: "number",
-    required: true,
     min: 1,
+    required: true,
   },
   {
-    name: "postedDate",
+    name: "posted_date",
     label: "Posted Date",
     type: "date",
+    datePickerVariant: "input",
+    placeholder: "Select job launch date",
     required: true,
   },
   {
-    name: "closingDate",
+    name: "closing_date",
     label: "Closing Date",
     type: "date",
+    datePickerVariant: "input",
+    placeholder: "Select closing date",
     required: true,
   },
   {
     name: "status",
     label: "Status",
     type: "select",
-    options: [
-      { value: "active", label: "Active" },
-      { value: "closed", label: "Closed" },
-      { value: "draft", label: "Draft" },
-    ],
+    options: STATUS_OPTIONS,
     required: true,
   },
   {
@@ -196,15 +103,10 @@ const jobPostFields: FormField[] = [
     required: true,
   },
   {
-    name: "jobType",
+    name: "job_type",
     label: "Job Type",
     type: "select",
-    options: [
-      { value: "Full-time", label: "Full-time" },
-      { value: "Part-time", label: "Part-time" },
-      { value: "Contract", label: "Contract" },
-      { value: "Internship", label: "Internship" },
-    ],
+    options: JOB_TYPE_OPTIONS,
     required: true,
   },
   {
@@ -215,14 +117,14 @@ const jobPostFields: FormField[] = [
     required: true,
   },
   {
-    name: "salary",
+    name: "salary_range",
     label: "Salary Range",
     type: "text",
-    placeholder: "e.g. ₦300,000 - ₦500,000",
+    placeholder: "e.g. N300,000 - N500,000",
     required: true,
   },
   {
-    name: "description",
+    name: "job_description",
     label: "Job Description",
     type: "textarea",
     placeholder: "Enter job description",
@@ -244,158 +146,418 @@ const jobPostFields: FormField[] = [
   },
 ]
 
+const getNextTab = (current: JobPostTab): JobPostTab => {
+  const currentIndex = JOB_TAB_SEQUENCE.indexOf(current)
+  if (currentIndex === -1 || currentIndex >= JOB_TAB_SEQUENCE.length - 1) {
+    return current
+  }
+  return JOB_TAB_SEQUENCE[currentIndex + 1]
+}
+
+const getPreviousTab = (current: JobPostTab): JobPostTab => {
+  const currentIndex = JOB_TAB_SEQUENCE.indexOf(current)
+  if (currentIndex <= 0) {
+    return current
+  }
+  return JOB_TAB_SEQUENCE[currentIndex - 1]
+}
+
+const normalizeString = (value?: unknown) => (typeof value === "string" ? value.toLowerCase() : value)
+
+const sanitizePayload = (values: Record<string, any>): RecruitmentJobPayload => {
+  const { id, created_at, updated_at, applications, author, ...rest } = values
+  return {
+    ...rest,
+    number_of_positions: Number(rest.number_of_positions) || 0,
+    job_type: normalizeString(rest.job_type),
+    status: normalizeString(rest.status),
+  } as RecruitmentJobPayload
+}
+
 export function JobPostContent() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
-  const [selectedJob, setSelectedJob] = useState<any>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedJob, setSelectedJob] = useState<RecruitmentJob | null>(null)
+  const [activeAddTab, setActiveAddTab] = useState<JobPostTab>("basic")
+  const [activeEditTab, setActiveEditTab] = useState<JobPostTab>("basic")
+  const [addFormValues, setAddFormValues] = useState<Partial<RecruitmentJobPayload>>({})
+  const [editFormValues, setEditFormValues] = useState<Partial<RecruitmentJobPayload>>({})
+  const [viewJob, setViewJob] = useState<RecruitmentJob | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [jobToDelete, setJobToDelete] = useState<RecruitmentJob | null>(null)
+  const [statusFilter, setStatusFilter] = useState("")
 
-  const handleAdd = async (data: Record<string, any>) => {
-    setIsSubmitting(true)
-    try {
-      console.log("Adding job post:", data)
-      // Here you would typically make an API call to add the job post
-      // For this mockup, we're just logging the data
-      setTimeout(() => {
-        setIsSubmitting(false)
+  const jobsQuery = useRecruitmentJobs()
+  const createJobMutation = useCreateRecruitmentJob()
+  const updateJobMutation = useUpdateRecruitmentJob()
+  const deleteJobMutation = useDeleteRecruitmentJob()
+  const jobRecords = jobsQuery.data?.data ?? []
+  const jobs = useMemo(() => {
+    if (!jobRecords || jobRecords.length === 0) return []
+    return [...jobRecords].sort((a, b) => {
+      const first = new Date(b.created_at).getTime()
+      const second = new Date(a.created_at).getTime()
+      return first - second
+    })
+  }, [jobRecords])
+
+  useEffect(() => {
+    if (!isAddDialogOpen) {
+      setActiveAddTab("basic")
+      setAddFormValues({})
+    }
+  }, [isAddDialogOpen])
+
+  useEffect(() => {
+    if (!isEditDialogOpen) {
+      setActiveEditTab("basic")
+      setEditFormValues({})
+    }
+  }, [isEditDialogOpen])
+
+  useEffect(() => {
+    if (isEditDialogOpen && selectedJob) {
+      setEditFormValues(selectedJob)
+    }
+  }, [isEditDialogOpen, selectedJob])
+
+  useEffect(() => {
+    if (!isViewDialogOpen) {
+      setViewJob(null)
+    }
+  }, [isViewDialogOpen])
+
+  useEffect(() => {
+    if (!isDeleteDialogOpen) {
+      setJobToDelete(null)
+    }
+  }, [isDeleteDialogOpen])
+
+  const openAddDialog = () => {
+    setAddFormValues({})
+    setActiveAddTab("basic")
+    setIsAddDialogOpen(true)
+  }
+
+  const handleAddStepSubmit = (currentTab: JobPostTab) => (data: Record<string, any>) => {
+    setAddFormValues((prev) => ({ ...prev, ...data }))
+    setActiveAddTab(getNextTab(currentTab))
+  }
+
+  const handleEditStepSubmit = (currentTab: JobPostTab) => (data: Record<string, any>) => {
+    setEditFormValues((prev) => ({ ...prev, ...data }))
+    setActiveEditTab(getNextTab(currentTab))
+  }
+
+  const handleAdd = (data: Record<string, any>) => {
+    const combinedValues = { ...addFormValues, ...data }
+    const payload = sanitizePayload(combinedValues)
+    createJobMutation.mutate(payload, {
+      onSuccess: () => {
+        toast.success("Job post created")
         setIsAddDialogOpen(false)
-      }, 1000)
-    } catch (error) {
-      console.error("Error adding job post:", error)
-      setIsSubmitting(false)
-    }
+        setAddFormValues({})
+        setActiveAddTab("basic")
+      },
+      onError: () => toast.error("Unable to create job post"),
+    })
   }
 
-  const handleEdit = async (data: Record<string, any>) => {
-    setIsSubmitting(true)
+  const handleEdit = (data: Record<string, any>) => {
+    if (!selectedJob) return
+    const combinedValues = { ...editFormValues, ...data }
+    const payload = sanitizePayload(combinedValues)
+    updateJobMutation.mutate(
+      { id: selectedJob.id, payload },
+      {
+        onSuccess: () => {
+          toast.success("Job post updated")
+          setIsEditDialogOpen(false)
+          setEditFormValues({})
+          setActiveEditTab("basic")
+          setSelectedJob(null)
+        },
+        onError: () => toast.error("Unable to update job post"),
+      },
+    )
+  }
+
+  const handleOpenDeleteDialog = useCallback((job: RecruitmentJob) => {
+    setJobToDelete(job)
+    setIsDeleteDialogOpen(true)
+  }, [])
+
+  const handleConfirmDelete = async () => {
+    if (!jobToDelete) return
     try {
-      console.log("Editing job post:", data)
-      // Here you would typically make an API call to update the job post
-      // For this mockup, we're just logging the data
-      setTimeout(() => {
-        setIsSubmitting(false)
-        setIsEditDialogOpen(false)
-      }, 1000)
+      await deleteJobMutation.mutateAsync(jobToDelete.id)
+      toast.success("Job post removed")
+      setIsDeleteDialogOpen(false)
+      setJobToDelete(null)
     } catch (error) {
-      console.error("Error editing job post:", error)
-      setIsSubmitting(false)
+      toast.error("Unable to delete job post")
     }
   }
 
-  const handleDelete = (id: string) => {
-    console.log("Deleting job post:", id)
-    // Here you would typically make an API call to delete the job post
-    // For this mockup, we're just logging the data
+  const handleView = useCallback(
+    (id: string) => {
+      const job = jobs.find((item) => item.id === id)
+      if (job) {
+        setViewJob(job)
+        setIsViewDialogOpen(true)
+      }
+    },
+    [jobs],
+  )
+
+  const handleEdit2 = useCallback(
+    (id: string) => {
+      const job = jobs.find((item) => item.id === id)
+      if (job) {
+        setSelectedJob(job)
+        setActiveEditTab("basic")
+        setEditFormValues(job)
+        setIsEditDialogOpen(true)
+      }
+    },
+    [jobs],
+  )
+
+  const closeViewDialog = () => {
+    setIsViewDialogOpen(false)
+    setViewJob(null)
   }
 
-  const handleView = (id: string) => {
-    const job = jobPosts.find((job) => job.id === id)
-    if (job) {
-      setSelectedJob(job)
-      setIsViewDialogOpen(true)
-    }
-  }
+  const jobColumns = useMemo(
+    () => [
+      { key: "job_title", label: "Job Title", sortable: true },
+      { key: "department", label: "Department", sortable: true },
+      {
+        key: "number_of_positions",
+        label: "Positions",
+        sortable: true,
+        render: (value: number) => (value ?? "N/A"),
+      },
+      {
+        key: "posted_date",
+        label: "Posted Date",
+        sortable: true,
+        render: (value: string) => (value ? format(new Date(value), "MMM dd, yyyy") : "N/A"),
+      },
+      {
+        key: "closing_date",
+        label: "Closing Date",
+        sortable: true,
+        render: (value: string) => (value ? format(new Date(value), "MMM dd, yyyy") : "N/A"),
+      },
+      {
+        key: "status",
+        label: "Status",
+        sortable: true,
+        render: (value: string) => {
+          const normalized = value?.toLowerCase() ?? "unknown"
+          if (normalized === "active") return <Badge className="bg-green-500">Active</Badge>
+          if (normalized === "closed") return <Badge variant="secondary">Closed</Badge>
+          if (normalized === "draft") return <Badge variant="outline">Draft</Badge>
+          return <Badge variant="outline">{value}</Badge>
+        },
+      },
+      { key: "location", label: "Location", sortable: true },
+      { key: "job_type", label: "Job Type", sortable: true },
+      {
+        key: "actions",
+        label: "Actions",
+        render: (_: unknown, row: RecruitmentJob) => {
+          const normalizedStatus = row.status?.toLowerCase() ?? ""
+          const disableActions = normalizedStatus === "closed"
+          return (
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" size="icon" onClick={() => handleView(row.id)} title="View Details">
+                <Eye className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleEdit2(row.id)}
+                title="Edit"
+                disabled={disableActions}
+                className="text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleOpenDeleteDialog(row)}
+                title="Delete"
+                disabled={disableActions}
+                className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          )
+        },
+      },
+    ],
+    [handleEdit2, handleOpenDeleteDialog, handleView],
+  )
 
-  const handleEdit2 = (id: string) => {
-    const job = jobPosts.find((job) => job.id === id)
-    if (job) {
-      setSelectedJob(job)
-      setIsEditDialogOpen(true)
-    }
-  }
+  const departmentOptions = useMemo(() => {
+    const uniqueDepartments = Array.from(
+      new Set(
+        jobs
+          .map((job) => job.department?.trim())
+          .filter((department): department is string => Boolean(department)),
+      ),
+    )
 
-  const renderStatusBadge = (status: string) => {
-    switch (status) {
-      case "active":
-        return <Badge className="bg-green-500">Active</Badge>
-      case "closed":
-        return <Badge variant="secondary">Closed</Badge>
-      case "draft":
-        return <Badge variant="outline">Draft</Badge>
-      default:
-        return <Badge variant="outline">{status}</Badge>
+    return uniqueDepartments.map((department) => ({ value: department, label: department }))
+  }, [jobs])
+
+  const statusCounts = useMemo(() => {
+    return jobs.reduce<Record<string, number>>((acc, job) => {
+      const key = job.status?.toLowerCase() ?? "unknown"
+      acc[key] = (acc[key] ?? 0) + 1
+      return acc
+    }, {})
+  }, [jobs])
+
+  const totalPositions = useMemo(
+    () => jobs.reduce((sum, job) => sum + (Number(job.number_of_positions) || 0), 0),
+    [jobs],
+  )
+
+  const statsCards = useMemo(
+    () => [
+      { title: "Active Jobs", value: statusCounts.active ?? 0, description: "Currently accepting applications" },
+      { title: "Drafts", value: statusCounts.draft ?? 0, description: "Work in progress" },
+      { title: "Closed Jobs", value: statusCounts.closed ?? 0, description: "Roles that are no longer active" },
+      { title: "Total Roles", value: totalPositions, description: "Headcount across all job posts" },
+    ],
+    [statusCounts, totalPositions],
+  )
+
+  const jobSearchFields = useMemo(
+    () => [
+      { name: "job_title", label: "Job Title", type: "text" },
+      {
+        name: "department",
+        label: "Department",
+        type: "select",
+        options: departmentOptions,
+      },
+      {
+        name: "status",
+        label: "Status",
+        type: "select",
+        options: STATUS_OPTIONS,
+      },
+      {
+        name: "job_type",
+        label: "Job Type",
+        type: "select",
+        options: JOB_TYPE_OPTIONS,
+      },
+    ],
+    [departmentOptions],
+  )
+
+  const filteredJobs = useMemo(() => {
+    if (!statusFilter) return jobs
+    return jobs.filter((job) => job.status?.toLowerCase() === statusFilter.toLowerCase())
+  }, [jobs, statusFilter])
+
+  const handleStatusChange = (value: string) => {
+    if (value === "all") {
+      setStatusFilter("")
+    } else {
+      setStatusFilter(value)
     }
   }
 
   return (
     <div className="space-y-6">
-      <EnhancedDataTable
-        title="Job Posts"
-        description="Manage job postings for recruitment"
-        columns={[
-          { key: "title", label: "Job Title", sortable: true },
-          { key: "department", label: "Department", sortable: true },
-          { key: "positions", label: "Positions", sortable: true },
-          {
-            key: "postedDate",
-            label: "Posted Date",
-            sortable: true,
-            render: (value) => format(new Date(value), "MMM dd, yyyy"),
-          },
-          {
-            key: "closingDate",
-            label: "Closing Date",
-            sortable: true,
-            render: (value) => format(new Date(value), "MMM dd, yyyy"),
-          },
-          {
-            key: "status",
-            label: "Status",
-            sortable: true,
-            render: (value) => renderStatusBadge(value),
-          },
-          { key: "location", label: "Location", sortable: true },
-          { key: "jobType", label: "Job Type", sortable: true },
-        ]}
-        data={jobPosts}
-        filterOptions={[
-          {
-            id: "department",
-            label: "Department",
-            type: "select",
-            options: [
-              { value: "Engineering", label: "Engineering" },
-              { value: "Human Resources", label: "Human Resources" },
-              { value: "Finance", label: "Finance" },
-              { value: "Marketing", label: "Marketing" },
-              { value: "Customer Service", label: "Customer Service" },
-              { value: "Operations", label: "Operations" },
-              { value: "Sales", label: "Sales" },
-            ],
-          },
-          {
-            id: "status",
-            label: "Status",
-            type: "select",
-            options: [
-              { value: "active", label: "Active" },
-              { value: "closed", label: "Closed" },
-              { value: "draft", label: "Draft" },
-            ],
-          },
-          {
-            id: "jobType",
-            label: "Job Type",
-            type: "select",
-            options: [
-              { value: "Full-time", label: "Full-time" },
-              { value: "Part-time", label: "Part-time" },
-              { value: "Contract", label: "Contract" },
-              { value: "Internship", label: "Internship" },
-            ],
-          },
-          {
-            id: "postedDate",
-            label: "Posted Date",
-            type: "date",
-          },
-        ]}
-        onAdd={() => setIsAddDialogOpen(true)}
-        onEdit={handleEdit2}
-        onDelete={handleDelete}
-        onView={handleView}
-      />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {statsCards.map((card) => (
+          <Card key={card.title} className="border border-gray-200 bg-white shadow-sm">
+            <CardContent className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">{card.title}</p>
+              <p className="text-3xl font-bold text-gray-900">{card.value}</p>
+              <p className="text-sm text-gray-500">{card.description}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="border border-gray-200 shadow-lg rounded-xl overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-lg font-semibold text-gray-900">Job Posts</CardTitle>
+              <CardDescription className="text-gray-600">
+                Manage job openings and keep the recruitment pipeline up to date.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <DataTable
+            title="Job Posts"
+            columns={jobColumns}
+            data={filteredJobs}
+            searchFields={jobSearchFields}
+            onAdd={openAddDialog}
+            onEdit={handleEdit2}
+            onDelete={(id: string) => {
+              const job = jobs.find((item) => item.id === id)
+              if (job) {
+                handleOpenDeleteDialog(job)
+              }
+            }}
+            onView={handleView}
+            showActions={true}
+            defaultSortColumn="posted_date"
+            defaultSortDirection="desc"
+            extraSearchControls={
+              <Select
+                value={statusFilter || "all"}
+                onValueChange={handleStatusChange}
+              >
+                <SelectTrigger className={`${buttonHoverEnhancements} w-40 justify-between`}>
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  {STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            }
+            emptyMessage={
+              <div className="text-center py-12">
+                <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-blue-50 border border-blue-200 mb-4">
+                  <div className="h-6 w-6 rounded-full bg-gradient-to-r from-blue-500 to-sky-500" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No job posts yet</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Publish your first role to keep talent pipelines moving.
+                </p>
+                <Button
+                  onClick={openAddDialog}
+                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                >
+                  Add Job Post
+                </Button>
+              </div>
+            }
+          />
+        </CardContent>
+      </Card>
 
       {/* Add Job Post Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -403,7 +565,7 @@ export function JobPostContent() {
           <DialogHeader>
             <DialogTitle>Add New Job Post</DialogTitle>
           </DialogHeader>
-          <Tabs defaultValue="basic" className="mt-4">
+          <Tabs value={activeAddTab} onValueChange={(value) => setActiveAddTab(value as JobPostTab)} className="mt-4">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="basic">Basic Information</TabsTrigger>
               <TabsTrigger value="details">Job Details</TabsTrigger>
@@ -412,31 +574,29 @@ export function JobPostContent() {
             <TabsContent value="basic" className="mt-4 space-y-4">
               <EnhancedForm
                 fields={jobPostFields.slice(0, 8)}
-                onSubmit={() => {}}
+                onSubmit={handleAddStepSubmit("basic")}
                 onCancel={() => setIsAddDialogOpen(false)}
                 submitLabel="Next"
                 cancelLabel="Cancel"
-                isSubmitting={false}
               />
             </TabsContent>
             <TabsContent value="details" className="mt-4 space-y-4">
               <EnhancedForm
                 fields={[jobPostFields[8], jobPostFields[9], jobPostFields[10]]}
-                onSubmit={() => {}}
-                onCancel={() => setIsAddDialogOpen(false)}
+                onSubmit={handleAddStepSubmit("details")}
+                onCancel={() => setActiveAddTab(getPreviousTab("details"))}
                 submitLabel="Next"
                 cancelLabel="Back"
-                isSubmitting={false}
               />
             </TabsContent>
             <TabsContent value="requirements" className="mt-4 space-y-4">
               <EnhancedForm
                 fields={[jobPostFields[11], jobPostFields[12]]}
                 onSubmit={handleAdd}
-                onCancel={() => setIsAddDialogOpen(false)}
+                onCancel={() => setActiveAddTab(getPreviousTab("requirements"))}
                 submitLabel="Create Job Post"
                 cancelLabel="Back"
-                isSubmitting={isSubmitting}
+                isSubmitting={createJobMutation.isLoading}
               />
             </TabsContent>
           </Tabs>
@@ -450,7 +610,7 @@ export function JobPostContent() {
             <DialogHeader>
               <DialogTitle>Edit Job Post</DialogTitle>
             </DialogHeader>
-            <Tabs defaultValue="basic" className="mt-4">
+            <Tabs value={activeEditTab} onValueChange={(value) => setActiveEditTab(value as JobPostTab)} className="mt-4">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="basic">Basic Information</TabsTrigger>
                 <TabsTrigger value="details">Job Details</TabsTrigger>
@@ -459,22 +619,20 @@ export function JobPostContent() {
               <TabsContent value="basic" className="mt-4 space-y-4">
                 <EnhancedForm
                   fields={jobPostFields.slice(0, 8)}
-                  onSubmit={() => {}}
+                  onSubmit={handleEditStepSubmit("basic")}
                   onCancel={() => setIsEditDialogOpen(false)}
                   submitLabel="Next"
                   cancelLabel="Cancel"
-                  isSubmitting={false}
                   initialValues={selectedJob}
                 />
               </TabsContent>
               <TabsContent value="details" className="mt-4 space-y-4">
                 <EnhancedForm
                   fields={[jobPostFields[8], jobPostFields[9], jobPostFields[10]]}
-                  onSubmit={() => {}}
-                  onCancel={() => setIsEditDialogOpen(false)}
+                  onSubmit={handleEditStepSubmit("details")}
+                  onCancel={() => setActiveEditTab(getPreviousTab("details"))}
                   submitLabel="Next"
                   cancelLabel="Back"
-                  isSubmitting={false}
                   initialValues={selectedJob}
                 />
               </TabsContent>
@@ -482,10 +640,10 @@ export function JobPostContent() {
                 <EnhancedForm
                   fields={[jobPostFields[11], jobPostFields[12]]}
                   onSubmit={handleEdit}
-                  onCancel={() => setIsEditDialogOpen(false)}
+                  onCancel={() => setActiveEditTab(getPreviousTab("requirements"))}
                   submitLabel="Update Job Post"
                   cancelLabel="Back"
-                  isSubmitting={isSubmitting}
+                  isSubmitting={updateJobMutation.isLoading}
                   initialValues={selectedJob}
                 />
               </TabsContent>
@@ -494,109 +652,102 @@ export function JobPostContent() {
         </Dialog>
       )}
 
-      {/* View Job Post Dialog */}
-      {selectedJob && isViewDialogOpen && (
-        <DetailsView
-          title={selectedJob.title}
-          subtitle={`${selectedJob.department} • ${selectedJob.jobType}`}
-          data={selectedJob}
-          tabs={[
-            {
-              id: "overview",
-              label: "Overview",
-              sections: [
+      {viewJob && isViewDialogOpen && (
+        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DetailsView
+              title={viewJob.job_title}
+              subtitle={`${viewJob.department} - ${viewJob.job_type}`}
+              data={viewJob}
+              tabs={[
                 {
-                  title: "Job Information",
-                  fields: [
-                    { label: "Job Title", value: selectedJob.title },
-                    { label: "Department", value: selectedJob.department },
-                    { label: "Number of Positions", value: selectedJob.positions },
-                    { label: "Posted Date", value: selectedJob.postedDate, type: "date" },
-                    { label: "Closing Date", value: selectedJob.closingDate, type: "date" },
+                  id: "overview",
+                  label: "Overview",
+                  sections: [
                     {
-                      label: "Status",
-                      value: selectedJob.status,
-                      type: "status",
-                      options: {
-                        statusMap: {
-                          active: { label: "Active", color: "bg-green-500 text-white" },
-                          closed: { label: "Closed", color: "bg-gray-500 text-white" },
-                          draft: { label: "Draft", color: "bg-blue-100 text-blue-800" },
+                      title: "Job Information",
+                      fields: [
+                        { label: "Job Title", value: viewJob.job_title },
+                        { label: "Department", value: viewJob.department },
+                        { label: "Positions", value: viewJob.number_of_positions },
+                        { label: "Posted Date", value: viewJob.posted_date, type: "date" },
+                        { label: "Closing Date", value: viewJob.closing_date, type: "date" },
+                        {
+                          label: "Status",
+                          value: viewJob.status,
+                          type: "status",
+                          options: {
+                            statusMap: {
+                              active: { label: "Active", color: "bg-green-500 text-white" },
+                              closed: { label: "Closed", color: "bg-gray-500 text-white" },
+                              draft: { label: "Draft", color: "bg-blue-100 text-blue-800" },
+                            },
+                          },
                         },
-                      },
+                        { label: "Location", value: viewJob.location },
+                        { label: "Job Type", value: viewJob.job_type, type: "badge" },
+                        { label: "Experience", value: viewJob.experience },
+                        { label: "Salary Range", value: viewJob.salary_range },
+                        { label: "Applications Received", value: viewJob.applications ?? 0 },
+                      ],
                     },
-                    { label: "Location", value: selectedJob.location },
-                    { label: "Job Type", value: selectedJob.jobType, type: "badge" },
-                    { label: "Experience", value: selectedJob.experience },
-                    { label: "Salary Range", value: selectedJob.salary },
-                    { label: "Applications Received", value: selectedJob.applications },
-                    { label: "Created By", value: selectedJob.author },
                   ],
                 },
-              ],
-            },
-            {
-              id: "details",
-              label: "Job Details",
-              sections: [
                 {
-                  title: "Description",
-                  fields: [{ label: "Job Description", value: selectedJob.description }],
-                },
-                {
-                  title: "Requirements & Responsibilities",
-                  fields: [
-                    { label: "Requirements", value: selectedJob.requirements },
-                    { label: "Responsibilities", value: selectedJob.responsibilities },
+                  id: "description",
+                  label: "Description",
+                  sections: [
+                    {
+                      title: "Job Story",
+                      fields: [{ label: "Job Description", value: viewJob.job_description }],
+                    },
                   ],
                 },
-              ],
-            },
-            {
-              id: "applications",
-              label: "Applications",
-              content: (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium">Applications ({selectedJob.applications})</h3>
-                    <Button variant="outline" size="sm">
-                      View All Applications
-                    </Button>
-                  </div>
-                  {selectedJob.applications > 0 ? (
-                    <div className="border rounded-md p-4">
-                      <p className="text-gray-500">
-                        This section would display a list of all applications for this job post.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="border rounded-md p-8 text-center">
-                      <p className="text-gray-500">No applications have been received for this job post yet.</p>
-                    </div>
-                  )}
-                </div>
-              ),
-            },
-          ]}
-          onEdit={() => {
-            setIsViewDialogOpen(false)
-            setIsEditDialogOpen(true)
-          }}
-          onBack={() => setIsViewDialogOpen(false)}
-          onPrint={() => window.print()}
-          onExport={() => console.log("Exporting job post:", selectedJob.id)}
-          actions={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => console.log("Publishing job post:", selectedJob.id)}
-              disabled={selectedJob.status === "active"}
-            >
-              {selectedJob.status === "active" ? "Published" : "Publish"}
-            </Button>
-          }
-        />
+                {
+                  id: "requirements",
+                  label: "Requirements",
+                  sections: [
+                    {
+                      title: "Requirements",
+                      fields: [{ label: "Requirements", value: viewJob.requirements }],
+                    },
+                    {
+                      title: "Responsibilities",
+                      fields: [{ label: "Responsibilities", value: viewJob.responsibilities }],
+                    },
+                  ],
+                },
+              ]}
+              onEdit={() => {
+                closeViewDialog()
+                handleEdit2(viewJob.id)
+              }}
+              onBack={closeViewDialog}
+              onPrint={() => window.print()}
+              onExport={() => console.log("Exporting job post:", viewJob.id)}
+              actions={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => console.log("Publishing job post:", viewJob.id)}
+                  disabled={viewJob.status === "active"}
+                >
+                  {viewJob.status === "active" ? "Published" : "Publish"}
+                </Button>
+              }
+            />
+          </DialogContent>
+        </Dialog>
       )}
+      <DeleteConfirmationDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Job Post"
+        description="Deleting this job post cannot be undone."
+        itemName={jobToDelete?.job_title ?? "this job post"}
+        isLoading={deleteJobMutation.isLoading}
+      />
     </div>
   )
 }

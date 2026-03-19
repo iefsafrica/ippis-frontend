@@ -250,6 +250,7 @@ interface DataTableProps {
   itemsPerPage?: number
   defaultSortColumn?: string
   defaultSortDirection?: "asc" | "desc"
+  extraSearchControls?: React.ReactNode
 }
 
 export function DataTable({
@@ -261,6 +262,7 @@ export function DataTable({
   itemsPerPage = 100, // Default to 100 as requested
   defaultSortColumn,
   defaultSortDirection = "asc",
+  extraSearchControls,
 }: DataTableProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [advancedSearchParams, setAdvancedSearchParams] = useState<Record<string, string>>({})
@@ -411,18 +413,25 @@ export function DataTable({
     <div className="space-y-4 px-0 sm:px-4 py-4">
       {/* Top controls */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-          <Input
-            type="search"
-            placeholder={`Search ${title.toLowerCase()}...`}
-            className="pl-8"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+            <Input
+              type="search"
+              placeholder={`Search ${title.toLowerCase()}...`}
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          {extraSearchControls && (
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              {extraSearchControls}
+            </div>
+          )}
         </div>
 
-        <div className="flex w-full sm:w-auto flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2">
+        <div className="flex w-full sm:w-auto flex-wrap items-center justify-end gap-2 sm:gap-3">
           <AdvancedSearch
             onSearch={handleAdvancedSearch}
             fields={searchFields}
@@ -439,7 +448,7 @@ export function DataTable({
           {onAdd && (
             <Button
               onClick={onAdd}
-              className="gap-1 w-full sm:w-auto bg-green-600 hover:bg-green-700"
+              className="gap-1 bg-green-600 hover:bg-green-700"
             >
               <Plus className="h-4 w-4" />
               Add New
