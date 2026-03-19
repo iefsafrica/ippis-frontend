@@ -5,14 +5,13 @@ import { format } from "date-fns"
 
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import { EnhancedForm, type FormField } from "@/app/admin/components/enhanced-form"
-import { DetailsView } from "@/app/admin/components/details-view"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
-import { Eye, Edit, Trash2 } from "lucide-react"
+import { Eye, Edit, Trash2, User, Mail, Phone, Hash, Calendar, Briefcase, GraduationCap, FileText, ClipboardList, X, Loader2 } from "lucide-react"
 import {
   useCreateRecruitmentCandidate,
   useDeleteRecruitmentCandidate,
@@ -26,6 +25,8 @@ import {
   RecruitmentCandidateFilters,
   RecruitmentCandidatePayload,
 } from "@/types/recruitment/candidates"
+import { toast } from "sonner"
+import { useToast } from "@/hooks/use-toast"
 
 const baseCandidateFields: FormField[] = [
   {
@@ -97,6 +98,34 @@ const buildCandidateFields = (jobOptions: Array<{ value: string; label: string }
   )
 }
 
+const getErrorMessage = (error?: unknown) => {
+  if (!error) {
+    return "Something went wrong. Please try again."
+  }
+
+  if (typeof error === "string") {
+    return error
+  }
+
+  if (error instanceof Error) {
+    const axiosMessage = (error as unknown as { response?: { data?: { message?: string } } }).response
+      ?.data?.message
+    return axiosMessage ?? error.message
+  }
+
+  const responseMessage = (error as unknown as { response?: { data?: { message?: string } } })?.response?.data?.message
+  if (responseMessage) {
+    return responseMessage
+  }
+
+  const fallbackMessage = (error as unknown as { message?: string })?.message
+  if (fallbackMessage && typeof fallbackMessage === "string") {
+    return fallbackMessage
+  }
+
+  return "Something went wrong. Please try again."
+}
+
 const sanitizeCandidatePayload = (values: Record<string, any>): RecruitmentCandidatePayload => ({
   candidate_name: values.candidate_name,
   email: values.email,
@@ -108,6 +137,43 @@ const sanitizeCandidatePayload = (values: Record<string, any>): RecruitmentCandi
   education: values.education,
   skills: values.skills,
 })
+
+const getFormattedDate = (value?: string) => {
+  if (!value) return "N/A"
+  try {
+    return format(new Date(value), "PPP")
+  } catch {
+    return value
+  }
+}
+
+const getFormattedDateTime = (value?: string) => {
+  if (!value) return "N/A"
+  try {
+    return format(new Date(value), "PPpp")
+  } catch {
+    return value
+  }
+}
+
+const getStatusBadge = (status?: string) => {
+  const normalized = status?.toLowerCase() ?? "unknown"
+  const statusConfig: Record<string, { label: string; className: string }> = {
+    applied: { label: "Applied", className: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100" },
+    shortlisted: { label: "Shortlisted", className: "bg-sky-100 text-sky-800 hover:bg-sky-100" },
+    interview: { label: "Interview", className: "bg-indigo-100 text-indigo-800 hover:bg-indigo-100" },
+    offered: { label: "Offered", className: "bg-emerald-100 text-emerald-800 hover:bg-emerald-100" },
+    hired: { label: "Hired", className: "bg-green-100 text-green-800 hover:bg-green-100" },
+    rejected: { label: "Rejected", className: "bg-red-100 text-red-800 hover:bg-red-100" },
+    unknown: { label: "Unknown", className: "bg-gray-100 text-gray-800 hover:bg-gray-100" },
+  }
+  const config = statusConfig[normalized] ?? { label: status || "Unknown", className: "bg-gray-100 text-gray-800 hover:bg-gray-100" }
+  return (
+    <Badge className={config.className} variant="outline">
+      {config.label}
+    </Badge>
+  )
+}
 
 export function JobCandidatesContent() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -126,6 +192,8 @@ export function JobCandidatesContent() {
   const updateCandidateMutation = useUpdateRecruitmentCandidate()
   const deleteCandidateMutation = useDeleteRecruitmentCandidate()
   const jobsQuery = useRecruitmentJobs()
+  const candidateMutationsLoading =
+    createCandidateMutation.isLoading || updateCandidateMutation.isLoading || deleteCandidateMutation.isLoading
 
   const candidateList = candidatesQuery.data?.data ?? []
   const jobOptions = useMemo(() => {
@@ -193,7 +261,11 @@ export function JobCandidatesContent() {
     const payload = sanitizeCandidatePayload({ ...addFormValues, ...data })
     createCandidateMutation.mutate(payload, {
       onSuccess: () => {
+        toast.success(`${payload.candidate_name ?? "Candidate"} added successfully.`)
         setIsAddDialogOpen(false)
+      },
+      onError: (error) => {
+        toast.error(getErrorMessage(error))
       },
     })
   }
@@ -214,7 +286,11 @@ export function JobCandidatesContent() {
       { id: selectedCandidate.id, payload },
       {
         onSuccess: () => {
+          toast.success(`${payload.candidate_name ?? selectedCandidate.candidate_name} updated successfully.`)
           setIsEditDialogOpen(false)
+        },
+        onError: (error) => {
+          toast.error(getErrorMessage(error))
         },
       },
     )
@@ -230,8 +306,13 @@ export function JobCandidatesContent() {
 
   const handleConfirmDelete = async () => {
     if (!candidateToDelete) return
-    await deleteCandidateMutation.mutateAsync(candidateToDelete.id)
-    setIsDeleteDialogOpen(false)
+    try {
+      await deleteCandidateMutation.mutateAsync(candidateToDelete.id)
+      toast.success(`${candidateToDelete.candidate_name} has been removed.`)
+      setIsDeleteDialogOpen(false)
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    }
   }
 
   const candidateColumns = useMemo(
@@ -279,7 +360,8 @@ export function JobCandidatesContent() {
                 setIsDeleteDialogOpen(true)
               }}
               title="Delete"
-              className="text-red-600 hover:text-red-800"
+              disabled={deleteCandidateMutation.isLoading}
+              className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -332,6 +414,8 @@ export function JobCandidatesContent() {
             showActions
             defaultSortColumn="application_date"
             defaultSortDirection="desc"
+            addButtonProps={{ disabled: candidateMutationsLoading }}
+            addButtonLoading={createCandidateMutation.isLoading}
             extraSearchControls={
               <Select value={statusFilter || "all"} onValueChange={(value) => setStatusFilter(value === "all" ? "" : value)}>
                 <SelectTrigger className="w-40">
@@ -351,8 +435,19 @@ export function JobCandidatesContent() {
               <div className="text-center py-12">
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No candidates yet</h3>
                 <p className="text-sm text-gray-600 mb-4">Start by adding a candidate to a job</p>
-                <Button onClick={() => setIsAddDialogOpen(true)} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800">
-                  Add Candidate
+                <Button
+                  onClick={() => setIsAddDialogOpen(true)}
+                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                  disabled={candidateMutationsLoading}
+                >
+                  {candidateMutationsLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    "Add Candidate"
+                  )}
                 </Button>
               </div>
             }
@@ -365,7 +460,13 @@ export function JobCandidatesContent() {
           <DialogHeader>
             <DialogTitle>Add Candidate</DialogTitle>
           </DialogHeader>
-          <EnhancedForm fields={candidateFields} onSubmit={handleAdd} cancelLabel="Cancel" submitLabel="Save Candidate" />
+          <EnhancedForm
+            fields={candidateFields}
+            onSubmit={handleAdd}
+            cancelLabel="Cancel"
+            submitLabel="Save Candidate"
+            isSubmitting={createCandidateMutation.isLoading}
+          />
         </DialogContent>
       </Dialog>
 
@@ -389,39 +490,187 @@ export function JobCandidatesContent() {
 
       {viewCandidate && (
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DetailsView
-              title={viewCandidate.candidate_name}
-              subtitle={`${viewCandidate.email} • ${viewCandidate.phone_number}`}
-              data={viewCandidate}
-              tabs={[
-                {
-                  id: "overview",
-                  label: "Overview",
-                  sections: [
-                    {
-                      title: "Candidate Info",
-                      fields: [
-                        { label: "Candidate Name", value: viewCandidate.candidate_name },
-                        { label: "Email", value: viewCandidate.email },
-                        { label: "Phone", value: viewCandidate.phone_number },
-                        { label: "Job ID", value: viewCandidate.job_id },
-                        { label: "Application Date", value: viewCandidate.application_date, type: "date" },
-                        { label: "Status", value: viewCandidate.status, type: "badge" },
-                        { label: "Experience", value: viewCandidate.experience },
-                        { label: "Education", value: viewCandidate.education },
-                        { label: "Skills", value: viewCandidate.skills },
-                      ],
-                    },
-                  ],
-                },
-              ]}
-              onBack={() => setIsViewDialogOpen(false)}
-              onEdit={() => {
-                setIsViewDialogOpen(false)
-                handleEdit(viewCandidate.id)
-              }}
-            />
+          <DialogContent className="p-0 max-w-3xl overflow-hidden border border-gray-200 shadow-xl">
+            <DialogHeader className="px-8 pt-8 pb-6 border-b border-gray-100">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <User className="h-6 w-6 text-gray-700" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-lg font-semibold text-gray-900">
+                      Candidate Profile
+                    </DialogTitle>
+                    <DialogDescription className="text-gray-600 mt-1">
+                      View application for {viewCandidate.candidate_name}
+                    </DialogDescription>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsViewDialogOpen(false)}
+                  className="h-8 w-8 text-gray-500 hover:text-gray-700"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </DialogHeader>
+
+            <div className="px-8 py-6 max-h-[70vh] overflow-y-auto">
+              <div className="space-y-8">
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium text-gray-900 uppercase tracking-wide">Candidate Information</h3>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <User className="h-4 w-4 text-gray-500" />
+                            <span className="text-xs text-gray-500 font-medium">Full name</span>
+                          </div>
+                          <p className="text-sm font-medium text-gray-900">{viewCandidate.candidate_name}</p>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Mail className="h-4 w-4 text-gray-500" />
+                            <span className="text-xs text-gray-500 font-medium">Email</span>
+                          </div>
+                          <p className="text-sm font-medium text-gray-900">{viewCandidate.email}</p>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Phone className="h-4 w-4 text-gray-500" />
+                            <span className="text-xs text-gray-500 font-medium">Phone</span>
+                          </div>
+                          <p className="text-sm font-medium text-gray-900">{viewCandidate.phone_number}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Hash className="h-4 w-4 text-gray-500" />
+                            <span className="text-xs text-gray-500 font-medium">Job ID</span>
+                          </div>
+                          <p className="text-sm font-medium text-gray-900 font-mono">{viewCandidate.job_id}</p>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Calendar className="h-4 w-4 text-gray-500" />
+                            <span className="text-xs text-gray-500 font-medium">Application Date</span>
+                          </div>
+                          <p className="text-sm font-medium text-gray-900">{getFormattedDate(viewCandidate.application_date)}</p>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Briefcase className="h-4 w-4 text-gray-500" />
+                            <span className="text-xs text-gray-500 font-medium">Status</span>
+                          </div>
+                          {getStatusBadge(viewCandidate.status)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 border-t border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-900 uppercase tracking-wide mb-6">Application Details</h3>
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Briefcase className="h-4 w-4 text-gray-500" />
+                          <span className="text-xs text-gray-500 font-medium">Experience</span>
+                        </div>
+                        <p className="text-sm font-medium text-gray-900">{viewCandidate.experience || "Not specified"}</p>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <GraduationCap className="h-4 w-4 text-gray-500" />
+                          <span className="text-xs text-gray-500 font-medium">Education</span>
+                        </div>
+                        <p className="text-sm font-medium text-gray-900">{viewCandidate.education || "Not provided"}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <FileText className="h-4 w-4 text-gray-500" />
+                        <span className="text-xs text-gray-500 font-medium">Skills</span>
+                      </div>
+                      <p className="text-sm text-gray-600 leading-relaxed">
+                        {viewCandidate.skills || "No skills listed"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {(viewCandidate.created_at || viewCandidate.updated_at) && (
+                  <div className="pt-6 border-t border-gray-200">
+                    <h3 className="text-sm font-medium text-gray-900 uppercase tracking-wide mb-4">Metadata</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {viewCandidate.created_at && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <ClipboardList className="h-4 w-4 text-gray-500" />
+                            <span className="text-xs text-gray-500 font-medium">Created At</span>
+                          </div>
+                          <p className="text-sm font-medium text-gray-600">{getFormattedDateTime(viewCandidate.created_at)}</p>
+                        </div>
+                      )}
+                      {viewCandidate.updated_at && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <ClipboardList className="h-4 w-4 text-gray-500" />
+                            <span className="text-xs text-gray-500 font-medium">Last Updated</span>
+                          </div>
+                          <p className="text-sm font-medium text-gray-600">{getFormattedDateTime(viewCandidate.updated_at)}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter className="px-8 py-5 border-t border-gray-200 bg-gray-50">
+              <div className="flex items-center justify-between w-full">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setCandidateToDelete(viewCandidate)
+                    setIsDeleteDialogOpen(true)
+                  }}
+                  className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Candidate
+                </Button>
+
+                <div className="flex items-center space-x-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsViewDialogOpen(false)}
+                    className="border-gray-300 hover:bg-gray-100 text-gray-700"
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setIsViewDialogOpen(false)
+                      handleEdit(viewCandidate.id)
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Candidate
+                  </Button>
+                </div>
+              </div>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}

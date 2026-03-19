@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
-import { Eye, Edit, Trash2 } from "lucide-react"
+import { Eye, Edit, Trash2, Loader2 } from "lucide-react"
 import { buttonHoverEnhancements } from "@/app/admin/employees/button-hover"
 import { toast } from "sonner"
 import {
@@ -174,6 +174,33 @@ const sanitizePayload = (values: Record<string, any>): RecruitmentJobPayload => 
   } as RecruitmentJobPayload
 }
 
+const getErrorMessage = (error?: unknown) => {
+  if (!error) {
+    return "Something went wrong. Please try again."
+  }
+
+  if (typeof error === "string") {
+    return error
+  }
+
+  if (error instanceof Error) {
+    const axiosMessage = (error as unknown as { response?: { data?: { message?: string } } }).response?.data?.message
+    return axiosMessage ?? error.message
+  }
+
+  const responseMessage = (error as unknown as { response?: { data?: { message?: string } } })?.response?.data?.message
+  if (responseMessage) {
+    return responseMessage
+  }
+
+  const fallbackMessage = (error as unknown as { message?: string })?.message
+  if (fallbackMessage && typeof fallbackMessage === "string") {
+    return fallbackMessage
+  }
+
+  return "Something went wrong. Please try again."
+}
+
 export function JobPostContent() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -192,6 +219,7 @@ export function JobPostContent() {
   const createJobMutation = useCreateRecruitmentJob()
   const updateJobMutation = useUpdateRecruitmentJob()
   const deleteJobMutation = useDeleteRecruitmentJob()
+  const jobMutationsLoading = createJobMutation.isLoading || updateJobMutation.isLoading || deleteJobMutation.isLoading
   const jobRecords = jobsQuery.data?.data ?? []
   const jobs = useMemo(() => {
     if (!jobRecords || jobRecords.length === 0) return []
@@ -252,33 +280,35 @@ export function JobPostContent() {
 
   const handleAdd = (data: Record<string, any>) => {
     const combinedValues = { ...addFormValues, ...data }
+    const jobTitle = combinedValues.job_title ?? "Job post"
     const payload = sanitizePayload(combinedValues)
     createJobMutation.mutate(payload, {
       onSuccess: () => {
-        toast.success("Job post created")
+        toast.success(`${jobTitle} created`)
         setIsAddDialogOpen(false)
         setAddFormValues({})
         setActiveAddTab("basic")
       },
-      onError: () => toast.error("Unable to create job post"),
+      onError: (error) => toast.error(getErrorMessage(error)),
     })
   }
 
   const handleEdit = (data: Record<string, any>) => {
     if (!selectedJob) return
     const combinedValues = { ...editFormValues, ...data }
+    const jobTitle = combinedValues.job_title ?? selectedJob.job_title ?? "Job post"
     const payload = sanitizePayload(combinedValues)
     updateJobMutation.mutate(
       { id: selectedJob.id, payload },
       {
         onSuccess: () => {
-          toast.success("Job post updated")
+          toast.success(`${jobTitle} updated`)
           setIsEditDialogOpen(false)
           setEditFormValues({})
           setActiveEditTab("basic")
           setSelectedJob(null)
         },
-        onError: () => toast.error("Unable to update job post"),
+        onError: (error) => toast.error(getErrorMessage(error)),
       },
     )
   }
@@ -292,11 +322,11 @@ export function JobPostContent() {
     if (!jobToDelete) return
     try {
       await deleteJobMutation.mutateAsync(jobToDelete.id)
-      toast.success("Job post removed")
+      toast.success(`${jobToDelete.job_title} removed`)
       setIsDeleteDialogOpen(false)
       setJobToDelete(null)
     } catch (error) {
-      toast.error("Unable to delete job post")
+      toast.error(getErrorMessage(error))
     }
   }
 
@@ -391,7 +421,7 @@ export function JobPostContent() {
                 size="icon"
                 onClick={() => handleOpenDeleteDialog(row)}
                 title="Delete"
-                disabled={disableActions}
+                disabled={disableActions || deleteJobMutation.isLoading}
                 className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Trash2 className="h-4 w-4" />
@@ -520,6 +550,8 @@ export function JobPostContent() {
             showActions={true}
             defaultSortColumn="posted_date"
             defaultSortDirection="desc"
+            addButtonProps={{ disabled: jobMutationsLoading }}
+            addButtonLoading={createJobMutation.isLoading}
             extraSearchControls={
               <Select
                 value={statusFilter || "all"}
@@ -550,8 +582,16 @@ export function JobPostContent() {
                 <Button
                   onClick={openAddDialog}
                   className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                  disabled={jobMutationsLoading}
                 >
-                  Add Job Post
+                  {jobMutationsLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    "Add Job Post"
+                  )}
                 </Button>
               </div>
             }

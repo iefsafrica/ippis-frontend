@@ -219,6 +219,7 @@ import type React from "react"
 import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
 import {
   Table,
   TableBody,
@@ -227,7 +228,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Search, Plus, ChevronLeft, ChevronRight } from "lucide-react"
+import { Search, Plus, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import { DataExportMenu } from "@/app/admin/components/data-export-menu"
 import { AdvancedSearch } from "@/app/admin/components/advanced-search"
 
@@ -251,6 +252,8 @@ interface DataTableProps {
   defaultSortColumn?: string
   defaultSortDirection?: "asc" | "desc"
   extraSearchControls?: React.ReactNode
+  addButtonProps?: React.ButtonHTMLAttributes<HTMLButtonElement>
+  addButtonLoading?: boolean
 }
 
 export function DataTable({
@@ -263,6 +266,8 @@ export function DataTable({
   defaultSortColumn,
   defaultSortDirection = "asc",
   extraSearchControls,
+  addButtonProps,
+  addButtonLoading = false,
 }: DataTableProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [advancedSearchParams, setAdvancedSearchParams] = useState<Record<string, string>>({})
@@ -446,13 +451,26 @@ export function DataTable({
           />
 
           {onAdd && (
-            <Button
-              onClick={onAdd}
-              className="gap-1 bg-green-600 hover:bg-green-700"
-            >
-              <Plus className="h-4 w-4" />
-              Add New
-            </Button>
+            <>
+              {(() => {
+                const { className: addButtonClassName, disabled: addButtonDisabled, ...restAddButtonProps } =
+                  addButtonProps ?? {}
+                const buttonDisabled = (addButtonDisabled ?? false) || addButtonLoading
+
+                return (
+                  <Button
+                    onClick={onAdd}
+                    className={cn("gap-1 bg-green-600 hover:bg-green-700", addButtonClassName)}
+                    {...restAddButtonProps}
+                    disabled={buttonDisabled}
+                  >
+                    {addButtonLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                    <Plus className="h-4 w-4" />
+                    {addButtonLoading ? "Processing..." : "Add New"}
+                  </Button>
+                )
+              })()}
+            </>
           )}
         </div>
       </div>
