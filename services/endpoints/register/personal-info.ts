@@ -8,20 +8,22 @@ export interface PersonalInfoResponse {
   nextStep?: string;
 }
 
+import { post } from "@/services/axios";
+
 export const submitPersonalInfo = async (
   payload: PersonalInfoPayload,
 ): Promise<PersonalInfoResponse> => {
-  const response = await fetch("/api/register/personal-info", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
 
-  if (!response.ok) {
-    throw new Error("Failed to submit personal info");
+  if (payload.registration_id) {
+    headers["x-registration-id"] = String(payload.registration_id);
   }
 
-  return response.json() as Promise<PersonalInfoResponse>;
+  return post<PersonalInfoResponse>(
+    "/admin/employees/register/personal",
+    payload,
+    { headers }
+  );
 };

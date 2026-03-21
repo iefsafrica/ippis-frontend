@@ -3,17 +3,20 @@ export interface DocumentUploadResponse {
   message: string;
 }
 
+import { post } from "@/services/axios";
+
 export const submitRegistrationDocuments = async (
   formData: FormData,
 ): Promise<DocumentUploadResponse> => {
-  const response = await fetch("/api/register/documents", {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to upload documents");
+  const headers: Record<string, string> = {};
+  const registrationId = formData.get("registration_id");
+  if (registrationId) {
+    headers["x-registration-id"] = String(registrationId);
   }
 
-  return response.json() as Promise<DocumentUploadResponse>;
+  return post<DocumentUploadResponse>(
+    "/admin/documents/upload",
+    formData,
+    { headers }
+  );
 };

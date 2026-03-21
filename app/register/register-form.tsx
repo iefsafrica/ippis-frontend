@@ -91,6 +91,12 @@ export default function RegisterForm() {
   const [registrationIdConfirmed, setRegistrationIdConfirmed] = useState(false);
   const [showRegistrationIdModal, setShowRegistrationIdModal] = useState(false);
   const [registrationIdModalError, setRegistrationIdModalError] = useState("");
+  const [registrationStatus, setRegistrationStatus] = useState({
+    documents_uploaded: false,
+    personal_information_saved: false,
+    employment_information_saved: false,
+    email_sent: false,
+  });
 
   const [formData, setFormData] = useState({
     // Verification step
@@ -159,6 +165,27 @@ export default function RegisterForm() {
   const [showSuccessCard, setShowSuccessCard] = useState(false);
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
+
+  const refreshRegistrationStatus = async (regId: string) => {
+    if (!regId) return;
+    try {
+      const statusResponse = await registerMutation.mutateAsync({
+        registration_id: regId,
+        registrationId: regId,
+      } as any);
+
+      if (statusResponse && statusResponse.success) {
+        setRegistrationStatus({
+          documents_uploaded: Boolean(statusResponse.documents_uploaded),
+          personal_information_saved: Boolean(statusResponse.personal_information_saved),
+          employment_information_saved: Boolean(statusResponse.employment_information_saved),
+          email_sent: Boolean(statusResponse.email_sent),
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch registration status:", err);
+    }
+  };
   const hasLoadedStoredRegistrationIdRef = useRef(false);
   const personalInfoMutation = usePersonalInfo();
   const employmentInfoMutation = useEmploymentInfo();
@@ -243,6 +270,12 @@ export default function RegisterForm() {
     router.replace(`${pathname}?${params.toString()}`, { replace: true });
     hasLoggedRegistrationIdRef.current = true;
   }, [registrationId, pathname, searchParams, router]);
+
+  useEffect(() => {
+    if (registrationIdConfirmed && (registrationId || manualRegistrationIdInput)) {
+      refreshRegistrationStatus(registrationId || manualRegistrationIdInput);
+    }
+  }, [registrationIdConfirmed, registrationId, manualRegistrationIdInput]);
 
   const handleVerificationSubmit = async (verificationData: any) => {
     setError("");
@@ -332,6 +365,7 @@ export default function RegisterForm() {
         setSuccess("Personal information saved successfully");
         setMaxVisitedStep((prev) => Math.max(prev, 3));
         setCurrentStep(3);
+        await refreshRegistrationStatus(regId);
       } else {
         setError(data.error || "Failed to save personal information");
       }
@@ -363,6 +397,7 @@ export default function RegisterForm() {
         setSuccess("Employment information saved successfully");
         setMaxVisitedStep((prev) => Math.max(prev, 4));
         setCurrentStep(4);
+        await refreshRegistrationStatus(regId);
       } else {
         setError(data.error || "Failed to save employment information");
       }
@@ -376,46 +411,74 @@ export default function RegisterForm() {
 
   // console.log("Uploader:", FileUploader);
 
+  const convertBase64ToBlob = (base64Data: string): Blob | null => {
+    try {
+      const [metadata, content] = base64Data.split(",");
+      const mimeMatch = metadata.match(/data:([a-zA-Z0-9\-/]+);base64/);
+      const mimeType = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+      const binary = atob(content);
+      const array = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) {
+        array[i] = binary.charCodeAt(i);
+      }
+      return new Blob([array], { type: mimeType });
+    } catch (error) {
+      console.error("Failed to convert base64 to Blob", error);
+      return null;
+    }
+  };
+
+  const ensureFileObject = (value: any, fallbackName: string): File | Blob | null => {
+    if (!value) {
+      return null;
+    }
+
+    if (value instanceof File) {
+      return value;
+    }
+
+    if (value instanceof Blob) {
+      return new File([value], `${fallbackName}.${value.type.split('/')[1] || 'bin'}`);
+    }
+
+    if (typeof value === "string" && value.startsWith("data:")) {
+      const blob = convertBase64ToBlob(value);
+      if (!blob) return null;
+      return new File([blob], `${fallbackName}.${blob.type.split('/')[1] || 'bin'}`);
+    }
+
+    return null;
+  };
+
   const handleDocumentUploadSubmit = async (documentData: any) => {
     try {
       setLoading(true);
       setError("");
 
       const formData = new FormData();
-      if (!registrationId) {
+      const regId = registrationId || manualRegistrationIdInput;
+      if (!regId) {
         throw new Error("Missing registration_id for document upload");
       }
-      console.log("Document upload registration_id:", registrationId);
-      formData.append("registrationId", registrationId);
-      formData.append("registration_id", registrationId);
 
-      // Append all files
-      if (documentData.appointmentLetter) {
-        formData.append("appointmentLetter", documentData.appointmentLetter);
-      }
+      formData.append("registration_id", regId);
+      formData.append("status", "pending");
 
-      if (documentData.educationalCertificates) {
-        formData.append(
-          "educationalCertificates",
-          documentData.educationalCertificates
-        );
-      }
+      const mapping: Array<[string, string]> = [
+        ["appointmentLetter", "appointment_letter_path"],
+        ["educationalCertificates", "educational_certificates_path"],
+        ["profileImage", "profile_image_path"],
+        ["signature", "signature_path"],
+        ["promotionLetter", "promotion_letter_path"],
+        ["otherDocuments", "other_documents_path"],
+      ];
 
-      if (documentData.promotionLetter) {
-        formData.append("promotionLetter", documentData.promotionLetter);
-      }
-
-      if (documentData.otherDocuments) {
-        formData.append("otherDocuments", documentData.otherDocuments);
-      }
-
-      if (documentData.profileImage) {
-        formData.append("profileImage", documentData.profileImage);
-      }
-
-      if (documentData.signature) {
-        formData.append("signature", documentData.signature);
-      }
+      mapping.forEach(([field, uploadKey]) => {
+        const fileObj = ensureFileObject(documentData[field], field);
+        if (fileObj) {
+          formData.append(uploadKey, fileObj);
+        }
+      });
 
       const data = await registrationDocumentsMutation.mutateAsync(formData);
 
@@ -428,8 +491,9 @@ export default function RegisterForm() {
         setSuccess("Documents uploaded successfully");
         setMaxVisitedStep((prev) => Math.max(prev, 5));
         setCurrentStep(5);
+        await refreshRegistrationStatus(regId);
       } else {
-        setError(data.error || "Failed to upload documents");
+        setError(data.message || data.error || "Failed to upload documents");
       }
     } catch (err) {
       setError("An error occurred while uploading documents");
@@ -516,6 +580,9 @@ export default function RegisterForm() {
           ...prev,
           declaration: finalData.declaration,
         }));
+
+        // Refresh flags after final registration post
+        await refreshRegistrationStatus(canonicalId);
 
         const successMessage = "Registration submitted successfully";
         setSuccess(successMessage);
@@ -781,6 +848,16 @@ export default function RegisterForm() {
           {success}
         </div>
       ) : null}
+
+      <div className="mb-4 rounded-lg border p-4 bg-slate-50">
+        <h3 className="text-sm font-semibold text-slate-700 mb-2">Registration Progress</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-medium">
+          <div className="flex justify-between"><span>Personal Info</span><span>{registrationStatus.personal_information_saved ? "✅" : "⏳"}</span></div>
+          <div className="flex justify-between"><span>Employment Info</span><span>{registrationStatus.employment_information_saved ? "✅" : "⏳"}</span></div>
+          <div className="flex justify-between"><span>Documents Uploaded</span><span>{registrationStatus.documents_uploaded ? "✅" : "⏳"}</span></div>
+          <div className="flex justify-between"><span>Email Sent</span><span>{registrationStatus.email_sent ? "✅" : "⏳"}</span></div>
+        </div>
+      </div>
 
       <StepIndicator
         currentStep={currentStep}
