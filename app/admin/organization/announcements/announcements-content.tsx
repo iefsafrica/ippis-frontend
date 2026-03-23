@@ -413,7 +413,6 @@ export default function AnnouncementsContent() {
             columns={columns}
             data={announcements}
             searchFields={searchFields}
-            onAdd={openAddDialog}
           />
         </CardContent>
       </Card>

@@ -413,7 +413,6 @@ export default function GoalTrackingContent() {
             columns={columns}
             data={goals}
             searchFields={searchFields}
-            onAdd={openAddDialog}
           />
         </CardContent>
       </Card>

@@ -379,7 +379,7 @@ export default function DepartmentContent() {
 
       <Card className="border border-gray-200 shadow-sm">
         <CardContent className="p-0">
-          <DataTable title="Department" columns={columns} data={departments} searchFields={searchFields} onAdd={openAddDialog} />
+          <DataTable title="Department" columns={columns} data={departments} searchFields={searchFields} />
         </CardContent>
       </Card>
 

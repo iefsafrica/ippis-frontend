@@ -403,7 +403,6 @@ export default function CompanyPolicyContent() {
             columns={columns}
             data={policies}
             searchFields={searchFields}
-            onAdd={openAddDialog}
           />
         </CardContent>
       </Card>

@@ -27,7 +27,7 @@ import type {
   CreateAppraiserPayload,
   UpdateAppraiserPayload,
 } from "@/types/performance/appraiser"
-import { CalendarDays, CheckCircle2, ClipboardCheck, Edit, Eye, Loader2, RefreshCw, Trash2, XCircle } from "lucide-react"
+import { CalendarDays, CheckCircle2, ClipboardCheck, Edit, Eye, Loader2, Plus, RefreshCw, Trash2, XCircle } from "lucide-react"
 import { toast } from "sonner"
 
 type AppraiserFormState = {
@@ -396,6 +396,14 @@ export default function AppraisalContent() {
             <RefreshCw className="h-4 w-4" />
             <span className="ml-2 hidden sm:inline">Refresh</span>
           </Button>
+          <Button
+            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
+            onClick={openAddDialog}
+            disabled={createAppraiserMutation.isPending}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Appraiser
+          </Button>
         </div>
       </div>
 
@@ -441,7 +449,6 @@ export default function AppraisalContent() {
             columns={columns}
             data={appraisers}
             searchFields={searchFields}
-            onAdd={openAddDialog}
           />
         </CardContent>
       </Card>

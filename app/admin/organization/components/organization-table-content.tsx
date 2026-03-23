@@ -214,7 +214,7 @@ export default function OrganizationTableContent({ title, records }: Organizatio
 
       <Card className="border border-gray-200 shadow-sm">
         <CardContent className="p-0">
-          <DataTable title={title} columns={columns} data={rows} searchFields={searchFields} onAdd={() => toast.info(`Add ${title} is in demo mode`)} />
+          <DataTable title={title} columns={columns} data={rows} searchFields={searchFields} />
         </CardContent>
       </Card>
     </div>

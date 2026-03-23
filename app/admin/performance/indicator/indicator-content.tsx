@@ -388,7 +388,6 @@ export default function IndicatorContent() {
             columns={columns}
             data={indicators}
             searchFields={searchFields}
-            onAdd={openAddDialog}
           />
         </CardContent>
       </Card>

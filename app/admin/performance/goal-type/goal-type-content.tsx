@@ -452,7 +452,6 @@ export default function GoalTypeContent({
             columns={columns}
             data={sortedGoalTypes}
             searchFields={searchFields}
-            onAdd={() => setIsAddDialogOpen(true)}
           />
         </CardContent>
       </Card>

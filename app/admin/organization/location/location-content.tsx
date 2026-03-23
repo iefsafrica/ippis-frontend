@@ -411,7 +411,7 @@ export default function LocationContent() {
 
       <Card className="border border-gray-200 shadow-sm">
         <CardContent className="p-0">
-          <DataTable title="Location" columns={columns} data={locations} searchFields={searchFields} onAdd={openAddDialog} />
+          <DataTable title="Location" columns={columns} data={locations} searchFields={searchFields} />
         </CardContent>
       </Card>
 

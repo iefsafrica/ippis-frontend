@@ -385,7 +385,7 @@ export default function CompanyContent() {
 
       <Card className="border border-gray-200 shadow-sm">
         <CardContent className="p-0">
-          <DataTable title="Company" columns={columns} data={companies} searchFields={searchFields} onAdd={openAddDialog} />
+          <DataTable title="Company" columns={columns} data={companies} searchFields={searchFields} />
         </CardContent>
       </Card>
 

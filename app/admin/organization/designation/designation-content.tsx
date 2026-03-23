@@ -411,7 +411,7 @@ export default function DesignationContent() {
 
       <Card className="border border-gray-200 shadow-sm">
         <CardContent className="p-0">
-          <DataTable title="Designation" columns={columns} data={designations} searchFields={searchFields} onAdd={openAddDialog} />
+          <DataTable title="Designation" columns={columns} data={designations} searchFields={searchFields} />
         </CardContent>
       </Card>
 
