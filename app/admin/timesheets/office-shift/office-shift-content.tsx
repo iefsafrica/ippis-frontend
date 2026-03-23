@@ -488,7 +488,6 @@ export function OfficeShiftContent() {
             columns={columns}
             data={shiftList}
             searchFields={shiftSearchFields}
-            onAdd={handleAdd}
             itemsPerPage={10}
             emptyMessage={
               <div className="text-center py-12">

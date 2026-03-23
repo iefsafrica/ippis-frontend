@@ -528,7 +528,6 @@ export function AttendancesContent() {
             columns={columns}
             data={tableData}
             searchFields={searchFields}
-            onAdd={handleAdd}
             itemsPerPage={10}
           />
         </CardContent>

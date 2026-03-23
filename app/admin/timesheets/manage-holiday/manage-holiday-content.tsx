@@ -453,7 +453,6 @@ export function ManageHolidayContent() {
             columns={columns}
             data={holidays}
             searchFields={holidaySearchFields}
-            onAdd={handleAddHoliday}
             defaultSortColumn="id"
             defaultSortDirection="desc"
             itemsPerPage={10}

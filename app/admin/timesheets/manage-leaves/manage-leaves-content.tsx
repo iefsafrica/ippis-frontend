@@ -464,8 +464,8 @@ export function ManageLeavesContent() {
             title="Leave Requests"
             columns={columns}
             data={tableData}
-            searchFields={searchFields}
             onAdd={handleAdd}
+            searchFields={searchFields}
             itemsPerPage={10}
           />
         </CardContent>
