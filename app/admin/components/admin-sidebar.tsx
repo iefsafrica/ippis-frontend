@@ -428,7 +428,7 @@ export function AdminSidebar() {
       title: "Training",
       icon: GraduationCap,
       isDropdown: true,
-      href: "training",
+      toggleOnly: true,
       isOpen: openDropdown === "training", // for performance
       section: "training",
       toggle: () =>

@@ -1,5 +1,5 @@
 import { Suspense } from "react"
-import MeetingsContent from "./meetings-content"
+import { MeetingsContent } from "./meetings-content"
 import Loading from "./loading"
 
 export default function MeetingsPage() {

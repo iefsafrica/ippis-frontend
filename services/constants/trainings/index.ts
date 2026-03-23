@@ -1,0 +1,7 @@
+export const GET_TRAININGS = "get-trainings"
+export const GET_TRAINING = "get-training"
+export const CREATE_TRAINING = "create-training"
+export const UPDATE_TRAINING = "update-training"
+export const DELETE_TRAINING = "delete-training"
+export const GET_TRAINING_TYPES = "get-training-types"
+export const GET_TRAINERS = "get-trainers"

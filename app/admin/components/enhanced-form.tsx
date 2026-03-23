@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -103,6 +103,21 @@ interface EnhancedFormProps {
   initialValues?: Record<string, any>
 }
 
+const buildFormData = (fields: FormField[], sourceValues: Record<string, any>) => {
+  const data: Record<string, any> = {}
+  fields.forEach((field) => {
+    data[field.name] =
+      sourceValues[field.name] !== undefined
+        ? sourceValues[field.name]
+        : field.defaultValue !== undefined
+          ? field.defaultValue
+          : field.type === "checkbox"
+            ? false
+            : ""
+  })
+  return data
+}
+
 export function EnhancedForm({
   fields,
   onSubmit,
@@ -112,23 +127,18 @@ export function EnhancedForm({
   cancelLabel = "Cancel",
   initialValues = {},
 }: EnhancedFormProps) {
-  const [formData, setFormData] = useState<Record<string, any>>(() => {
-    // Initialize form data with initial values or default values from fields
-    const data: Record<string, any> = {}
-    fields.forEach((field) => {
-      data[field.name] =
-        initialValues[field.name] !== undefined
-          ? initialValues[field.name]
-          : field.defaultValue !== undefined
-            ? field.defaultValue
-            : field.type === "checkbox"
-              ? false
-              : ""
-    })
-    return data
-  })
+  const initializeFormData = useCallback(
+    () => buildFormData(fields, initialValues),
+    [fields, initialValues],
+  )
+
+  const [formData, setFormData] = useState<Record<string, any>>(initializeFormData)
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    setFormData(initializeFormData())
+  }, [initializeFormData])
 
   const handleChange = (name: string, value: any) => {
     setFormData((prev) => ({ ...prev, [name]: value }))

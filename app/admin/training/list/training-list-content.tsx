@@ -1,126 +1,74 @@
 "use client"
 
-import { useState } from "react"
-import { EnhancedDataTable } from "@/app/admin/components/enhanced-data-table"
+import { useEffect, useMemo, useState } from "react"
+import { CoreHRClientWrapper } from "@/app/admin/core-hr/components/core-hr-client-wrapper"
+import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import { EnhancedForm, type FormField } from "@/app/admin/components/enhanced-form"
-import { DetailsView, type DetailTab } from "@/app/admin/components/details-view"
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { format } from "date-fns"
-import { Calendar, Users, DollarSign } from "lucide-react"
+import { Briefcase, Calendar, DollarSign, Edit, Eye, Loader2, RefreshCw, Trash2, Users } from "lucide-react"
+import { toast } from "sonner"
+import { useCreateTraining, useDeleteTraining, useGetTrainings, useUpdateTraining } from "@/services/hooks/trainings"
+import { LocalTraining, TrainingFormData, mapApiTrainingToLocal, transformFormToCreateTraining, transformFormToUpdateTraining } from "@/utils/training-converters"
+import { ViewTrainingDialog } from "./ViewTrainingDialog"
 
-// Mock data for training programs
-const trainings = [
+const trainingSearchFields = [
+  { name: "title", label: "Training Title", type: "text" as const },
+  { name: "trainer", label: "Trainer", type: "text" as const },
   {
-    id: "1",
-    title: "Leadership Development Program",
-    type: "Professional Development",
-    trainer: "Dr. Adebayo Johnson",
-    startDate: "2023-06-01T00:00:00.000Z",
-    endDate: "2023-06-05T00:00:00.000Z",
-    cost: 250000,
-    status: "completed",
-    location: "Lagos Training Center",
-    participants: 15,
-    description:
-      "A comprehensive leadership development program designed for middle managers to enhance their leadership capabilities and strategic thinking.",
-    objectives:
-      "Develop leadership skills, improve decision-making abilities, enhance team management capabilities, foster strategic thinking.",
-    materials: "Leadership handbook, case studies, presentation slides",
-    feedback: 4.8,
-    createdAt: "2023-05-01T00:00:00.000Z",
-    updatedAt: "2023-06-10T00:00:00.000Z",
+    name: "type",
+    label: "Training Type",
+    type: "select" as const,
+    options: [
+      { value: "Professional Development", label: "Professional Development" },
+      { value: "Technical Skills", label: "Technical Skills" },
+      { value: "Soft Skills", label: "Soft Skills" },
+      { value: "Compliance", label: "Compliance" },
+      { value: "Onboarding", label: "Onboarding" },
+    ],
   },
   {
-    id: "2",
-    title: "Advanced Excel for Data Analysis",
-    type: "Technical Skills",
-    trainer: "Mrs. Funmi Adeyemi",
-    startDate: "2023-06-15T00:00:00.000Z",
-    endDate: "2023-06-16T00:00:00.000Z",
-    cost: 120000,
-    status: "upcoming",
-    location: "Virtual",
-    participants: 25,
-    description:
-      "Master advanced Excel functions and data analysis techniques for improved productivity and data-driven decision making.",
-    objectives:
-      "Learn advanced Excel functions, develop data analysis skills, create dynamic dashboards, master pivot tables and data visualization.",
-    materials: "Excel workbooks, practice datasets, reference guide",
-    feedback: null,
-    createdAt: "2023-05-15T00:00:00.000Z",
-    updatedAt: "2023-05-15T00:00:00.000Z",
+    name: "status",
+    label: "Status",
+    type: "select" as const,
+    options: [
+      { value: "upcoming", label: "Upcoming" },
+      { value: "in-progress", label: "In Progress" },
+      { value: "completed", label: "Completed" },
+      { value: "cancelled", label: "Cancelled" },
+    ],
   },
-  {
-    id: "3",
-    title: "Customer Service Excellence",
-    type: "Soft Skills",
-    trainer: "Mr. Emmanuel Okafor",
-    startDate: "2023-05-20T00:00:00.000Z",
-    endDate: "2023-05-21T00:00:00.000Z",
-    cost: 100000,
-    status: "completed",
-    location: "Abuja Office",
-    participants: 30,
-    description:
-      "Enhance customer service skills to deliver exceptional experiences and improve customer satisfaction and loyalty.",
-    objectives:
-      "Improve communication skills, develop problem-solving abilities, enhance customer satisfaction, manage difficult customer situations.",
-    materials: "Customer service handbook, role-play scenarios, assessment tools",
-    feedback: 4.5,
-    createdAt: "2023-04-10T00:00:00.000Z",
-    updatedAt: "2023-05-25T00:00:00.000Z",
-  },
-  {
-    id: "4",
-    title: "Cybersecurity Fundamentals",
-    type: "Technical Skills",
-    trainer: "Mr. Taiwo Adesina",
-    startDate: "2023-07-10T00:00:00.000Z",
-    endDate: "2023-07-12T00:00:00.000Z",
-    cost: 180000,
-    status: "upcoming",
-    location: "Lagos Training Center",
-    participants: 20,
-    description: "Learn essential cybersecurity concepts and best practices to protect organizational assets and data.",
-    objectives:
-      "Understand cybersecurity threats, implement security measures, develop incident response plans, comply with security regulations.",
-    materials: "Security handbook, practice labs, assessment tools",
-    feedback: null,
-    createdAt: "2023-06-01T00:00:00.000Z",
-    updatedAt: "2023-06-01T00:00:00.000Z",
-  },
-  {
-    id: "5",
-    title: "Project Management Essentials",
-    type: "Professional Development",
-    trainer: "Mrs. Ngozi Eze",
-    startDate: "2023-05-10T00:00:00.000Z",
-    endDate: "2023-05-12T00:00:00.000Z",
-    cost: 150000,
-    status: "completed",
-    location: "Port Harcourt Office",
-    participants: 18,
-    description:
-      "Master the fundamentals of project management to successfully plan, execute, and close projects on time and within budget.",
-    objectives:
-      "Learn project planning techniques, develop risk management skills, enhance team coordination, master project documentation.",
-    materials: "Project management handbook, case studies, templates",
-    feedback: 4.2,
-    createdAt: "2023-04-01T00:00:00.000Z",
-    updatedAt: "2023-05-15T00:00:00.000Z",
-  },
+  { name: "startDate", label: "Start Date", type: "date" as const },
 ]
 
-export function TrainingListContent() {
-  const [viewDialogOpen, setViewDialogOpen] = useState(false)
-  const [addEditDialogOpen, setAddEditDialogOpen] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
-  const [selectedTraining, setSelectedTraining] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(false)
+const statusBadge: Record<string, string> = {
+  upcoming: "bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 text-blue-800",
+  "in-progress": "bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 text-yellow-800",
+  completed: "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 text-green-800",
+  cancelled: "bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 text-gray-800",
+}
 
-  // Form fields for adding/editing training programs
-  const formFields: FormField[] = [
+const TRAINING_TAB_SEQUENCE = ["basic", "schedule"] as const
+type TrainingTab = (typeof TRAINING_TAB_SEQUENCE)[number]
+
+const TAB_LABELS: Record<TrainingTab, string> = {
+  basic: "Basic",
+  schedule: "Schedule",
+}
+
+const trainingTabFields: Record<TrainingTab, FormField[]> = {
+  basic: [
     {
       name: "title",
       label: "Training Title",
@@ -149,25 +97,6 @@ export function TrainingListContent() {
       required: true,
     },
     {
-      name: "startDate",
-      label: "Start Date",
-      type: "date",
-      required: true,
-    },
-    {
-      name: "endDate",
-      label: "End Date",
-      type: "date",
-      required: true,
-    },
-    {
-      name: "cost",
-      label: "Cost (₦)",
-      type: "number",
-      placeholder: "Enter cost in Naira",
-      required: true,
-    },
-    {
       name: "status",
       label: "Status",
       type: "select",
@@ -180,374 +109,612 @@ export function TrainingListContent() {
       required: true,
     },
     {
-      name: "location",
-      label: "Location",
+      name: "email",
+      label: "Contact Email",
+      type: "email",
+      placeholder: "Enter contact email",
+    },
+    {
+      name: "phone",
+      label: "Contact Phone",
       type: "text",
-      placeholder: "Enter training location",
+      placeholder: "Enter contact phone",
+    },
+  ],
+  schedule: [
+    {
+      name: "startDate",
+      label: "Start Date",
+      type: "date",
+      datePickerVariant: "input",
+      placeholder: "Pick a start date",
       required: true,
     },
     {
       name: "participants",
-      label: "Number of Participants",
+      label: "Participants",
       type: "number",
       placeholder: "Enter number of participants",
       required: true,
     },
     {
-      name: "description",
-      label: "Description",
-      type: "textarea",
-      placeholder: "Enter training description",
+      name: "cost",
+      label: "Cost (₦)",
+      type: "number",
+      placeholder: "Enter cost in Naira",
       required: true,
     },
-    {
-      name: "objectives",
-      label: "Objectives",
-      type: "textarea",
-      placeholder: "Enter training objectives",
-      required: true,
-    },
-    {
-      name: "materials",
-      label: "Training Materials",
-      type: "textarea",
-      placeholder: "Enter training materials",
-      required: true,
-    },
-  ]
+  ],
+}
+
+export function TrainingListContent() {
+  const [viewDialogOpen, setViewDialogOpen] = useState(false)
+  const [addEditDialogOpen, setAddEditDialogOpen] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [selectedTraining, setSelectedTraining] = useState<LocalTraining | null>(null)
+  const [localTrainings, setLocalTrainings] = useState<LocalTraining[]>([])
+  const [activeAddTab, setActiveAddTab] = useState<TrainingTab>("basic")
+  const [activeEditTab, setActiveEditTab] = useState<TrainingTab>("basic")
+  const [addFormValues, setAddFormValues] = useState<Partial<TrainingFormData>>({})
+  const [editFormValues, setEditFormValues] = useState<Partial<TrainingFormData>>({})
+
+  const {
+    data: trainingsData,
+    isLoading: isLoadingTrainings,
+    isError: isTrainingsError,
+    error: trainingsError,
+    isFetching: isFetchingTrainings,
+    refetch: refetchTrainings,
+  } = useGetTrainings()
+
+  const createTrainingMutation = useCreateTraining()
+  const updateTrainingMutation = useUpdateTraining()
+  const deleteTrainingMutation = useDeleteTraining()
+
+  const getNextTrainingTab = (current: TrainingTab): TrainingTab => {
+    const currentIndex = TRAINING_TAB_SEQUENCE.indexOf(current)
+    if (currentIndex === -1 || currentIndex >= TRAINING_TAB_SEQUENCE.length - 1) {
+      return current
+    }
+    return TRAINING_TAB_SEQUENCE[currentIndex + 1]
+  }
+
+  const isFinalTrainingTab = (tab: TrainingTab) => tab === TRAINING_TAB_SEQUENCE[TRAINING_TAB_SEQUENCE.length - 1]
+
+  useEffect(() => {
+    if (!trainingsData?.data) {
+      setLocalTrainings([])
+      return
+    }
+
+    const mapped = trainingsData.data.map(mapApiTrainingToLocal)
+    const sorted = mapped.sort(
+      (a, b) => new Date(b.startDate).valueOf() - new Date(a.startDate).valueOf(),
+    )
+    setLocalTrainings(sorted)
+  }, [trainingsData])
+
+  useEffect(() => {
+    if (isTrainingsError && trainingsError) {
+      toast.error("Unable to load trainings. Please try again.")
+    }
+  }, [isTrainingsError, trainingsError])
+
+  const isBusy =
+    isFetchingTrainings ||
+    createTrainingMutation.isPending ||
+    updateTrainingMutation.isPending ||
+    deleteTrainingMutation.isPending
+
+  const stats = useMemo(
+    () => [
+      {
+        label: "Training programs",
+        value: localTrainings.length,
+        description: "Active & planned programs",
+      },
+      {
+        label: "Participants",
+        value: localTrainings.reduce((sum, training) => sum + (training.participants ?? 0), 0),
+        description: "Registered employees",
+      },
+      {
+        label: "Investment",
+        value: `₦ ${localTrainings.reduce((sum, training) => sum + (training.cost ?? 0), 0).toLocaleString()}`,
+        description: "Program budgets",
+      },
+    ],
+    [localTrainings],
+  )
+
+  const currentDialogTab = isEditing ? activeEditTab : activeAddTab
+  const setCurrentDialogTab = (tab: TrainingTab) => {
+    if (isEditing) {
+      setActiveEditTab(tab)
+    } else {
+      setActiveAddTab(tab)
+    }
+  }
+  const currentFormValues = isEditing ? editFormValues : addFormValues
 
   const handleAdd = () => {
     setIsEditing(false)
     setSelectedTraining(null)
+    setAddFormValues({})
+    setActiveAddTab("basic")
     setAddEditDialogOpen(true)
   }
 
   const handleEdit = (id: string) => {
-    const training = trainings.find((t) => t.id === id)
-    setSelectedTraining(training)
+    const training = localTrainings.find((item) => item.id === id)
+    if (!training) return
     setIsEditing(true)
+    setSelectedTraining(training)
+    setEditFormValues({
+      title: training.title,
+      type: training.type,
+      trainer: training.trainer,
+      status: training.status,
+      startDate: training.startDate,
+      participants: training.participants,
+      cost: training.cost,
+      email: training.email,
+      phone: training.phone,
+    })
+    setActiveEditTab("basic")
     setAddEditDialogOpen(true)
   }
 
   const handleView = (id: string) => {
-    const training = trainings.find((t) => t.id === id)
+    const training = localTrainings.find((item) => item.id === id)
+    if (!training) return
     setSelectedTraining(training)
     setViewDialogOpen(true)
   }
 
-  const handleDelete = (id: string) => {
-    console.log("Deleting training with ID:", id)
-    // Here you would typically make an API call to delete the training
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [trainingToDelete, setTrainingToDelete] = useState<LocalTraining | null>(null)
+
+  const handleOpenDeleteDialog = (training: LocalTraining) => {
+    setTrainingToDelete(training)
+    setIsDeleteDialogOpen(true)
   }
 
-  const handleSubmit = (data: Record<string, any>) => {
-    setIsLoading(true)
+  const handleConfirmDelete = async () => {
+    if (!trainingToDelete) return
+    try {
+      await deleteTrainingMutation.mutateAsync(Number(trainingToDelete.id))
+      setLocalTrainings((prev) => prev.filter((item) => item.id !== trainingToDelete.id))
+      toast.success(`${trainingToDelete.title} deleted`)
+      if (selectedTraining?.id === trainingToDelete.id) {
+        setSelectedTraining(null)
+        setViewDialogOpen(false)
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete training")
+    } finally {
+      setIsDeleteDialogOpen(false)
+      setTrainingToDelete(null)
+    }
+  }
 
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Submitting data:", data)
-      setIsLoading(false)
+  const handleFinalSubmit = async (form: TrainingFormData) => {
+    try {
+      if (isEditing && selectedTraining) {
+        const response = await updateTrainingMutation.mutateAsync({
+          id: Number(selectedTraining.id),
+          data: transformFormToUpdateTraining(form),
+        })
+        if (response.success) {
+          const updated = mapApiTrainingToLocal(response.data)
+          setLocalTrainings((prev) => prev.map((item) => (item.id === selectedTraining.id ? updated : item)))
+          setSelectedTraining(updated)
+          toast.success(response.message || "Training updated")
+        }
+      } else {
+        const response = await createTrainingMutation.mutateAsync(transformFormToCreateTraining(form))
+        if (response.success) {
+          const created = mapApiTrainingToLocal(response.data)
+          setLocalTrainings((prev) => [created, ...prev])
+          toast.success(response.message || "Training created")
+        }
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save training")
+    } finally {
+      setAddFormValues({})
+      setEditFormValues({})
+      setActiveAddTab("basic")
+      setActiveEditTab("basic")
       setAddEditDialogOpen(false)
-      // Here you would typically make an API call to add/update the training
-    }, 1000)
+      setIsEditing(false)
+    }
   }
 
-  // Detail sections for viewing training details
-  const detailTabs: DetailTab[] = [
+  const handleAddTabSubmit = async (tab: TrainingTab, data: Record<string, any>) => {
+    const combined = { ...addFormValues, ...data }
+    setAddFormValues(combined)
+    if (isFinalTrainingTab(tab)) {
+      await handleFinalSubmit(combined as TrainingFormData)
+    } else {
+      setActiveAddTab(getNextTrainingTab(tab))
+    }
+  }
+
+  const handleEditTabSubmit = async (tab: TrainingTab, data: Record<string, any>) => {
+    const combined = { ...editFormValues, ...data }
+    setEditFormValues(combined)
+    if (isFinalTrainingTab(tab)) {
+      await handleFinalSubmit(combined as TrainingFormData)
+    } else {
+      setActiveEditTab(getNextTrainingTab(tab))
+    }
+  }
+
+  const handleManualRefresh = async () => {
+    try {
+      await refetchTrainings()
+      toast.success("Training list refreshed")
+    } catch {
+      toast.error("Unable to refresh trainings")
+    }
+  }
+
+  const columns = [
     {
-      id: "details",
-      label: "Details",
-      sections: [
-        {
-          title: "Training Information",
-          fields: [
-            {
-              label: "Training Title",
-              value: selectedTraining?.title || "",
-              type: "text",
-            },
-            {
-              label: "Training Type",
-              value: selectedTraining?.type || "",
-              type: "badge",
-            },
-            {
-              label: "Trainer",
-              value: selectedTraining?.trainer || "",
-              type: "text",
-            },
-            {
-              label: "Start Date",
-              value: selectedTraining?.startDate || "",
-              type: "date",
-            },
-            {
-              label: "End Date",
-              value: selectedTraining?.endDate || "",
-              type: "date",
-            },
-            {
-              label: "Status",
-              value: selectedTraining?.status || "",
-              type: "status",
-              options: {
-                statusMap: {
-                  upcoming: { label: "Upcoming", color: "bg-blue-100 text-blue-800" },
-                  "in-progress": { label: "In Progress", color: "bg-yellow-100 text-yellow-800" },
-                  completed: { label: "Completed", color: "bg-green-100 text-green-800" },
-                  cancelled: { label: "Cancelled", color: "bg-red-100 text-red-800" },
-                },
-              },
-            },
-          ],
-        },
-        {
-          title: "Location & Participants",
-          fields: [
-            {
-              label: "Location",
-              value: selectedTraining?.location || "",
-              type: "text",
-            },
-            {
-              label: "Number of Participants",
-              value: selectedTraining?.participants || "",
-              type: "text",
-            },
-            {
-              label: "Cost",
-              value: selectedTraining?.cost || "",
-              type: "currency",
-              options: {
-                currency: "NGN",
-              },
-            },
-            {
-              label: "Feedback Rating",
-              value: selectedTraining?.feedback || "Not yet rated",
-              type: "text",
-            },
-          ],
-        },
-        {
-          title: "Content",
-          fields: [
-            {
-              label: "Description",
-              value: selectedTraining?.description || "",
-              type: "text",
-            },
-            {
-              label: "Objectives",
-              value: selectedTraining?.objectives || "",
-              type: "text",
-            },
-            {
-              label: "Training Materials",
-              value: selectedTraining?.materials || "",
-              type: "text",
-            },
-          ],
-        },
-      ],
+      key: "title",
+      label: "Training Title",
+      sortable: true,
+      render: (value: string) => <span className="font-medium text-gray-900 truncate">{value}</span>,
     },
     {
-      id: "participants",
+      key: "trainer",
+      label: "Trainer",
+      sortable: true,
+      render: (value: string) => (
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 flex items-center justify-center">
+            <Users className="h-4 w-4 text-blue-600" />
+          </div>
+          <span className="truncate max-w-[150px]">{value}</span>
+        </div>
+      ),
+    },
+    {
+      key: "type",
+      label: "Type",
+      sortable: true,
+    },
+    {
+      key: "startDate",
+      label: "Start Date",
+      sortable: true,
+      render: (value: string, row: LocalTraining) => (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-gray-500" />
+                <div className="flex flex-col text-sm text-gray-700">
+                  <span>{value ? format(new Date(value), "MMM d, yyyy") : "TBD"}</span>
+                  <span className="text-xs text-gray-400">
+                    {row.endDate ? format(new Date(row.endDate), "MMM d, yyyy") : "No end date"}
+                  </span>
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">
+                Period: {value ? new Date(value).toLocaleDateString() : "TBD"} –{" "}
+                {row.endDate ? new Date(row.endDate).toLocaleDateString() : "ongoing"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ),
+    },
+    {
+      key: "participants",
       label: "Participants",
-      sections: [
-        {
-          title: "Participant List",
-          fields: [
-            {
-              label: "Note",
-              value:
-                "Participant details would be displayed here. This is a placeholder for the actual participant data.",
-              type: "text",
-            },
-          ],
-        },
-      ],
+      sortable: true,
+      render: (value: number) => (
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-gray-500" />
+          <span>{typeof value === "number" ? value : "0"}</span>
+        </div>
+      ),
     },
     {
-      id: "resources",
-      label: "Resources",
-      sections: [
-        {
-          title: "Training Resources",
-          fields: [
-            {
-              label: "Note",
-              value:
-                "Training resources and materials would be displayed here. This is a placeholder for the actual resource data.",
-              type: "text",
-            },
-          ],
-        },
-      ],
+      key: "cost",
+      label: "Cost",
+      sortable: true,
+      render: (value: number) => (
+        <div className="flex items-center gap-2">
+          <DollarSign className="h-4 w-4 text-gray-500" />
+          <span>₦{typeof value === "number" ? value.toLocaleString() : "0"}</span>
+        </div>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      render: (value: string) => {
+        const normalized = (value || "").toLowerCase()
+        const badgeClass = statusBadge[normalized] ?? statusBadge["upcoming"]
+        return (
+          <Badge className={`${badgeClass} px-3 py-1.5 font-medium rounded-full`}>
+            {normalized.charAt(0).toUpperCase() + normalized.slice(1)}
+          </Badge>
+        )
+      },
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      render: (_: any, row: LocalTraining) => (
+        <div className="flex justify-end items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleView(row.id)}
+            className="border-blue-200 text-blue-600 hover:border-blue-300 hover:bg-blue-50"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleEdit(row.id)}
+            className="border-amber-200 text-amber-600 hover:border-amber-300 hover:bg-amber-50"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleOpenDeleteDialog(row)}
+            className="border-rose-200 text-rose-600 hover:border-rose-300 hover:bg-rose-50"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
     },
   ]
 
+  if (isLoadingTrainings) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-3">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 animate-pulse" />
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                Training Programs
+              </h1>
+              <div className="h-3 w-48 bg-gray-200 rounded animate-pulse mt-2" />
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {[1, 2, 3, 4].map((item) => (
+            <div key={item} className="h-28 bg-white rounded-xl shadow border border-gray-200 animate-pulse" />
+          ))}
+        </div>
+        <div className="bg-white rounded-xl shadow border border-gray-200 p-6">
+          <div className="flex flex-col space-y-4">
+            <div className="h-8 bg-gray-200 rounded animate-pulse w-1/4" />
+            <div className="h-64 bg-gray-100 rounded-xl animate-pulse" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (isTrainingsError) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold">Training Programs</h1>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="text-center py-10">
+            <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+              <Briefcase className="h-6 w-6 text-red-600" />
+            </div>
+            <p className="text-red-500 font-medium">Error loading training programs</p>
+            <p className="text-gray-600 mt-1 text-sm">{trainingsError?.message}</p>
+            <button
+              onClick={() => refetchTrainings()}
+              className="mt-6 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium shadow-sm hover:shadow-md transition-all"
+            >
+              Retry Loading
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-6">
-      <EnhancedDataTable
-        title="Training Programs"
-        description="Manage employee training programs and track their progress"
-        columns={[
-          {
-            key: "title",
-            label: "Training Title",
-            sortable: true,
-          },
-          {
-            key: "type",
-            label: "Type",
-            sortable: true,
-          },
-          {
-            key: "trainer",
-            label: "Trainer",
-            sortable: true,
-          },
-          {
-            key: "startDate",
-            label: "Start Date",
-            sortable: true,
-            render: (value, row) => (
-              <div className="flex items-center">
-                <Calendar className="mr-2 h-4 w-4 text-gray-500" />
-                {format(new Date(value), "MMM d, yyyy")}
+    <CoreHRClientWrapper title="Training Programs" endpoint="/api/admin/training">
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+          <div className="flex items-center space-x-3">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 flex items-center justify-center shadow-sm">
+              <Briefcase className="h-6 w-6 text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                Training Programs
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Manage employee training, schedules, and costs
+                {localTrainings.length > 0 && (
+                  <span className="ml-2 text-sm text-gray-500">({localTrainings.length} programs)</span>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    onClick={handleManualRefresh}
+                    disabled={isBusy}
+                    className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"
+                  >
+                    {isBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                    <span className="ml-2 hidden sm:inline">Refresh</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Reload training programs</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <Button
+              onClick={handleAdd}
+              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+              disabled={isBusy}
+            >
+              <Briefcase className="h-4 w-4 mr-2" />
+              Add Training Program
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {stats.map((stat) => (
+            <Card
+              key={stat.label}
+              className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200"
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-500 uppercase tracking-widest">{stat.label}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-gray-900">{stat.value}</div>
+                <CardDescription className="text-xs text-gray-500 mt-1">{stat.description}</CardDescription>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <Card className="border border-gray-200 shadow-lg rounded-xl overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <CardTitle className="text-lg font-semibold text-gray-900">Training Programs</CardTitle>
+                <CardDescription className="text-gray-600">Review and update training entries.</CardDescription>
               </div>
-            ),
-          },
-          {
-            key: "participants",
-            label: "Participants",
-            sortable: true,
-            render: (value, row) => (
-              <div className="flex items-center">
-                <Users className="mr-2 h-4 w-4 text-gray-500" />
-                {value}
-              </div>
-            ),
-          },
-          {
-            key: "cost",
-            label: "Cost",
-            sortable: true,
-            render: (value, row) => (
-              <div className="flex items-center">
-                <DollarSign className="mr-2 h-4 w-4 text-gray-500" />₦{value.toLocaleString()}
-              </div>
-            ),
-          },
-          {
-            key: "status",
-            label: "Status",
-            sortable: true,
-            render: (value, row) => {
-              let badgeClass = ""
-              let statusText = ""
-
-              switch (value) {
-                case "upcoming":
-                  badgeClass = "bg-blue-100 text-blue-800"
-                  statusText = "Upcoming"
-                  break
-                case "in-progress":
-                  badgeClass = "bg-yellow-100 text-yellow-800"
-                  statusText = "In Progress"
-                  break
-                case "completed":
-                  badgeClass = "bg-green-100 text-green-800"
-                  statusText = "Completed"
-                  break
-                case "cancelled":
-                  badgeClass = "bg-red-100 text-red-800"
-                  statusText = "Cancelled"
-                  break
-                default:
-                  badgeClass = "bg-gray-100 text-gray-800"
-                  statusText = value
-              }
-
-              return <Badge className={badgeClass}>{statusText}</Badge>
-            },
-          },
-        ]}
-        data={trainings}
-        filterOptions={[
-          {
-            id: "status",
-            label: "Status",
-            type: "select",
-            options: [
-              { value: "upcoming", label: "Upcoming" },
-              { value: "in-progress", label: "In Progress" },
-              { value: "completed", label: "Completed" },
-              { value: "cancelled", label: "Cancelled" },
-            ],
-          },
-          {
-            id: "type",
-            label: "Type",
-            type: "select",
-            options: [
-              { value: "Professional Development", label: "Professional Development" },
-              { value: "Technical Skills", label: "Technical Skills" },
-              { value: "Soft Skills", label: "Soft Skills" },
-              { value: "Compliance", label: "Compliance" },
-              { value: "Onboarding", label: "Onboarding" },
-            ],
-          },
-          {
-            id: "startDate",
-            label: "Start Date",
-            type: "date",
-          },
-        ]}
-        onAdd={handleAdd}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onView={handleView}
-        isLoading={isLoading}
-      />
-
-      {/* Add/Edit Dialog */}
-      <Dialog open={addEditDialogOpen} onOpenChange={setAddEditDialogOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>{isEditing ? "Edit Training Program" : "Add Training Program"}</DialogTitle>
-          </DialogHeader>
-          <EnhancedForm
-            fields={formFields}
-            onSubmit={handleSubmit}
-            onCancel={() => setAddEditDialogOpen(false)}
-            isSubmitting={isLoading}
-            submitLabel={isEditing ? "Update" : "Create"}
-            initialValues={selectedTraining}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* View Dialog */}
-      {selectedTraining && (
-        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DetailsView
-              title={selectedTraining.title}
-              subtitle={`${selectedTraining.type} • ${format(new Date(selectedTraining.startDate), "MMMM d, yyyy")}`}
-              data={selectedTraining}
-              tabs={detailTabs}
-              onEdit={() => {
-                setViewDialogOpen(false)
-                handleEdit(selectedTraining.id)
-              }}
-              onPrint={() => window.print()}
-              onExport={() => console.log("Exporting training details")}
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <DataTable
+              title="Training Programs"
+              columns={columns}
+              data={localTrainings}
+              searchFields={trainingSearchFields}
+              itemsPerPage={10}
             />
+          </CardContent>
+        </Card>
+
+        <Dialog
+          open={addEditDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setAddEditDialogOpen(false)
+              setIsEditing(false)
+              setSelectedTraining(null)
+              setAddFormValues({})
+              setEditFormValues({})
+              setActiveAddTab("basic")
+              setActiveEditTab("basic")
+            }
+          }}
+        >
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>{isEditing ? "Edit Training Program" : "Add Training Program"}</DialogTitle>
+            </DialogHeader>
+            <Tabs value={currentDialogTab} onValueChange={(value) => setCurrentDialogTab(value as TrainingTab)}>
+              <TabsList className="grid grid-cols-3">
+                {TRAINING_TAB_SEQUENCE.map((tab) => (
+                  <TabsTrigger key={tab} value={tab}>
+                    {TAB_LABELS[tab]}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+
+              {TRAINING_TAB_SEQUENCE.map((tab) => (
+                <TabsContent key={tab} value={tab}>
+                  <EnhancedForm
+                    fields={trainingTabFields[tab]}
+                    onSubmit={(data) =>
+                      isEditing ? handleEditTabSubmit(tab, data) : handleAddTabSubmit(tab, data)
+                    }
+                    onCancel={() => {
+                      setAddEditDialogOpen(false)
+                      setIsEditing(false)
+                      setSelectedTraining(null)
+                    }}
+                    isSubmitting={createTrainingMutation.isPending || updateTrainingMutation.isPending}
+                    submitLabel={
+                      isFinalTrainingTab(tab)
+                        ? isEditing
+                          ? "Update"
+                          : "Create"
+                        : "Next"
+                    }
+                    initialValues={currentFormValues ?? undefined}
+                  />
+                </TabsContent>
+              ))}
+            </Tabs>
           </DialogContent>
         </Dialog>
-      )}
-    </div>
+
+        {selectedTraining && (
+          <ViewTrainingDialog
+            training={selectedTraining}
+            isOpen={viewDialogOpen}
+            onClose={() => {
+              setViewDialogOpen(false)
+              setSelectedTraining(null)
+            }}
+            onEdit={() => {
+              setViewDialogOpen(false)
+              handleEdit(selectedTraining.id)
+            }}
+            onDelete={() => {
+              setViewDialogOpen(false)
+              handleOpenDeleteDialog(selectedTraining)
+            }}
+          />
+        )}
+
+        <DeleteConfirmationDialog
+          isOpen={isDeleteDialogOpen}
+          onClose={() => {
+            setIsDeleteDialogOpen(false)
+            setTrainingToDelete(null)
+          }}
+          onConfirm={handleConfirmDelete}
+          title="Delete Training Program"
+          description={`Are you sure you want to delete ${trainingToDelete?.title ?? "this training"}?`}
+          itemName={trainingToDelete?.title ?? "this training"}
+          isLoading={deleteTrainingMutation.isPending}
+        />
+      </div>
+    </CoreHRClientWrapper>
   )
 }
