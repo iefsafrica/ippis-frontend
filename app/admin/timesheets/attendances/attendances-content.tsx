@@ -170,17 +170,10 @@ export function AttendancesContent() {
 
   const employeeOptions = useMemo(
     () =>
-      (employeesQuery.data?.employees ?? []).map((employee) => {
-        const registrationId = employee.registration_id?.trim()
-        const sanitizedCode =
-          registrationId && registrationId.length
-            ? registrationId.replace(/\s+/g, "")
-            : employee.id
-        return {
-          value: sanitizedCode,
-          label: `${registrationId ?? employee.id} - ${employee.name}`,
-        }
-      }),
+      (employeesQuery.data?.employees ?? []).map((employee) => ({
+        value: employee.id,
+        label: `${employee.registration_id ?? employee.id} - ${employee.name}`,
+      })),
     [employeesQuery.data],
   )
 

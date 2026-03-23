@@ -141,7 +141,7 @@ export function ManageLeavesContent() {
 
   const employeeOptions = useMemo(() => {
     return (employeesQuery.data?.employees ?? []).map((employee) => ({
-      value: employee.registration_id?.replace(/\s+/g, "") ?? employee.id,
+      value: employee.id,
       label: `${employee.name} (${employee.registration_id ?? employee.id})`,
     }))
   }, [employeesQuery.data])
@@ -464,9 +464,10 @@ export function ManageLeavesContent() {
             title="Leave Requests"
             columns={columns}
             data={tableData}
-            onAdd={handleAdd}
             searchFields={searchFields}
             itemsPerPage={10}
+            defaultSortColumn="id"
+            defaultSortDirection="desc"
           />
         </CardContent>
       </Card>
