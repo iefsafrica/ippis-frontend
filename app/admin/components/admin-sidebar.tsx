@@ -348,8 +348,8 @@ export function AdminSidebar() {
       title: "HR Reports",
       icon: FileBarChart,
       isDropdown: true,
-      href: "/admin/hr-reports",
-      isOpen: openDropdown === "hr-reports", // for performance
+      isOpen: openDropdown === "hr-reports",
+      toggleOnly: true,
       section: "hr-reports",
       toggle: () =>
         setOpenDropdown(openDropdown === "hr-reports" ? null : "hr-reports"),
