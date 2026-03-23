@@ -453,8 +453,8 @@ export function AdminSidebar() {
       title: "Events & Meetings",
       icon: CalendarClock,
       isDropdown: true,
-      href: "/admin/events-meetings",
-      isOpen: openDropdown === "event-meetings", // for performance
+      toggleOnly: true,
+      isOpen: openDropdown === "event-meetings",
       section: "event-meetings",
       toggle: () =>
         setOpenDropdown(
