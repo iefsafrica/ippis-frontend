@@ -7,13 +7,13 @@ import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { DatePickerWithRange } from "./date-range-picker"
 import { Checkbox } from "@/components/ui/checkbox"
 import { addDays } from "date-fns"
 import { useCreateCalendarEvent, useUpdateCalendarEvent } from "@/services/hooks/calendar/events"
 import { toast } from "sonner"
+import { CustomSelect, CustomSelectContent, CustomSelectItem, CustomSelectTrigger, CustomSelectValue } from "@/components/ui/custom-select"
 
 const eventFormSchema = z.object({
   title: z.string().min(2, {
@@ -151,20 +151,18 @@ export function AddEventForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Event Type</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select event type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="meeting">Meeting</SelectItem>
-                  <SelectItem value="training">Training</SelectItem>
-                  <SelectItem value="holiday">Holiday</SelectItem>
-                  <SelectItem value="deadline">Deadline</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
+              <CustomSelect value={field.value} onValueChange={field.onChange}>
+                <CustomSelectTrigger>
+                  <CustomSelectValue placeholder="Select event type" />
+                </CustomSelectTrigger>
+                <CustomSelectContent>
+                  <CustomSelectItem value="meeting">Meeting</CustomSelectItem>
+                  <CustomSelectItem value="training">Training</CustomSelectItem>
+                  <CustomSelectItem value="holiday">Holiday</CustomSelectItem>
+                  <CustomSelectItem value="deadline">Deadline</CustomSelectItem>
+                  <CustomSelectItem value="other">Other</CustomSelectItem>
+                </CustomSelectContent>
+              </CustomSelect>
               <FormMessage />
             </FormItem>
           )}

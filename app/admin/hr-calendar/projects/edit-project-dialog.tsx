@@ -17,6 +17,14 @@ import { FolderKanban, Loader2, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
 import { useUpdateProject } from "@/services/hooks/calendar/projects"
 import type { Project } from "@/types/calendar/projects"
+import { DatePicker } from "@/components/ui/date-picker"
+import {
+  CustomSelect,
+  CustomSelectContent,
+  CustomSelectItem,
+  CustomSelectTrigger,
+  CustomSelectValue,
+} from "@/components/ui/custom-select"
 
 interface ProjectFormData {
   project_title: string
@@ -37,11 +45,23 @@ interface EditProjectDialogProps {
   project: Project | null
 }
 
-const toDateInput = (value?: string) => {
-  if (!value) return ""
+const statusOptions = [
+  { value: "active", label: "Active" },
+  { value: "completed", label: "Completed" },
+  { value: "inactive", label: "Inactive" },
+]
+
+const priorityOptions = [
+  { value: "high", label: "High" },
+  { value: "medium", label: "Medium" },
+  { value: "low", label: "Low" },
+]
+
+const formatDate = (value?: Date) => (value ? value.toISOString().split("T")[0] : "")
+const parseDate = (value?: string) => {
+  if (!value) return undefined
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ""
-  return date.toISOString().split("T")[0]
+  return Number.isNaN(date.getTime()) ? undefined : date
 }
 
 export function EditProjectDialog({ isOpen, onClose, project }: EditProjectDialogProps) {
@@ -229,33 +249,21 @@ export function EditProjectDialog({ isOpen, onClose, project }: EditProjectDialo
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="start_date" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Start Date *
-                      </Label>
-                      <Input
-                        id="start_date"
-                        name="start_date"
-                        type="date"
-                        value={formData.start_date}
-                        onChange={handleChange}
-                        className="h-11 border-gray-300 text-left"
-                        disabled={isLoading}
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">Start Date *</Label>
+                      <DatePicker
+                        value={parseDate(formData.start_date) ?? new Date()}
+                        onValueChange={(value) => setFormData((prev) => ({ ...prev, start_date: formatDate(value) }))}
+                        className="w-full"
                       />
                       {errors.start_date && <p className="text-sm text-red-600 mt-2">{errors.start_date}</p>}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="end_date" className="text-sm font-medium text-gray-700 mb-2 block">
-                        End Date *
-                      </Label>
-                      <Input
-                        id="end_date"
-                        name="end_date"
-                        type="date"
-                        value={formData.end_date}
-                        onChange={handleChange}
-                        className="h-11 border-gray-300 text-left"
-                        disabled={isLoading}
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">End Date *</Label>
+                      <DatePicker
+                        value={parseDate(formData.end_date) ?? new Date()}
+                        onValueChange={(value) => setFormData((prev) => ({ ...prev, end_date: formatDate(value) }))}
+                        className="w-full"
                       />
                       {errors.end_date && <p className="text-sm text-red-600 mt-2">{errors.end_date}</p>}
                     </div>
@@ -294,30 +302,42 @@ export function EditProjectDialog({ isOpen, onClose, project }: EditProjectDialo
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="project_status" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Status *
-                      </Label>
-                      <Input
-                        id="project_status"
-                        name="project_status"
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">Status *</Label>
+                      <CustomSelect
                         value={formData.project_status}
-                        onChange={handleChange}
-                        className="h-11 border-gray-300 text-left"
+                        onValueChange={(value) => setFormData((prev) => ({ ...prev, project_status: value }))}
                         disabled={isLoading}
-                      />
+                      >
+                        <CustomSelectTrigger className="h-11 border-gray-300 text-left">
+                          <CustomSelectValue placeholder="Select status" />
+                        </CustomSelectTrigger>
+                        <CustomSelectContent>
+                          {statusOptions.map((option) => (
+                            <CustomSelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </CustomSelectItem>
+                          ))}
+                        </CustomSelectContent>
+                      </CustomSelect>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="priority" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Priority *
-                      </Label>
-                      <Input
-                        id="priority"
-                        name="priority"
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">Priority *</Label>
+                      <CustomSelect
                         value={formData.priority}
-                        onChange={handleChange}
-                        className="h-11 border-gray-300 text-left"
+                        onValueChange={(value) => setFormData((prev) => ({ ...prev, priority: value }))}
                         disabled={isLoading}
-                      />
+                      >
+                        <CustomSelectTrigger className="h-11 border-gray-300 text-left">
+                          <CustomSelectValue placeholder="Select priority" />
+                        </CustomSelectTrigger>
+                        <CustomSelectContent>
+                          {priorityOptions.map((option) => (
+                            <CustomSelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </CustomSelectItem>
+                          ))}
+                        </CustomSelectContent>
+                      </CustomSelect>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="budget" className="text-sm font-medium text-gray-700 mb-2 block">

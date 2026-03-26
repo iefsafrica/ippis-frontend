@@ -251,24 +251,7 @@ export function ProjectsContent() {
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            onClick={handleManualRefresh}
-            disabled={deleteProjectMutation.isPending}
-            className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"
-          >
-            <RefreshCw className="h-4 w-4" />
-            <span className="ml-2 hidden sm:inline">Refresh</span>
-          </Button>
-          <Button
-            onClick={handleAddProject}
-            disabled={deleteProjectMutation.isPending}
-            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
-          >
-            Add Project
-          </Button>
-        </div>
+        
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

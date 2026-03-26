@@ -6,11 +6,19 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Download, Search } from "lucide-react"
-import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { useAttendances } from "@/services/hooks/timesheets/attendance"
 import { AttendanceFilterParams } from "@/types/timesheets/attendance"
+import {
+  CustomSelect,
+  CustomSelectContent,
+  CustomSelectGroup,
+  CustomSelectItem,
+  CustomSelectTrigger,
+  CustomSelectValue,
+} from "@/components/ui/custom-select"
 
 const getStatusStyles = (status: string | undefined) => {
   switch (status) {
@@ -28,14 +36,11 @@ const getStatusStyles = (status: string | undefined) => {
 }
 
 export function DateWiseAttendancesContent() {
-  const today = new Date()
-  const defaultStart = format(subDays(today, 6), "yyyy-MM-dd")
-  const defaultEnd = format(today, "yyyy-MM-dd")
-  const [startDate, setStartDate] = useState(defaultStart)
-  const [endDate, setEndDate] = useState(defaultEnd)
+  const [startDate, setStartDate] = useState(() => subDays(new Date(), 6))
+  const [endDate, setEndDate] = useState(() => new Date())
   const [department, setDepartment] = useState("ALL")
   const [filters, setFilters] = useState<AttendanceFilterParams | undefined>()
-  const [rangeLabel, setRangeLabel] = useState("All records")
+  const [rangeLabel, setRangeLabel] = useState("Last 7 days")
   const attendancesQuery = useAttendances(filters)
   const isLoading = attendancesQuery.isFetching
   const attendanceData = attendancesQuery.data ?? []
@@ -48,8 +53,8 @@ export function DateWiseAttendancesContent() {
       return
     }
 
-    const start = new Date(startDate)
-    const end = new Date(endDate)
+    const start = startDate
+    const end = endDate
     if (start > end) {
       toast.error("Invalid range", {
         description: "Start date cannot come after the end date.",
@@ -58,11 +63,11 @@ export function DateWiseAttendancesContent() {
     }
 
       setFilters({
-        start_date: startDate,
-        end_date: endDate,
+        start_date: format(start, "yyyy-MM-dd"),
+        end_date: format(end, "yyyy-MM-dd"),
         department: department === "ALL" ? undefined : department,
       })
-    setRangeLabel(`${startDate} – ${endDate}`)
+    setRangeLabel(`${format(start, "PPP")} – ${format(end, "PPP")}`)
   }
 
   const handleExport = () => {
@@ -123,40 +128,37 @@ export function DateWiseAttendancesContent() {
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">Start Date</label>
-              <div className="relative">
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="pr-10 transition-colors duration-150 hover:bg-[#f3fdf4]"
-                />
-              </div>
+              <DatePicker
+                value={startDate}
+                onValueChange={(value) => value && setStartDate(value)}
+                className="w-full"
+              />
             </div>
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">End Date</label>
-              <div className="relative">
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="pr-10 transition-colors duration-150 hover:bg-[#f3fdf4]"
-                />
-              </div>
+              <DatePicker
+                value={endDate}
+                onValueChange={(value) => value && setEndDate(value)}
+                className="w-full"
+              />
             </div>
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">Department</label>
-              <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background transition-colors duration-150 hover:bg-[#f3fdf4]"
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-              >
-                <option value="ALL">All Departments</option>
-                <option value="IT">IT</option>
-                <option value="HR">HR</option>
-                <option value="Finance">Finance</option>
-                <option value="Marketing">Marketing</option>
-                <option value="Operations">Operations</option>
-              </select>
+              <CustomSelect value={department} onValueChange={setDepartment}>
+                <CustomSelectTrigger className="w-full">
+                  <CustomSelectValue placeholder="Select department" />
+                </CustomSelectTrigger>
+                <CustomSelectContent>
+                  <CustomSelectGroup>
+                    <CustomSelectItem value="ALL">All Departments</CustomSelectItem>
+                    <CustomSelectItem value="IT">IT</CustomSelectItem>
+                    <CustomSelectItem value="HR">HR</CustomSelectItem>
+                    <CustomSelectItem value="Finance">Finance</CustomSelectItem>
+                    <CustomSelectItem value="Marketing">Marketing</CustomSelectItem>
+                    <CustomSelectItem value="Operations">Operations</CustomSelectItem>
+                  </CustomSelectGroup>
+                </CustomSelectContent>
+              </CustomSelect>
             </div>
             <div className="flex items-end gap-3">
               <Button

@@ -14,13 +14,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+  CustomSelect,
+  CustomSelectContent,
+  CustomSelectItem,
+  CustomSelectTrigger,
+  CustomSelectValue,
+} from "@/components/ui/custom-select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Calendar, Building, FileText, Users, MapPin, Tag, Loader2, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
 import { useCreateCalendarEvent } from "@/services/hooks/calendar/events"
@@ -43,12 +44,19 @@ interface AddCalendarEventDialogProps {
 }
 
 const eventTypeOptions = [
-  { value: "Meeting", label: "Meeting" },
-  { value: "Training", label: "Training" },
-  { value: "Holiday", label: "Holiday" },
-  { value: "Deadline", label: "Deadline" },
-  { value: "Other", label: "Other" },
+  { value: "meeting", label: "Meeting" },
+  { value: "training", label: "Training" },
+  { value: "holiday", label: "Holiday" },
+  { value: "deadline", label: "Deadline" },
+  { value: "other", label: "Other" },
 ]
+
+const formatDate = (value?: Date) => (value ? value.toISOString().split("T")[0] : "")
+const parseDate = (value?: string) => {
+  if (!value) return undefined
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? undefined : date
+}
 
 export function AddCalendarEventDialog({ isOpen, onClose }: AddCalendarEventDialogProps) {
   const createCalendarEventMutation = useCreateCalendarEvent()
@@ -231,25 +239,25 @@ export function AddCalendarEventDialog({ isOpen, onClose }: AddCalendarEventDial
                       <Label htmlFor="event_type" className="text-sm font-medium text-gray-700 mb-2 block">
                         Event Type *
                       </Label>
-                      <Select
+                      <CustomSelect
                         value={formData.event_type}
                         onValueChange={(value) => handleSelectChange("event_type", value)}
                         disabled={isLoading}
                       >
-                        <SelectTrigger className="h-11 border-gray-300 text-gray-900">
+                        <CustomSelectTrigger className="h-11 border-gray-300 text-gray-900">
                           <div className="flex items-center">
                             <Tag className="h-4 w-4 text-gray-500 mr-3" />
-                            <SelectValue placeholder="Select event type" />
+                            <CustomSelectValue placeholder="Select event type" />
                           </div>
-                        </SelectTrigger>
-                        <SelectContent>
+                        </CustomSelectTrigger>
+                        <CustomSelectContent>
                           {eventTypeOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
+                            <CustomSelectItem key={option.value} value={option.value}>
                               {option.label}
-                            </SelectItem>
+                            </CustomSelectItem>
                           ))}
-                        </SelectContent>
-                      </Select>
+                        </CustomSelectContent>
+                      </CustomSelect>
                       {errors.event_type && <p className="text-sm text-red-600 mt-2">{errors.event_type}</p>}
                     </div>
                   </div>
@@ -299,44 +307,22 @@ export function AddCalendarEventDialog({ isOpen, onClose }: AddCalendarEventDial
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="start_date" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Start Date *
-                      </Label>
-                      <div className="relative">
-                        <div className="absolute left-0 top-0 bottom-0 w-10 flex items-center justify-center border-r border-gray-300 bg-gray-50 rounded-l-md">
-                          <Calendar className="h-4 w-4 text-gray-600" />
-                        </div>
-                        <Input
-                          id="start_date"
-                          name="start_date"
-                          type="date"
-                          value={formData.start_date}
-                          onChange={handleChange}
-                          className="h-11 border-gray-300 pl-12 text-gray-900"
-                          disabled={isLoading}
-                        />
-                      </div>
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">Start Date *</Label>
+                      <DatePicker
+                        value={parseDate(formData.start_date) ?? new Date()}
+                        onValueChange={(value) => setFormData((prev) => ({ ...prev, start_date: formatDate(value) }))}
+                        className="w-full"
+                      />
                       {errors.start_date && <p className="text-sm text-red-600 mt-2">{errors.start_date}</p>}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="end_date" className="text-sm font-medium text-gray-700 mb-2 block">
-                        End Date *
-                      </Label>
-                      <div className="relative">
-                        <div className="absolute left-0 top-0 bottom-0 w-10 flex items-center justify-center border-r border-gray-300 bg-gray-50 rounded-l-md">
-                          <Calendar className="h-4 w-4 text-gray-600" />
-                        </div>
-                        <Input
-                          id="end_date"
-                          name="end_date"
-                          type="date"
-                          value={formData.end_date}
-                          onChange={handleChange}
-                          className="h-11 border-gray-300 pl-12 text-gray-900"
-                          disabled={isLoading}
-                        />
-                      </div>
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">End Date *</Label>
+                      <DatePicker
+                        value={parseDate(formData.end_date) ?? new Date()}
+                        onValueChange={(value) => setFormData((prev) => ({ ...prev, end_date: formatDate(value) }))}
+                        className="w-full"
+                      />
                       {errors.end_date && <p className="text-sm text-red-600 mt-2">{errors.end_date}</p>}
                     </div>
                   </div>

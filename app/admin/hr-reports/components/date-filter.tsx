@@ -1,16 +1,52 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { cn } from "@/lib/utils"
-import { CalendarIcon, FilterIcon } from "lucide-react"
-import { useState } from "react"
+import { FilterIcon } from "lucide-react"
+import { useMemo, useState } from "react"
+
+const presetOptions = [
+  { value: "today", label: "Today" },
+  { value: "yesterday", label: "Yesterday" },
+  { value: "last7", label: "Last 7 days" },
+  { value: "last30", label: "Last 30 days" },
+  { value: "thisMonth", label: "This month" },
+  { value: "lastMonth", label: "Last month" },
+  { value: "thisYear", label: "This year" },
+  { value: "custom", label: "Custom range" },
+]
 
 export function DateFilter() {
-  const [date, setDate] = useState<Date>()
   const [preset, setPreset] = useState("last30")
+  const [startDate, setStartDate] = useState<Date | undefined>()
+  const [endDate, setEndDate] = useState<Date | undefined>()
+
+  const customDatePickers = useMemo(
+    () => (
+      <div className="flex flex-wrap gap-2">
+        <div className="flex-1 min-w-[180px]">
+          <label className="text-xs font-medium text-gray-500">Start date</label>
+          <DatePicker
+            value={startDate}
+            onValueChange={setStartDate}
+            placeholder="Start date"
+            className="w-full mt-1"
+          />
+        </div>
+        <div className="flex-1 min-w-[180px]">
+          <label className="text-xs font-medium text-gray-500">End date</label>
+          <DatePicker
+            value={endDate}
+            onValueChange={setEndDate}
+            placeholder="End date"
+            className="w-full mt-1"
+          />
+        </div>
+      </div>
+    ),
+    [startDate, endDate],
+  )
 
   return (
     <div className="flex flex-wrap gap-3 mb-6">
@@ -19,53 +55,18 @@ export function DateFilter() {
           <SelectValue placeholder="Select date range" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="today">Today</SelectItem>
-          <SelectItem value="yesterday">Yesterday</SelectItem>
-          <SelectItem value="last7">Last 7 days</SelectItem>
-          <SelectItem value="last30">Last 30 days</SelectItem>
-          <SelectItem value="thisMonth">This month</SelectItem>
-          <SelectItem value="lastMonth">Last month</SelectItem>
-          <SelectItem value="thisYear">This year</SelectItem>
-          <SelectItem value="custom">Custom range</SelectItem>
+          {presetOptions.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
 
-      {preset === "custom" && (
-        <div className="flex gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant={"outline"}
-                className={cn("w-[180px] justify-start text-left font-normal", !date && "text-muted-foreground")}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {date ? date.toDateString() : "Pick a date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
-            </PopoverContent>
-          </Popover>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant={"outline"}
-                className="w-[180px] justify-start text-left font-normal text-muted-foreground"
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                End date
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar mode="single" initialFocus />
-            </PopoverContent>
-          </Popover>
-        </div>
-      )}
+      {preset === "custom" && customDatePickers}
 
       <Select defaultValue="all">
-        <SelectTrigger className="w-[180px]">
+        <SelectTrigger className="w-[180px] transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-500">
           <SelectValue placeholder="Department" />
         </SelectTrigger>
         <SelectContent>

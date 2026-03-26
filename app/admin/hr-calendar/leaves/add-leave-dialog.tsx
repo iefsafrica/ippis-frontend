@@ -17,7 +17,14 @@ import { CalendarDays, FileText, Loader2, Phone, User, CheckCircle, Building, Ch
 import { toast } from "sonner"
 import { useCreateLeave } from "@/services/hooks/calendar/leaves"
 import { useAllEmployees } from "@/services/hooks/hr-core/usePromotions"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DatePicker } from "@/components/ui/date-picker"
+import {
+  CustomSelect,
+  CustomSelectContent,
+  CustomSelectItem,
+  CustomSelectTrigger,
+  CustomSelectValue,
+} from "@/components/ui/custom-select"
 
 interface LeaveFormData {
   employee_id: string
@@ -28,6 +35,13 @@ interface LeaveFormData {
   end_date: string
   reason: string
   emergency_contact: string
+}
+
+const toIsoDate = (value?: Date) => (value ? value.toISOString().split("T")[0] : "")
+const parseIsoDate = (value?: string) => {
+  if (!value) return undefined
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? undefined : date
 }
 
 interface AddLeaveDialogProps {
@@ -250,6 +264,52 @@ export function AddLeaveDialog({ isOpen, onClose }: AddLeaveDialogProps) {
     }
   }
 
+  const renderEmployeeDropdown = () => {
+    if (isLoadingEmployees) {
+      return (
+        <div className="flex items-center justify-center p-4">
+          <Loader2 className="h-4 w-4 animate-spin mr-3 text-gray-500" />
+          <span className="text-sm text-gray-600">Loading employees...</span>
+        </div>
+      )
+    }
+
+    if (employeesError) {
+      return (
+        <div className="p-4 text-center">
+          <p className="text-sm text-gray-700">Error loading employees</p>
+          <p className="text-xs text-gray-500 mt-1">Click on dropdown to retry</p>
+        </div>
+      )
+    }
+
+    if (dropdownEmployees.length === 0) {
+      return (
+        <div className="p-4 text-center">
+          <Loader2 className="h-4 w-4 animate-spin mr-3 text-gray-500 mx-auto mb-2" />
+          <p className="text-sm text-gray-700">No employees found</p>
+          <p className="text-xs text-gray-500 mt-1">Click on dropdown to load employees</p>
+        </div>
+      )
+    }
+
+    return dropdownEmployees.map((employee) => (
+      <CustomSelectItem key={employee.id} value={employee.id} className="py-3 hover:bg-gray-50">
+        <div className="flex items-start">
+          <div className="flex-shrink-0 h-8 w-8 bg-gray-100 rounded flex items-center justify-center mr-3 border border-gray-200 mt-0.5">
+            <span className="text-gray-700 font-medium text-xs">{employee.displayName.charAt(0)}</span>
+          </div>
+          <div className="flex flex-col min-w-0">
+            <p className="text-sm font-medium text-gray-900 leading-tight">{employee.displayName}</p>
+            {employee.department && (
+              <p className="text-xs text-gray-500 truncate">{employee.department}</p>
+            )}
+          </div>
+        </div>
+      </CustomSelectItem>
+    ))
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="p-0 max-w-3xl overflow-hidden border border-gray-200 shadow-xl">
@@ -284,12 +344,12 @@ export function AddLeaveDialog({ isOpen, onClose }: AddLeaveDialogProps) {
                       <Label htmlFor="employee_id" className="text-sm font-medium text-gray-700 mb-2 block">
                         Select Employee *
                       </Label>
-                      <Select
+                      <CustomSelect
                         value={formData.employee_id}
                         onValueChange={handleEmployeeSelect}
                         disabled={isLoadingEmployees}
                       >
-                        <SelectTrigger
+                        <CustomSelectTrigger
                           className="h-11 border-gray-300 hover:border-gray-400 text-gray-900"
                           onClick={handleDropdownClick}
                         >
@@ -300,7 +360,7 @@ export function AddLeaveDialog({ isOpen, onClose }: AddLeaveDialogProps) {
                               ) : (
                                 <User className="h-4 w-4 text-gray-500 mr-3" />
                               )}
-                              <SelectValue
+                              <CustomSelectValue
                                 placeholder={
                                   isLoadingEmployees
                                     ? "Loading employees..."
@@ -312,49 +372,11 @@ export function AddLeaveDialog({ isOpen, onClose }: AddLeaveDialogProps) {
                             </div>
                             <ChevronDown className="h-4 w-4 text-gray-400" />
                           </div>
-                        </SelectTrigger>
-                        <SelectContent className="border border-gray-300 shadow-lg max-h-72">
-                          {isLoadingEmployees ? (
-                            <div className="flex items-center justify-center p-4">
-                              <Loader2 className="h-4 w-4 animate-spin mr-3 text-gray-500" />
-                              <span className="text-sm text-gray-600">Loading employees...</span>
-                            </div>
-                          ) : employeesError ? (
-                            <div className="p-4 text-center">
-                              <p className="text-sm text-gray-700">Error loading employees</p>
-                              <p className="text-xs text-gray-500 mt-1">Click on dropdown to retry</p>
-                            </div>
-                          ) : dropdownEmployees.length === 0 ? (
-                            <div className="p-4 text-center">
-                              <Loader2 className="h-4 w-4 animate-spin mr-3 text-gray-500 mx-auto mb-2" />
-                              <p className="text-sm text-gray-700">No employees found</p>
-                              <p className="text-xs text-gray-500 mt-1">Click on dropdown to load employees</p>
-                            </div>
-                          ) : (
-                            dropdownEmployees.map((employee) => (
-                              <SelectItem key={employee.id} value={employee.id} className="py-3 hover:bg-gray-50">
-                                <div className="flex items-start">
-                                  <div className="flex-shrink-0 h-8 w-8 bg-gray-100 rounded flex items-center justify-center mr-3 border border-gray-200 mt-0.5">
-                                    <span className="text-gray-700 font-medium text-xs">
-                                      {employee.displayName.charAt(0)}
-                                    </span>
-                                  </div>
-                                  <div className="flex flex-col min-w-0">
-                                    <p className="text-sm font-medium text-gray-900 leading-tight">
-                                      {employee.displayName}
-                                    </p>
-                                    {employee.department && (
-                                      <p className="text-xs text-gray-500 truncate">
-                                        {employee.department}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
+                        </CustomSelectTrigger>
+                        <CustomSelectContent className="border border-gray-300 shadow-lg max-h-72">
+                          {renderEmployeeDropdown()}
+                        </CustomSelectContent>
+                      </CustomSelect>
                       {errors.employee_id && <p className="text-sm text-red-600 mt-2">{errors.employee_id}</p>}
                     </div>
 
@@ -424,44 +446,22 @@ export function AddLeaveDialog({ isOpen, onClose }: AddLeaveDialogProps) {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="start_date" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Start Date *
-                      </Label>
-                      <div className="relative">
-                        <div className="absolute left-0 top-0 bottom-0 w-10 flex items-center justify-center border-r border-gray-300 bg-gray-50 rounded-l-md">
-                          <CalendarDays className="h-4 w-4 text-gray-600" />
-                        </div>
-                        <Input
-                          id="start_date"
-                          name="start_date"
-                          type="date"
-                          value={formData.start_date}
-                          onChange={handleChange}
-                          className="h-11 border-gray-300 pl-12 text-gray-900 text-left"
-                          disabled={isLoading}
-                        />
-                      </div>
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">Start Date *</Label>
+                      <DatePicker
+                        value={parseIsoDate(formData.start_date)}
+                        onValueChange={(value) => setFormData((prev) => ({ ...prev, start_date: toIsoDate(value) }))}
+                        className="w-full"
+                      />
                       {errors.start_date && <p className="text-sm text-red-600 mt-2">{errors.start_date}</p>}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="end_date" className="text-sm font-medium text-gray-700 mb-2 block">
-                        End Date *
-                      </Label>
-                      <div className="relative">
-                        <div className="absolute left-0 top-0 bottom-0 w-10 flex items-center justify-center border-r border-gray-300 bg-gray-50 rounded-l-md">
-                          <CalendarDays className="h-4 w-4 text-gray-600" />
-                        </div>
-                        <Input
-                          id="end_date"
-                          name="end_date"
-                          type="date"
-                          value={formData.end_date}
-                          onChange={handleChange}
-                          className="h-11 border-gray-300 pl-12 text-gray-900 text-left"
-                          disabled={isLoading}
-                        />
-                      </div>
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">End Date *</Label>
+                      <DatePicker
+                        value={parseIsoDate(formData.end_date)}
+                        onValueChange={(value) => setFormData((prev) => ({ ...prev, end_date: toIsoDate(value) }))}
+                        className="w-full"
+                      />
                       {errors.end_date && <p className="text-sm text-red-600 mt-2">{errors.end_date}</p>}
                     </div>
                   </div>

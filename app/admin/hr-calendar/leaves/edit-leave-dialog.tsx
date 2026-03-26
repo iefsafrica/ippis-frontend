@@ -17,7 +17,14 @@ import { CalendarDays, FileText, Loader2, Phone, User, CheckCircle } from "lucid
 import { toast } from "sonner"
 import { useUpdateLeave } from "@/services/hooks/calendar/leaves"
 import type { Leave } from "@/types/calendar/leaves"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DatePicker } from "@/components/ui/date-picker"
+import {
+  CustomSelect,
+  CustomSelectContent,
+  CustomSelectItem,
+  CustomSelectTrigger,
+  CustomSelectValue,
+} from "@/components/ui/custom-select"
 
 interface LeaveFormData {
   employee_id: string
@@ -35,11 +42,11 @@ interface EditLeaveDialogProps {
   leave: Leave | null
 }
 
-const toDateInput = (value?: string) => {
-  if (!value) return ""
+const toIsoDate = (value?: Date) => (value ? value.toISOString().split("T")[0] : "")
+const parseIsoDate = (value?: string) => {
+  if (!value) return undefined
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ""
-  return date.toISOString().split("T")[0]
+  return Number.isNaN(date.getTime()) ? undefined : date
 }
 
 export function EditLeaveDialog({ isOpen, onClose, leave }: EditLeaveDialogProps) {
@@ -226,44 +233,22 @@ export function EditLeaveDialog({ isOpen, onClose, leave }: EditLeaveDialogProps
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="start_date" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Start Date *
-                      </Label>
-                      <div className="relative">
-                        <div className="absolute left-0 top-0 bottom-0 w-10 flex items-center justify-center border-r border-gray-300 bg-gray-50 rounded-l-md">
-                          <CalendarDays className="h-4 w-4 text-gray-600" />
-                        </div>
-                        <Input
-                          id="start_date"
-                          name="start_date"
-                          type="date"
-                          value={formData.start_date}
-                          onChange={handleChange}
-                          className="h-11 border-gray-300 pl-12 text-gray-900 text-left"
-                          disabled={isLoading}
-                        />
-                      </div>
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">Start Date *</Label>
+                      <DatePicker
+                        value={parseIsoDate(formData.start_date)}
+                        onValueChange={(value) => setFormData((prev) => ({ ...prev, start_date: toIsoDate(value) }))}
+                        className="w-full"
+                      />
                       {errors.start_date && <p className="text-sm text-red-600 mt-2">{errors.start_date}</p>}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="end_date" className="text-sm font-medium text-gray-700 mb-2 block">
-                        End Date *
-                      </Label>
-                      <div className="relative">
-                        <div className="absolute left-0 top-0 bottom-0 w-10 flex items-center justify-center border-r border-gray-300 bg-gray-50 rounded-l-md">
-                          <CalendarDays className="h-4 w-4 text-gray-600" />
-                        </div>
-                        <Input
-                          id="end_date"
-                          name="end_date"
-                          type="date"
-                          value={formData.end_date}
-                          onChange={handleChange}
-                          className="h-11 border-gray-300 pl-12 text-gray-900 text-left"
-                          disabled={isLoading}
-                        />
-                      </div>
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">End Date *</Label>
+                      <DatePicker
+                        value={parseIsoDate(formData.end_date)}
+                        onValueChange={(value) => setFormData((prev) => ({ ...prev, end_date: toIsoDate(value) }))}
+                        className="w-full"
+                      />
                       {errors.end_date && <p className="text-sm text-red-600 mt-2">{errors.end_date}</p>}
                     </div>
                   </div>
@@ -305,21 +290,19 @@ export function EditLeaveDialog({ isOpen, onClose, leave }: EditLeaveDialogProps
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="status" className="text-sm font-medium text-gray-700 mb-2 block">
-                      Status
-                    </Label>
-                    <Select value={formData.status} onValueChange={handleSelectChange} disabled={isLoading}>
-                      <SelectTrigger className="h-11 border-gray-300 text-gray-900">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="approved">Approved</SelectItem>
-                        <SelectItem value="rejected">Rejected</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">Status</Label>
+                      <CustomSelect value={formData.status} onValueChange={handleSelectChange} disabled={isLoading}>
+                        <CustomSelectTrigger className="h-11 border-gray-300 text-gray-900">
+                          <CustomSelectValue placeholder="Select status" />
+                        </CustomSelectTrigger>
+                        <CustomSelectContent>
+                          <CustomSelectItem value="pending">Pending</CustomSelectItem>
+                          <CustomSelectItem value="approved">Approved</CustomSelectItem>
+                          <CustomSelectItem value="rejected">Rejected</CustomSelectItem>
+                        </CustomSelectContent>
+                      </CustomSelect>
+                    </div>
                 </div>
               </div>
             </div>

@@ -84,7 +84,10 @@ const formatDate = (value?: string) => {
 
 export default function AttendanceReportPage() {
   const { data, isLoading, isError } = useHrAttendances()
-  const attendanceRecords: AttendanceRecord[] = data ?? []
+  const attendanceRecords = useMemo<AttendanceRecord[]>(() => {
+    const records = data ?? []
+    return [...records].sort((a, b) => b.id - a.id)
+  }, [data])
 
   const totals = useMemo(() => {
     const base: Record<AttendanceStatus, number> = {

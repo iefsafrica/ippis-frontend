@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -8,7 +8,16 @@ import { Search, Save, Calendar, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/components/ui/use-toast"
 import { useAttendances, useUpdateAttendance } from "@/services/hooks/timesheets/attendance"
-import { AttendanceFilterParams, AttendanceStatus } from "@/types/timesheets/attendance"
+import { AttendanceFilterParams, AttendanceStatus, UpdateAttendancePayload } from "@/types/timesheets/attendance"
+import {
+  CustomSelect,
+  CustomSelectContent,
+  CustomSelectGroup,
+  CustomSelectItem,
+  CustomSelectTrigger,
+  CustomSelectValue,
+} from "@/components/ui/custom-select"
+import { DatePicker } from "@/components/ui/date-picker"
 
 type EditableAttendanceRow = {
   id: number
@@ -21,42 +30,87 @@ type EditableAttendanceRow = {
   notes: string
 }
 
+const ATTENDANCE_STATUS_OPTIONS: AttendanceStatus[] = ["present", "absent", "leave", "late"]
+
+const formatIsoDate = (value?: Date) => (value ? value.toISOString().split("T")[0] : undefined)
+
+type PendingChangesMap = Record<number, Partial<EditableAttendanceRow>>
+
 export function UpdateAttendancesContent() {
-  const defaultDate = new Date().toISOString().split("T")[0]
-  const [date, setDate] = useState(defaultDate)
+  const defaultDate = new Date()
+  const [date, setDate] = useState<Date>(defaultDate)
   const [department, setDepartment] = useState("all")
   const [searchFilters, setSearchFilters] = useState<AttendanceFilterParams>({
-    attendance_date: defaultDate,
+    attendance_date: formatIsoDate(defaultDate),
   })
   const [attendanceData, setAttendanceData] = useState<EditableAttendanceRow[]>([])
   const [isSaving, setIsSaving] = useState(false)
+  const [pendingChanges, setPendingChanges] = useState<PendingChangesMap>({})
+  const originalRecordsRef = useRef<Record<number, EditableAttendanceRow>>({})
   const attendancesQuery = useAttendances(searchFilters)
   const updateAttendanceMutation = useUpdateAttendance()
 
   useEffect(() => {
     if (!attendancesQuery.data) {
       setAttendanceData([])
+      originalRecordsRef.current = {}
+      setPendingChanges({})
       return
     }
 
-    setAttendanceData(
-      attendancesQuery.data.map((attendance) => ({
-        id: attendance.id,
-        employeeId: attendance.employee_code ?? "",
-        name: attendance.employee_name,
-        department: attendance.department ?? "",
-        status: attendance.status,
-        clockIn: attendance.clock_in ?? "",
-        clockOut: attendance.clock_out ?? "",
-        notes: attendance.notes ?? "",
-      })),
-    )
+    const rows = attendancesQuery.data.map((attendance) => ({
+      id: attendance.id,
+      employeeId: attendance.employee_code ?? "",
+      name: attendance.employee_name,
+      department: attendance.department ?? "",
+      status: attendance.status,
+      clockIn: attendance.clock_in ?? "",
+      clockOut: attendance.clock_out ?? "",
+      notes: attendance.notes ?? "",
+    }))
+
+    setAttendanceData(rows)
+    originalRecordsRef.current = rows.reduce<Record<number, EditableAttendanceRow>>((acc, row) => {
+      acc[row.id] = row
+      return acc
+    }, {})
+    setPendingChanges({})
   }, [attendancesQuery.data])
+
+  const hasPendingChanges = Object.keys(pendingChanges).length > 0
+
+  const updateRowField = <K extends keyof EditableAttendanceRow>(id: number, field: K, value: EditableAttendanceRow[K]) => {
+    setAttendanceData((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)),
+    )
+
+    setPendingChanges((prev) => {
+      const next = { ...prev }
+      const existing = next[id] ? { ...next[id] } : {}
+      const original = originalRecordsRef.current[id]
+      const hasOriginal = Boolean(original)
+      const valueMatchesOriginal = hasOriginal && original[field] === value
+
+      if (valueMatchesOriginal) {
+        delete existing[field]
+        if (Object.keys(existing).length === 0) {
+          delete next[id]
+        } else {
+          next[id] = existing
+        }
+        return next
+      }
+
+      next[id] = { ...existing, [field]: value }
+      return next
+    })
+  }
 
   const handleSearch = () => {
     const filters: AttendanceFilterParams = {}
-    if (date) {
-      filters.attendance_date = date
+    const isoDate = formatIsoDate(date)
+    if (isoDate) {
+      filters.attendance_date = isoDate
     }
     if (department && department !== "all") {
       filters.department = department
@@ -74,24 +128,48 @@ export function UpdateAttendancesContent() {
       return
     }
 
+    if (!hasPendingChanges) {
+      toast({
+        title: "No changes",
+        description: "Update at least one field before saving.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const pendingEntries = Object.entries(pendingChanges)
+
     setIsSaving(true)
     try {
       await Promise.all(
-        attendanceData.map((item) =>
-          updateAttendanceMutation.mutateAsync({
-            id: item.id,
-            clock_in: item.clockIn,
-            clock_out: item.clockOut,
-            status: item.status,
-            notes: item.notes,
-          }),
-        ),
+        pendingEntries.map(([id, changes]) => {
+          const payload: UpdateAttendancePayload = {
+            id: Number(id),
+          }
+
+          if (changes.clockIn !== undefined) {
+            payload.clock_in = changes.clockIn
+          }
+          if (changes.clockOut !== undefined) {
+            payload.clock_out = changes.clockOut
+          }
+          if (changes.status !== undefined) {
+            payload.status = changes.status
+          }
+          if (changes.notes !== undefined) {
+            payload.notes = changes.notes
+          }
+
+          return updateAttendanceMutation.mutateAsync(payload)
+        }),
       )
+
       toast({
         title: "Changes saved",
         description: "Attendance records have been updated successfully.",
         variant: "success",
       })
+      setPendingChanges({})
       attendancesQuery.refetch()
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to save changes"
@@ -106,35 +184,23 @@ export function UpdateAttendancesContent() {
   }
 
   const handleStatusChange = (id: number, value: AttendanceStatus) => {
-    setAttendanceData((prev) =>
-      prev.map((item) => {
-        if (item.id !== id) {
-          return item
-        }
-        const updatedItem = { ...item, status: value }
-        if (value === "absent") {
-          updatedItem.clockIn = ""
-          updatedItem.clockOut = ""
-        }
-        return updatedItem
-      }),
-    )
+    updateRowField(id, "status", value)
+    if (value === "absent") {
+      updateRowField(id, "clockIn", "")
+      updateRowField(id, "clockOut", "")
+    }
   }
 
   const handleClockInChange = (id: number, value: string) => {
-    setAttendanceData((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, clockIn: value } : item)),
-    )
+    updateRowField(id, "clockIn", value)
   }
 
   const handleClockOutChange = (id: number, value: string) => {
-    setAttendanceData((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, clockOut: value } : item)),
-    )
+    updateRowField(id, "clockOut", value)
   }
 
   const handleNotesChange = (id: number, value: string) => {
-    setAttendanceData((prev) => prev.map((item) => (item.id === id ? { ...item, notes: value } : item)))
+    updateRowField(id, "notes", value)
   }
 
   return (
@@ -165,26 +231,26 @@ export function UpdateAttendancesContent() {
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">Date</label>
-              <div className="relative">
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="pr-10" />
-                <Calendar className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-              </div>
+              <DatePicker value={date} onValueChange={setDate} className="w-full" />
             </div>
             <div className="flex-1">
-              <label className="block text-sm font-medium mb-1">Department</label>
-              <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-              >
-                <option value="all">All Departments</option>
-                <option value="it">IT</option>
-                <option value="hr">HR</option>
-                <option value="finance">Finance</option>
-                <option value="marketing">Marketing</option>
-                <option value="operations">Operations</option>
-              </select>
-            </div>
+            <label className="block text-sm font-medium mb-1">Department</label>
+            <CustomSelect value={department} onValueChange={setDepartment}>
+              <CustomSelectTrigger className="w-full">
+                <CustomSelectValue placeholder="Department" />
+              </CustomSelectTrigger>
+              <CustomSelectContent>
+                <CustomSelectGroup>
+                  <CustomSelectItem value="all">All Departments</CustomSelectItem>
+                  <CustomSelectItem value="it">IT</CustomSelectItem>
+                  <CustomSelectItem value="hr">HR</CustomSelectItem>
+                  <CustomSelectItem value="finance">Finance</CustomSelectItem>
+                  <CustomSelectItem value="marketing">Marketing</CustomSelectItem>
+                  <CustomSelectItem value="operations">Operations</CustomSelectItem>
+                </CustomSelectGroup>
+              </CustomSelectContent>
+            </CustomSelect>
+          </div>
             <div className="flex items-end">
             <Button onClick={handleSearch} disabled={attendancesQuery.isFetching}>
               {attendancesQuery.isFetching ? (
@@ -258,17 +324,20 @@ export function UpdateAttendancesContent() {
                       <TableCell>{item.name}</TableCell>
                       <TableCell>{item.department}</TableCell>
                       <TableCell>
-                        <select
-                          className="w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background"
-                          value={item.status}
-                          onChange={(e) => handleStatusChange(item.id, e.target.value)}
-                          disabled={isSaving}
-                        >
-                          <option value="present">Present</option>
-                          <option value="absent">Absent</option>
-                          <option value="leave">Leave</option>
-                          <option value="late">Late</option>
-                        </select>
+                        <CustomSelect value={item.status} onValueChange={(value) => handleStatusChange(item.id, value as AttendanceStatus)}>
+                          <CustomSelectTrigger className="w-full" disabled={isSaving}>
+                            <CustomSelectValue />
+                          </CustomSelectTrigger>
+                          <CustomSelectContent>
+                            <CustomSelectGroup>
+                              {ATTENDANCE_STATUS_OPTIONS.map((status) => (
+                                <CustomSelectItem key={status} value={status}>
+                                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                                </CustomSelectItem>
+                              ))}
+                            </CustomSelectGroup>
+                          </CustomSelectContent>
+                        </CustomSelect>
                       </TableCell>
                       <TableCell>
                         <Input

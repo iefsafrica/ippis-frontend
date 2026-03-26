@@ -7,9 +7,15 @@ import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { DatePickerWithRange } from "./date-range-picker"
+import {
+  CustomSelect,
+  CustomSelectContent,
+  CustomSelectItem,
+  CustomSelectTrigger,
+  CustomSelectValue,
+} from "@/components/ui/custom-select"
 import { addDays } from "date-fns"
 import { Slider } from "@/components/ui/slider"
 import { toast } from "sonner"
@@ -155,21 +161,19 @@ export function ProjectForm() {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Project Status</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="not-started">Not Started</SelectItem>
-                    <SelectItem value="planning">Planning</SelectItem>
-                    <SelectItem value="in-progress">In Progress</SelectItem>
-                    <SelectItem value="on-hold">On Hold</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
+                <CustomSelect value={field.value} onValueChange={field.onChange}>
+                  <CustomSelectTrigger>
+                    <CustomSelectValue placeholder="Select status" />
+                  </CustomSelectTrigger>
+                  <CustomSelectContent>
+                    <CustomSelectItem value="not-started">Not Started</CustomSelectItem>
+                    <CustomSelectItem value="planning">Planning</CustomSelectItem>
+                    <CustomSelectItem value="in-progress">In Progress</CustomSelectItem>
+                    <CustomSelectItem value="on-hold">On Hold</CustomSelectItem>
+                    <CustomSelectItem value="completed">Completed</CustomSelectItem>
+                    <CustomSelectItem value="cancelled">Cancelled</CustomSelectItem>
+                  </CustomSelectContent>
+                </CustomSelect>
                 <FormMessage />
               </FormItem>
             )}
@@ -181,19 +185,17 @@ export function ProjectForm() {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Priority</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select priority" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="critical">Critical</SelectItem>
-                  </SelectContent>
-                </Select>
+                <CustomSelect value={field.value} onValueChange={field.onChange}>
+                  <CustomSelectTrigger>
+                    <CustomSelectValue placeholder="Select priority" />
+                  </CustomSelectTrigger>
+                  <CustomSelectContent>
+                    <CustomSelectItem value="low">Low</CustomSelectItem>
+                    <CustomSelectItem value="medium">Medium</CustomSelectItem>
+                    <CustomSelectItem value="high">High</CustomSelectItem>
+                    <CustomSelectItem value="critical">Critical</CustomSelectItem>
+                  </CustomSelectContent>
+                </CustomSelect>
                 <FormMessage />
               </FormItem>
             )}

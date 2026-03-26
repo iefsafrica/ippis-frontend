@@ -13,15 +13,16 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Calendar, Building, FileText, Users, MapPin, Tag, Loader2, CheckCircle } from "lucide-react"
+import { DatePicker } from "@/components/ui/date-picker"
+import {
+  CustomSelect,
+  CustomSelectContent,
+  CustomSelectItem,
+  CustomSelectTrigger,
+  CustomSelectValue,
+} from "@/components/ui/custom-select"
 import { toast } from "sonner"
 import { useUpdateCalendarEvent } from "@/services/hooks/calendar/events"
 import type { CalendarEvent } from "@/types/calendar/events"
@@ -52,11 +53,11 @@ const eventTypeOptions = [
   { value: "Other", label: "Other" },
 ]
 
-const toDateInput = (value?: string) => {
-  if (!value) return ""
+const toIsoDateString = (value?: Date) => (value ? value.toISOString().split("T")[0] : "")
+const parseIsoDate = (value?: string) => {
+  if (!value) return undefined
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ""
-  return date.toISOString().split("T")[0]
+  return Number.isNaN(date.getTime()) ? undefined : date
 }
 
 export function EditCalendarEventDialog({ isOpen, onClose, event }: EditCalendarEventDialogProps) {
@@ -82,8 +83,8 @@ export function EditCalendarEventDialog({ isOpen, onClose, event }: EditCalendar
         title: event.title || "",
         event_type: event.event_type || "",
         department: event.department || "",
-        start_date: toDateInput(event.start_date),
-        end_date: toDateInput(event.end_date),
+        start_date: event.start_date ? toIsoDateString(new Date(event.start_date)) : "",
+        end_date: event.end_date ? toIsoDateString(new Date(event.end_date)) : "",
         all_day: !!event.all_day,
         location: event.location || "",
         description: event.description || "",
@@ -246,25 +247,25 @@ export function EditCalendarEventDialog({ isOpen, onClose, event }: EditCalendar
                       <Label htmlFor="event_type" className="text-sm font-medium text-gray-700 mb-2 block">
                         Event Type *
                       </Label>
-                      <Select
+                      <CustomSelect
                         value={formData.event_type}
                         onValueChange={(value) => handleSelectChange("event_type", value)}
                         disabled={isLoading}
                       >
-                        <SelectTrigger className="h-11 border-gray-300 text-gray-900">
+                        <CustomSelectTrigger className="h-11 border-gray-300 text-gray-900">
                           <div className="flex items-center">
                             <Tag className="h-4 w-4 text-gray-500 mr-3" />
-                            <SelectValue placeholder="Select event type" />
+                            <CustomSelectValue placeholder="Select event type" />
                           </div>
-                        </SelectTrigger>
-                        <SelectContent>
+                        </CustomSelectTrigger>
+                        <CustomSelectContent>
                           {eventTypeOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
+                            <CustomSelectItem key={option.value} value={option.value}>
                               {option.label}
-                            </SelectItem>
+                            </CustomSelectItem>
                           ))}
-                        </SelectContent>
-                      </Select>
+                        </CustomSelectContent>
+                      </CustomSelect>
                       {errors.event_type && <p className="text-sm text-red-600 mt-2">{errors.event_type}</p>}
                     </div>
                   </div>
@@ -312,44 +313,26 @@ export function EditCalendarEventDialog({ isOpen, onClose, event }: EditCalendar
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="start_date" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Start Date *
-                      </Label>
-                      <div className="relative">
-                        <div className="absolute left-0 top-0 bottom-0 w-10 flex items-center justify-center border-r border-gray-300 bg-gray-50 rounded-l-md">
-                          <Calendar className="h-4 w-4 text-gray-600" />
-                        </div>
-                        <Input
-                          id="start_date"
-                          name="start_date"
-                          type="date"
-                          value={formData.start_date}
-                          onChange={handleChange}
-                          className="h-11 border-gray-300 pl-12 text-gray-900"
-                          disabled={isLoading}
-                        />
-                      </div>
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">Start Date *</Label>
+                      <DatePicker
+                        value={parseIsoDate(formData.start_date) ?? new Date()}
+                        onValueChange={(value) =>
+                          setFormData((prev) => ({ ...prev, start_date: toIsoDateString(value) }))
+                        }
+                        className="w-full"
+                      />
                       {errors.start_date && <p className="text-sm text-red-600 mt-2">{errors.start_date}</p>}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="end_date" className="text-sm font-medium text-gray-700 mb-2 block">
-                        End Date *
-                      </Label>
-                      <div className="relative">
-                        <div className="absolute left-0 top-0 bottom-0 w-10 flex items-center justify-center border-r border-gray-300 bg-gray-50 rounded-l-md">
-                          <Calendar className="h-4 w-4 text-gray-600" />
-                        </div>
-                        <Input
-                          id="end_date"
-                          name="end_date"
-                          type="date"
-                          value={formData.end_date}
-                          onChange={handleChange}
-                          className="h-11 border-gray-300 pl-12 text-gray-900"
-                          disabled={isLoading}
-                        />
-                      </div>
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">End Date *</Label>
+                      <DatePicker
+                        value={parseIsoDate(formData.end_date) ?? new Date()}
+                        onValueChange={(value) =>
+                          setFormData((prev) => ({ ...prev, end_date: toIsoDateString(value) }))
+                        }
+                        className="w-full"
+                      />
                       {errors.end_date && <p className="text-sm text-red-600 mt-2">{errors.end_date}</p>}
                     </div>
                   </div>

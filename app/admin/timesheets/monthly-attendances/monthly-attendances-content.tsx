@@ -11,6 +11,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner"
 import { useAttendances } from "@/services/hooks/timesheets/attendance"
 import { AttendanceFilterParams, AttendanceRecord } from "@/types/timesheets/attendance"
+import {
+  CustomSelect,
+  CustomSelectContent,
+  CustomSelectGroup,
+  CustomSelectItem,
+  CustomSelectTrigger,
+  CustomSelectValue,
+} from "@/components/ui/custom-select"
 
 const parseClockDate = (date: string, time?: string) => {
   if (!date || !time) return null
@@ -215,21 +223,24 @@ export function MonthlyAttendancesContent() {
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">Month</label>
-              <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background transition-colors duration-150 hover:bg-[#f3fdf4]"
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
-              >
-                {Array.from({ length: 12 }, (_, idx) => {
-                  const value = (idx + 1).toString()
-                  const label = format(new Date(2023, idx, 1), "MMMM")
-                  return (
-                    <option value={value} key={value}>
-                      {label}
-                    </option>
-                  )
-                })}
-              </select>
+              <CustomSelect value={month} onValueChange={setMonth}>
+                <CustomSelectTrigger className="w-full">
+                  <CustomSelectValue placeholder="Select month" />
+                </CustomSelectTrigger>
+                <CustomSelectContent>
+                  <CustomSelectGroup>
+                    {Array.from({ length: 12 }, (_, idx) => {
+                      const value = (idx + 1).toString()
+                      const label = format(new Date(2023, idx, 1), "MMMM")
+                      return (
+                        <CustomSelectItem key={value} value={value}>
+                          {label}
+                        </CustomSelectItem>
+                      )
+                    })}
+                  </CustomSelectGroup>
+                </CustomSelectContent>
+              </CustomSelect>
             </div>
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">Year</label>
@@ -244,18 +255,21 @@ export function MonthlyAttendancesContent() {
             </div>
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">Department</label>
-              <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background transition-colors duration-150 hover:bg-[#f3fdf4]"
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-              >
-                <option value="ALL">All Departments</option>
-                <option value="IT">IT</option>
-                <option value="HR">HR</option>
-                <option value="Finance">Finance</option>
-                <option value="Marketing">Marketing</option>
-                <option value="Operations">Operations</option>
-              </select>
+              <CustomSelect value={department} onValueChange={setDepartment}>
+                <CustomSelectTrigger className="w-full">
+                  <CustomSelectValue placeholder="Select department" />
+                </CustomSelectTrigger>
+                <CustomSelectContent>
+                  <CustomSelectGroup>
+                    <CustomSelectItem value="ALL">All Departments</CustomSelectItem>
+                    <CustomSelectItem value="IT">IT</CustomSelectItem>
+                    <CustomSelectItem value="HR">HR</CustomSelectItem>
+                    <CustomSelectItem value="Finance">Finance</CustomSelectItem>
+                    <CustomSelectItem value="Marketing">Marketing</CustomSelectItem>
+                    <CustomSelectItem value="Operations">Operations</CustomSelectItem>
+                  </CustomSelectGroup>
+                </CustomSelectContent>
+              </CustomSelect>
             </div>
             <div className="flex items-end gap-3">
               <Button
