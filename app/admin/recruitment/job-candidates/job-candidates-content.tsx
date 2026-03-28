@@ -22,11 +22,9 @@ import { useRecruitmentJobs } from "@/services/hooks/recruitment/jobs"
 import { RECRUITMENT_CANDIDATE_STATUS_OPTIONS } from "@/services/constants/recruitment/candidates"
 import {
   RecruitmentCandidate,
-  RecruitmentCandidateFilters,
   RecruitmentCandidatePayload,
 } from "@/types/recruitment/candidates"
 import { toast } from "sonner"
-import { useToast } from "@/hooks/use-toast"
 
 const baseCandidateFields: FormField[] = [
   {
@@ -77,18 +75,21 @@ const baseCandidateFields: FormField[] = [
     label: "Experience",
     type: "text",
     placeholder: "e.g. 3 years",
+    required: true,
   },
   {
     name: "education",
     label: "Education",
     type: "text",
     placeholder: "Highest education",
+    required: true,
   },
   {
     name: "skills",
     label: "Skills",
     type: "textarea",
     placeholder: "List skills or technologies",
+    required: true,
   },
 ]
 
@@ -204,6 +205,16 @@ export function JobCandidatesContent() {
     }))
   }, [jobsQuery.data?.data])
   const candidateFields = useMemo(() => buildCandidateFields(jobOptions), [jobOptions])
+  const candidateSearchFields = useMemo(
+    () => [
+      { name: "candidate_name", label: "Candidate Name", type: "text" },
+      { name: "email", label: "Email", type: "text" },
+      { name: "job_id", label: "Job", type: "select", options: jobOptions },
+      { name: "status", label: "Status", type: "select", options: RECRUITMENT_CANDIDATE_STATUS_OPTIONS },
+      { name: "application_date", label: "Application Date", type: "date" },
+    ],
+    [jobOptions],
+  )
 
   useEffect(() => {
     if (!isAddDialogOpen) {
@@ -249,13 +260,6 @@ export function JobCandidatesContent() {
     if (!statusFilter) return candidateList
     return candidateList.filter((candidate) => candidate.status?.toLowerCase() === statusFilter.toLowerCase())
   }, [candidateList, statusFilter])
-
-  const searchFields: RecruitmentCandidateFilters[] = useMemo(
-    () => [
-      { status: "" }, // placeholder
-    ],
-    [],
-  )
 
   const handleAdd = (data: Record<string, any>) => {
     const payload = sanitizeCandidatePayload({ ...addFormValues, ...data })
@@ -400,7 +404,7 @@ export function JobCandidatesContent() {
             title="Candidates"
             columns={candidateColumns}
             data={filteredCandidates}
-            searchFields={[]}
+            searchFields={candidateSearchFields}
             onAdd={() => setIsAddDialogOpen(true)}
             onEdit={(id) => handleEdit(id)}
             onDelete={(id) => {

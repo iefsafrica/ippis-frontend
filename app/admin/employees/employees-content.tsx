@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -52,7 +51,8 @@ import { Label } from "@/components/ui/label"
 import { DataExportMenu } from "../components/data-export-menu"
 import { AdvancedSearch } from "../components/advanced-search"
 import ExportService from "../services/export-service"
-import { Employee } from "@/types/employees/employee-management";
+import { EnhancedDataTable } from "@/app/admin/components/enhanced-data-table"
+import { Employee } from "@/types/employees/employee-management"
 import { useEmployeesList, useAddEmployee } from "@/services/hooks/employees/useEmployees"
 import { AddEmployeePayload } from "@/types/employees/employee-management"
 import { buttonHoverEnhancements } from "./button-hover"
@@ -114,7 +114,7 @@ export default function EmployeesContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
   const [departmentFilter, setDepartmentFilter] = useState("all");
-  const [itemsPerPage, setItemsPerPage] = useState(100);
+  const [itemsPerPage] = useState(1000);
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
@@ -879,64 +879,42 @@ export default function EmployeesContent() {
   };
 
   
-  const handleExportPDF = () => {
-    const columns = [
-      { header: "Name", accessor: "name" },
-      { header: "Email", accessor: "email" },
-      { header: "Department", accessor: "department" },
-      { header: "Position", accessor: "position" },
-      { header: "Status", accessor: "status" },
-      { header: "Join Date", accessor: "join_date" },
-    ];
+  const exportColumns = [
+    { header: "Name", accessor: "name" },
+    { header: "Email", accessor: "email" },
+    { header: "Department", accessor: "department" },
+    { header: "Position", accessor: "position" },
+    { header: "Status", accessor: "status" },
+    { header: "Join Date", accessor: "join_date" },
+  ];
 
-    ExportService.exportToPDF(employees, {
-      title: "Employees List",
-      filename: "employees-list",
-      columns,
-    });
+    const performExport = (type: 'pdf' | 'csv' | 'print') => {
+      try {
+        const exportOptions = {
+          title: "Employees List",
+          filename: "employees-list",
+          columns: exportColumns,
+        };
 
-    toast.success("Export Complete", {
-      description: "The PDF has been generated successfully.",
-    });
-  };
+        if (type === "pdf") {
+          ExportService.exportToPDF(employees, exportOptions);
+          toast.success("PDF export opened in new window. Use your browser's print dialog to save as PDF!");
+        } else if (type === "csv") {
+          ExportService.exportToCSV(employees, exportOptions);
+          toast.success("CSV file has been generated and downloaded successfully!");
+        } else if (type === "print") {
+          ExportService.printData(employees, exportOptions);
+          toast.success("Print dialog opened!");
+        }
+      } catch (error) {
+        console.error("Export error:", error);
+        toast.error("Export failed. Please try again.");
+      }
+    };
 
-  const handleExportCSV = () => {
-    const columns = [
-      { header: "Name", accessor: "name" },
-      { header: "Email", accessor: "email" },
-      { header: "Department", accessor: "department" },
-      { header: "Position", accessor: "position" },
-      { header: "Status", accessor: "status" },
-      { header: "Join Date", accessor: "join_date" },
-    ];
-
-    ExportService.exportToCSV(employees, {
-      title: "Employees List",
-      filename: "employees-list",
-      columns,
-    });
-
-    toast.success("Export Complete", {
-      description: "The CSV file has been generated successfully.",
-    });
-  };
-
-  const handlePrintList = () => {
-    const columns = [
-      { header: "Name", accessor: "name" },
-      { header: "Email", accessor: "email" },
-      { header: "Department", accessor: "department" },
-      { header: "Position", accessor: "position" },
-      { header: "Status", accessor: "status" },
-      { header: "Join Date", accessor: "join_date" },
-    ];
-
-    ExportService.printData(employees, {
-      title: "Employees List",
-      filename: "employees-list",
-      columns,
-    });
-  };
+    const handleExportPDF = () => performExport("pdf");
+    const handleExportCSV = () => performExport("csv");
+    const handlePrintList = () => performExport("print");
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -988,6 +966,79 @@ export default function EmployeesContent() {
   const formatSimpleDate = (dateString: string) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString('en-US');
+  };
+
+  const employeeColumns = [
+    {
+      key: "name",
+      label: "Employee",
+      render: (_value: string, employee: Employee) => (
+        <div className="flex items-center gap-3">
+          <Avatar className="h-9 w-9">
+            <AvatarImage
+              src={`/abstract-geometric-shapes.png?key=n1gxi&height=36&width=36&query=${encodeURIComponent(
+                employee.name
+              )}`}
+              alt={employee.name}
+            />
+            <AvatarFallback>{employee.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <div>
+            <div className="font-medium text-gray-900">{employee.name}</div>
+            <div className="text-sm text-muted-foreground">{employee.email}</div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "department",
+      label: "Department",
+    },
+    {
+      key: "position",
+      label: "Position",
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (_value: string, employee: Employee) => getStatusBadge(employee.status) ?? "Unknown",
+    },
+    {
+      key: "join_date",
+      label: "Join Date",
+      render: (value: string) => (value ? new Date(value).toLocaleDateString("en-US") : "N/A"),
+    },
+    {
+      key: "uploaded_documents",
+      label: "Uploaded Documents",
+      render: (value: string) => value || "N/A",
+    },
+  ];
+
+  const findEmployeeById = (id: string) => {
+    return filteredEmployees.find((employee) => employee.id === id) ??
+      employees.find((employee) => employee.id === id);
+  };
+
+  const handleViewRow = (id: string) => {
+    const employee = findEmployeeById(id);
+    if (employee) {
+      handleView(employee);
+    }
+  };
+
+  const handleEditRow = (id: string) => {
+    const employee = findEmployeeById(id);
+    if (employee) {
+      handleEdit(employee);
+    }
+  };
+
+  const handleDeleteRow = (id: string) => {
+    const employee = findEmployeeById(id);
+    if (employee) {
+      handleDelete(employee);
+    }
   };
 
   // Advanced search fields
@@ -1121,113 +1172,21 @@ export default function EmployeesContent() {
             </div>
           </div>
 
-          <div className="w-full overflow-x-auto rounded-md [-webkit-overflow-scrolling:touch]">
-            <Table className="min-w-[980px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Position</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Join Date</TableHead>
-                  <TableHead>Uploaded Documents</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      <div className="flex justify-center items-center">
-                        <Loader2 className="h-6 w-6 text-gray-500 animate-spin mr-2" />
-                        <span>Loading employees...</span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : filteredEmployees.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      No employees found.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredEmployees.map((employee) => (
-                    <TableRow key={employee.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9">
-                            <AvatarImage
-                              src={`/abstract-geometric-shapes.png?key=n1gxi&height=36&width=36&query=${encodeURIComponent(
-                                employee.name
-                              )}`}
-                              alt={employee.name}
-                            />
-                            <AvatarFallback>
-                              {employee.name.substring(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{employee.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {employee.email}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{employee.department}</TableCell>
-                      <TableCell>{employee.position}</TableCell>
-                      <TableCell>{getStatusBadge(employee.status)}</TableCell>
-                      <TableCell>
-                        {employee.join_date ? new Date(employee.join_date).toLocaleDateString() : "N/A"}
-                      </TableCell>
-                       <TableCell className="text-center">{employee.uploaded_documents || "N/A"}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleView(employee)}
-                            title="View Details"
-                            className={buttonHoverEnhancements}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <EnhancedDataTable
+            title="Employees"
+            columns={employeeColumns}
+            data={filteredEmployees}
+            onAdd={() => setShowAddDialog(true)}
+            onEdit={handleEditRow}
+            onDelete={handleDeleteRow}
+            onView={handleViewRow}
+            isLoading={isLoading}
+            hideControlBar
+            hideSummaryCards
+            hideFooterControls
+          />
 
          <div className="mt-5 flex h-fit w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-  <div className="mb-2 flex items-center justify-end sm:mb-0">
-    <label
-      htmlFor="itemsPerPage"
-      className="mr-2 text-sm text-muted-foreground"
-    >
-      Rows per page:
-    </label>
-      <Select
-        value={itemsPerPage.toString()}
-        onValueChange={(value) => {
-          setItemsPerPage(Number(value));
-          setCurrentPage(1);
-        }}
-      >
-        <SelectTrigger className={`${buttonHoverEnhancements} w-[100px]`}>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="50">50</SelectItem>
-        <SelectItem value="100">100</SelectItem>
-        <SelectItem value="200">200</SelectItem>
-      </SelectContent>
-    </Select>
-  </div>
-
   {paginationInfo.totalPages > 0 && (
     <div className="mt-2 flex items-center justify-end sm:mt-0">
       <Pagination
@@ -1745,6 +1704,7 @@ export default function EmployeesContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }

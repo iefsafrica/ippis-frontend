@@ -47,59 +47,61 @@ class ExportService {
     saveAs(blob, `${filename}.csv`)
   }
 
-  // Export data to PDF - simplified version without jspdf
-  public static exportToPDF(data: any[], options: ExportOptions): void {
-    const { filename, columns } = options
-
-    // For now, we'll just export as CSV instead of PDF to avoid the dependency issues
-    this.exportToCSV(data, options)
-
-    // Show a message that PDF export is not available in this version
-    alert("PDF export is currently simplified. Your data has been exported as CSV instead.")
-  }
-
-  // Print data
-  public static printData(data: any[], options: ExportOptions): void {
+  // Generate HTML for PDF/Print
+  private static generateHTML(data: any[], options: ExportOptions): string {
     const { title, columns, organization = "IPPIS - Integrated Personnel and Payroll Information System" } = options
 
-    // Create a new window for printing
-    const printWindow = window.open("", "_blank")
-    if (!printWindow) {
-      alert("Please allow popups to print data")
-      return
-    }
-
-    // Generate HTML table
+    // Generate table headers
     const tableHeaders = columns.map((col) => `<th>${col.header}</th>`).join("")
+    
+    // Generate table rows
     const tableRows = data
       .map((item, index) => {
-        const cells = columns.map((col) => `<td>${this.getNestedValue(item, col.accessor)}</td>`).join("")
+        const cells = columns.map((col) => {
+          const value = this.getNestedValue(item, col.accessor)
+          return `<td>${this.sanitizeHTML(String(value))}</td>`
+        }).join("")
         return `<tr class="${index % 2 === 0 ? "even-row" : "odd-row"}">${cells}</tr>`
       })
       .join("")
 
-    // Create HTML content
-    const html = `
+    return `
       <!DOCTYPE html>
       <html>
         <head>
+          <meta charset="UTF-8">
           <title>${title}</title>
           <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            
+            @page {
+              size: A4;
+              margin: 10mm;
+            }
+            
             @media print {
-              @page {
-                size: A4;
-                margin: 1cm;
+              body {
+                margin: 0;
+                padding: 0;
               }
-              button.no-print { 
-                display: none !important; 
+              .no-print {
+                display: none !important;
+              }
+              button {
+                display: none !important;
               }
             }
             
-            body { 
-              font-family: Arial, sans-serif; 
-              margin: 20px; 
+            body {
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              margin: 20px;
               color: #333;
-              line-height: 1.5;
+              line-height: 1.6;
+              background: #fff;
             }
             
             .container {
@@ -108,22 +110,23 @@ class ExportService {
             }
             
             .header {
-              border-bottom: 2px solid #2c3e50;
-              padding-bottom: 10px;
+              border-bottom: 3px solid #2c3e50;
+              padding-bottom: 15px;
               margin-bottom: 20px;
             }
             
             .org-name {
-              font-size: 18px;
+              font-size: 20px;
               font-weight: bold;
               color: #2c3e50;
-              margin: 0;
+              margin-bottom: 5px;
             }
             
-            h1 { 
-              font-size: 24px; 
-              margin-bottom: 10px; 
-              color: #2c3e50;
+            .document-title {
+              font-size: 28px;
+              font-weight: bold;
+              margin: 20px 0 15px 0;
+              color: #1a252f;
             }
             
             .meta-info {
@@ -132,28 +135,51 @@ class ExportService {
               margin-bottom: 20px;
               font-size: 12px;
               color: #666;
+              padding: 10px;
+              background-color: #f5f5f5;
+              border-radius: 4px;
             }
             
-            table { 
-              width: 100%; 
-              border-collapse: collapse; 
-              margin-bottom: 30px;
-              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            .meta-left {
+              flex: 1;
             }
             
-            th { 
-              background-color: #2c3e50; 
-              color: white; 
-              text-align: left; 
-              padding: 12px 8px; 
-              font-weight: bold;
+            .meta-right {
+              text-align: right;
+            }
+            
+            .meta-info div {
+              margin: 3px 0;
+            }
+            
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 20px 0;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.1);
               font-size: 13px;
             }
             
-            td { 
-              padding: 10px 8px; 
-              border-bottom: 1px solid #ddd; 
-              font-size: 12px;
+            thead {
+              background-color: #2c3e50;
+              color: white;
+            }
+            
+            th {
+              background-color: #2c3e50;
+              color: white;
+              text-align: left;
+              padding: 12px 8px;
+              font-weight: bold;
+              border: 1px solid #1a252f;
+              word-break: break-word;
+            }
+            
+            td {
+              padding: 10px 8px;
+              border: 1px solid #ddd;
+              word-break: break-word;
+              max-width: 300px;
             }
             
             .even-row {
@@ -164,20 +190,32 @@ class ExportService {
               background-color: white;
             }
             
-            tr:hover {
-              background-color: #f1f1f1;
+            tbody tr:hover {
+              background-color: #efefef;
             }
             
             .footer {
-              margin-top: 30px;
+              margin-top: 40px;
+              padding-top: 15px;
+              border-top: 2px solid #ddd;
               font-size: 11px;
               color: #666;
               text-align: center;
-              border-top: 1px solid #eee;
-              padding-top: 10px;
             }
             
-            .print-button {
+            .export-info {
+              font-size: 10px;
+              color: #999;
+              margin-top: 5px;
+            }
+            
+            .action-buttons {
+              margin-bottom: 20px;
+              display: flex;
+              gap: 10px;
+            }
+            
+            button {
               background-color: #2c3e50;
               color: white;
               border: none;
@@ -185,30 +223,35 @@ class ExportService {
               font-size: 14px;
               cursor: pointer;
               border-radius: 4px;
-              margin-bottom: 20px;
               transition: background-color 0.3s;
             }
             
-            .print-button:hover {
+            button:hover {
               background-color: #1a252f;
             }
           </style>
         </head>
         <body>
           <div class="container">
-            <div class="header">
-              <p class="org-name">${organization}</p>
+            <div class="action-buttons no-print">
+              <button onclick="window.print()">Print PDF</button>
+              <button onclick="window.close()">Close</button>
             </div>
             
-            <h1>${title}</h1>
+            <div class="header">
+              <div class="org-name">${organization}</div>
+            </div>
+            
+            <div class="document-title">${title}</div>
             
             <div class="meta-info">
-              <div>
-                <div>Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</div>
-                <div>Generated by: Administrator</div>
+              <div class="meta-left">
+                <div><strong>Generated on:</strong> ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</div>
+                <div><strong>Total Records:</strong> ${data.length}</div>
               </div>
-              <div>
-                <button onclick="window.print()" class="print-button no-print">Print Document</button>
+              <div class="meta-right">
+                <div><strong>Report Type:</strong> Data Export</div>
+                <div><strong>Format:</strong> PDF Document</div>
               </div>
             </div>
             
@@ -222,26 +265,78 @@ class ExportService {
             </table>
             
             <div class="footer">
-              ${organization} - Confidential | ${new Date().getFullYear()} © All Rights Reserved
+              <div>${organization} - Confidential Report | ${new Date().getFullYear()} © All Rights Reserved</div>
+              <div class="export-info">This document was generated from the system on ${new Date().toLocaleString()}</div>
             </div>
           </div>
-          
-          <script>
-            // Auto-print after 1 second
-            setTimeout(() => {
-              if (confirm('Do you want to print this document now?')) {
-                window.print();
-              }
-            }, 1000);
-          </script>
         </body>
       </html>
     `
+  }
 
-    // Write HTML to the new window and trigger print
-    printWindow.document.open()
-    printWindow.document.write(html)
-    printWindow.document.close()
+  // Sanitize HTML to prevent XSS
+  private static sanitizeHTML(html: string): string {
+    const div = document.createElement('div')
+    div.textContent = html
+    return div.innerHTML
+  }
+
+  // Export data to PDF
+  public static exportToPDF(data: any[], options: ExportOptions): void {
+    try {
+      const { filename } = options
+      const html = this.generateHTML(data, options)
+      
+      // Create a blob and initiate download
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      
+      // Open in new window for printing/saving
+      const printWindow = window.open(url, '_blank')
+      if (!printWindow) {
+        throw new Error('Could not open print window')
+      }
+      
+      // Clean up the URL after a delay
+      setTimeout(() => {
+        URL.revokeObjectURL(url)
+      }, 1000)
+    } catch (error) {
+      console.error('PDF export error:', error)
+      throw new Error('Failed to generate PDF')
+    }
+  }
+
+  // Print data
+  public static printData(data: any[], options: ExportOptions): void {
+    try {
+      const html = this.generateHTML(data, options)
+      
+      // Create a blob and open in new window
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      
+      // Open in new window
+      const printWindow = window.open(url, '_blank')
+      if (!printWindow) {
+        throw new Error('Could not open print window')
+      }
+      
+      // Auto-trigger print after window loads
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print()
+        }, 500)
+      }
+      
+      // Clean up the URL after a delay
+      setTimeout(() => {
+        URL.revokeObjectURL(url)
+      }, 2000)
+    } catch (error) {
+      console.error('Print error:', error)
+      throw new Error('Failed to open print dialog')
+    }
   }
 }
 

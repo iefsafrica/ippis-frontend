@@ -304,6 +304,27 @@ export function RecruitmentCMSContent() {
     return filtered
   }, [tableData, typeFilter, statusFilter])
 
+  const cmsSearchFields = useMemo(
+    () => [
+      { name: "title", label: "Title", type: "text" },
+      {
+        name: "type",
+        label: "Content Type",
+        type: "select",
+        options: RECRUITMENT_CMS_TYPE_OPTIONS,
+      },
+      {
+        name: "status",
+        label: "Status",
+        type: "select",
+        options: CMS_STATUS_OPTIONS,
+      },
+      { name: "author", label: "Author", type: "text" },
+      { name: "slug", label: "Slug", type: "text" },
+    ],
+    [],
+  )
+
   const handleAdd = (values: Record<string, any>) => {
     const payload = buildCmsPayload(values)
     createCmsMutation.mutate(payload, {
@@ -481,7 +502,7 @@ export function RecruitmentCMSContent() {
             title="CMS Content"
             columns={cmsColumns}
             data={filteredData}
-            searchFields={[]}
+            searchFields={cmsSearchFields}
             onAdd={() => setIsAddDialogOpen(true)}
             onEdit={(id) => handleEdit(id)}
             onDelete={(id) => handleDelete(id)}

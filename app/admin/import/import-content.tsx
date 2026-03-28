@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { EnhancedDataTable } from "@/app/admin/components/enhanced-data-table"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
 import { useImportEmployees } from "@/services/hooks/employees/useEmployees"
@@ -289,6 +289,32 @@ export function ImportContent() {
       { name: "Position", required: false, description: "Job position" },
     ]
   }
+
+  const templateColumns = [
+    {
+      key: "name",
+      label: "Field Name",
+      render: (value: string) => <span className="font-medium">{value}</span>,
+    },
+    {
+      key: "required",
+      label: "Required",
+      render: (value: boolean) =>
+        value ? (
+          <Badge variant="default" className="bg-red-100 text-red-800 hover:bg-red-100">
+            Required
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="text-gray-500">
+            Optional
+          </Badge>
+        ),
+    },
+    {
+      key: "description",
+      label: "Description",
+    },
+  ]
 
   const downloadTemplate = () => {
     window.open(
@@ -576,42 +602,28 @@ Brown,Robert,robert.brown@example.com,Operations,Operations Manager`
               </div>
 
               <div className="space-y-6">
-                {Object.entries(templateFields).map(([section, fields], index) => (
-                  <div key={section} className="space-y-3">
-                    <h3 className="font-medium text-lg capitalize">
-                      {section.replace(/([A-Z])/g, " $1").trim()} Fields
-                    </h3>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-1/4">Field Name</TableHead>
-                          <TableHead className="w-1/6">Required</TableHead>
-                          <TableHead>Description</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {fields.map((field) => (
-                          <TableRow key={field.name}>
-                            <TableCell className="font-medium">{field.name}</TableCell>
-                            <TableCell>
-                              {field.required ? (
-                                <Badge variant="default" className="bg-red-100 text-red-800 hover:bg-red-100">
-                                  Required
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-gray-500">
-                                  Optional
-                                </Badge>
-                              )}
-                            </TableCell>
-                            <TableCell>{field.description}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                    {index < Object.entries(templateFields).length - 1 && <Separator />}
-                  </div>
-                ))}
+                {Object.entries(templateFields).map(([section, fields], index) => {
+                  const sectionTitle = section.replace(/([A-Z])/g, " $1").trim()
+                  return (
+                    <div key={section} className="space-y-3">
+                      <h3 className="font-medium text-lg capitalize">{sectionTitle} Fields</h3>
+                      <EnhancedDataTable
+                        title={`${sectionTitle} Fields`}
+                        columns={templateColumns}
+                        data={fields}
+                        onAdd={() => undefined}
+                        onEdit={() => undefined}
+                        onDelete={() => undefined}
+                        onView={() => undefined}
+                        hideControlBar
+                        hideSummaryCards
+                        hideFooterControls
+                        hideActions
+                      />
+                      {index < Object.entries(templateFields).length - 1 && <Separator />}
+                    </div>
+                  )
+                })}
               </div>
             </CardContent>
           </Card>

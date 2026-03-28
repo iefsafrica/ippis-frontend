@@ -231,6 +231,8 @@ import {
 import { Search, Plus, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import { DataExportMenu } from "@/app/admin/components/data-export-menu"
 import { AdvancedSearch } from "@/app/admin/components/advanced-search"
+import ExportService from "@/app/admin/services/export-service"
+import { toast } from "sonner"
 
 interface DataTableProps {
   title: string
@@ -262,7 +264,7 @@ export function DataTable({
   data,
   searchFields,
   onAdd,
-  itemsPerPage = 100, // Default to 100 as requested
+  itemsPerPage = 1000, // Display 1000 items per page
   defaultSortColumn,
   defaultSortDirection = "asc",
   extraSearchControls,
@@ -275,7 +277,6 @@ export function DataTable({
   const [sortColumn, setSortColumn] = useState<string | null>(defaultSortColumn ?? null)
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">(defaultSortDirection)
   const [isLoading, setIsLoading] = useState(true)
-
   // Simulate loading state (remove in production)
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -368,51 +369,47 @@ export function DataTable({
     setCurrentPage(1)
   }
 
-  const handleExportPDF = () => {
-    console.log("Exporting to PDF")
-  }
+    const performExport = (type: 'pdf' | 'csv' | 'print') => {
+      try {
+        const exportColumns = columns.map((col) => ({
+          header: col.label,
+          accessor: col.key,
+        }))
 
-  const handleExportCSV = () => {
-    console.log("Exporting to CSV")
-  }
+        const exportOptions = {
+          title,
+          filename: `${title.replace(/\s+/g, "_")}_export`,
+          columns: exportColumns,
+        }
 
-  const handlePrint = () => {
-    window.print()
-  }
+        if (type === 'pdf') {
+          ExportService.exportToPDF(sortedData, exportOptions)
+          toast.success("PDF export opened in new window. Use your browser's print dialog to save as PDF!")
+        } else if (type === 'csv') {
+          ExportService.exportToCSV(sortedData, exportOptions)
+          toast.success("CSV export downloaded successfully!")
+        } else if (type === 'print') {
+          ExportService.printData(sortedData, exportOptions)
+          toast.success("Print dialog opened!")
+        }
+      } catch (error) {
+        toast.error("Export failed. Please try again.")
+        console.error("Export error:", error)
+      }
+    }
 
-  const handlePreviousPage = () => {
-    setCurrentPage(prev => Math.max(1, prev - 1))
-  }
+    const handleExportPDF = () => performExport('pdf')
+    const handleExportCSV = () => performExport('csv')
+    const handlePrint = () => performExport('print')
 
-  const handleNextPage = () => {
-    setCurrentPage(prev => Math.min(totalPages, prev + 1))
-  }
+
 
   // Reset to page 1 when search term changes
   useEffect(() => {
     setCurrentPage(1)
   }, [searchTerm, advancedSearchParams])
 
-  // Generate page numbers for display - simple version like in the image
-  const getPageNumbers = () => {
-    if (totalPages <= 5) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1)
-    }
-    
-    const pages = []
-    if (currentPage <= 3) {
-      // Show first 4 pages and last page
-      pages.push(1, 2, 3, 4, '...', totalPages)
-    } else if (currentPage >= totalPages - 2) {
-      // Show first page and last 4 pages
-      pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages)
-    } else {
-      // Show first page, current-1, current, current+1, last page
-      pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages)
-    }
-    
-    return pages
-  }
+
 
   return (
     <div className="space-y-4 px-0 sm:px-4 py-4">
@@ -555,68 +552,13 @@ export function DataTable({
         </div>
       </div>
 
-      {/* Clean Pagination - Like in the image */}
+      {/* Display total items */}
       {totalItems > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-1 py-3">
-          {/* Showing text - exactly like the image */}
-          <div className="text-sm text-gray-600">
-            Showing {Math.min(indexOfFirstItem + 1, totalItems)}-{Math.min(indexOfLastItem, totalItems)} of {totalItems} {title.toLowerCase()}
-          </div>
-          
-          {/* Navigation Controls - Simple and clean */}
-          {totalPages > 1 && (
-            <div className="flex items-center gap-1">
-              {/* Previous Button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handlePreviousPage}
-                disabled={currentPage === 1}
-                className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-600"
-                aria-label="Previous page"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              
-              {/* Page Numbers - Clean and simple */}
-              <div className="flex items-center gap-1 mx-1">
-                {getPageNumbers().map((page, index) => (
-                  <div key={index}>
-                    {page === "..." ? (
-                      <span className="px-1.5 py-0.5 text-gray-400">...</span>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setCurrentPage(page as number)}
-                        className={`h-8 min-w-8 px-0 text-sm ${
-                          currentPage === page 
-                            ? 'bg-gray-100 text-gray-900 font-medium' 
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                        }`}
-                      >
-                        {page}
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-              
-              {/* Next Button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleNextPage}
-                disabled={currentPage === totalPages}
-                className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-600"
-                aria-label="Next page"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+        <div className="text-sm text-gray-600 px-1 py-3">
+          Showing {totalItems} {title.toLowerCase()}
         </div>
       )}
+
     </div>
   )
 }

@@ -1,6 +1,4 @@
 from pathlib import Path
-text = Path('app/register/register-form.tsx').read_text().splitlines()
-start = 404
-end = 450
-for i in range(start-1,end):
-    print(f"{i+1:03}: {text[i]}")
+lines = Path('app/admin/components/enhanced-data-table.tsx').read_text().splitlines()
+for i in range(419, 470):
+    print(f"{i+1}: {lines[i]!r}")

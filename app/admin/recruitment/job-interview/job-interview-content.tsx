@@ -332,6 +332,26 @@ export function JobInterviewContent() {
   }, [interviewsQuery.data?.data, candidateMap, jobMap])
 
   const interviewFormFields = useMemo(() => interviewFields(candidateOptions, jobOptions), [candidateOptions, jobOptions])
+  const interviewSearchFields = useMemo(
+    () => [
+      { name: "candidate_id", label: "Candidate", type: "select", options: candidateOptions },
+      { name: "job_id", label: "Job", type: "select", options: jobOptions },
+      {
+        name: "interview_type",
+        label: "Interview Type",
+        type: "select",
+        options: RECRUITMENT_INTERVIEW_TYPE_OPTIONS,
+      },
+      {
+        name: "status",
+        label: "Status",
+        type: "select",
+        options: RECRUITMENT_INTERVIEW_STATUS_OPTIONS,
+      },
+      { name: "interview_datetime", label: "Interview Date", type: "date" },
+    ],
+    [candidateOptions, jobOptions],
+  )
 
   const editInitialValues = useMemo(() => {
     if (!interviewToEdit) return undefined
@@ -610,7 +630,7 @@ export function JobInterviewContent() {
             title="Interviews"
             columns={interviewColumns}
             data={filteredInterviews}
-            searchFields={[]}
+            searchFields={interviewSearchFields}
             onAdd={() => setIsAddDialogOpen(true)}
             onEdit={(id) => handleEdit(id)}
             onDelete={(id) => handleDelete(id)}

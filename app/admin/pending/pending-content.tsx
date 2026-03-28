@@ -2563,14 +2563,7 @@ import {
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { EnhancedDataTable } from "@/app/admin/components/enhanced-data-table"
 import {
   Tooltip,
   TooltipContent,
@@ -2603,7 +2596,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee3 | null>(null)
 
   // Use the hooks
-  const { data, isLoading, error, refetch } = usePendingEmployees(currentPage, 10)
+  const { data, isLoading, error, refetch } = usePendingEmployees(currentPage, 1000)
   const updateEmployeeStatusMutation = useUpdateEmployeeStatus()
   const approvePendingEmployeeMutation = useApprovePendingEmployee()
   const deletePendingEmployeeMutation = useDeletePendingEmployee()
@@ -2615,7 +2608,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
   const pagination = data?.data?.pagination || {
     total: 0,
     page: currentPage,
-    limit: 10,
+    limit: 1000,
     totalPages: 0
   }
   const totalItems = pagination.total
@@ -2644,37 +2637,6 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
   const handleRefresh = () => {
     refetch()
     onRefresh?.()
-  }
-
-  // Handle page change
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page)
-  }
-
-  const handlePreviousPage = () => {
-    setCurrentPage((prev) => Math.max(1, prev - 1))
-  }
-
-  const handleNextPage = () => {
-    setCurrentPage((prev) => Math.min(pagination.totalPages, prev + 1))
-  }
-
-  const getPageNumbers = () => {
-    const totalPages = pagination.totalPages
-    if (totalPages <= 5) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1)
-    }
-    
-    const pages = []
-    if (currentPage <= 3) {
-      pages.push(1, 2, 3, 4, "...", totalPages)
-    } else if (currentPage >= totalPages - 2) {
-      pages.push(1, "...", totalPages - 3, totalPages - 2, totalPages - 1, totalPages)
-    } else {
-      pages.push(1, "...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages)
-    }
-    
-    return pages
   }
 
   // Function to get status badge
@@ -2980,6 +2942,133 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
   const isDeletePending = deletePendingEmployeeMutation.isPending
   const isRejectPending = rejectPendingEmployeeMutation.isPending
 
+    const normalizedSearchTerm = searchTerm.trim().toLowerCase()
+
+    const matchesSearchTerm = (employee: Employee3) => {
+      if (!normalizedSearchTerm) return true
+      const metadataValues = Object.values(employee.metadata || {}).filter(
+        (value): value is string => typeof value === "string",
+      )
+      const searchableText = [
+        getFullNameWithOtherNames(employee),
+        employee.email,
+        employee.position,
+        employee.department,
+        employee.registration_id,
+        ...metadataValues,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+
+      return searchableText.includes(normalizedSearchTerm)
+    }
+
+    const filteredPendingEmployees = pendingEmployees.filter(
+      (emp) =>
+        emp.status !== "active" &&
+        emp.status !== "approved" &&
+        matchesSearchTerm(emp),
+    )
+
+    const getTabEmployees = (status: string) =>
+      pendingEmployees.filter(
+        (employee) => employee.status === status && matchesSearchTerm(employee),
+      )
+
+  const pendingColumns = [
+    {
+      key: "name",
+      label: "Employee",
+      render: (_value: string, employee: Employee3) => (
+        <div className="flex items-center gap-3">
+          <Avatar className="h-9 w-9 border">
+            <AvatarFallback className="bg-primary/10 text-primary">{getInitials(employee)}</AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col">
+            <span className="font-medium">{getFullName(employee)}</span>
+            <span className="text-xs text-muted-foreground">ID: {employee.registration_id}</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "contact",
+      label: "Contact",
+      render: (_value: string, employee: Employee3) => (
+        <div className="flex flex-col">
+          <span className="text-sm">{employee.email}</span>
+          {employee.metadata?.["Phone Number"] && (
+            <span className="text-xs text-muted-foreground">{employee.metadata["Phone Number"]}</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "department",
+      label: "Department",
+      render: (_value: string, employee: Employee3) => (
+        <div className="flex items-center gap-2">
+          <Building className="h-4 w-4 text-muted-foreground" />
+          <span>{employee.department || "-"}</span>
+        </div>
+      ),
+    },
+    {
+      key: "position",
+      label: "Position",
+      render: (value: string) => value || "-",
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (_value: string, employee: Employee3) => getStatusBadge(employee.status),
+    },
+  ]
+
+  const renderPendingActions = (employee: Employee3) => (
+    <div className="flex justify-end space-x-2">
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => handleViewDetails(employee)}
+        title="View Details"
+      >
+        <Eye className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => handleApproveClick(employee)}
+        title={isApprovePending ? "Approving..." : "Approve Employee"}
+        disabled={isApprovePending}
+        className="text-green-600 hover:text-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <CheckCircle className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => handleRejectClick(employee)}
+        title={isRejectPending ? "Rejecting..." : "Reject"}
+        disabled={isRejectPending}
+        className="text-amber-600 hover:text-amber-800 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <Ban className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => handleDeleteClick(employee)}
+        title={isDeletePending ? "Deleting..." : "Delete"}
+        disabled={isDeletePending}
+        className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
+  )
+
   // Show loading state
   if (isLoading) {
     return (
@@ -3088,7 +3177,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
           <Tabs defaultValue="all">
 
             <TabsContent value="all" className="space-y-4 mt-6">
-              {pendingEmployees.length === 0 ? (
+              {filteredPendingEmployees.length === 0 ? (
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <div className="rounded-full bg-muted p-3 mb-4">
@@ -3101,187 +3190,56 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="w-full overflow-x-auto rounded-md border [-webkit-overflow-scrolling:touch]">
-                  <Table className="min-w-[980px]">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Employee</TableHead>
-                        <TableHead>Contact</TableHead>
-                        <TableHead>Department</TableHead>
-                        <TableHead>Position</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pendingEmployees
-                        .filter((emp: Employee3) => emp.status !== "active" && emp.status !== "approved")
-                        .map((emp: Employee3) => (
-                          <TableRow key={emp.id} className="group">
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-9 w-9 border">
-                                  <AvatarFallback className="bg-primary/10 text-primary">
-                                    {getInitials(emp)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{getFullName(emp)}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    ID: {emp.registration_id}
-                                  </span>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-col">
-                                <span className="text-sm">{emp.email}</span>
-                                {emp.metadata?.["Phone Number"] && (
-                                  <span className="text-xs text-muted-foreground">
-                                    {emp.metadata["Phone Number"]}
-                                  </span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Building className="h-4 w-4 text-muted-foreground" />
-                                <span>{emp.department || "-"}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>{emp.position || "-"}</TableCell>
-                            <TableCell>{getStatusBadge(emp.status)}</TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end space-x-2">
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => handleViewDetails(emp)}
-                                  title="View Details"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => handleApproveClick(emp)}
-                                  title={isApprovePending ? "Approving..." : "Approve Employee"}
-                                  disabled={isApprovePending}
-                                  className="text-green-600 hover:text-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  <CheckCircle className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => handleRejectClick(emp)}
-                                  title={isRejectPending ? "Rejecting..." : "Reject"}
-                                  disabled={isRejectPending}
-                                  className="text-amber-600 hover:text-amber-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  <Ban className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => handleDeleteClick(emp)}
-                                  title={isDeletePending ? "Deleting..." : "Delete"}
-                                  disabled={isDeletePending}
-                                  className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                <EnhancedDataTable
+                  title="Pending Employees"
+                  columns={pendingColumns}
+                  data={filteredPendingEmployees}
+                  onAdd={handleRefresh}
+                  onEdit={() => undefined}
+                  onDelete={() => undefined}
+                  onView={() => undefined}
+                  isLoading={isLoading}
+                  hideControlBar
+                  hideSummaryCards
+                  hideFooterControls
+                  renderRowActions={renderPendingActions}
+                />
               )}
 
               {totalItems > 0 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-1 py-3">
-                  <div className="text-sm text-gray-600">
-                    Showing {indexOfFirstItem}-{indexOfLastItem} of {totalItems} employees
-                  </div>
-                  {pagination.totalPages > 1 && (
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handlePreviousPage}
-                        disabled={currentPage === 1}
-                        className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-600"
-                        aria-label="Previous page"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <div className="flex items-center gap-1 mx-1">
-                        {getPageNumbers().map((page, index) => (
-                          <div key={index}>
-                            {page === "..." ? (
-                              <span className="px-1.5 py-0.5 text-gray-400">...</span>
-                            ) : (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handlePageChange(page as number)}
-                                className={`h-8 min-w-8 px-0 text-sm ${
-                                  currentPage === page 
-                                    ? "bg-gray-100 text-gray-900 font-medium" 
-                                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                                }`}
-                              >
-                                {page}
-                              </Button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleNextPage}
-                        disabled={currentPage === pagination.totalPages}
-                        className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-600"
-                        aria-label="Next page"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
+                <div className="text-sm text-gray-600 px-1 py-3">
+                  Showing {totalItems} employees
                 </div>
               )}
             </TabsContent>
 
-            {["pending_approval", "document_verification", "data_incomplete"].map((tab) => (
-              <TabsContent key={tab} value={tab} className="space-y-4 mt-6">
-                {pendingEmployees.filter((employee: Employee3) => employee.status === tab).length === 0 ? (
-                  <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-12">
-                      <div className="rounded-full bg-muted p-3 mb-4">
-                        <User className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                      <div className="text-center space-y-2">
-                        <h3 className="text-lg font-medium">
-                          {tab === "pending_approval" && "No pending approvals"}
-                          {tab === "document_verification" && "No document verification pending"}
-                          {tab === "data_incomplete" && "No incomplete data"}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {tab === "pending_approval" && "There are no pending employees with pending approval status."}
-                          {tab === "document_verification" && "There are no employees waiting for document verification."}
-                          {tab === "data_incomplete" && "There are no employees with incomplete data."}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {pendingEmployees
-                      .filter((employee: Employee3) => employee.status === tab)
-                      .map((employee: Employee3) => (
+            {["pending_approval", "document_verification", "data_incomplete"].map((tab) => {
+              const tabEmployees = getTabEmployees(tab)
+              return (
+                <TabsContent key={tab} value={tab} className="space-y-4 mt-6">
+                  {tabEmployees.length === 0 ? (
+                    <Card>
+                      <CardContent className="flex flex-col items-center justify-center py-12">
+                        <div className="rounded-full bg-muted p-3 mb-4">
+                          <User className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <div className="text-center space-y-2">
+                          <h3 className="text-lg font-medium">
+                            {tab === "pending_approval" && "No pending approvals"}
+                            {tab === "document_verification" && "No document verification pending"}
+                            {tab === "data_incomplete" && "No incomplete data"}
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            {tab === "pending_approval" && "There are no pending employees with pending approval status."}
+                            {tab === "document_verification" && "There are no employees waiting for document verification."}
+                            {tab === "data_incomplete" && "There are no employees with incomplete data."}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {tabEmployees.map((employee: Employee3) => (
                         <Card key={employee.id} className="overflow-hidden transition-all hover:shadow-md">
                           <CardHeader className="pb-3">
                             <div className="flex justify-between items-start">
@@ -3317,9 +3275,9 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
                           </CardContent>
                           <CardFooter className="bg-muted/50 pt-3">
                             <div className="flex w-full justify-end gap-2">
-                              <Button 
-                                variant="outline" 
-                                size="icon" 
+                              <Button
+                                variant="outline"
+                                size="icon"
                                 onClick={() => handleViewDetails(employee)}
                                 title="View Details"
                               >
@@ -3359,10 +3317,11 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
                           </CardFooter>
                         </Card>
                       ))}
-                  </div>
-                )}
-              </TabsContent>
-            ))}
+                    </div>
+                  )}
+                </TabsContent>
+              )
+            })}
           </Tabs>
         </CardContent>
       </Card>

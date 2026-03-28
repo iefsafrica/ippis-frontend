@@ -37,6 +37,8 @@ import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
+import ExportService from "@/app/admin/services/export-service"
+import { toast } from "sonner"
 
 interface Column {
   key: string
@@ -64,6 +66,12 @@ interface EnhancedDataTableProps {
   onDelete: (id: string) => void
   onView: (id: string) => void
   isLoading?: boolean
+  hideControlBar?: boolean
+  hideSummaryCards?: boolean
+  hideFooterControls?: boolean
+  footerContent?: React.ReactNode
+  hideActions?: boolean
+  renderRowActions?: (row: any) => React.ReactNode
 }
 
 export function EnhancedDataTable({
@@ -77,10 +85,16 @@ export function EnhancedDataTable({
   onDelete,
   onView,
   isLoading = false,
+  hideControlBar = false,
+  hideSummaryCards = false,
+  hideFooterControls = false,
+  footerContent,
+  hideActions = false,
+  renderRowActions,
 }: EnhancedDataTableProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [itemsPerPage, setItemsPerPage] = useState(1000)
   const [sortColumn, setSortColumn] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -88,7 +102,6 @@ export function EnhancedDataTable({
   const [selectedRows, setSelectedRows] = useState<string[]>([])
   const [activeFilters, setActiveFilters] = useState<Record<string, any>>({})
   const [isFilterOpen, setIsFilterOpen] = useState(false)
-
   // Filter data based on search term and active filters
   const filteredData = data.filter((item) => {
     // Search term filter
@@ -171,20 +184,38 @@ export function EnhancedDataTable({
     setCurrentPage(page)
   }
 
-  const handleExportPDF = () => {
-    console.log("Exporting to PDF:", selectedRows.length ? selectedRows : "all data")
-    // Implement PDF export logic
-  }
+    const performExport = (type: 'pdf' | 'csv' | 'print') => {
+      try {
+        const exportColumns = columns.map((col) => ({
+          header: col.label,
+          accessor: col.key,
+        }))
 
-  const handleExportCSV = () => {
-    console.log("Exporting to CSV:", selectedRows.length ? selectedRows : "all data")
-    // Implement CSV export logic
-  }
+        const exportOptions = {
+          title,
+          filename: `${title.replace(/\s+/g, "_")}_export`,
+          columns: exportColumns,
+        }
 
-  const handlePrint = () => {
-    console.log("Printing:", selectedRows.length ? selectedRows : "all data")
-    window.print()
-  }
+        if (type === 'pdf') {
+          ExportService.exportToPDF(sortedData, exportOptions)
+          toast.success("PDF export opened in new window. Use your browser's print dialog to save as PDF!")
+        } else if (type === 'csv') {
+          ExportService.exportToCSV(sortedData, exportOptions)
+          toast.success("CSV export downloaded successfully!")
+        } else if (type === 'print') {
+          ExportService.printData(sortedData, exportOptions)
+          toast.success("Print dialog opened!")
+        }
+      } catch (error) {
+        toast.error("Export failed. Please try again.")
+        console.error("Export error:", error)
+      }
+    }
+
+    const handleExportPDF = () => performExport('pdf')
+    const handleExportCSV = () => performExport('csv')
+    const handlePrint = () => performExport('print')
 
   const confirmDelete = (id: string) => {
     setItemToDelete(id)
@@ -271,11 +302,12 @@ export function EnhancedDataTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col space-y-2">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-            <Input
+      {!hideControlBar && (
+        <div className="flex flex-col space-y-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Input
               type="search"
               placeholder={`Search ${title.toLowerCase()}...`}
               className="pl-8"
@@ -423,43 +455,39 @@ export function EnhancedDataTable({
             </Button>
           </div>
         )}
-      </div>
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-sm font-medium text-gray-500">Total {title}</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">{data.length}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-sm font-medium text-gray-500">Filtered</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">{sortedData.length}</p>
-        </div>
-        {hasStatusField && topStatusEntries.length > 0 ? (
-          topStatusEntries.map(([status, count]) => (
-            <div key={status} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-              <p className="text-sm font-medium text-gray-500">{toTitle(status)}</p>
-              <p className="mt-1 text-2xl font-bold text-gray-900">{count}</p>
-            </div>
-          ))
-        ) : (
+      {!hideSummaryCards && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <p className="text-sm font-medium text-gray-500">Selected</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">{selectedRows.length}</p>
+            <p className="text-sm font-medium text-gray-500">Total {title}</p>
+            <p className="mt-1 text-2xl font-bold text-gray-900">{data.length}</p>
           </div>
-        )}
-      </div>
+          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <p className="text-sm font-medium text-gray-500">Filtered</p>
+            <p className="mt-1 text-2xl font-bold text-gray-900">{sortedData.length}</p>
+          </div>
+          {hasStatusField && topStatusEntries.length > 0 ? (
+            topStatusEntries.map(([status, count]) => (
+              <div key={status} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                <p className="text-sm font-medium text-gray-500">{toTitle(status)}</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">{count}</p>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+              <p className="text-sm font-medium text-gray-500">Selected</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">{selectedRows.length}</p>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="w-full overflow-x-auto rounded-md border bg-white [-webkit-overflow-scrolling:touch]">
         <Table className="min-w-[980px]">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[40px]">
-                <Checkbox
-                  checked={selectedRows.length === currentItems.length && currentItems.length > 0}
-                  onCheckedChange={handleSelectAllRows}
-                  aria-label="Select all rows"
-                />
-              </TableHead>
               {columns.map((column) => (
                 <TableHead key={column.key} className={`whitespace-nowrap ${column.width ? column.width : ""}`}>
                   <div className="flex items-center gap-1">
@@ -476,16 +504,13 @@ export function EnhancedDataTable({
                   </div>
                 </TableHead>
               ))}
-              <TableHead className="text-right">Actions</TableHead>
+              {!hideActions && <TableHead className="text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               Array.from({ length: 5 }).map((_, index) => (
                 <TableRow key={`loading-${index}`}>
-                  <TableCell>
-                    <div className="h-4 w-4 bg-gray-200 rounded animate-pulse" />
-                  </TableCell>
                   {columns.map((column, colIndex) => (
                     <TableCell key={`loading-cell-${index}-${colIndex}`}>
                       <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4" />
@@ -498,72 +523,71 @@ export function EnhancedDataTable({
               ))
             ) : currentItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length + 2} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={columns.length + 1} className="text-center py-8 text-gray-500">
                   No records found
                 </TableCell>
               </TableRow>
             ) : (
               currentItems.map((row) => (
                 <TableRow key={row.id} className="group">
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedRows.includes(row.id)}
-                      onCheckedChange={() => handleSelectRow(row.id)}
-                      aria-label={`Select row ${row.id}`}
-                    />
-                  </TableCell>
                   {columns.map((column) => (
                     <TableCell key={`${row.id}-${column.key}`}>
                       {column.render ? column.render(row[column.key], row) : row[column.key]}
                     </TableCell>
                   ))}
-                  <TableCell className="text-right">
-                    <div className="flex justify-end">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onView(row.id)}
-                        className="h-8 w-8 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-                      >
-                        <Eye className="h-4 w-4" />
-                        <span className="sr-only">View</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onEdit(row.id)}
-                        className="h-8 w-8 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-                      >
-                        <Edit className="h-4 w-4" />
-                        <span className="sr-only">Edit</span>
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">More options</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => onView(row.id)} className="cursor-pointer">
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onEdit(row.id)} className="cursor-pointer">
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => confirmDelete(row.id)}
-                            className="cursor-pointer text-red-600 focus:text-red-600"
+                  {!hideActions && (
+                    <TableCell className="text-right">
+                      {renderRowActions ? (
+                        renderRowActions(row)
+                      ) : (
+                        <div className="flex justify-end">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onView(row.id)}
+                            className="h-8 w-8 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
                           >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </TableCell>
+                            <Eye className="h-4 w-4" />
+                            <span className="sr-only">View</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onEdit(row.id)}
+                            className="h-8 w-8 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+                          >
+                            <Edit className="h-4 w-4" />
+                            <span className="sr-only">Edit</span>
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">More options</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => onView(row.id)} className="cursor-pointer">
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => onEdit(row.id)} className="cursor-pointer">
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => confirmDelete(row.id)}
+                                className="cursor-pointer text-red-600 focus:text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      )}
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
@@ -571,28 +595,17 @@ export function EnhancedDataTable({
         </Table>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <p className="text-sm text-gray-500">
-            Showing {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, sortedData.length)} of {sortedData.length} items
-          </p>
-          <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
-            <SelectTrigger className="h-8 w-[110px]">
-              <SelectValue placeholder="10 per page" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10 per page</SelectItem>
-              <SelectItem value="20">20 per page</SelectItem>
-              <SelectItem value="50">50 per page</SelectItem>
-              <SelectItem value="100">100 per page</SelectItem>
-            </SelectContent>
-          </Select>
+      {!hideFooterControls && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-gray-500">
+              Showing {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, sortedData.length)} of {sortedData.length} items
+            </p>
+          </div>
         </div>
+      )}
 
-        {totalPages > 1 && (
-          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
-        )}
-      </div>
+      {footerContent}
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
@@ -612,6 +625,7 @@ export function EnhancedDataTable({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   )
 }
