@@ -51,6 +51,51 @@ export default function ClientErrorHandler() {
     window.addEventListener("error", handleError, true)
     window.addEventListener("unhandledrejection", handleRejection, true)
 
+    const preventServiceWorker = () => {
+      if (typeof navigator !== "undefined" && !navigator.serviceWorker) {
+        const mockServiceWorker = {
+          register: () =>
+            Promise.resolve({
+              scope: "/",
+              update: () => Promise.resolve(),
+              unregister: () => Promise.resolve(true),
+              active: null,
+              installing: null,
+              waiting: null,
+              addEventListener: () => {},
+              removeEventListener: () => {},
+            }),
+          getRegistration: () => Promise.resolve(null),
+          getRegistrations: () => Promise.resolve([]),
+          startMessages: () => {},
+          controller: null,
+          ready: Promise.resolve({
+            scope: "/",
+            update: () => Promise.resolve(),
+            unregister: () => Promise.resolve(true),
+            active: null,
+            installing: null,
+            waiting: null,
+            addEventListener: () => {},
+            removeEventListener: () => {},
+          }),
+        }
+
+        try {
+          Object.defineProperty(navigator, "serviceWorker", {
+            value: mockServiceWorker,
+            configurable: true,
+            enumerable: true,
+            writable: false,
+          })
+        } catch (error) {
+          console.log("Failed to define mock serviceWorker:", error)
+        }
+      }
+    }
+
+    preventServiceWorker()
+
     // Clean up
     return () => {
       window.removeEventListener("error", handleError, true)

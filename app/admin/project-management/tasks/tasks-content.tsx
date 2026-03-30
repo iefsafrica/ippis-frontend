@@ -1,529 +1,701 @@
 "use client"
 
-import { useState } from "react"
+import type React from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  CalendarIcon,
-  Download,
-  FileText,
-  Printer,
-  Search,
-  Plus,
-  MoreHorizontal,
-  Edit,
-  Trash2,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-  AlertTriangle,
-} from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Progress } from "@/components/ui/progress"
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { DataTable } from "@/app/admin/core-hr/components/data-table"
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { useEmployeesList } from "@/services/hooks/employees/useEmployees"
+import {
+  useCreateTask,
+  useDeleteTask,
+  useGetTasks,
+  useUpdateTask,
+} from "@/services/hooks/tasks"
+import { useGetProjects } from "@/services/hooks/projects"
+import type { Employee } from "@/types/employees/employee-management"
+import type { Task } from "@/types/tasks"
+import { Eye, Edit, Trash2, RefreshCw } from "lucide-react"
+import { format } from "date-fns"
+import { toast } from "sonner"
 
-// Mock data for tasks
-const tasksData = [
+const statusBadgeClass = (status?: string) => {
+  switch (status?.toLowerCase()) {
+    case "completed":
+      return "bg-emerald-100 text-emerald-700"
+    case "in progress":
+    case "in-progress":
+      return "bg-blue-100 text-blue-700"
+    case "not started":
+    case "not-started":
+      return "bg-amber-100 text-amber-700"
+    case "delayed":
+      return "bg-rose-100 text-rose-700"
+    default:
+      return "bg-gray-100 text-gray-700"
+  }
+}
+
+const columns = (
+  handleView: (task: Task) => void,
+  handleEdit: (task: Task) => void,
+  handleDelete: (task: Task) => void,
+  getAssigneeDisplayName: (value?: string) => string,
+) => [
   {
-    id: "TSK-001",
-    name: "Database Schema Design",
-    project: "IPPIS System Upgrade",
-    assignedTo: "Adebayo Olamide",
-    dueDate: "2023-11-30",
-    status: "completed",
-    progress: 100,
-    priority: "high",
+    key: "task_code",
+    label: "Task Code",
+    sortable: true,
+    render: (value: string, row: Task) => (
+      <div className="font-medium text-gray-900">{value}</div>
+    ),
   },
   {
-    id: "TSK-002",
-    name: "API Development",
-    project: "IPPIS System Upgrade",
-    assignedTo: "Chioma Eze",
-    dueDate: "2023-12-15",
-    status: "in-progress",
-    progress: 75,
-    priority: "high",
+    key: "name",
+    label: "Task",
+    sortable: true,
+    render: (value: string, row: Task) => (
+      <div>
+        <div className="text-sm font-semibold text-gray-900">{value}</div>
+        <div className="text-xs text-gray-500">{row.project_name ?? `Project ${row.project_id}`}</div>
+      </div>
+    ),
   },
   {
-    id: "TSK-003",
-    name: "Frontend Implementation",
-    project: "IPPIS System Upgrade",
-    assignedTo: "Emeka Okafor",
-    dueDate: "2024-01-20",
-    status: "in-progress",
-    progress: 40,
-    priority: "medium",
+    key: "assigned_to",
+    label: "Assigned To",
+    sortable: true,
+    render: (value: string) => (
+      <div className="font-medium text-gray-900">{getAssigneeDisplayName(value)}</div>
+    ),
   },
   {
-    id: "TSK-004",
-    name: "User Authentication Module",
-    project: "HR Module Enhancement",
-    assignedTo: "Fatima Ibrahim",
-    dueDate: "2023-12-10",
-    status: "completed",
-    progress: 100,
-    priority: "high",
+    key: "due_date",
+    label: "Due Date",
+    sortable: true,
+    render: (value: string) => format(new Date(value), "PPP"),
   },
   {
-    id: "TSK-005",
-    name: "Payroll Calculation Logic",
-    project: "Payroll Integration",
-    assignedTo: "Gabriel Okonkwo",
-    dueDate: "2024-02-28",
-    status: "not-started",
-    progress: 0,
-    priority: "medium",
+    key: "status",
+    label: "Status",
+    sortable: true,
+    render: (value: string) => <Badge className={statusBadgeClass(value)}>{value}</Badge>,
   },
   {
-    id: "TSK-006",
-    name: "Mobile UI Design",
-    project: "Mobile App Development",
-    assignedTo: "Adebayo Olamide",
-    dueDate: "2024-03-15",
-    status: "delayed",
-    progress: 25,
-    priority: "high",
+    key: "priority",
+    label: "Priority",
+    sortable: true,
+  },
+  {
+    key: "progress",
+    label: "Progress",
+    sortable: true,
+    render: (value: number) => `${value ?? 0}%`,
+  },
+  {
+    key: "actions",
+    label: "Actions",
+    render: (_: any, row: Task) => {
+      const normalizedStatus = row.status?.toLowerCase()
+      const canModify =
+        normalizedStatus?.includes("progress") || normalizedStatus === "in progress"
+      return (
+        <div className="flex justify-end space-x-2">
+          <Button variant="outline" size="icon" onClick={() => handleView(row)} title="View Task">
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleEdit(row)}
+            disabled={!canModify}
+            className="text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Edit Task"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleDelete(row)}
+            disabled={!canModify}
+            className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Delete Task"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      )
+    },
   },
 ]
 
+const searchFields = [
+  { name: "task_code", label: "Task Code", type: "text" as const },
+  { name: "name", label: "Task Name", type: "text" as const },
+  { name: "assigned_to", label: "Assignee", type: "text" as const },
+]
+
 export default function TasksContent() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [projectFilter, setProjectFilter] = useState("all")
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [selectedTask, setSelectedTask] = useState(null)
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
-
-  // Filter tasks based on search term, status and project
-  const filteredTasks = tasksData.filter((task) => {
-    const matchesSearch =
-      task.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.assignedTo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.id.toLowerCase().includes(searchTerm.toLowerCase())
-
-    const matchesStatus = statusFilter === "all" || task.status === statusFilter
-    const matchesProject = projectFilter === "all" || task.project === projectFilter
-
-    return matchesSearch && matchesStatus && matchesProject
+  const [viewTask, setViewTask] = useState<Task | null>(null)
+  const [editTask, setEditTask] = useState<Task | null>(null)
+  const [isViewOpen, setIsViewOpen] = useState(false)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isAddOpen, setIsAddOpen] = useState(false)
+  const [editStatus, setEditStatus] = useState("in-progress")
+  const [editProgress, setEditProgress] = useState("0")
+  const [editName, setEditName] = useState("")
+  const [editProjectId, setEditProjectId] = useState("")
+  const [editAssignedTo, setEditAssignedTo] = useState("")
+  const [editDueDate, setEditDueDate] = useState("")
+  const [editPriority, setEditPriority] = useState("medium")
+  const [deleteTaskCandidate, setDeleteTaskCandidate] = useState<Task | null>(null)
+  const [isDeleteTaskDialogOpen, setIsDeleteTaskDialogOpen] = useState(false)
+  const [newTask, setNewTask] = useState({
+    name: "",
+    project_id: "",
+    assigned_to: "",
+    due_date: new Date().toISOString().split("T")[0],
+    status: "in-progress",
+    progress: 0,
+    priority: "medium",
   })
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "completed":
-        return (
-          <Badge className="bg-green-500 hover:bg-green-600">
-            <CheckCircle2 className="w-3 h-3 mr-1" /> Completed
-          </Badge>
-        )
-      case "in-progress":
-        return (
-          <Badge className="bg-blue-500 hover:bg-blue-600">
-            <Clock className="w-3 h-3 mr-1" /> In Progress
-          </Badge>
-        )
-      case "not-started":
-        return (
-          <Badge className="bg-amber-500 hover:bg-amber-600">
-            <AlertCircle className="w-3 h-3 mr-1" /> Not Started
-          </Badge>
-        )
-      case "delayed":
-        return (
-          <Badge className="bg-red-500 hover:bg-red-600">
-            <AlertTriangle className="w-3 h-3 mr-1" /> Delayed
-          </Badge>
-        )
-      default:
-        return <Badge>{status}</Badge>
+  const { data: tasksResponse, refetch } = useGetTasks()
+  const deleteTask = useDeleteTask()
+  const updateTask = useUpdateTask()
+  const createTask = useCreateTask()
+
+  const { data: projectsResponse } = useGetProjects()
+  const projectOptions = projectsResponse?.data?.projects ?? []
+
+  const {
+    data: employeesData,
+    isLoading: isEmployeesLoading,
+  } = useEmployeesList(1)
+
+  const employeeOptions = employeesData?.employees ?? []
+  const getEmployeeIdentifier = (employee: Employee) => String(employee.employee_id ?? employee.id)
+  const findEmployeeByValue = (value?: string) =>
+    employeeOptions.find(
+      (employee) =>
+        employee.employee_id === value ||
+        employee.id === value ||
+        employee.name === value,
+    )
+  const resolveEmployeeIdentifier = (value?: string) => {
+    if (!value) return ""
+    const normalized = String(value)
+    const employee = findEmployeeByValue(normalized)
+    return employee ? getEmployeeIdentifier(employee) : normalized
+  }
+  const getAssigneeDisplayName = (value?: string) => findEmployeeByValue(value)?.name ?? value ?? ""
+  const normalizeTaskStatus = (value?: string) => {
+    if (!value) return "in-progress"
+    const normalized = value.trim().toLowerCase()
+    if (normalized.includes("not")) return "not-started"
+    if (normalized.includes("progress")) return "in-progress"
+    if (normalized.includes("delayed")) return "delayed"
+    if (normalized.includes("complete")) return "completed"
+    return normalized
+  }
+  const normalizeTaskPriority = (value?: string) => {
+    const normalized = value?.trim().toLowerCase()
+    if (normalized === "high" || normalized === "medium" || normalized === "low") {
+      return normalized
+    }
+    return "medium"
+  }
+  const formatDateForInput = (value?: string) => {
+    if (!value) return new Date().toISOString().split("T")[0]
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return ""
+    return parsed.toISOString().split("T")[0]
+  }
+
+  const tasks = tasksResponse?.data?.tasks ?? []
+  const total = tasks.length
+  const completed = tasks.filter((task) => task.status?.toLowerCase() === "completed").length
+  const inProgress = tasks.filter((task) => task.status?.toLowerCase().includes("progress")).length
+
+  const stats = [
+    {
+      label: "Total Tasks",
+      value: total,
+      subtitle: "Work items tracked",
+    },
+    {
+      label: "Completed",
+      value: completed,
+      subtitle: "Already delivered",
+    },
+    {
+      label: "In Progress",
+      value: inProgress,
+      subtitle: "Currently active",
+    },
+  ]
+
+  const handleView = (task: Task) => {
+    setViewTask(task)
+    setIsViewOpen(true)
+  }
+
+  const handleEdit = (task: Task) => {
+    setEditTask(task)
+    setEditName(task.name)
+    setEditProjectId(task.project_id ? String(task.project_id) : "")
+    setEditAssignedTo(resolveEmployeeIdentifier(task.assigned_to))
+    setEditDueDate(formatDateForInput(task.due_date))
+    setEditPriority(normalizeTaskPriority(task.priority))
+    setEditStatus(normalizeTaskStatus(task.status))
+    setEditProgress(String(task.progress ?? 0))
+    setIsEditOpen(true)
+  }
+
+  useEffect(() => {
+    if (!editTask) return
+    const resolved = resolveEmployeeIdentifier(editTask.assigned_to)
+    if (resolved && resolved !== editAssignedTo) {
+      setEditAssignedTo(resolved)
+    }
+  }, [employeeOptions, editTask, editAssignedTo])
+
+  const handleDelete = (task: Task) => {
+    setDeleteTaskCandidate(task)
+    setIsDeleteTaskDialogOpen(true)
+  }
+
+  const handleConfirmDeleteTask = async () => {
+    if (!deleteTaskCandidate) return
+    try {
+      await deleteTask.mutateAsync(deleteTaskCandidate.id)
+      toast.success("Task deleted")
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete task")
+    } finally {
+      setIsDeleteTaskDialogOpen(false)
+      setDeleteTaskCandidate(null)
     }
   }
 
-  const getPriorityBadge = (priority) => {
-    switch (priority) {
-      case "high":
-        return <Badge variant="destructive">High</Badge>
-      case "medium":
-        return (
-          <Badge variant="outline" className="border-amber-500 text-amber-500">
-            Medium
-          </Badge>
-        )
-      case "low":
-        return (
-          <Badge variant="outline" className="border-green-500 text-green-500">
-            Low
-          </Badge>
-        )
-      default:
-        return <Badge variant="outline">{priority}</Badge>
+  const handleOpenAdd = () => setIsAddOpen(true)
+
+  const resetNewTaskForm = () => {
+    setNewTask({
+      name: "",
+      project_id: "",
+      assigned_to: "",
+      due_date: new Date().toISOString().split("T")[0],
+      status: "in-progress",
+      progress: 0,
+      priority: "medium",
+    })
+  }
+
+  const handleAddSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    try {
+      await createTask.mutateAsync({
+        name: newTask.name,
+        project_id: Number(newTask.project_id),
+        assigned_to: newTask.assigned_to,
+        due_date: newTask.due_date,
+        status: newTask.status,
+        progress: Number(newTask.progress),
+        priority: newTask.priority,
+      })
+      toast.success("Task created")
+      setIsAddOpen(false)
+      resetNewTaskForm()
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to create task")
     }
   }
 
-  const handleViewTask = (task) => {
-    setSelectedTask(task)
-    setIsViewDialogOpen(true)
+  const handleUpdateSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!editTask) return
+    try {
+      await updateTask.mutateAsync({
+        id: editTask.id,
+        name: editName || editTask.name,
+        project_id: editProjectId ? Number(editProjectId) : editTask.project_id,
+        assigned_to: editAssignedTo || editTask.assigned_to,
+        due_date: editDueDate || editTask.due_date,
+      status: editStatus,
+      progress: Number(editProgress || editTask.progress || 0),
+      priority: editPriority,
+      })
+      toast.success("Task updated")
+      setIsEditOpen(false)
+      setEditTask(null)
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to update task")
+    }
   }
-
-  // Get unique projects for filter
-  const projects = [...new Set(tasksData.map((task) => task.project))]
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Tasks Management</h1>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" /> Add New Task
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap gap-4 mb-6">
-        <div className="flex-1 min-w-[300px]">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-            <Input
-              placeholder="Search tasks..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-4 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-semibold text-gray-900">Tasks</h2>
+            <p className="text-sm text-gray-500">Track all project work items</p>
           </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                className="gap-2 bg-white border border-gray-200 text-gray-600"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
         </div>
-
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="in-progress">In Progress</SelectItem>
-            <SelectItem value="not-started">Not Started</SelectItem>
-            <SelectItem value="delayed">Delayed</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={projectFilter} onValueChange={setProjectFilter}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Filter by project" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Projects</SelectItem>
-            {projects.map((project, index) => (
-              <SelectItem key={index} value={project}>
-                {project}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline">
-              <Download className="w-4 h-4 mr-2" /> Export
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem>
-              <FileText className="w-4 h-4 mr-2" /> Export to CSV
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <FileText className="w-4 h-4 mr-2" /> Export to PDF
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Printer className="w-4 h-4 mr-2" /> Print
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {stats.map((item) => (
+            <div key={item.label} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+              <p className="text-xs uppercase tracking-[0.4em] text-gray-400">{item.label}</p>
+              <p className="text-3xl font-semibold text-gray-900">{item.value}</p>
+              <p className="text-xs text-gray-500">{item.subtitle}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Tasks List</CardTitle>
+      <Card className="border border-gray-200 shadow-lg rounded-xl overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+          <div>
+            <CardTitle className="text-lg font-semibold text-gray-900">Task Records</CardTitle>
+            <CardDescription className="text-gray-600">Monitor each task progress and status.</CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium">Task ID</th>
-                  <th className="text-left py-3 px-4 font-medium">Task Name</th>
-                  <th className="text-left py-3 px-4 font-medium">Project</th>
-                  <th className="text-left py-3 px-4 font-medium">Assigned To</th>
-                  <th className="text-left py-3 px-4 font-medium">Due Date</th>
-                  <th className="text-left py-3 px-4 font-medium">Status</th>
-                  <th className="text-left py-3 px-4 font-medium">Progress</th>
-                  <th className="text-left py-3 px-4 font-medium">Priority</th>
-                  <th className="text-left py-3 px-4 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTasks.map((task) => (
-                  <tr key={task.id} className="border-b hover:bg-muted/50">
-                    <td className="py-3 px-4">{task.id}</td>
-                    <td className="py-3 px-4 font-medium">{task.name}</td>
-                    <td className="py-3 px-4">{task.project}</td>
-                    <td className="py-3 px-4">{task.assignedTo}</td>
-                    <td className="py-3 px-4">{task.dueDate}</td>
-                    <td className="py-3 px-4">{getStatusBadge(task.status)}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <Progress value={task.progress} className="h-2 w-24" />
-                        <span className="text-sm">{task.progress}%</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">{getPriorityBadge(task.priority)}</td>
-                    <td className="py-3 px-4">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewTask(task)}>
-                            <FileText className="w-4 h-4 mr-2" /> View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Edit className="w-4 h-4 mr-2" /> Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
-                            <Trash2 className="w-4 h-4 mr-2" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {filteredTasks.length === 0 && (
-            <div className="text-center py-6 text-muted-foreground">No tasks found matching your criteria</div>
-          )}
-
-          <div className="flex justify-between items-center mt-4">
-            <div className="text-sm text-muted-foreground">
-              Showing {filteredTasks.length} of {tasksData.length} tasks
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled>
-                Next
-              </Button>
-            </div>
-          </div>
+        <DataTable
+          title="Tasks"
+          columns={columns(handleView, handleEdit, handleDelete, getAssigneeDisplayName)}
+            data={tasks}
+            searchFields={searchFields}
+            onAdd={handleOpenAdd}
+          />
         </CardContent>
       </Card>
 
-      {/* Add New Task Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Add New Task</DialogTitle>
-          </DialogHeader>
-
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            <div className="space-y-2">
-              <Label htmlFor="task-name">Task Name</Label>
-              <Input id="task-name" placeholder="Enter task name" />
+      <Dialog open={isAddOpen} onOpenChange={(open) => !open && setIsAddOpen(false)}>
+        <DialogContent className="max-w-md">
+          <form className="space-y-4" onSubmit={handleAddSubmit}>
+            <DialogHeader>
+              <DialogTitle>Add Task</DialogTitle>
+            </DialogHeader>
+            <div>
+              <Label>Task Name</Label>
+              <Input
+                value={newTask.name}
+                onChange={(event) => setNewTask({ ...newTask, name: event.target.value })}
+                required
+              />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="task-project">Project</Label>
-              <Select>
-                <SelectTrigger id="task-project">
+            <div>
+              <Label>Project</Label>
+              <Select
+                value={newTask.project_id}
+                onValueChange={(value) => setNewTask({ ...newTask, project_id: value })}
+                required
+                disabled={projectOptions.length === 0}
+              >
+                <SelectTrigger>
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects.map((project, index) => (
-                    <SelectItem key={index} value={project}>
-                      {project}
+                  {projectOptions.map((project) => (
+                    <SelectItem key={project.id} value={String(project.id)}>
+                      {project.name}
+                      {project.project_code ? ` (${project.project_code})` : ""}
                     </SelectItem>
                   ))}
+                  {projectOptions.length === 0 && (
+                    <SelectItem value="" disabled>
+                      No projects available
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="task-assignee">Assigned To</Label>
-              <Select>
-                <SelectTrigger id="task-assignee">
-                  <SelectValue placeholder="Select assignee" />
+            <div>
+              <Label>Assigned To</Label>
+              <Select
+                value={newTask.assigned_to}
+                onValueChange={(value) => setNewTask({ ...newTask, assigned_to: value })}
+                required
+                disabled={isEmployeesLoading || employeeOptions.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select employee" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="adebayo">Adebayo Olamide</SelectItem>
-                  <SelectItem value="chioma">Chioma Eze</SelectItem>
-                  <SelectItem value="emeka">Emeka Okafor</SelectItem>
-                  <SelectItem value="fatima">Fatima Ibrahim</SelectItem>
-                  <SelectItem value="gabriel">Gabriel Okonkwo</SelectItem>
+                  {employeeOptions.map((employee) => {
+                    const identifier = getEmployeeIdentifier(employee)
+                    return (
+                      <SelectItem key={identifier} value={identifier}>
+                        {employee.name}
+                        {employee.employee_id ? ` (${employee.employee_id})` : ""}
+                      </SelectItem>
+                    )
+                  })}
+                  {!isEmployeesLoading && employeeOptions.length === 0 && (
+                    <SelectItem value="" disabled>
+                      No employees available
+                    </SelectItem>
+                  )}
+                  {editAssignedTo && !employeeOptions.some((employee) => getEmployeeIdentifier(employee) === editAssignedTo) && (
+                    <SelectItem value={editAssignedTo}>
+                      {getAssigneeDisplayName(editAssignedTo)}
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-2">
+            <div>
               <Label>Due Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    <span>Select due date</span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" />
-                </PopoverContent>
-              </Popover>
+              <Input
+                type="date"
+                value={newTask.due_date}
+                onChange={(event) => setNewTask({ ...newTask, due_date: event.target.value })}
+                required
+              />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Status</Label>
+                <Select
+                  value={newTask.status}
+                  onValueChange={(value) => setNewTask({ ...newTask, status: value })}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="not-started">Not Started</SelectItem>
+                    <SelectItem value="delayed">Delayed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Priority</Label>
+                <Select
+                  value={newTask.priority}
+                  onValueChange={(value) => setNewTask({ ...newTask, priority: value })}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Progress (%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={newTask.progress}
+                onChange={(event) => setNewTask({ ...newTask, progress: Number(event.target.value) })}
+                required
+              />
+            </div>
+            <DialogFooter className="pt-4">
+              <Button variant="outline" onClick={() => setIsAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createTask.isPending}>
+                Create
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-            <div className="space-y-2">
-              <Label htmlFor="task-status">Status</Label>
-              <Select>
-                <SelectTrigger id="task-status">
+      <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Task Details</DialogTitle>
+          </DialogHeader>
+          {viewTask && (
+            <div className="space-y-3">
+              {[
+                { label: "Task Code", value: viewTask.task_code },
+                { label: "Name", value: viewTask.name },
+                { label: "Project", value: viewTask.project_name ?? `Project ${viewTask.project_id}` },
+                { label: "Assigned To", value: getAssigneeDisplayName(viewTask.assigned_to) },
+                { label: "Due Date", value: format(new Date(viewTask.due_date), "PPP") },
+                { label: "Status", value: viewTask.status },
+                { label: "Progress", value: `${viewTask.progress ?? 0}%` },
+                { label: "Priority", value: viewTask.priority },
+              ].map((field) => (
+                <div key={field.label} className="rounded-xl border border-gray-200 bg-white p-3">
+                  <p className="text-xs text-gray-500">{field.label}</p>
+                  <p className="text-sm font-semibold text-gray-900">{field.value}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setIsViewOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditOpen} onOpenChange={(open) => !open && setIsEditOpen(false)}>
+        <DialogContent className="max-w-md">
+          <form className="space-y-4" onSubmit={handleUpdateSubmit}>
+            <DialogHeader>
+              <DialogTitle>Edit Task</DialogTitle>
+            </DialogHeader>
+            <div>
+              <Label>Task Name</Label>
+              <Input value={editName} onChange={(event) => setEditName(event.target.value)} />
+            </div>
+            <div>
+              <Label>Project ID</Label>
+              <Input
+                type="number"
+                value={editProjectId}
+                onChange={(event) => setEditProjectId(event.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Assignee</Label>
+              <Select
+                value={editAssignedTo}
+                onValueChange={(value) => setEditAssignedTo(value)}
+                disabled={isEmployeesLoading || employeeOptions.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select employee" />
+                </SelectTrigger>
+                <SelectContent>
+                {employeeOptions.map((employee) => {
+                  const identifier = getEmployeeIdentifier(employee)
+                  return (
+                    <SelectItem key={identifier} value={identifier}>
+                      {employee.name}
+                      {employee.employee_id ? ` (${employee.employee_id})` : ""}
+                    </SelectItem>
+                  )
+                })}
+                {!isEmployeesLoading && employeeOptions.length === 0 && (
+                  <SelectItem value="" disabled>
+                    No employees available
+                  </SelectItem>
+                )}
+                {editAssignedTo &&
+                  !employeeOptions.some((employee) => getEmployeeIdentifier(employee) === editAssignedTo) && (
+                    <SelectItem key={editAssignedTo} value={editAssignedTo}>
+                      {getAssigneeDisplayName(editAssignedTo)}
+                    </SelectItem>
+                  )}
+              </SelectContent>
+            </Select>
+          </div>
+            <div>
+              <Label>Due Date</Label>
+              <Input
+                type="date"
+                value={editDueDate}
+                onChange={(event) => setEditDueDate(event.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Priority</Label>
+              <Select value={editPriority} onValueChange={(value) => setEditPriority(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select value={editStatus} onValueChange={(value) => setEditStatus(value)}>
+                <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="not-started">Not Started</SelectItem>
                   <SelectItem value="in-progress">In Progress</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="not-started">Not Started</SelectItem>
                   <SelectItem value="delayed">Delayed</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="task-priority">Priority</Label>
-              <Select>
-                <SelectTrigger id="task-priority">
-                  <SelectValue placeholder="Select priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                </SelectContent>
-              </Select>
+            <div>
+              <Label>Progress (%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={editProgress}
+                onChange={(event) => setEditProgress(event.target.value)}
+              />
             </div>
-
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="task-description">Description</Label>
-              <Textarea id="task-description" placeholder="Enter task description" rows={4} />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button>Create Task</Button>
-          </div>
+            <DialogFooter className="pt-4">
+              <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateTask.isPending}>
+                Save
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
-
-      {/* View Task Details Dialog */}
-      {selectedTask && (
-        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Task Details</DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-semibold text-lg">{selectedTask.name}</h3>
-                  <p className="text-muted-foreground">Task ID: {selectedTask.id}</p>
-                </div>
-
-                <div className="text-right">
-                  {getStatusBadge(selectedTask.status)}
-                  <div className="mt-1">{getPriorityBadge(selectedTask.priority)}</div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium mb-2">Task Details</h4>
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-3 gap-2">
-                      <span className="text-muted-foreground">Project:</span>
-                      <span className="col-span-2">{selectedTask.project}</span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <span className="text-muted-foreground">Assigned To:</span>
-                      <span className="col-span-2">{selectedTask.assignedTo}</span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <span className="text-muted-foreground">Due Date:</span>
-                      <span className="col-span-2">{selectedTask.dueDate}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-medium mb-2">Progress</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Progress value={selectedTask.progress} className="h-2 flex-1" />
-                      <span>{selectedTask.progress}%</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {selectedTask.progress < 100
-                        ? `Task is in progress with ${selectedTask.progress}% completion`
-                        : "Task has been completed"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Description</h4>
-                <p className="text-muted-foreground">
-                  This is a detailed description of the {selectedTask.name} task for the {selectedTask.project} project.
-                  The task involves implementing key functionality required for the project success.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Comments</h4>
-                <div className="space-y-2">
-                  <div className="border-l-2 border-blue-500 pl-4 py-1">
-                    <p className="font-medium">Progress update</p>
-                    <p className="text-sm">Completed the initial phase of implementation.</p>
-                    <p className="text-xs text-muted-foreground">Yesterday at 14:30 by {selectedTask.assignedTo}</p>
-                  </div>
-                  <div className="border-l-2 border-green-500 pl-4 py-1">
-                    <p className="font-medium">Resource allocation</p>
-                    <p className="text-sm">Additional resources have been allocated to this task.</p>
-                    <p className="text-xs text-muted-foreground">3 days ago by Project Manager</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
-                Close
-              </Button>
-              <Button variant="outline">
-                <Printer className="w-4 h-4 mr-2" /> Print Details
-              </Button>
-              <Button>
-                <Edit className="w-4 h-4 mr-2" /> Edit Task
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      <DeleteConfirmationDialog
+        isOpen={isDeleteTaskDialogOpen}
+        onClose={() => {
+          setIsDeleteTaskDialogOpen(false)
+          setDeleteTaskCandidate(null)
+        }}
+        onConfirm={handleConfirmDeleteTask}
+        title="Delete Task"
+        description={`Delete task "${deleteTaskCandidate?.name ?? "this task"}"?`}
+        itemName={deleteTaskCandidate ? `Task ${deleteTaskCandidate.name}` : "Task"}
+        isLoading={deleteTask.isPending}
+      />
     </div>
   )
 }

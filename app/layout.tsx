@@ -7,7 +7,6 @@ import { ThemeProvider } from "@/components/theme-provider"
 import ClientErrorHandler from "./client-error-handler"
 import Image from "next/image"
 import GlobalErrorHandler from "./global-error-handler"
-import Script from "next/script"
 import { GlobalToaster } from "@/components/ui/global-toaster"
 
 import Providers from "./providers"
@@ -73,79 +72,6 @@ export default function RootLayout({
         />
         <link rel="icon" href="/favicon.ico" sizes="any" />
 
-        {/* CRITICAL: Prevent service worker registration */}
-        <Script id="prevent-sw" strategy="beforeInteractive">{`
-          try {
-            window.addEventListener('error', function(event) {
-              if (event.message && (
-                event.message.includes('ServiceWorker') || 
-                event.message.includes('service worker') ||
-                event.message.includes('Failed to register') ||
-                event.message.includes('navigator.serviceWorker is null')
-              )) {
-                event.preventDefault();
-                event.stopPropagation();
-                console.log('Service worker error intercepted');
-                return true;
-              }
-            }, true);
-
-            window.addEventListener('unhandledrejection', function(event) {
-              if (event.reason && event.reason.message && (
-                event.reason.message.includes('ServiceWorker') || 
-                event.reason.message.includes('service worker') ||
-                event.reason.message.includes('Failed to register') ||
-                event.reason.message.includes('navigator.serviceWorker is null')
-              )) {
-                event.preventDefault();
-                event.stopPropagation();
-                console.log('Service worker promise rejection intercepted');
-                return true;
-              }
-            }, true);
-
-            if (typeof navigator !== 'undefined' && !navigator.serviceWorker) {
-              var mockServiceWorker = {
-                register: () => Promise.resolve({
-                  scope: '/',
-                  update: () => Promise.resolve(),
-                  unregister: () => Promise.resolve(true),
-                  active: null,
-                  installing: null,
-                  waiting: null,
-                  addEventListener: () => {},
-                  removeEventListener: () => {}
-                }),
-                getRegistration: () => Promise.resolve(null),
-                getRegistrations: () => Promise.resolve([]),
-                startMessages: () => {},
-                controller: null,
-                ready: Promise.resolve({
-                  scope: '/',
-                  update: () => Promise.resolve(),
-                  unregister: () => Promise.resolve(true),
-                  active: null,
-                  installing: null,
-                  waiting: null,
-                  addEventListener: () => {},
-                  removeEventListener: () => {}
-                })
-              };
-              try {
-                Object.defineProperty(navigator, 'serviceWorker', {
-                  value: mockServiceWorker,
-                  configurable: true,
-                  enumerable: true,
-                  writable: false
-                });
-              } catch (e) {
-                console.log('Failed to define serviceWorker property');
-              }
-            }
-          } catch (e) {
-            console.log('Error in service worker prevention script');
-          }
-        `}</Script>
       </head>
       <body className={inter.className}>
       <Providers>

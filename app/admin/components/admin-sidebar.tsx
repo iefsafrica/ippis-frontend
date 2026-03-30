@@ -497,7 +497,6 @@ export function AdminSidebar() {
       title: "Project Management",
       icon: FolderKanban,
       isDropdown: true,
-      href: "/admin/project-management",
       isOpen: openDropdown === "project-managment", // for performance
       section: "project-managment",
       toggle: () =>

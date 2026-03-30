@@ -1,4 +1,4 @@
-import ProjectsContent from "./projects-content"
+import { ProjectsContent } from "./projects-content"
 
 export const metadata = {
   title: "Projects Management | IPPIS Admin",

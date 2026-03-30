@@ -247,15 +247,15 @@ export function NewPaymentContent() {
       required: true,
       defaultValue: "0.00",
     },
-    { name: "houseRentAllowance", label: "House Rent Allowance", type: "number", defaultValue: "0.00" },
-    { name: "medicalAllowance", label: "Medical Allowance", type: "number", defaultValue: "0.00" },
-    { name: "travelAllowance", label: "Travel Allowance", type: "number", defaultValue: "0.00" },
-    { name: "dearnessAllowance", label: "Dearness Allowance", type: "number", defaultValue: "0.00" },
-    { name: "providentFund", label: "Provident Fund", type: "number", defaultValue: "0.00" },
-    { name: "incomeTax", label: "Income Tax", type: "number", defaultValue: "0.00" },
-    { name: "healthInsurance", label: "Health Insurance", type: "number", defaultValue: "0.00" },
-    { name: "loanDeduction", label: "Loan Deduction", type: "number", defaultValue: "0.00" },
-    { name: "comments", label: "Comments", type: "textarea", placeholder: "Add any notes" },
+    { name: "houseRentAllowance", label: "House Rent Allowance", type: "number", required: true, defaultValue: "0.00" },
+    { name: "medicalAllowance", label: "Medical Allowance", type: "number", required: true, defaultValue: "0.00" },
+    { name: "travelAllowance", label: "Travel Allowance", type: "number", required: true, defaultValue: "0.00" },
+    { name: "dearnessAllowance", label: "Dearness Allowance", type: "number", required: true, defaultValue: "0.00" },
+    { name: "providentFund", label: "Provident Fund", type: "number", required: true, defaultValue: "0.00" },
+    { name: "incomeTax", label: "Income Tax", type: "number", required: true, defaultValue: "0.00" },
+    { name: "healthInsurance", label: "Health Insurance", type: "number", required: true, defaultValue: "0.00" },
+    { name: "loanDeduction", label: "Loan Deduction", type: "number", required: true, defaultValue: "0.00" },
+    { name: "comments", label: "Comments", type: "textarea", required: true, placeholder: "Add any notes" },
   ]
 
   const bulkPaymentFields: FormField[] = [
@@ -276,8 +276,9 @@ export function NewPaymentContent() {
     },
     {
       name: "department",
-      label: "Department (Optional)",
+      label: "Department",
       type: "select",
+      required: true,
       options: [
         { value: "all", label: "All Departments" },
         { value: "engineering", label: "Engineering" },
@@ -288,7 +289,7 @@ export function NewPaymentContent() {
       ],
       defaultValue: "all",
     },
-    { name: "comments", label: "Comments", type: "textarea", placeholder: "Add any notes" },
+    { name: "comments", label: "Comments", type: "textarea", required: true, placeholder: "Add any notes" },
   ]
 
   const handleSelectEmployee = useCallback(
