@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 
 export function useSafeMutation<TData = unknown, TError = Error, TVariables = void, TContext = unknown>(
   options: UseMutationOptions<TData, TError, TVariables, TContext> & {
-    invalidateQueries?: Array<any[]>;
+    invalidateQueries?: any[];
     successMessage?: string;
     errorMessage?: string;
   }

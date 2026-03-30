@@ -126,7 +126,7 @@ export default function EmployeeSections() {
               variant={activeTab === tab.key ? "default" : "outline"}
               className={
                 activeTab === tab.key
-                  ? `${buttonHoverEnhancements} rounded-lg border border-[#008751] bg-[#008751] text-white shadow-sm transition-colors hover:bg-[#006f43] hover:!bg-[#006f43]`
+                  ? `${buttonHoverEnhancements} rounded-lg border border-[#008751] bg-[#008751] text-white shadow-sm transition-colors hover:bg-[#006f43] hover:!bg-[#006f43] hover:text-white hover:!text-white`
                   : `${buttonHoverEnhancements} rounded-lg border border-emerald-200 bg-white text-emerald-800 transition-colors hover:border-emerald-400 hover:bg-emerald-100 hover:text-emerald-900 hover:bg-emerald-100`
               }
               onClick={() => onTabChange(tab.key)}

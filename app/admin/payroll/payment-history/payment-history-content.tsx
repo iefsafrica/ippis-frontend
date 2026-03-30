@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DetailsView } from "@/app/admin/components/details-view"
 import { format } from "date-fns"
+import { useGetPayments, useDeletePayment } from "@/services/hooks/payroll"
 
 // Mock data for payment history
 const paymentHistory = [
@@ -48,127 +49,42 @@ const paymentHistory = [
     status: "Completed",
     month: "May 2023",
   },
-  {
-    id: "PAY-004",
-    employeeId: "EMP-004",
-    employeeName: "Emily Davis",
-    department: "Marketing",
-    position: "Marketing Specialist",
-    paymentDate: "2023-05-28T11:00:00Z",
-    paymentType: "Salary",
-    paymentMethod: "Bank Transfer",
-    amount: 4800.0,
-    status: "Completed",
-    month: "May 2023",
-  },
-  {
-    id: "PAY-005",
-    employeeId: "EMP-005",
-    employeeName: "Robert Wilson",
-    department: "Product",
-    position: "Product Manager",
-    paymentDate: "2023-05-28T13:30:00Z",
-    paymentType: "Salary",
-    paymentMethod: "Bank Transfer",
-    amount: 7000.0,
-    status: "Completed",
-    month: "May 2023",
-  },
-  {
-    id: "PAY-006",
-    employeeId: "EMP-001",
-    employeeName: "John Doe",
-    department: "Engineering",
-    position: "Software Engineer",
-    paymentDate: "2023-06-28T08:00:00Z",
-    paymentType: "Salary",
-    paymentMethod: "Bank Transfer",
-    amount: 5000.0,
-    status: "Completed",
-    month: "June 2023",
-  },
-  {
-    id: "PAY-007",
-    employeeId: "EMP-002",
-    employeeName: "Jane Smith",
-    department: "Human Resources",
-    position: "HR Manager",
-    paymentDate: "2023-06-28T09:30:00Z",
-    paymentType: "Salary",
-    paymentMethod: "Bank Transfer",
-    amount: 6500.0,
-    status: "Completed",
-    month: "June 2023",
-  },
-  {
-    id: "PAY-008",
-    employeeId: "EMP-001",
-    employeeName: "John Doe",
-    department: "Engineering",
-    position: "Software Engineer",
-    paymentDate: "2023-06-15T10:00:00Z",
-    paymentType: "Bonus",
-    paymentMethod: "Bank Transfer",
-    amount: 1000.0,
-    status: "Completed",
-    month: "June 2023",
-  },
-  {
-    id: "PAY-009",
-    employeeId: "EMP-003",
-    employeeName: "Michael Johnson",
-    department: "Finance",
-    position: "Financial Analyst",
-    paymentDate: "2023-07-05T14:30:00Z",
-    paymentType: "Salary",
-    paymentMethod: "Check",
-    amount: 5500.0,
-    status: "Pending",
-    month: "July 2023",
-  },
-  {
-    id: "PAY-010",
-    employeeId: "EMP-004",
-    employeeName: "Emily Davis",
-    department: "Marketing",
-    position: "Marketing Specialist",
-    paymentDate: "2023-07-05T15:45:00Z",
-    paymentType: "Salary",
-    paymentMethod: "Check",
-    amount: 4800.0,
-    status: "Pending",
-    month: "July 2023",
-  },
 ]
 
 export function PaymentHistoryContent() {
   const [selectedPayment, setSelectedPayment] = useState<any>(null)
   const [showPaymentDetails, setShowPaymentDetails] = useState(false)
+  
+  // React Query hooks
+  const { data: paymentsResponse, isLoading, error } = useGetPayments()
+  const deletePaymentMutation = useDeletePayment()
+  
+  // Extract payments from response
+  const payments = paymentsResponse?.data?.payrolls || paymentHistory
 
   // Columns for payment history table
   const paymentColumns = [
-    { key: "id", label: "Payment ID", sortable: true },
-    { key: "employeeName", label: "Employee", sortable: true },
-    { key: "department", label: "Department", sortable: true },
+    { key: "payment_id", label: "Payment ID", sortable: true },
+    { key: "employee_id", label: "Employee ID", sortable: true },
     {
-      key: "paymentDate",
+      key: "payment_date",
       label: "Payment Date",
       sortable: true,
       render: (value: string) => format(new Date(value), "PPP"),
     },
-    { key: "paymentType", label: "Type", sortable: true },
+    { key: "payment_type", label: "Type", sortable: true },
     {
       key: "amount",
       label: "Amount",
       sortable: true,
-      render: (value: number) => `$${value.toFixed(2)}`,
+      render: (value: string) => `$${parseFloat(value).toFixed(2)}`,
     },
     {
       key: "status",
       label: "Status",
       sortable: true,
       render: (value: string) => {
-        const color = value === "Completed" ? "green" : value === "Pending" ? "yellow" : "red"
+        const color = value === "paid" || value === "Completed" ? "green" : value === "pending" || value === "Pending" ? "yellow" : "red"
         return <Badge className={`bg-${color}-100 text-${color}-800`}>{value}</Badge>
       },
     },
@@ -191,11 +107,11 @@ export function PaymentHistoryContent() {
       label: "Payment Type",
       type: "select" as const,
       options: [
-        { value: "Salary", label: "Salary" },
-        { value: "Bonus", label: "Bonus" },
-        { value: "Commission", label: "Commission" },
-        { value: "Allowance", label: "Allowance" },
-        { value: "Reimbursement", label: "Reimbursement" },
+        { value: "salary", label: "Salary" },
+        { value: "bonus", label: "Bonus" },
+        { value: "commission", label: "Commission" },
+        { value: "allowance", label: "Allowance" },
+        { value: "reimbursement", label: "Reimbursement" },
       ],
     },
     {
@@ -203,9 +119,9 @@ export function PaymentHistoryContent() {
       label: "Status",
       type: "select" as const,
       options: [
-        { value: "Completed", label: "Completed" },
-        { value: "Pending", label: "Pending" },
-        { value: "Failed", label: "Failed" },
+        { value: "paid", label: "Paid" },
+        { value: "pending", label: "Pending" },
+        { value: "failed", label: "Failed" },
       ],
     },
     {
@@ -223,9 +139,19 @@ export function PaymentHistoryContent() {
   ]
 
   const handleViewPayment = (id: string) => {
-    const payment = paymentHistory.find((p) => p.id === id)
+    const payment = payments.find((p: any) => p.payment_id === id || p.id === id)
     setSelectedPayment(payment)
     setShowPaymentDetails(true)
+  }
+
+  const handleDeletePayment = async (id: string) => {
+    if (confirm("Are you sure you want to delete this payment?")) {
+      try {
+        await deletePaymentMutation.mutateAsync(parseInt(id))
+      } catch (error) {
+        console.error("Error deleting payment:", error)
+      }
+    }
   }
 
   // Payment details sections for the details view
@@ -233,22 +159,18 @@ export function PaymentHistoryContent() {
     {
       title: "Payment Information",
       items: [
-        { label: "Payment ID", value: selectedPayment?.id },
-        { label: "Payment Date", value: selectedPayment ? format(new Date(selectedPayment.paymentDate), "PPP") : "" },
-        { label: "Payment Type", value: selectedPayment?.paymentType },
-        { label: "Payment Method", value: selectedPayment?.paymentMethod },
-        { label: "Amount", value: selectedPayment ? `$${selectedPayment.amount.toFixed(2)}` : "" },
+        { label: "Payment ID", value: selectedPayment?.payment_id },
+        { label: "Payment Date", value: selectedPayment ? format(new Date(selectedPayment.payment_date), "PPP") : "" },
+        { label: "Payment Type", value: selectedPayment?.payment_type },
+        { label: "Amount", value: selectedPayment ? `$${parseFloat(selectedPayment.amount).toFixed(2)}` : "" },
         { label: "Status", value: selectedPayment?.status },
-        { label: "Month", value: selectedPayment?.month },
+        { label: "Created", value: selectedPayment ? format(new Date(selectedPayment.created_at), "PPP p") : "" },
       ],
     },
     {
       title: "Employee Information",
       items: [
-        { label: "Employee ID", value: selectedPayment?.employeeId },
-        { label: "Employee Name", value: selectedPayment?.employeeName },
-        { label: "Department", value: selectedPayment?.department },
-        { label: "Position", value: selectedPayment?.position },
+        { label: "Employee ID", value: selectedPayment?.employee_id },
       ],
     },
   ]
@@ -263,10 +185,11 @@ export function PaymentHistoryContent() {
       <EnhancedDataTable
         title="Payment Records"
         columns={paymentColumns}
-        data={paymentHistory}
+        data={payments}
+        isLoading={isLoading}
         onAdd={() => {}}
         onEdit={() => {}}
-        onDelete={() => {}}
+        onDelete={handleDeletePayment}
         onView={handleViewPayment}
         filterOptions={filterOptions}
       />
@@ -280,21 +203,21 @@ export function PaymentHistoryContent() {
           <div className="py-4">
             {selectedPayment && (
               <DetailsView
-                title={`Payment ${selectedPayment.id}`}
-                subtitle={`${selectedPayment.employeeName} - ${selectedPayment.month}`}
+                title={`Payment ${selectedPayment.payment_id}`}
+                subtitle={`${selectedPayment.employee_id} - ${format(new Date(selectedPayment.payment_date), "PPP")}`}
                 sections={paymentDetailsSections}
                 actions={[
                   {
                     label: "Generate Payslip",
                     onClick: () => {
-                      alert(`Generating payslip for payment ${selectedPayment.id}`)
+                      alert(`Generating payslip for payment ${selectedPayment.payment_id}`)
                     },
                     variant: "default",
                   },
                   {
                     label: "Print",
                     onClick: () => {
-                      alert(`Printing payment details for ${selectedPayment.id}`)
+                      alert(`Printing payment details for ${selectedPayment.payment_id}`)
                     },
                     variant: "outline",
                   },

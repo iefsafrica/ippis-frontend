@@ -256,6 +256,7 @@ interface DataTableProps {
   extraSearchControls?: React.ReactNode
   addButtonProps?: React.ButtonHTMLAttributes<HTMLButtonElement>
   addButtonLoading?: boolean
+  tableClassName?: string
 }
 
 export function DataTable({
@@ -270,7 +271,11 @@ export function DataTable({
   extraSearchControls,
   addButtonProps,
   addButtonLoading = false,
+  tableClassName,
 }: DataTableProps) {
+  const normalizedTitle = title?.trim() || "Records"
+  const normalizedTitleLower = normalizedTitle.toLowerCase()
+  const exportFilenameTitle = normalizedTitle.replace(/\s+/g, "_")
   const [searchTerm, setSearchTerm] = useState("")
   const [advancedSearchParams, setAdvancedSearchParams] = useState<Record<string, string>>({})
   const [currentPage, setCurrentPage] = useState(1)
@@ -377,8 +382,8 @@ export function DataTable({
         }))
 
         const exportOptions = {
-          title,
-          filename: `${title.replace(/\s+/g, "_")}_export`,
+          title: normalizedTitle,
+          filename: `${exportFilenameTitle}_export`,
           columns: exportColumns,
         }
 
@@ -420,7 +425,7 @@ export function DataTable({
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
             <Input
               type="search"
-              placeholder={`Search ${title.toLowerCase()}...`}
+              placeholder={`Search ${normalizedTitleLower}...`}
               className="pl-8"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -437,14 +442,14 @@ export function DataTable({
           <AdvancedSearch
             onSearch={handleAdvancedSearch}
             fields={searchFields}
-            title={title}
+            title={normalizedTitle}
           />
 
           <DataExportMenu
             onExportPDF={handleExportPDF}
             onExportCSV={handleExportCSV}
             onPrint={handlePrint}
-            title={title}
+            title={normalizedTitle}
           />
 
           {onAdd && (
@@ -478,7 +483,7 @@ export function DataTable({
           className="w-full overflow-x-auto overflow-y-hidden overscroll-x-contain pb-1"
           style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}
         >
-        <Table className="min-w-[980px] table-auto">
+        <Table className={cn("min-w-[980px] table-auto", tableClassName)}>
           <TableHeader>
             <TableRow className="bg-gray-50/50">
               {columns.map((column) => (
@@ -555,7 +560,7 @@ export function DataTable({
       {/* Display total items */}
       {totalItems > 0 && (
         <div className="text-sm text-gray-600 px-1 py-3">
-          Showing {totalItems} {title.toLowerCase()}
+          Showing {totalItems} {normalizedTitleLower}
         </div>
       )}
 

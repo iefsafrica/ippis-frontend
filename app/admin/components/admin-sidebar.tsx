@@ -476,7 +476,7 @@ export function AdminSidebar() {
       title: "Payroll",
       icon: DollarSign,
       isDropdown: true,
-      href: "/admin/payroll",
+      // href: "/admin/payroll",
       isOpen: openDropdown === "payroll",
       section: "payroll",
       toggle: () =>
