@@ -192,6 +192,8 @@ export function PaymentHistoryContent() {
         onDelete={handleDeletePayment}
         onView={handleViewPayment}
         filterOptions={filterOptions}
+        hideControlBar
+        hideActions
       />
 
       {/* Payment Details Dialog */}
