@@ -1,4 +1,4 @@
-import ClientContent from "./client-content"
+import ClientsContent from "@/app/admin/clients/clients-content"
 
 export const metadata = {
   title: "Client Management | IPPIS Admin",
@@ -6,5 +6,5 @@ export const metadata = {
 }
 
 export default function ClientPage() {
-  return <ClientContent />
+  return <ClientsContent />
 }

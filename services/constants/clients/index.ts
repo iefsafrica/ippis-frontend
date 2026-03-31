@@ -1,0 +1,5 @@
+export const GET_CLIENTS = "get-clients"
+export const GET_CLIENT = "get-client"
+export const CREATE_CLIENT = "create-client"
+export const UPDATE_CLIENT = "update-client"
+export const DELETE_CLIENT = "delete-client"
