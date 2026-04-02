@@ -1,0 +1,5 @@
+export const GET_TAX_TYPES = "get-tax-types"
+export const GET_TAX_TYPE = "get-tax-type"
+export const CREATE_TAX_TYPE = "create-tax-type"
+export const UPDATE_TAX_TYPE = "update-tax-type"
+export const DELETE_TAX_TYPE = "delete-tax-type"
