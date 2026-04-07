@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { format } from "date-fns"
-import { Briefcase, Calendar, DollarSign, Edit, Eye, Loader2, RefreshCw, Trash2, Users } from "lucide-react"
+import { Briefcase, Calendar, DollarSign, Edit, Eye, Trash2, Users } from "lucide-react"
 import { toast } from "sonner"
 import { useCreateTraining, useDeleteTraining, useGetTrainings, useUpdateTraining } from "@/services/hooks/trainings"
 import { LocalTraining, TrainingFormData, mapApiTrainingToLocal, transformFormToCreateTraining, transformFormToUpdateTraining } from "@/utils/training-converters"
@@ -337,15 +337,6 @@ export function TrainingListContent() {
     }
   }
 
-  const handleManualRefresh = async () => {
-    try {
-      await refetchTrainings()
-      toast.success("Training list refreshed")
-    } catch {
-      toast.error("Unable to refresh trainings")
-    }
-  }
-
   const columns = [
     {
       key: "title",
@@ -543,38 +534,14 @@ export function TrainingListContent() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    onClick={handleManualRefresh}
-                    disabled={isBusy}
-                    className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"
-                  >
-                    {isBusy ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4" />
-                    )}
-                    <span className="ml-2 hidden sm:inline">Refresh</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Reload training programs</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <Button
-              onClick={handleAdd}
-              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
-              disabled={isBusy}
-            >
-              <Briefcase className="h-4 w-4 mr-2" />
-              Add Training Program
-            </Button>
-          </div>
+          <Button
+            onClick={handleAdd}
+            className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+            disabled={isBusy}
+          >
+            <Briefcase className="h-4 w-4 mr-2" />
+            Add Training Program
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

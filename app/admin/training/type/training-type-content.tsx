@@ -5,8 +5,7 @@ import { CoreHRClientWrapper } from "@/app/admin/core-hr/components/core-hr-clie
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardDescription, CardTitle } from "@/components/ui/card"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Briefcase, Loader2, RefreshCw } from "lucide-react"
+import { Briefcase } from "lucide-react"
 import { useGetTrainingTypes } from "@/services/hooks/trainings"
 import { toast } from "sonner"
 
@@ -27,8 +26,31 @@ const trainingTypeColumns = [
   { key: "status", label: "Status", sortable: true },
 ]
 
+const trainingTypeSearchFields = [
+  { name: "name", label: "Training Type", type: "text" },
+  {
+    name: "status",
+    label: "Status",
+    type: "select",
+    options: [
+      { value: "active", label: "Active" },
+      { value: "inactive", label: "Inactive" },
+    ],
+  },
+  {
+    name: "category",
+    label: "Category",
+    type: "select",
+    options: [
+      { value: "Career Growth", label: "Career Growth" },
+      { value: "Skills Development", label: "Skills Development" },
+    ],
+  },
+  { name: "duration", label: "Duration", type: "text" },
+]
+
 export function TrainingTypeContent() {
-  const { data, isLoading, error, refetch } = useGetTrainingTypes()
+  const { data, error } = useGetTrainingTypes()
   const types = useMemo<TrainingTypeRow[]>(() => {
     const payload = data?.data ?? []
     return payload.map((item) => {
@@ -53,15 +75,6 @@ export function TrainingTypeContent() {
     [types],
   )
 
-  const handleRefresh = async () => {
-    try {
-      await refetch()
-      toast.success("Training types refreshed")
-    } catch {
-      toast.error("Unable to refresh training types")
-    }
-  }
-
   if (error) {
     toast.error("Unable to load training types")
   }
@@ -80,21 +93,6 @@ export function TrainingTypeContent() {
               </h1>
               <p className="text-gray-600 mt-1">Catalog of training categories and their usage.</p>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" onClick={handleRefresh} disabled={isLoading}>
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    <span className="ml-2 hidden sm:inline">Refresh</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Reload training types</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
           </div>
         </div>
 
@@ -133,7 +131,13 @@ export function TrainingTypeContent() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <DataTable title="Training Types" columns={trainingTypeColumns} data={types} searchFields={[]} itemsPerPage={10} />
+            <DataTable
+              title="Training Types"
+              columns={trainingTypeColumns}
+              data={types}
+              searchFields={trainingTypeSearchFields}
+              itemsPerPage={10}
+            />
           </CardContent>
         </Card>
       </div>

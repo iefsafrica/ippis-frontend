@@ -3,10 +3,8 @@
 import { useMemo } from "react"
 import { CoreHRClientWrapper } from "@/app/admin/core-hr/components/core-hr-client-wrapper"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardDescription, CardTitle } from "@/components/ui/card"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Briefcase, Loader2, RefreshCw } from "lucide-react"
+import { Briefcase } from "lucide-react"
 import { useGetTrainers } from "@/services/hooks/trainings"
 import { toast } from "sonner"
 
@@ -28,7 +26,7 @@ const trainerColumns = [
 ]
 
 export function TrainersContent() {
-  const { data, isLoading, error, refetch } = useGetTrainers()
+  const { data, error } = useGetTrainers()
   const trainers = useMemo<TrainerRow[]>(() => {
     const payload = data?.data ?? []
     return payload.map((trainer, index) => {
@@ -53,15 +51,6 @@ export function TrainersContent() {
     [trainers],
   )
 
-  const handleRefresh = async () => {
-    try {
-      await refetch()
-      toast.success("Trainers refreshed")
-    } catch {
-      toast.error("Unable to refresh trainers")
-    }
-  }
-
   if (error) {
     toast.error("Unable to load trainers")
   }
@@ -81,21 +70,7 @@ export function TrainersContent() {
               <p className="text-gray-600 mt-1">Facilitators assigned to training programs.</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" onClick={handleRefresh} disabled={isLoading}>
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    <span className="ml-2 hidden sm:inline">Refresh</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Reload trainers</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
+          <div />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
