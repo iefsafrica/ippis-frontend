@@ -648,11 +648,11 @@ export function AdminSidebar() {
       ],
       comingSoon: true,
     },
-    {
-      title: "Diagnostics",
-      href: "/admin/diagnostics",
-      icon: Database,
-    },
+    // {
+    //   title: "Diagnostics",
+    //   href: "/admin/diagnostics",
+    //   icon: Database,
+    // },
 
     {
       title: "Settings",
