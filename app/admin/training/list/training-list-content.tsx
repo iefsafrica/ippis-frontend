@@ -108,18 +108,6 @@ const trainingTabFields: Record<TrainingTab, FormField[]> = {
       ],
       required: true,
     },
-    {
-      name: "email",
-      label: "Contact Email",
-      type: "email",
-      placeholder: "Enter contact email",
-    },
-    {
-      name: "phone",
-      label: "Contact Phone",
-      type: "text",
-      placeholder: "Enter contact phone",
-    },
   ],
   schedule: [
     {
@@ -258,8 +246,6 @@ export function TrainingListContent() {
       startDate: training.startDate,
       participants: training.participants,
       cost: training.cost,
-      email: training.email,
-      phone: training.phone,
     })
     setActiveEditTab("basic")
     setAddEditDialogOpen(true)
