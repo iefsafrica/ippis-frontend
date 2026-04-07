@@ -72,15 +72,11 @@ const sanitizeInterviewPayload = (values: Record<string, any>): RecruitmentInter
     interview_datetime: interviewDateTime,
     interview_type: values.interview_type,
     interviewers: values.interviewers,
-    location: values.location,
-    meeting_link: values.meeting_link,
     status: values.status,
     round:
       values.round !== undefined && values.round !== ""
         ? String(values.round)
         : undefined,
-    notes: values.notes,
-    feedback: values.feedback,
   }
 
   Object.keys(payload).forEach((key) => {
@@ -140,18 +136,6 @@ const interviewFields = (candidateOptions: Array<{ value: string; label: string 
     required: true,
   },
   {
-    name: "location",
-    label: "Location",
-    type: "text",
-    placeholder: "Office or virtual link",
-  },
-  {
-    name: "meeting_link",
-    label: "Meeting Link",
-    type: "text",
-    placeholder: "https://...",
-  },
-  {
     name: "status",
     label: "Status",
     type: "select",
@@ -164,18 +148,6 @@ const interviewFields = (candidateOptions: Array<{ value: string; label: string 
     type: "number",
     min: 1,
     max: 10,
-  },
-  {
-    name: "notes",
-    label: "Notes",
-    type: "textarea",
-    placeholder: "Additional context",
-  },
-  {
-    name: "feedback",
-    label: "Feedback",
-    type: "textarea",
-    placeholder: "Add feedback summary",
   },
 ]
 
@@ -355,18 +327,42 @@ export function JobInterviewContent() {
 
   const editInitialValues = useMemo(() => {
     if (!interviewToEdit) return undefined
+
     const interviewDate = interviewToEdit.interview_datetime
       ? format(new Date(interviewToEdit.interview_datetime), "yyyy-MM-dd")
       : undefined
     const interviewTime = interviewToEdit.interview_datetime
       ? format(new Date(interviewToEdit.interview_datetime), "HH:mm")
       : undefined
+
+    const candidateLabel =
+      interviewToEdit.candidate_name ??
+      candidateMap.get(interviewToEdit.candidate_id ?? "")?.candidate_name
+    const candidateLabelNormalized = candidateLabel?.trim().toLowerCase()
+    const candidateOption = candidateOptions.find(
+      (option) => option.label.trim().toLowerCase() === candidateLabelNormalized,
+    )
+    const jobLabel = interviewToEdit.job_title?.trim().toLowerCase()
+    const jobOption = jobOptions.find((option) => {
+      const label = option.label.split("(")[0].trim().toLowerCase()
+      return jobLabel ? label === jobLabel : false
+    })
+    const candidateIdFromMap = Array.from(candidateMap.entries()).find(
+      ([, value]) => value.candidate_name.trim().toLowerCase() === candidateLabelNormalized,
+    )?.[0]
+    const jobIdFromMap = Array.from(jobMap.entries()).find(
+      ([, value]) => value.job_title?.trim().toLowerCase() === jobLabel,
+    )?.[0]
+
     return {
       ...interviewToEdit,
+      candidate_id:
+        interviewToEdit.candidate_id ?? candidateOption?.value ?? candidateIdFromMap,
+      job_id: interviewToEdit.job_id ?? jobOption?.value ?? jobIdFromMap,
       interview_date: interviewDate,
       interview_time: interviewTime,
     }
-  }, [interviewToEdit])
+  }, [interviewToEdit, candidateOptions, jobOptions, candidateMap, jobMap])
 
   const feedbackInitialValues = useMemo(() => {
     if (!feedbackInterview) return undefined

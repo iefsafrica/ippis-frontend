@@ -125,19 +125,6 @@ const cmsFormFields: FormField[] = [
     required: true,
   },
   {
-    name: "slug",
-    label: "URL Slug",
-    type: "text",
-    placeholder: "career-path-software-engineer",
-    required: true,
-  },
-  {
-    name: "featuredImage",
-    label: "Featured Image",
-    type: "text",
-    placeholder: "https://example.com/image.png",
-  },
-  {
     name: "content",
     label: "Content Body",
     type: "textarea",
@@ -151,33 +138,6 @@ const cmsFormFields: FormField[] = [
     placeholder: "Author name",
     required: true,
   },
-  {
-    name: "views",
-    label: "Views",
-    type: "number",
-    min: 0,
-  },
-  {
-    name: "seoTitle",
-    label: "SEO Title",
-    type: "text",
-    placeholder: "SEO friendly title",
-    required: true,
-  },
-  {
-    name: "seoDescription",
-    label: "SEO Description",
-    type: "textarea",
-    placeholder: "SEO description",
-    required: true,
-  },
-  {
-    name: "tags",
-    label: "Tags",
-    type: "text",
-    placeholder: "tag1, tag2",
-    description: "Comma separated tags",
-  },
 ]
 
 const buildCmsPayload = (values: Record<string, any>): RecruitmentCmsPayload => {
@@ -186,19 +146,7 @@ const buildCmsPayload = (values: Record<string, any>): RecruitmentCmsPayload => 
     type: values.type,
     content: values.content,
     status: values.status, // This will now be "Draft", "Published", or "Archived"
-    slug: values.slug,
     author: values.author,
-    views: values.views !== undefined && values.views !== "" ? Number(values.views) : undefined,
-    featured_image: values.featuredImage,
-    seo_title: values.seoTitle,
-    seo_description: values.seoDescription,
-    tags:
-      typeof values.tags === "string"
-        ? values.tags
-            .split(",")
-            .map((tag) => tag.trim())
-            .filter(Boolean)
-        : values.tags,
   }
 
   Object.keys(payload).forEach((key) => {
@@ -320,7 +268,6 @@ export function RecruitmentCMSContent() {
         options: CMS_STATUS_OPTIONS,
       },
       { name: "author", label: "Author", type: "text" },
-      { name: "slug", label: "Slug", type: "text" },
     ],
     [],
   )
@@ -396,14 +343,8 @@ export function RecruitmentCMSContent() {
       title: contentToEdit.title,
       type: contentToEdit.type,
       status: contentToEdit.status, // This will now be "Draft", "Published", or "Archived"
-      slug: contentToEdit.slug,
-      featuredImage: contentToEdit.featured_image,
       content: contentToEdit.content,
       author: contentToEdit.author,
-      views: contentToEdit.views,
-      seoTitle: contentToEdit.seo_title,
-      seoDescription: contentToEdit.seo_description,
-      tags: (contentToEdit.tags ?? []).join(", "),
     }
   }, [contentToEdit])
 
