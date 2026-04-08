@@ -42,6 +42,7 @@ import type { Project } from "@/types/projects"
 import type { Invoice } from "@/types/invoices"
 import { format } from "date-fns"
 import { toast } from "sonner"
+import { saveAs } from "file-saver"
 import { Eye, Edit, Trash2, RefreshCw } from "lucide-react"
 
 const statusBadgeClass = (status?: string) => {
@@ -51,6 +52,7 @@ const statusBadgeClass = (status?: string) => {
   if (normalized === "draft") return "bg-blue-100 text-blue-700"
   return "bg-gray-100 text-gray-700"
 }
+
 
 const columns = (
   handleView: (invoice: Invoice) => void,
@@ -153,6 +155,28 @@ const formatCurrency = (value: number | string) => {
   }).format(numeric)
 }
 
+const TAX_RATE = 0.1
+
+const parseBudgetValue = (value?: string | number | null): number | null => {
+  if (typeof value === "number") return value
+  if (!value) return null
+  const cleaned = value.toString().replace(/[^0-9.]/g, "")
+  const numeric = Number(cleaned)
+  return Number.isFinite(numeric) ? numeric : null
+}
+
+const parseInputNumber = (value?: string | number): number => {
+  if (typeof value === "number") return value
+  if (!value) return 0
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : 0
+}
+
+const getInvoiceAmount = (value?: number | string): number => {
+  const numeric = typeof value === "number" ? value : Number(value ?? 0)
+  return Number.isFinite(numeric) ? numeric : 0
+}
+
 const todayString = () => new Date().toISOString().split("T")[0]
 
 export default function InvoiceContent() {
@@ -216,9 +240,313 @@ export default function InvoiceContent() {
     return map
   }, [projects])
 
+  const getProjectById = (projectId?: string | number | null) => {
+    const candidate = typeof projectId === "string" ? Number(projectId) : projectId
+    if (!Number.isFinite(candidate ?? NaN)) {
+      return null
+    }
+    return projectLookup.get(candidate ?? -1) ?? null
+  }
+
+  const selectedNewProject = getProjectById(newInvoice.project_id)
+  const selectedEditProject = getProjectById(editProjectId)
+
+  const newInvoiceAmountValue = parseInputNumber(newInvoice.total)
+  const newProjectBudgetValue = parseBudgetValue(selectedNewProject?.budget)
+  const newBudgetRemaining =
+    newProjectBudgetValue !== null ? Math.max(0, newProjectBudgetValue - newInvoiceAmountValue) : null
+  const isNewInvoiceOverBudget =
+    newProjectBudgetValue !== null && newInvoiceAmountValue > newProjectBudgetValue
+
+  const editInvoiceAmountValue = parseInputNumber(editTotal)
+  const editProjectBudgetValue = parseBudgetValue(selectedEditProject?.budget)
+  const editBudgetRemaining =
+    editProjectBudgetValue !== null ? Math.max(0, editProjectBudgetValue - editInvoiceAmountValue) : null
+  const isEditInvoiceOverBudget =
+    editProjectBudgetValue !== null && editInvoiceAmountValue > editProjectBudgetValue
+
   const resolveClientName = (clientId?: number) => clientLookup.get(clientId ?? -1)?.name ?? "Unknown"
   const resolveProjectName = (projectId?: number) =>
     projectLookup.get(projectId ?? -1)?.name ?? "Unknown"
+
+  const handleDownload = (invoice: Invoice) => {
+    const client = clientLookup.get(invoice.client_id)
+    const project = projectLookup.get(invoice.project_id)
+    const amount = getInvoiceAmount(invoice.total)
+    const subtotal = Number((amount / (1 + TAX_RATE)).toFixed(2))
+    const taxAmount = Number((amount - subtotal).toFixed(2))
+    const invoiceNumber = invoice.invoice_number ?? `${invoice.id}`
+    const formattedIssueDate = invoice.issue_date
+      ? format(new Date(invoice.issue_date), "dd MMMM yyyy")
+      : "—"
+    const formattedDueDate = invoice.due_date
+      ? format(new Date(invoice.due_date), "dd MMMM yyyy")
+      : "—"
+    const projectBudgetValue = project ? parseBudgetValue(project.budget) : null
+    const projectBudgetLabel =
+      projectBudgetValue !== null ? formatCurrency(projectBudgetValue) : "Not set"
+    const projectPeriod = project
+      ? `${project.start_date ? format(new Date(project.start_date), "dd MMMM yyyy") : "—"} - ${
+          project.end_date ? format(new Date(project.end_date), "dd MMMM yyyy") : "—"
+        }`
+      : "—"
+
+    const statusLabel = invoice.status ?? "Unknown"
+    const html = `
+      <!DOCTYPE html>
+      <html>
+
+      <head>
+        <meta charset="utf-8" />
+        <title>Invoice ${invoiceNumber}</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+        <style>
+          body {
+            margin: 0;
+            font-family: "Inter", system-ui, sans-serif;
+            background: #0f172a;
+          }
+          .page {
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 2.75rem;
+            background: #ffffff;
+            border-radius: 20px;
+            border: 1px solid #d1d5db;
+            box-shadow: 0 40px 70px rgba(15, 23, 42, 0.08);
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 2.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 1.25rem;
+          }
+          .logo-block {
+            display: flex;
+            gap: 1.25rem;
+            align-items: center;
+          }
+          .logo {
+            width: 56px;
+            height: 56px;
+            border-radius: 18px;
+            background: radial-gradient(circle, #111827, #0f172a);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.4em;
+            color: #f8fafc;
+          }
+          .title-block {
+            text-align: right;
+          }
+          .invoice-label {
+            font-size: 36px;
+            font-family: "Playfair Display", serif;
+            margin: 0;
+            color: #111827;
+          }
+          .invoice-number {
+            margin: 0.25rem 0;
+            font-size: 12px;
+            letter-spacing: 0.45em;
+            text-transform: uppercase;
+            color: #6b7280;
+          }
+          .meta-line {
+            margin: 0;
+            font-size: 12px;
+            color: #6b7280;
+          }
+          .status-pill {
+            display: inline-flex;
+            margin-top: 0.8rem;
+            padding: 0.4rem 1.3rem;
+            border-radius: 999px;
+            border: 1px solid #bbf7d0;
+            color: #0f5132;
+            font-size: 11px;
+            letter-spacing: 0.45em;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, #ecfdf5, #bbf7d0);
+          }
+          .section {
+            margin-top: 2.5rem;
+          }
+          .section-label {
+            margin-bottom: 0.35rem;
+            font-size: 11px;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            color: #94a3b8;
+          }
+          .details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+          }
+          .details strong {
+            font-size: 18px;
+            color: #111827;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1.75rem;
+            font-size: 14px;
+            color: #374151;
+          }
+          thead th {
+            background: #111827;
+            color: #f8fafc;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.4em;
+            padding: 0.9rem 1rem;
+          }
+          tbody td {
+            padding: 0.9rem 1rem;
+            border-bottom: 1px solid #e5e7eb;
+          }
+          .totals {
+            margin-top: 1.5rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 2.5rem;
+            font-size: 13px;
+            color: #4b5563;
+          }
+          .totals strong {
+            display: block;
+            font-size: 20px;
+            color: #0f5132;
+          }
+          .totals span {
+            font-size: 11px;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+          }
+          .payment {
+            margin-top: 2rem;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1.25rem;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 1.25rem;
+          }
+          .thanks {
+            font-family: "Playfair Display", serif;
+            font-size: 30px;
+            color: #0f172a;
+            margin: 0;
+          }
+          .footer {
+            margin-top: 1.5rem;
+            font-size: 12px;
+            color: #94a3b8;
+          }
+        </style>
+      </head>
+
+      <body>
+        <div class="page">
+          <div class="header">
+            <div class="logo-block">
+              <div class="logo">JS</div>
+              <div>
+                <p class="section-label">Billed to</p>
+                <strong>${client?.name ?? "—"}</strong>
+                <p>${client?.contact_person ?? "—"}</p>
+                <p>${client?.email ?? "—"}</p>
+              </div>
+            </div>
+            <div class="title-block">
+              <p class="invoice-label">Invoice</p>
+              <p class="invoice-number">#${invoiceNumber}</p>
+              <p class="meta-line">Issue Date: ${formattedIssueDate}</p>
+              <p class="meta-line">Due Date: ${formattedDueDate}</p>
+              <div class="status-pill">${statusLabel}</div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="details">
+              <div>
+                <p class="section-label">Project</p>
+                <strong>${project?.name ?? "—"}</strong>
+                <p>Budget: ${projectBudgetLabel}</p>
+                <p>Manager: ${project?.manager_id ?? "TBD"}</p>
+                <p>Period: ${projectPeriod}</p>
+              </div>
+              <div>
+                <p class="section-label">Project code</p>
+                <strong>${project?.project_code ?? "—"}</strong>
+              </div>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th>Qty</th>
+                <th>Unit</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${project?.name ?? "Project Services"}</td>
+                <td>1</td>
+                <td>${formatCurrency(amount)}</td>
+                <td>${formatCurrency(amount)}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="totals">
+            <div>
+              <span>Subtotal</span>
+              <strong>${formatCurrency(subtotal)}</strong>
+            </div>
+            <div>
+              <span>Tax (10%)</span>
+              <strong>${formatCurrency(taxAmount)}</strong>
+            </div>
+            <div>
+              <span>Total</span>
+              <strong>${formatCurrency(amount)}</strong>
+            </div>
+          </div>
+          <div class="payment">
+            <div>
+              <p class="section-label">Payment info</p>
+              <p>Fausat Bank</p>
+              <p>Account Name: Juliana Silva</p>
+              <p>Account No: 123 456 7890</p>
+              <p>Pay by: 10 July 2025</p>
+            </div>
+            <div class="text-right">
+              <p class="thanks">Thank You!</p>
+              <p class="text-sm text-slate-600">Juliana Silva</p>
+              <p class="text-sm text-slate-500">Lead Consultant</p>
+            </div>
+          </div>
+          <div class="footer">
+            <p>Tax (10%) included.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" })
+    saveAs(blob, `invoice-${invoiceNumber}.html`)
+  }
 
   const handleView = (invoice: Invoice) => {
     setViewInvoice(invoice)
@@ -258,6 +586,14 @@ export default function InvoiceContent() {
       toast.error("Client, project, and amount are required")
       return
     }
+    if (isNewInvoiceOverBudget && newProjectBudgetValue !== null) {
+      toast.error(
+        `Invoice total ${formatCurrency(newInvoiceAmountValue)} exceeds project budget ${formatCurrency(
+          newProjectBudgetValue,
+        )}`,
+      )
+      return
+    }
     try {
       await createInvoice.mutateAsync({
         client_id: Number(newInvoice.client_id),
@@ -278,6 +614,14 @@ export default function InvoiceContent() {
   const handleUpdateSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!editInvoice) return
+    if (isEditInvoiceOverBudget && editProjectBudgetValue !== null) {
+      toast.error(
+        `Updated amount ${formatCurrency(editInvoiceAmountValue)} exceeds project budget ${formatCurrency(
+          editProjectBudgetValue,
+        )}`,
+      )
+      return
+    }
     try {
       await updateInvoice.mutateAsync({
         id: editInvoice.id,
@@ -311,6 +655,22 @@ export default function InvoiceContent() {
       setDeleteInvoiceCandidate(null)
     }
   }
+
+  const viewClient = viewInvoice ? clientLookup.get(viewInvoice.client_id) : null
+  const viewProject = viewInvoice ? projectLookup.get(viewInvoice.project_id) : null
+  const viewInvoiceAmount = viewInvoice ? getInvoiceAmount(viewInvoice.total) : 0
+  const viewSubtotal = viewInvoice ? Number((viewInvoiceAmount / (1 + TAX_RATE)).toFixed(2)) : 0
+  const viewTax = viewInvoice ? Number((viewInvoiceAmount - viewSubtotal).toFixed(2)) : 0
+  const viewProjectBudgetValue = viewProject ? parseBudgetValue(viewProject.budget) : null
+  const viewProjectBudgetLabel =
+    viewProjectBudgetValue !== null ? formatCurrency(viewProjectBudgetValue) : "Not set"
+  const viewProjectPeriod = viewProject
+    ? `${viewProject.start_date ? format(new Date(viewProject.start_date), "PPP") : "—"} - ${
+        viewProject.end_date ? format(new Date(viewProject.end_date), "PPP") : "—"
+      }`
+    : "—"
+  const issueDateLabel = viewInvoice?.issue_date ? format(new Date(viewInvoice.issue_date), "PPP") : "—"
+  const dueDateLabel = viewInvoice?.due_date ? format(new Date(viewInvoice.due_date), "PPP") : "—"
 
   return (
     <div className="space-y-6">
@@ -468,12 +828,27 @@ export default function InvoiceContent() {
                 onChange={(event) => setNewInvoice({ ...newInvoice, total: event.target.value })}
                 required
               />
+                  {selectedNewProject && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      {newProjectBudgetValue !== null
+                        ? `Project budget ${formatCurrency(newProjectBudgetValue)} \u00B7 Remaining ${formatCurrency(
+                            newBudgetRemaining ?? 0,
+                          )}`
+                        : "Project budget not configured yet"}
+                    </p>
+                  )}
+              {isNewInvoiceOverBudget && newProjectBudgetValue !== null && (
+                <p className="mt-2 text-xs text-rose-600">
+                  This invoice exceeds the budget by{" "}
+                  {formatCurrency(newInvoiceAmountValue - newProjectBudgetValue)}
+                </p>
+              )}
             </div>
             <DialogFooter className="pt-4">
               <Button variant="outline" onClick={() => setIsAddOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={createInvoice.isPending}>
+              <Button type="submit" disabled={createInvoice.isPending || isNewInvoiceOverBudget}>
                 Create
               </Button>
             </DialogFooter>
@@ -482,33 +857,102 @@ export default function InvoiceContent() {
       </Dialog>
 
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Invoice Details</DialogTitle>
-          </DialogHeader>
-          {viewInvoice && (
-            <div className="space-y-3">
-              {[
-                { label: "Invoice #", value: viewInvoice.invoice_number },
-                { label: "Client", value: resolveClientName(viewInvoice.client_id) },
-                { label: "Project", value: resolveProjectName(viewInvoice.project_id) },
-                { label: "Issue Date", value: format(new Date(viewInvoice.issue_date), "PPP") },
-                { label: "Due Date", value: format(new Date(viewInvoice.due_date), "PPP") },
-                { label: "Status", value: viewInvoice.status },
-                { label: "Total", value: formatCurrency(viewInvoice.total) },
-                { label: "Created", value: format(new Date(viewInvoice.created_at), "PPP p") },
-                { label: "Updated", value: format(new Date(viewInvoice.updated_at), "PPP p") },
-              ].map((field) => (
-                <div key={field.label} className="rounded-xl border border-gray-200 bg-white p-3">
-                  <p className="text-xs text-gray-500">{field.label}</p>
-                  <p className="text-sm font-semibold text-gray-900">{field.value ?? "—"}</p>
+      <DialogContent className="max-w-2xl" data-hide-close>
+        <DialogHeader>
+          <DialogTitle>Invoice Details</DialogTitle>
+          <p className="text-sm text-gray-500">Professional summary of the selected invoice</p>
+        </DialogHeader>
+        {viewInvoice && (
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-4 border-b border-gray-200 pb-5 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-gray-700">Invoice #{viewInvoice.invoice_number ?? viewInvoice.id}</p>
+                  <p className="text-xs text-gray-500">Issued {issueDateLabel}</p>
                 </div>
-              ))}
+                <div className="text-sm text-gray-600">
+                  <p>Due {dueDateLabel}</p>
+                  <p className="mt-1 inline-flex items-center rounded-full border border-emerald-200 bg-gradient-to-r from-emerald-50/70 to-white px-3 py-1 text-xs font-semibold text-emerald-700">
+                    {viewInvoice.status ?? "Unknown"}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 grid gap-6 md:grid-cols-2">
+                <div className="space-y-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gray-400">Billed to</p>
+                  <p className="text-lg font-semibold text-gray-900">{viewClient?.name ?? "—"}</p>
+                  <p className="text-sm text-gray-600">{viewClient?.contact_person ?? "—"}</p>
+                  <p className="text-sm text-gray-500">{viewClient?.phone ?? "—"}</p>
+                  <p className="text-sm text-gray-500">{viewClient?.email ?? "—"}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gray-400">Project</p>
+                  <p className="text-lg font-semibold text-gray-900">{viewProject?.name ?? "—"}</p>
+                  <p className="text-sm text-gray-500">Budget {viewProjectBudgetLabel}</p>
+                  <p className="text-sm text-gray-500">Manager {viewProject?.manager_id ?? "TBD"}</p>
+                  <p className="text-sm text-gray-500">Period {viewProjectPeriod}</p>
+                </div>
+              </div>
+              <div className="mt-6 overflow-hidden rounded-xl border border-gray-200">
+                <div className="grid grid-cols-4 gap-2 bg-gray-50 px-4 py-3 text-[10px] uppercase tracking-[0.3em] text-gray-500">
+                  <span>Description</span>
+                  <span className="text-right">Qty</span>
+                  <span className="text-right">Price</span>
+                  <span className="text-right">Total</span>
+                </div>
+                <div className="grid grid-cols-4 gap-2 border-t border-gray-200 px-4 py-4 text-sm text-gray-700">
+                  <span className="font-medium text-gray-900">{viewProject?.name ?? "Project Services"}</span>
+                  <span className="text-right">1</span>
+                  <span className="text-right">{formatCurrency(viewInvoiceAmount)}</span>
+                  <span className="text-right">{formatCurrency(viewInvoiceAmount)}</span>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-col gap-3 border-t border-gray-200 pt-4 md:flex-row md:justify-between">
+                <div className="space-y-0.5">
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-gray-500">Subtotal</p>
+                  <p className="text-sm font-semibold text-gray-900">{formatCurrency(viewSubtotal)}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-gray-500">Tax (10%)</p>
+                  <p className="text-sm font-semibold text-gray-900">{formatCurrency(viewTax)}</p>
+                </div>
+                <div className="space-y-0.5 text-right">
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-gray-500">Total due</p>
+                  <p className="text-3xl font-semibold text-emerald-900">{formatCurrency(viewInvoiceAmount)}</p>
+                </div>
+              </div>
+              <div className="mt-6 grid gap-4 border-t border-gray-200 pt-4 md:grid-cols-2">
+                <div className="space-y-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gray-400">Payment info</p>
+                  <p className="text-sm text-gray-600">Fausat Bank</p>
+                  <p className="text-sm text-gray-600">Account Name: Juliana Silva</p>
+                  <p className="text-sm text-gray-600">Account No: 123 456 7890</p>
+                  <p className="text-sm text-gray-600">Due by 10 July 2025</p>
+                </div>
+                <div className="space-y-1 text-right text-sm text-gray-500">
+                  <p className="text-lg font-semibold text-gray-900 italics">Thank you for working with us</p>
+                  <p>Juliana Silva</p>
+                  <p>Lead Consultant</p>
+                </div>
+              </div>
             </div>
-          )}
-          <DialogFooter className="pt-4">
+          </div>
+        )}
+          <DialogFooter className="pt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
             <Button variant="outline" onClick={() => setIsViewOpen(false)}>
               Close
+            </Button>
+            <Button
+              variant="secondary"
+              className="bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-500 border-emerald-600"
+              onClick={() => {
+                if (viewInvoice) {
+                  handleDownload(viewInvoice)
+                }
+              }}
+              disabled={!viewInvoice}
+            >
+              Download PDF
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -593,12 +1037,27 @@ export default function InvoiceContent() {
                 onChange={(event) => setEditTotal(event.target.value)}
                 required
               />
+              {selectedEditProject && (
+                <p className="mt-1 text-xs text-gray-500">
+                  {editProjectBudgetValue !== null
+                    ? `Project budget ${formatCurrency(editProjectBudgetValue)} \u00B7 Remaining ${formatCurrency(
+                        editBudgetRemaining ?? 0,
+                      )}`
+                    : "Project budget not configured yet"}
+                </p>
+              )}
+              {isEditInvoiceOverBudget && editProjectBudgetValue !== null && (
+                <p className="mt-2 text-xs text-rose-600">
+                  This invoice exceeds the budget by{" "}
+                  {formatCurrency(editInvoiceAmountValue - editProjectBudgetValue)}
+                </p>
+              )}
             </div>
             <DialogFooter className="pt-4">
               <Button variant="outline" onClick={() => setIsEditOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={updateInvoice.isPending}>
+              <Button type="submit" disabled={updateInvoice.isPending || isEditInvoiceOverBudget}>
                 Save
               </Button>
             </DialogFooter>

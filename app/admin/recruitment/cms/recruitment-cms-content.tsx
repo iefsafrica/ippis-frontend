@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
-import { Eye, Edit, Trash2, Calendar, Clock, Users, FileText, ClipboardList, X, Loader2, User, Tag, EyeIcon, Hash } from "lucide-react"
+import { Eye, Edit, Trash2, Calendar, Clock, Users, FileText, ClipboardList, X, Loader2, User, Hash } from "lucide-react"
 
 import {
   useCreateRecruitmentCms,
@@ -350,13 +350,12 @@ export function RecruitmentCMSContent() {
 
   const cmsColumns = useMemo(
     () => [
-      { 
-        key: "title", 
+      {
+        key: "title",
         label: "Title",
-        render: (value: string, row: any) => (
+        render: (value: string) => (
           <div>
             <div className="font-medium">{value}</div>
-            <div className="text-xs text-gray-500">{row.slug}</div>
           </div>
         ),
       },
@@ -595,20 +594,12 @@ export function RecruitmentCMSContent() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <Tag className="h-4 w-4 text-gray-500" />
-                            <span className="text-xs text-gray-500 font-medium">Slug</span>
-                          </div>
-                          <p className="text-sm font-medium text-gray-900 font-mono">{selectedContent.slug}</p>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
                             <User className="h-4 w-4 text-gray-500" />
                             <span className="text-xs text-gray-500 font-medium">Author</span>
                           </div>
                           <p className="text-sm font-medium text-gray-900">{selectedContent.author}</p>
                         </div>
                       </div>
-
                       <div className="space-y-4">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
@@ -639,35 +630,12 @@ export function RecruitmentCMSContent() {
                         </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-
-                {/* SEO Information */}
-                {(selectedContent.seo_title || selectedContent.seo_description) && (
-                  <div className="pt-6 border-t border-gray-200">
-                    <h3 className="text-sm font-medium text-gray-900 uppercase tracking-wide mb-4">SEO Information</h3>
-                    <div className="space-y-4">
-                      {selectedContent.seo_title && (
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <EyeIcon className="h-4 w-4 text-gray-500" />
-                            <span className="text-xs text-gray-500 font-medium">SEO Title</span>
-                          </div>
-                          <p className="text-sm text-gray-900">{selectedContent.seo_title}</p>
-                        </div>
-                      )}
-                      {selectedContent.seo_description && (
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <FileText className="h-4 w-4 text-gray-500" />
-                            <span className="text-xs text-gray-500 font-medium">SEO Description</span>
-                          </div>
-                          <p className="text-sm text-gray-600 leading-relaxed">{selectedContent.seo_description}</p>
-                        </div>
-                      )}
+                    <div className="flex gap-2 mt-4">
+                      {renderCmsStatusBadge(selectedContent.status)}
+                      {renderCmsTypeBadge(selectedContent.type)}
                     </div>
                   </div>
-                )}
+                </div>
 
                 {/* Content Body */}
                 {selectedContent.content && (
@@ -675,20 +643,6 @@ export function RecruitmentCMSContent() {
                     <h3 className="text-sm font-medium text-gray-900 uppercase tracking-wide mb-4">Content</h3>
                     <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                       <p className="text-sm text-gray-600 whitespace-pre-wrap">{selectedContent.content}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Tags */}
-                {selectedContent.tags && selectedContent.tags.length > 0 && (
-                  <div className="pt-6 border-t border-gray-200">
-                    <h3 className="text-sm font-medium text-gray-900 uppercase tracking-wide mb-4">Tags</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedContent.tags.map((tag) => (
-                        <Badge key={tag} variant="outline" className="bg-gray-100">
-                          {tag}
-                        </Badge>
-                      ))}
                     </div>
                   </div>
                 )}
