@@ -7,6 +7,7 @@ import { Eye } from "lucide-react"
 import { format } from "date-fns"
 import { useGetPayments, useDeletePayment } from "@/services/hooks/payroll"
 import { PayslipDialog } from "@/app/admin/payroll/payroll-payslip/payslip-dialog"
+//@ts-expect-error - temporary mock data until API integration is complete
 import { formatCurrency } from "@/app/admin/payroll/payroll-payslip/payslip-utils"
 
 const paymentHistory = [

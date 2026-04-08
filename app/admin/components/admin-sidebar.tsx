@@ -48,77 +48,54 @@ import { useMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
 
 export function AdminSidebar() {
-  // ...existing code...
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  // Remove all: employeeList, coreHROpen, performanceOpen, etc.
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { isMobile } = useMobile();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [employeeList, setEmployeeList] = useState(false);
-  const [coreHROpen, setCoreHROpen] = useState(false);
-  const [performanceOpen, setPerformanceOpen] = useState(false);
-  const [timesheetsOpen, setTimesheetsOpen] = useState(false);
-  const [hrReportsOpen, setHrReportsOpen] = useState(false);
-  const [recruitmentOpen, setRecruitmentOpen] = useState(false);
-  const [trainingOpen, setTrainingOpen] = useState(false);
-  const [eventsMeetingsOpen, setEventsMeetingsOpen] = useState(false);
-  const [projectManagementOpen, setProjectManagementOpen] = useState(false);
-  const [payrollOpen, setPayrollOpen] = useState(false);
-  const [financeOpen, setFinanceOpen] = useState(false);
-  const [assetsOpen, setAssetsOpen] = useState(false);
+  const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({});
   const [activeSection, setActiveSection] = useState("");
-  const [fileManagerOpen, setFileManagerOpen] = useState(false);
-  const [supportTicketsOpen, setSupportTicketsOpen] = useState(false);
 
-  // Update active section based on pathname
+  const getSectionFromPath = (path?: string) => {
+    if (!path) return null;
+    if (path.startsWith("/admin/employees")) return "employee-list";
+    if (path.startsWith("/admin/core-hr")) return "core-hr";
+    if (path.startsWith("/admin/performance")) return "performance";
+    if (path.startsWith("/admin/timesheets")) return "timesheets";
+    if (path.startsWith("/admin/hr-reports")) return "hr-reports";
+    if (path.startsWith("/admin/recruitment")) return "recruitment";
+    if (path.startsWith("/admin/training")) return "training";
+    if (path.startsWith("/admin/events-meetings")) return "event-meetings";
+    if (path.startsWith("/admin/project-management")) return "project-managment";
+    if (path.startsWith("/admin/payroll")) return "payroll";
+    if (path.startsWith("/admin/finance")) return "finance";
+    if (path.startsWith("/admin/assets")) return "assets";
+    if (path.startsWith("/admin/file-manager")) return "file-manager";
+    if (path.startsWith("/admin/support-tickets")) return "support-tickets";
+    if (path.startsWith("/admin/organization")) return "organization";
+    return null;
+  };
+
+  const toggleDropdown = (section: string) => {
+    setOpenDropdowns((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
+  const isDropdownOpen = (section?: string) => !!(section && openDropdowns[section]);
+
   useEffect(() => {
-    if (pathname?.startsWith("/admin/employees")) {
-      setEmployeeList(true);
-      setActiveSection("employee-list");
-    } else if (pathname?.startsWith("/admin/core-hr")) {
-      setCoreHROpen(true);
-      setActiveSection("core-hr");
-    } else if (pathname?.startsWith("/admin/performance")) {
-      setPerformanceOpen(true);
-      setActiveSection("performance");
-    } else if (pathname?.startsWith("/admin/timesheets")) {
-      setTimesheetsOpen(true);
-      setActiveSection("timesheets");
-    } else if (pathname?.startsWith("/admin/hr-reports")) {
-      setHrReportsOpen(true);
-      setActiveSection("hr-reports");
-    } else if (pathname?.startsWith("/admin/recruitment")) {
-      setRecruitmentOpen(true);
-      setActiveSection("recruitment");
-    } else if (pathname?.startsWith("/admin/training")) {
-      setTrainingOpen(true);
-      setActiveSection("training");
-    } else if (pathname?.startsWith("/admin/events-meetings")) {
-      setEventsMeetingsOpen(true);
-      setActiveSection("events-meetings");
-    } else if (pathname?.startsWith("/admin/project-management")) {
-      setProjectManagementOpen(true);
-      setActiveSection("project-management");
-    } else if (pathname?.startsWith("/admin/payroll")) {
-      setPayrollOpen(true);
-      setActiveSection("payroll");
-    } else if (pathname?.startsWith("/admin/finance")) {
-      setFinanceOpen(true);
-      setActiveSection("finance");
-    } else if (pathname?.startsWith("/admin/assets")) {
-      setAssetsOpen(true);
-      setActiveSection("assets");
-    } else if (pathname?.startsWith("/admin/file-manager")) {
-      setFileManagerOpen(true);
-      setActiveSection("file-manager");
-    } else if (pathname?.startsWith("/admin/support-tickets")) {
-      setSupportTicketsOpen(true);
-      setActiveSection("support-tickets");
-    } else if (pathname?.startsWith("/admin/organization")) {
-      setActiveSection("organization");
-    } else {
-      setActiveSection("");
+    const section = getSectionFromPath(pathname);
+    setActiveSection(section ?? "");
+    if (section) {
+      setOpenDropdowns((prev) =>
+        prev[section]
+          ? prev
+          : {
+              ...prev,
+              [section]: true,
+            }
+      );
     }
   }, [pathname]);
 
@@ -166,12 +143,9 @@ export function AdminSidebar() {
       icon: Users,
       isDropdown: true,
       toggleOnly: true,
-      isOpen: openDropdown === "employee-list", // for Employees List
+      isOpen: isDropdownOpen("employee-list"), // for Employees List
       section: "employee-list",
-      toggle: () =>
-        setOpenDropdown(
-          openDropdown === "employee-list" ? null : "employee-list"
-        ),
+      toggle: () => toggleDropdown("employee-list"),
       subItems: [
         {
           title: "Employee",
@@ -191,10 +165,9 @@ export function AdminSidebar() {
       title: "Core HR",
       icon: Users,
       isDropdown: true,
-      isOpen: openDropdown === "core-hr",
+      isOpen: isDropdownOpen("core-hr"),
       section: "core-hr",
-      toggle: () =>
-        setOpenDropdown(openDropdown === "core-hr" ? null : "core-hr"),
+      toggle: () => toggleDropdown("core-hr"),
       subItems: [
         {
           title: "Promotions",
@@ -235,10 +208,9 @@ export function AdminSidebar() {
       icon: TrendingUp,
       isDropdown: true,
       toggleOnly: true,
-      isOpen: openDropdown === "performance", // for performance
+      isOpen: isDropdownOpen("performance"), // for performance
       section: "performance",
-      toggle: () =>
-        setOpenDropdown(openDropdown === "performance" ? null : "performance"),
+      toggle: () => toggleDropdown("performance"),
       subItems: [
         {
           title: "Goal Type",
@@ -263,10 +235,9 @@ export function AdminSidebar() {
       icon: Building2,
       isDropdown: true,
       toggleOnly: true,
-      isOpen: openDropdown === "organization",
+      isOpen: isDropdownOpen("organization"),
       section: "organization",
-      toggle: () =>
-        setOpenDropdown(openDropdown === "organization" ? null : "organization"),
+      toggle: () => toggleDropdown("organization"),
       subItems: [
         {
           title: "Company",
@@ -300,10 +271,9 @@ export function AdminSidebar() {
       icon: Clock,
       isDropdown: true,
       toggleOnly: true,
-      isOpen: openDropdown === "timesheets", // for performance
+      isOpen: isDropdownOpen("timesheets"), // for performance
       section: "timesheets",
-      toggle: () =>
-        setOpenDropdown(openDropdown === "timesheets" ? null : "timesheets"),
+      toggle: () => toggleDropdown("timesheets"),
       subItems: [
         {
           title: "Attendances",
@@ -348,11 +318,10 @@ export function AdminSidebar() {
       title: "HR Reports",
       icon: FileBarChart,
       isDropdown: true,
-      isOpen: openDropdown === "hr-reports",
+      isOpen: isDropdownOpen("hr-reports"),
       toggleOnly: true,
       section: "hr-reports",
-      toggle: () =>
-        setOpenDropdown(openDropdown === "hr-reports" ? null : "hr-reports"),
+      toggle: () => toggleDropdown("hr-reports"),
       subItems: [
         {
           title: "Attendance Report",
@@ -400,10 +369,9 @@ export function AdminSidebar() {
       title: "Recruitment",
       icon: UserPlus,
       isDropdown: true,
-      isOpen: openDropdown === "recruitment", // for performance
+      isOpen: isDropdownOpen("recruitment"), // for performance
       section: "recruitment",
-      toggle: () =>
-        setOpenDropdown(openDropdown === "recruitment" ? null : "recruitment"),
+      toggle: () => toggleDropdown("recruitment"),
       subItems: [
         {
           title: "Job Post",
@@ -429,10 +397,9 @@ export function AdminSidebar() {
       icon: GraduationCap,
       isDropdown: true,
       toggleOnly: true,
-      isOpen: openDropdown === "training", // for performance
+      isOpen: isDropdownOpen("training"), // for performance
       section: "training",
-      toggle: () =>
-        setOpenDropdown(openDropdown === "training" ? null : "training"),
+      toggle: () => toggleDropdown("training"),
       subItems: [
         {
           title: "Training List",
@@ -454,12 +421,9 @@ export function AdminSidebar() {
       icon: CalendarClock,
       isDropdown: true,
       toggleOnly: true,
-      isOpen: openDropdown === "event-meetings",
+      isOpen: isDropdownOpen("event-meetings"),
       section: "event-meetings",
-      toggle: () =>
-        setOpenDropdown(
-          openDropdown === "event-meetings" ? null : "event-meetings"
-        ),
+      toggle: () => toggleDropdown("event-meetings"),
       subItems: [
         {
           title: "Events",
@@ -477,10 +441,9 @@ export function AdminSidebar() {
       icon: DollarSign,
       isDropdown: true,
       // href: "/admin/payroll",
-      isOpen: openDropdown === "payroll",
+      isOpen: isDropdownOpen("payroll"),
       section: "payroll",
-      toggle: () =>
-        setOpenDropdown(openDropdown === "payroll" ? null : "payroll"),
+      toggle: () => toggleDropdown("payroll"),
       subItems: [
         {
           title: "New Payment",
@@ -497,12 +460,9 @@ export function AdminSidebar() {
       title: "Project Management",
       icon: FolderKanban,
       isDropdown: true,
-      isOpen: openDropdown === "project-managment", // for performance
+      isOpen: isDropdownOpen("project-managment"), // for performance
       section: "project-managment",
-      toggle: () =>
-        setOpenDropdown(
-          openDropdown === "project-managment" ? null : "project-managment"
-        ),
+      toggle: () => toggleDropdown("project-managment"),
       subItems: [
         {
           title: "Projects",
@@ -532,12 +492,9 @@ export function AdminSidebar() {
       icon: LifeBuoy,
       isDropdown: true,
       href: "/admin/support-tickets",
-      isOpen: openDropdown === "support-tickets", // for performance
+      isOpen: isDropdownOpen("support-tickets"), // for performance
       section: "support-tickets",
-      toggle: () =>
-        setOpenDropdown(
-          openDropdown === "support-tickets" ? null : "support-tickets"
-        ),
+      toggle: () => toggleDropdown("support-tickets"),
       subItems: [
         {
           title: "All Tickets",
@@ -562,10 +519,9 @@ export function AdminSidebar() {
       title: "Finance",
       icon: Wallet,
       isDropdown: true,
-      isOpen: openDropdown === "finance", // for performance
+      isOpen: isDropdownOpen("finance"), // for performance
       section: "finance",
-      toggle: () =>
-        setOpenDropdown(openDropdown === "finance" ? null : "finance"),
+      toggle: () => toggleDropdown("finance"),
       subItems: [
         {
           title: "Accounts List",
@@ -607,10 +563,9 @@ export function AdminSidebar() {
       icon: Package,
       isDropdown: true,
       href: "/admin/assets",
-      isOpen: openDropdown === "assets", // for performance
+      isOpen: isDropdownOpen("assets"), // for performance
       section: "assets",
-      toggle: () =>
-        setOpenDropdown(openDropdown === "assets" ? null : "assets"),
+      toggle: () => toggleDropdown("assets"),
       subItems: [
         {
           title: "Category",
@@ -628,10 +583,9 @@ export function AdminSidebar() {
       icon: FolderOpen,
       isDropdown: true,
       href: "/admin/file-manager",
-      isOpen: openDropdown === "file-manager", // for performance
+      isOpen: isDropdownOpen("file-manager"), // for performance
       section: "file-manager",
-      toggle: () =>
-        setOpenDropdown(openDropdown === "file-manager" ? null : "file-manager"),
+      toggle: () => toggleDropdown("file-manager"),
       subItems: [
         {
           title: "File Manager",
