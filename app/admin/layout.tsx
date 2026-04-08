@@ -11,6 +11,7 @@ import AdminLoading from "./loading";
 import GlobalPatch from "./global-patch";
 import Head from "next/head";
 import React from "react";
+import Providers from "../providers";
 
 export default function AdminLayout({
   children,
@@ -39,7 +40,8 @@ export default function AdminLayout({
   }
 
   return (
-    <AuthProvider>
+    <Providers>
+      <AuthProvider>
         <Head>
           <link rel="icon" href="/favicon.ico" sizes="any" />
           <link rel="apple-touch-icon" href="/apple-icon.png" />
@@ -62,6 +64,7 @@ export default function AdminLayout({
             </main>
           </div>
         </div>
-    </AuthProvider>
+      </AuthProvider>
+    </Providers>
   );
 }

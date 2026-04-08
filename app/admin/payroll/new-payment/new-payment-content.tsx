@@ -50,6 +50,7 @@ import { format } from "date-fns"
 import { buttonHoverEnhancements } from "@/app/admin/employees/button-hover"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import type { PaymentData, PaymentResponse } from "@/types/payroll"
+import { PayslipDialog } from "@/app/admin/payroll/payroll-payslip/payslip-dialog"
 
 type PaymentTab = "individual" | "bulk"
 
@@ -731,75 +732,7 @@ export function NewPaymentContent() {
           </Card>
         )}
 
-        <Dialog
-          open={isViewDialogOpen}
-          onOpenChange={(open) => {
-            if (!open) {
-              closeViewDialog()
-            }
-          }}
-        >
-          <DialogContent className="max-w-xl">
-            <DialogHeader>
-              <DialogTitle>View Payment</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              {currentPayment && (
-                <div className="space-y-3">
-                  <div className="text-sm font-medium text-gray-600">Payment Details</div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {[
-                      { label: "Payment ID", value: currentPayment.payment_id },
-                      { label: "Employee ID", value: currentPayment.employee_id },
-                      {
-                        label: "Employee Name",
-                        value: currentPayment.employee_name ?? "—",
-                      },
-                      { label: "Department", value: currentPayment.department ?? "—" },
-                      {
-                        label: "Amount",
-                        value: `₦${(parseFloat(currentPayment.amount) || 0).toLocaleString()}`,
-                      },
-                      {
-                        label: "Status",
-                        value: formatStatusLabel(currentPayment.status),
-                      },
-                      {
-                        label: "Payment Date",
-                        value: currentPayment.payment_date,
-                      },
-                      {
-                        label: "Payment Type",
-                        value: currentPayment.payment_type,
-                      },
-                      {
-                        label: "Created At",
-                        value: currentPayment.created_at ?? currentPayment.createdAt ?? "—",
-                      },
-                      {
-                        label: "Updated At",
-                        value: currentPayment.updated_at ?? currentPayment.updatedAt ?? "—",
-                      },
-                    ].map((field) => (
-                      <div
-                        key={field.label}
-                        className="rounded-md border bg-white p-3 shadow-sm flex flex-col"
-                      >
-                        <span className="text-xs text-gray-500">{field.label}</span>
-                        <span className="text-sm font-semibold text-gray-900">{field.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            <DialogFooter className="pt-4">
-              <Button variant="outline" onClick={closeViewDialog}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <PayslipDialog payment={currentPayment} open={isViewDialogOpen} onClose={closeViewDialog} />
 
         <Dialog
           open={isEditDialogOpen}

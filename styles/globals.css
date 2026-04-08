@@ -1,9 +1,23 @@
+@import url("https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Assistant:wght@400;600&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.payslip-serif {
+  font-family: "Libre Baskerville", "Times New Roman", serif;
+}
+
+.payslip-sans {
+  font-family: "Assistant", "Inter", system-ui, sans-serif;
+}
+
+.payslip-normal {
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 @layer utilities {
