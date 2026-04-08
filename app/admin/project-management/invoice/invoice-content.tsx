@@ -50,6 +50,7 @@ const statusBadgeClass = (status?: string) => {
   if (normalized === "paid") return "bg-emerald-100 text-emerald-700"
   if (normalized === "unpaid") return "bg-amber-100 text-amber-700"
   if (normalized === "draft") return "bg-blue-100 text-blue-700"
+  if (normalized === "pending") return "bg-yellow-100 text-yellow-700"
   return "bg-gray-100 text-gray-700"
 }
 
@@ -193,7 +194,7 @@ export default function InvoiceContent() {
     project_id: "",
     issue_date: todayString(),
     due_date: todayString(),
-    status: "Unpaid",
+    status: "Pending",
     total: "",
   })
 
@@ -557,7 +558,7 @@ export default function InvoiceContent() {
     setEditInvoice(invoice)
     setEditClientId(String(invoice.client_id))
     setEditProjectId(String(invoice.project_id))
-    setEditStatus(invoice.status ?? "Unpaid")
+    setEditStatus(invoice.status ?? "Pending")
     setEditIssueDate(invoice.issue_date?.split("T")[0] ?? todayString())
     setEditDueDate(invoice.due_date?.split("T")[0] ?? todayString())
     setEditTotal(String(invoice.total ?? "0"))
@@ -575,7 +576,7 @@ export default function InvoiceContent() {
       project_id: "",
       issue_date: todayString(),
       due_date: todayString(),
-      status: "Unpaid",
+      status: "Pending",
       total: "",
     })
   }
@@ -812,6 +813,7 @@ export default function InvoiceContent() {
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="Pending">Pending</SelectItem>
                   <SelectItem value="Unpaid">Unpaid</SelectItem>
                   <SelectItem value="Paid">Paid</SelectItem>
                   <SelectItem value="Draft">Draft</SelectItem>
@@ -1021,6 +1023,7 @@ export default function InvoiceContent() {
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="Pending">Pending</SelectItem>
                   <SelectItem value="Unpaid">Unpaid</SelectItem>
                   <SelectItem value="Paid">Paid</SelectItem>
                   <SelectItem value="Draft">Draft</SelectItem>

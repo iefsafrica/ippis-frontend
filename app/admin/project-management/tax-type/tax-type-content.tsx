@@ -39,6 +39,24 @@ import type { TaxType } from "@/types/tax-types"
 import { Eye, Edit, Trash2, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 
+type TaxNameOption = {
+  name: string
+  rate: number
+}
+
+const TAX_NAME_OPTIONS: TaxNameOption[] = [
+  { name: "Value Added Tax (VAT)", rate: 7.5 },
+  { name: "Withholding Tax (WHT)", rate: 5 },
+  { name: "Pay-As-You-Earn (PAYE)", rate: 10 },
+  { name: "Education Tax (ET)", rate: 2 },
+  { name: "Company Income Tax (CIT)", rate: 30 },
+  { name: "Capital Gains Tax (CGT)", rate: 10 },
+]
+
+const getRateForTaxName = (name?: string) => {
+  return TAX_NAME_OPTIONS.find((option) => option.name === name)?.rate
+}
+
 const statusBadgeClass = (value?: string) => {
   const normalized = value?.toLowerCase() ?? ""
   if (normalized === "active") return "bg-emerald-100 text-emerald-700"
@@ -183,6 +201,15 @@ export default function TaxTypeContent() {
     })
   }
 
+  const handleTaxNameSelect = (value: string) => {
+    const rate = getRateForTaxName(value)
+    setNewTaxType((prev) => ({
+      ...prev,
+      name: value,
+      rate: rate !== undefined ? rate.toFixed(2) : prev.rate,
+    }))
+  }
+
   const handleCreateSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     try {
@@ -305,12 +332,26 @@ export default function TaxTypeContent() {
               />
             </div>
             <div>
-              <Label>Name</Label>
-              <Input
+              <Label>Tax Name</Label>
+              <Select
                 value={newTaxType.name}
-                onChange={(event) => setNewTaxType({ ...newTaxType, name: event.target.value })}
+                onValueChange={(value) => handleTaxNameSelect(value)}
                 required
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select tax name" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TAX_NAME_OPTIONS.map((option) => (
+                    <SelectItem key={option.name} value={option.name}>
+                      <div className="flex w-full items-center justify-between">
+                        <span>{option.name}</span>
+                        <span className="text-xs text-gray-500">{formatRate(option.rate)}%</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>Rate (%)</Label>
@@ -322,6 +363,9 @@ export default function TaxTypeContent() {
                 onChange={(event) => setNewTaxType({ ...newTaxType, rate: event.target.value })}
                 required
               />
+              <p className="text-xs text-gray-500">
+                Defaults to the rate for the selected tax name but you can override it if needed.
+              </p>
             </div>
             <div>
               <Label>Description</Label>

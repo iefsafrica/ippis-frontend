@@ -25,6 +25,7 @@ import type { Project } from "@/types/projects"
 import type { Employee } from "@/types/employees/employee-management"
 
 const STATUS_OPTIONS = [
+  { value: "pending", label: "Pending" },
   { value: "active", label: "Active" },
   { value: "completed", label: "Completed" },
   { value: "inactive", label: "Inactive" },
@@ -38,6 +39,8 @@ const PRIORITY_OPTIONS = [
 
 const statusBadge = (status?: string) => {
   switch (status?.toLowerCase()) {
+    case "pending":
+      return "bg-amber-100 text-amber-700"
     case "active":
       return "bg-emerald-100 text-emerald-700"
     case "completed":
@@ -186,7 +189,7 @@ export function ProjectsContent() {
     manager_id: "",
     project_code: "",
     priority: "medium",
-    status: "active",
+    status: "pending",
     budget: "",
     progress: 0,
   })
@@ -252,7 +255,7 @@ export function ProjectsContent() {
   const handleStatusSelection = (value: string) =>
     setNewProject((prev) => ({
       ...prev,
-      status: normalizeOption(value, STATUS_OPTIONS.map((item) => item.value), "active"),
+      status: normalizeOption(value, STATUS_OPTIONS.map((item) => item.value), "pending"),
     }))
 
   const handlePrioritySelection = (value: string) =>
@@ -295,7 +298,7 @@ export function ProjectsContent() {
       manager_id: "",
       project_code: "",
       priority: "medium",
-      status: "active",
+      status: "pending",
       budget: "",
       progress: 0,
     })
@@ -314,7 +317,7 @@ export function ProjectsContent() {
         manager_id: newProject.manager_id,
         project_code: newProject.project_code,
         priority: normalizeOption(newProject.priority, PRIORITY_OPTIONS.map((item) => item.value), "medium"),
-        status: normalizeOption(newProject.status, STATUS_OPTIONS.map((item) => item.value), "active"),
+        status: normalizeOption(newProject.status, STATUS_OPTIONS.map((item) => item.value), "pending"),
         budget: newProject.budget,
         progress: newProject.progress,
       })
@@ -535,6 +538,7 @@ export function ProjectsContent() {
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>

@@ -39,6 +39,8 @@ import { toast } from "sonner"
 
 const statusBadgeClass = (status?: string) => {
   switch (status?.toLowerCase()) {
+    case "pending":
+      return "bg-amber-100 text-amber-700"
     case "completed":
       return "bg-emerald-100 text-emerald-700"
     case "in progress":
@@ -116,7 +118,9 @@ const columns = (
     render: (_: any, row: Task) => {
       const normalizedStatus = row.status?.toLowerCase()
       const canModify =
-        normalizedStatus?.includes("progress") || normalizedStatus === "in progress"
+        normalizedStatus?.includes("progress") ||
+        normalizedStatus === "in progress" ||
+        normalizedStatus === "pending"
       return (
         <div className="flex justify-end space-x-2">
           <Button variant="outline" size="icon" onClick={() => handleView(row)} title="View Task">
@@ -174,7 +178,7 @@ export default function TasksContent() {
     project_id: "",
     assigned_to: "",
     due_date: new Date().toISOString().split("T")[0],
-    status: "in-progress",
+    status: "pending",
     progress: 0,
     priority: "medium",
   })
@@ -186,6 +190,9 @@ export default function TasksContent() {
 
   const { data: projectsResponse } = useGetProjects()
   const projectOptions = projectsResponse?.data?.projects ?? []
+  const pendingProjectOptions = projectOptions.filter(
+    (project) => project.status?.toLowerCase() === "pending",
+  )
 
   const {
     data: employeesData,
@@ -209,8 +216,9 @@ export default function TasksContent() {
   }
   const getAssigneeDisplayName = (value?: string) => findEmployeeByValue(value)?.name ?? value ?? ""
   const normalizeTaskStatus = (value?: string) => {
-    if (!value) return "in-progress"
+    if (!value) return "pending"
     const normalized = value.trim().toLowerCase()
+    if (normalized.includes("pend")) return "pending"
     if (normalized.includes("not")) return "not-started"
     if (normalized.includes("progress")) return "in-progress"
     if (normalized.includes("delayed")) return "delayed"
@@ -305,7 +313,7 @@ export default function TasksContent() {
       project_id: "",
       assigned_to: "",
       due_date: new Date().toISOString().split("T")[0],
-      status: "in-progress",
+      status: "pending",
       progress: 0,
       priority: "medium",
     })
@@ -421,21 +429,21 @@ export default function TasksContent() {
                 value={newTask.project_id}
                 onValueChange={(value) => setNewTask({ ...newTask, project_id: value })}
                 required
-                disabled={projectOptions.length === 0}
+                disabled={pendingProjectOptions.length === 0}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
                 <SelectContent>
-                  {projectOptions.map((project) => (
+                  {pendingProjectOptions.map((project) => (
                     <SelectItem key={project.id} value={String(project.id)}>
                       {project.name}
                       {project.project_code ? ` (${project.project_code})` : ""}
                     </SelectItem>
                   ))}
-                  {projectOptions.length === 0 && (
+                  {pendingProjectOptions.length === 0 && (
                     <SelectItem value="" disabled>
-                      No projects available
+                      No pending projects
                     </SelectItem>
                   )}
                 </SelectContent>
@@ -495,10 +503,11 @@ export default function TasksContent() {
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="in-progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="not-started">Not Started</SelectItem>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="not-started">Not Started</SelectItem>
                     <SelectItem value="delayed">Delayed</SelectItem>
                   </SelectContent>
                 </Select>
@@ -656,6 +665,7 @@ export default function TasksContent() {
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="in-progress">In Progress</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="not-started">Not Started</SelectItem>

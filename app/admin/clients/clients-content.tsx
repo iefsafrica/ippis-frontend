@@ -36,6 +36,7 @@ import {
   useGetClients,
   useUpdateClient,
 } from "@/services/hooks/clients"
+import { useGetProjects } from "@/services/hooks/projects"
 import type { Client, CreateClientRequest } from "@/types/clients"
 import { Eye, Edit, Trash2, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
@@ -48,6 +49,9 @@ const statusBadgeClass = (status?: string) => {
   }
   if (normalized === "inactive") {
     return "bg-rose-100 text-rose-700"
+  }
+  if (normalized === "pending") {
+    return "bg-amber-100 text-amber-700"
   }
   return "bg-gray-100 text-gray-700"
 }
@@ -142,18 +146,24 @@ export default function ClientsContent() {
   const [editContact, setEditContact] = useState("")
   const [editEmail, setEditEmail] = useState("")
   const [editPhone, setEditPhone] = useState("")
-  const [editStatus, setEditStatus] = useState("Active")
+  const [editStatus, setEditStatus] = useState("Pending")
   const [newClient, setNewClient] = useState<CreateClientRequest>({
     name: "",
     contact_person: "",
     email: "",
     phone: "",
-    status: "Active",
+    status: "Pending",
   })
   const [deleteClientCandidate, setDeleteClientCandidate] = useState<Client | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
   const { data: clientsResponse, refetch } = useGetClients()
+  const { data: projectsResponse } = useGetProjects()
+  const projectOptions = projectsResponse?.data?.projects ?? []
+  const pendingProjectOptions = projectOptions.filter(
+    (project) => project.status?.toLowerCase() === "pending",
+  )
+  const [selectedProjectId, setSelectedProjectId] = useState("none")
   const createClient = useCreateClient()
   const updateClient = useUpdateClient()
   const deleteClient = useDeleteClient()
@@ -180,7 +190,7 @@ export default function ClientsContent() {
     setEditContact(client.contact_person)
     setEditEmail(client.email)
     setEditPhone(client.phone)
-    setEditStatus(client.status ?? "Active")
+    setEditStatus(client.status ?? "Pending")
     setIsEditOpen(true)
   }
 
@@ -195,8 +205,9 @@ export default function ClientsContent() {
       contact_person: "",
       email: "",
       phone: "",
-      status: "Active",
+      status: "Pending",
     })
+    setSelectedProjectId("")
   }
 
   const handleAddSubmit = async (event: React.FormEvent) => {
@@ -248,6 +259,18 @@ export default function ClientsContent() {
   }
 
   const handleOpenAdd = () => setIsAddOpen(true)
+
+  const handleProjectSelect = (projectId: string) => {
+    setSelectedProjectId(projectId)
+    if (projectId === "none") {
+      setNewClient((prev) => ({ ...prev, name: "" }))
+      return
+    }
+    const project = pendingProjectOptions.find((item) => String(item.id) === projectId)
+    if (project) {
+      setNewClient((prev) => ({ ...prev, name: project.client }))
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -302,12 +325,37 @@ export default function ClientsContent() {
         <DialogContent className="max-w-md">
           <form className="space-y-4" onSubmit={handleAddSubmit}>
             <DialogHeader>
-              <DialogTitle>Add Client</DialogTitle>
-              <DialogDescription>Register a new client organization.</DialogDescription>
-            </DialogHeader>
-            <div>
-              <Label>Client Name</Label>
-              <Input
+            <DialogTitle>Add Client</DialogTitle>
+            <DialogDescription>Register a new client organization.</DialogDescription>
+          </DialogHeader>
+          <div>
+            <Label>Project</Label>
+            <Select
+              value={selectedProjectId}
+              onValueChange={handleProjectSelect}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select project (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {pendingProjectOptions.map((project) => (
+                  <SelectItem key={project.id} value={String(project.id)}>
+                    {project.name}
+                    {project.project_code ? ` (${project.project_code})` : ""}
+                  </SelectItem>
+                ))}
+                {pendingProjectOptions.length === 0 && (
+                  <SelectItem value="no-projects" disabled>
+                    No pending projects
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Client Name</Label>
+            <Input
                 value={newClient.name}
                 onChange={(event) => setNewClient({ ...newClient, name: event.target.value })}
                 required
@@ -349,6 +397,7 @@ export default function ClientsContent() {
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="Pending">Pending</SelectItem>
                   <SelectItem value="Active">Active</SelectItem>
                   <SelectItem value="Inactive">Inactive</SelectItem>
                 </SelectContent>
@@ -428,6 +477,7 @@ export default function ClientsContent() {
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="Pending">Pending</SelectItem>
                   <SelectItem value="Active">Active</SelectItem>
                   <SelectItem value="Inactive">Inactive</SelectItem>
                 </SelectContent>
