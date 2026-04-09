@@ -929,9 +929,7 @@ export default function EmployeesContent() {
       }
     };
 
-    const handleExportPDF = () => performExport("pdf");
-    const handleExportCSV = () => performExport("csv");
-    const handlePrintList = () => performExport("print");
+    const handleExportList = () => performExport("csv");
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -1124,12 +1122,7 @@ export default function EmployeesContent() {
             <Plus className="h-4 w-4 mr-2" />
             Add Employee
           </Button>
-          <DataExportMenu
-            onExportPDF={handleExportPDF}
-            onExportCSV={handleExportCSV}
-            onPrint={handlePrintList}
-            title="Employees"
-          />
+          <DataExportMenu onExport={handleExportList} title="Employees" />
         </div>
       </div>
 

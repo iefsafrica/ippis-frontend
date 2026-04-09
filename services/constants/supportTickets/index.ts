@@ -1,0 +1,5 @@
+export const GET_SUPPORT_TICKETS = "get-support-tickets"
+export const GET_SUPPORT_TICKET = "get-support-ticket"
+export const CREATE_SUPPORT_TICKET = "create-support-ticket"
+export const UPDATE_SUPPORT_TICKET = "update-support-ticket"
+export const DELETE_SUPPORT_TICKET = "delete-support-ticket"

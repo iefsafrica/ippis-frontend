@@ -4,7 +4,6 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -22,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
+import { RecordsTableSection } from "@/app/admin/components/records-table-section"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import { useEmployeesList } from "@/services/hooks/employees/useEmployees"
 import {
@@ -391,23 +391,15 @@ export default function TasksContent() {
         </div>
       </div>
 
-      <Card className="border border-gray-200 shadow-lg rounded-xl overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-          <div>
-            <CardTitle className="text-lg font-semibold text-gray-900">Task Records</CardTitle>
-            <CardDescription className="text-gray-600">Monitor each task progress and status.</CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
+      <RecordsTableSection title="Task Records" description="Monitor each task progress and status.">
         <DataTable
           title="Tasks"
           columns={columns(handleView, handleEdit, handleDelete, getAssigneeDisplayName)}
-            data={tasks}
-            searchFields={searchFields}
-            onAdd={handleOpenAdd}
-          />
-        </CardContent>
-      </Card>
+          data={tasks}
+          searchFields={searchFields}
+          onAdd={handleOpenAdd}
+        />
+      </RecordsTableSection>
 
       <Dialog open={isAddOpen} onOpenChange={(open) => !open && setIsAddOpen(false)}>
         <DialogContent className="max-w-md">

@@ -491,7 +491,7 @@ export function AdminSidebar() {
       title: "Support Tickets",
       icon: LifeBuoy,
       isDropdown: true,
-      href: "/admin/support-tickets",
+      // href: "/admin/support-tickets",
       isOpen: isDropdownOpen("support-tickets"), // for performance
       section: "support-tickets",
       toggle: () => toggleDropdown("support-tickets"),

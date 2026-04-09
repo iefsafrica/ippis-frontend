@@ -361,10 +361,6 @@ export function ProjectsContent() {
             <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2 bg-white border border-gray-200 text-gray-600">
               <RefreshCw className="h-4 w-4" />
             </Button>
-            <Button size="sm" onClick={() => setIsAddOpen(true)} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
-              <Plus className="h-4 w-4" />
-              Add New
-            </Button>
           </div>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -413,6 +409,7 @@ export function ProjectsContent() {
             columns={columns(handleView, handleEdit, handleDelete)}
             data={projects}
             searchFields={searchFields}
+            onAdd={() => setIsAddOpen(true)}
           />
         </CardContent>
       </Card>

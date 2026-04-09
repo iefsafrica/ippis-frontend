@@ -228,11 +228,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Search, Plus, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
-import { DataExportMenu } from "@/app/admin/components/data-export-menu"
+import { Search, Plus, ChevronLeft, ChevronRight, Loader2, Download } from "lucide-react"
 import { AdvancedSearch } from "@/app/admin/components/advanced-search"
 import ExportService from "@/app/admin/services/export-service"
 import { toast } from "sonner"
+import { buttonHoverEnhancements } from "@/app/admin/employees/button-hover"
 
 interface DataTableProps {
   title: string
@@ -256,6 +256,8 @@ interface DataTableProps {
   extraSearchControls?: React.ReactNode
   addButtonProps?: React.ButtonHTMLAttributes<HTMLButtonElement>
   addButtonLoading?: boolean
+  onExport?: () => void
+  exportLabel?: string
   tableClassName?: string
 }
 
@@ -271,6 +273,8 @@ export function DataTable({
   extraSearchControls,
   addButtonProps,
   addButtonLoading = false,
+  onExport,
+  exportLabel,
   tableClassName,
 }: DataTableProps) {
   const normalizedTitle = title?.trim() || "Records"
@@ -403,9 +407,7 @@ export function DataTable({
       }
     }
 
-    const handleExportPDF = () => performExport('pdf')
-    const handleExportCSV = () => performExport('csv')
-    const handlePrint = () => performExport('print')
+    const handleExport = () => performExport('csv')
 
 
 
@@ -445,12 +447,15 @@ export function DataTable({
             title={normalizedTitle}
           />
 
-          <DataExportMenu
-            onExportPDF={handleExportPDF}
-            onExportCSV={handleExportCSV}
-            onPrint={handlePrint}
-            title={normalizedTitle}
-          />
+          <Button
+            variant="outline"
+            onClick={onExport ?? handleExport}
+            type="button"
+            className={`${buttonHoverEnhancements} gap-1 w-full sm:w-auto`}
+          >
+            <Download className="h-4 w-4" />
+            {exportLabel ?? "Export"}
+          </Button>
 
           {onAdd && (
             <>
