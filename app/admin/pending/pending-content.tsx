@@ -3148,8 +3148,8 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
         <ClearPendingEmployeesButton onSuccess={handleRefresh} />
       </div>
 
-      <Card className="overflow-hidden rounded-xl border border-gray-200 shadow-lg">
-        <CardContent className="pt-6">
+      <Card className="rounded-xl border border-gray-200 shadow-lg overflow-visible">
+        <CardContent className="pt-6 overflow-visible">
           <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row">
             <form onSubmit={handleSearch} className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
               <div className="relative w-full sm:w-80">
@@ -3188,20 +3188,22 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
                   </CardContent>
                 </Card>
               ) : (
-                <EnhancedDataTable
-                  title="Pending Employees"
-                  columns={pendingColumns}
-                  data={filteredPendingEmployees}
-                  onAdd={handleRefresh}
-                  onEdit={() => undefined}
-                  onDelete={() => undefined}
-                  onView={() => undefined}
-                  isLoading={isLoading}
-                  hideControlBar
-                  hideSummaryCards
-                  hideFooterControls
-                  renderRowActions={renderPendingActions}
-                />
+                <div className="overflow-x-auto">
+                  <EnhancedDataTable
+                    title="Pending Employees"
+                    columns={pendingColumns}
+                    data={filteredPendingEmployees}
+                    onAdd={handleRefresh}
+                    onEdit={() => undefined}
+                    onDelete={() => undefined}
+                    onView={() => undefined}
+                    isLoading={isLoading}
+                    hideControlBar
+                    hideSummaryCards
+                    hideFooterControls
+                    renderRowActions={renderPendingActions}
+                  />
+                </div>
               )}
 
               {totalItems > 0 && (

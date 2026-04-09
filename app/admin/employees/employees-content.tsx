@@ -29,13 +29,17 @@ import {
   CreditCard,
   GraduationCap,
   Shield,
+  ShieldAlert,
   User,
+  AlertCircle,
   IdCard,
   Printer,
   Download,
   Edit,
   Eye,
   X,
+  XCircle,
+  RefreshCw,
 } from "lucide-react"
 import { Pagination } from "../components/pagination"
 import { toast } from "sonner"
@@ -198,14 +202,23 @@ export default function EmployeesContent() {
     }
   };
 
-  // Handle employee deletion
-  const handleDeleteEmployee = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete ${name}?`)) {
+  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isDeletePending, setIsDeletePending] = useState(false);
+
+  const closeDeleteDialog = () => {
+    setIsDeleteConfirmOpen(false);
+    setEmployeeToDelete(null);
+  };
+
+  const deleteSelectedEmployee = async () => {
+    if (!employeeToDelete) {
       return;
     }
 
+    setIsDeletePending(true);
     try {
-      const response = await fetch(`/api/admin/employees/${id}`, {
+      const response = await fetch(`/api/admin/employees/${employeeToDelete.id}`, {
         method: "DELETE",
       });
 
@@ -217,7 +230,7 @@ export default function EmployeesContent() {
       refetch();
 
       toast.success("Success", {
-        description: `Employee ${name} has been deleted successfully.`,
+        description: `Employee ${employeeToDelete.name} has been deleted successfully.`,
       });
     } catch (error) {
       console.error("Failed to delete employee:", error);
@@ -226,6 +239,9 @@ export default function EmployeesContent() {
           ? error.message
           : "Failed to delete employee. Please try again.",
       });
+    } finally {
+      setIsDeletePending(false);
+      closeDeleteDialog();
     }
   };
 
@@ -278,7 +294,8 @@ export default function EmployeesContent() {
 
   // Handle delete employee
   const handleDelete = (employee: Employee) => {
-    handleDeleteEmployee(employee.id, employee.name);
+    setEmployeeToDelete(employee);
+    setIsDeleteConfirmOpen(true);
   };
 
   // Handle advanced search
@@ -972,23 +989,12 @@ export default function EmployeesContent() {
     {
       key: "name",
       label: "Employee",
-      render: (_value: string, employee: Employee) => (
-        <div className="flex items-center gap-3">
-          <Avatar className="h-9 w-9">
-            <AvatarImage
-              src={`/abstract-geometric-shapes.png?key=n1gxi&height=36&width=36&query=${encodeURIComponent(
-                employee.name
-              )}`}
-              alt={employee.name}
-            />
-            <AvatarFallback>{employee.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-          </Avatar>
-          <div>
-            <div className="font-medium text-gray-900">{employee.name}</div>
-            <div className="text-sm text-muted-foreground">{employee.email}</div>
-          </div>
-        </div>
-      ),
+    render: (_value: string, employee: Employee) => (
+      <div className="flex flex-col">
+        <span className="font-medium text-gray-900">{employee.name}</span>
+        <span className="text-sm text-muted-foreground">{employee.email}</span>
+      </div>
+    ),
     },
     {
       key: "department",
@@ -1040,6 +1046,20 @@ export default function EmployeesContent() {
       handleDelete(employee);
     }
   };
+
+  const renderEmployeeActions = (employee: Employee) => (
+    <div className="flex justify-end">
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => handleViewRow(employee.id)}
+        title="View Details"
+        className="text-blue-600 hover:text-blue-800"
+      >
+        <Eye className="h-4 w-4" />
+      </Button>
+    </div>
+  );
 
   // Advanced search fields
   const searchFields = [
@@ -1180,6 +1200,7 @@ export default function EmployeesContent() {
             onEdit={handleEditRow}
             onDelete={handleDeleteRow}
             onView={handleViewRow}
+            renderRowActions={renderEmployeeActions}
             isLoading={isLoading}
             hideControlBar
             hideSummaryCards
@@ -1199,6 +1220,135 @@ export default function EmployeesContent() {
 </div>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={isDeleteConfirmOpen}
+        onOpenChange={(open) => {
+          if (!open && !isDeletePending) {
+            closeDeleteDialog();
+          }
+        }}
+      >
+        <DialogContent className="max-w-sm sm:max-w-md w-[90%] mx-auto py-4">
+          <DialogHeader className="text-center px-2">
+            <div className="flex justify-center mb-2">
+              <div className="relative">
+                <div className="absolute inset-0 bg-red-100 rounded-full animate-ping opacity-60"></div>
+                <div className="relative flex items-center justify-center w-12 h-12 rounded-full bg-red-50 border border-red-200">
+                  <ShieldAlert className="h-6 w-6 text-red-600" />
+                </div>
+              </div>
+            </div>
+
+            <DialogTitle className="text-lg font-semibold text-red-700">
+              Confirm Deletion
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-600 mt-1">
+              This action cannot be undone
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-3 px-2">
+            <Card className="border-red-200 bg-red-50/60 mb-3">
+              <CardContent className="p-2">
+                <div className="flex items-center gap-2">
+                  {employeeToDelete && (
+                    <Avatar className="h-8 w-8 border border-red-200">
+                      <AvatarFallback className="bg-red-100 text-red-700 text-xs font-semibold">
+                        {employeeToDelete.name.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                  <div className="flex-1">
+                    <h4 className="font-medium text-sm leading-tight">
+                      {employeeToDelete?.name || "Employee"}
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground">
+                      ID: {employeeToDelete?.registration_id || "N/A"}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 mt-0.5 text-[11px] text-slate-600">
+                      <div className="flex items-center gap-1">
+                        <Building className="h-3 w-3 text-slate-500" />
+                        <span>{employeeToDelete?.department || "N/A"}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3 text-slate-500" />
+                        <span>{employeeToDelete?.position || "N/A"}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-md p-2">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold text-amber-800 text-xs mb-0.5">
+                    Important Notice
+                  </h4>
+                  <ul className="text-[11px] text-amber-700 list-disc list-inside space-y-0.5">
+                    <li>Permanently deletes this record</li>
+                    <li>Removes all associated data</li>
+                    <li>Cannot be undone</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 p-2 bg-slate-50 rounded-md border">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-5 h-5 rounded border border-red-300 bg-white">
+                  <Trash2 className="h-3 w-3 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-700 leading-tight">
+                    You are about to delete permanently
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    click on the <span className="font-mono bg-slate-200 px-1 rounded">DELETE</span> button to confirm
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 px-2 mt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => !isDeletePending && closeDeleteDialog()}
+              className="flex-1 px-4 py-2 text-xs border-slate-300 hover:bg-slate-50"
+              disabled={isDeletePending}
+            >
+              <XCircle className="mr-1 h-3.5 w-3.5" />
+              Cancel
+            </Button>
+
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={deleteSelectedEmployee}
+              disabled={isDeletePending}
+              className="flex-1 px-4 py-2 text-xs bg-gradient-to-r text-white from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-md shadow-red-200"
+            >
+              {isDeletePending ? (
+                <>
+                  <RefreshCw className="mr-1 h-3.5 w-3.5 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-1 h-3.5 w-3.5" />
+                  Delete
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* View Employee Details Dialog */}
       <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
