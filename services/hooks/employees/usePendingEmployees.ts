@@ -6,7 +6,7 @@ import {
   approvePendingEmployee,
   deletePendingEmployee,
   getDocuments,
-  rejectPendingEmployee 
+  disapprovePendingEmployee 
 } from "@/services/endpoints/employees/pendingEmployees";
 import { 
   PENDING_DOCUMENTS, 
@@ -38,10 +38,10 @@ export const useApprovePendingEmployee = () => {
   return useMutation<
     PendingEmployeeResponse,
     Error,
-    { registrationId: string; id: string }
+    { registrationId: string }
   >({
-    mutationFn: ({ registrationId, id }) =>
-      approvePendingEmployee(registrationId, { id }),
+    mutationFn: ({ registrationId }) =>
+      approvePendingEmployee(registrationId),
   });
 };
 
@@ -56,14 +56,14 @@ export const useDeletePendingEmployee = () => {
   });
 };
 
-export const useRejectPendingEmployee = () => {
+export const useDisapprovePendingEmployee = () => {
   return useMutation<
     RejectPendingEmployeeResponse,
     Error,
     { registrationId: string }
   >({
     mutationFn: ({ registrationId }) =>
-      rejectPendingEmployee(registrationId),
+      disapprovePendingEmployee(registrationId),
   });
 };
 

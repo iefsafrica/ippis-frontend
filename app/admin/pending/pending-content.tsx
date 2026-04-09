@@ -2550,7 +2550,7 @@ import {
   useUpdateEmployeeStatus,
   useApprovePendingEmployee,
   useDeletePendingEmployee,
-  useRejectPendingEmployee 
+  useDisapprovePendingEmployee 
 } from "@/services/hooks/employees/usePendingEmployees"
 import { Employee3 } from "@/types/employees/pending-employees" 
 import {
@@ -2600,7 +2600,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
   const updateEmployeeStatusMutation = useUpdateEmployeeStatus()
   const approvePendingEmployeeMutation = useApprovePendingEmployee()
   const deletePendingEmployeeMutation = useDeletePendingEmployee()
-  const rejectPendingEmployeeMutation = useRejectPendingEmployee()
+  const disapprovePendingEmployeeMutation = useDisapprovePendingEmployee()
  
   // @ts-expect-error axios response mismatch
   const pendingEmployees: Employee3[] = data?.data?.employees || []
@@ -2767,13 +2767,11 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
     try {
       console.log("Approving employee:", {
         registrationId: selectedEmployee.registration_id,
-        id: selectedEmployee.id.toString()
       })
 
-      // Use the new approvePendingEmployee mutation hook with PATCH method
+      // Use the latest approvePendingEmployee mutation hook
       const result = await approvePendingEmployeeMutation.mutateAsync({
         registrationId: selectedEmployee.registration_id,
-        id: selectedEmployee.id.toString()
       })
 
       // Dismiss loading toast and show success
@@ -2848,7 +2846,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
     }
   }
 
-  // Handle reject submission using the new rejectPendingEmployee hook
+  // Handle reject submission using the new disapprovePendingEmployee hook
   const handleReject = async () => {
     if (!selectedEmployee) return
 
@@ -2856,22 +2854,22 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
     setIsRejectDialogOpen(false)
 
     // Show loading toast
-    const loadingToast = toast.loading(`Rejecting ${getFullName(selectedEmployee)}...`)
+    const loadingToast = toast.loading(`Disapproving ${getFullName(selectedEmployee)}...`)
 
     try {
-      console.log("Rejecting employee:", {
+      console.log("Disapproving employee:", {
         registrationId: selectedEmployee.registration_id
       })
 
-      // Use the new rejectPendingEmployee mutation hook
-      const result = await rejectPendingEmployeeMutation.mutateAsync({
+      // Use the new disapprovePendingEmployee mutation hook
+      const result = await disapprovePendingEmployeeMutation.mutateAsync({
         registrationId: selectedEmployee.registration_id
       })
 
       // Dismiss loading toast and show success
       toast.dismiss(loadingToast)
-      toast.success("Employee Rejected", {
-        description: `${getFullName(selectedEmployee)} has been rejected and removed from pending list.`,
+      toast.success("Employee Disapproved", {
+        description: `${getFullName(selectedEmployee)} has been disapproved and removed from pending list.`,
       })
       
       // Refresh the data
@@ -2940,7 +2938,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
   // Determine which mutation is currently pending for loading states
   const isApprovePending = approvePendingEmployeeMutation.isPending || updateEmployeeStatusMutation.isPending
   const isDeletePending = deletePendingEmployeeMutation.isPending
-  const isRejectPending = rejectPendingEmployeeMutation.isPending
+  const isDisapprovePending = disapprovePendingEmployeeMutation.isPending
 
     const normalizedSearchTerm = searchTerm.trim().toLowerCase()
 
@@ -3050,8 +3048,8 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
         variant="outline"
         size="icon"
         onClick={() => handleRejectClick(employee)}
-        title={isRejectPending ? "Rejecting..." : "Reject"}
-        disabled={isRejectPending}
+        title={isDisapprovePending ? "Rejecting..." : "Reject"}
+        disabled={isDisapprovePending}
         className="text-amber-600 hover:text-amber-800 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <Ban className="h-4 w-4" />
@@ -3297,8 +3295,8 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
                                 variant="outline"
                                 size="icon"
                                 onClick={() => handleRejectClick(employee)}
-                                title={isRejectPending ? "Rejecting..." : "Reject"}
-                                disabled={isRejectPending}
+                                title={isDisapprovePending ? "Rejecting..." : "Reject"}
+                                disabled={isDisapprovePending}
                                 className="text-amber-600 hover:text-amber-800 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 <Ban className="h-4 w-4" />
@@ -3661,12 +3659,12 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
                 <div className="flex gap-2">
                   <Button 
                     onClick={() => handleRejectClick(selectedEmployee)}
-                    disabled={isRejectPending}
+                    disabled={isDisapprovePending}
                     variant="outline"
                     className="text-amber-600 border-amber-200 hover:bg-amber-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Ban className="mr-2 h-4 w-4" />
-                    {isRejectPending ? "Rejecting..." : "Reject"}
+                    {isDisapprovePending ? "Rejecting..." : "Reject"}
                   </Button>
                   <Button 
                     onClick={() => handleApproveClick(selectedEmployee)}
@@ -3836,7 +3834,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
               variant="outline"
               onClick={() => setIsRejectDialogOpen(false)}
               className="flex-1 px-4 py-2 text-xs border-slate-300 hover:bg-slate-50"
-              disabled={isRejectPending}
+              disabled={isDisapprovePending}
             >
               <XCircle className="mr-1 h-3.5 w-3.5" />
               Cancel
@@ -3845,10 +3843,10 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
             <Button
               type="button"
               onClick={handleReject}
-              disabled={isRejectPending}
+              disabled={isDisapprovePending}
               className="flex-1 px-4 py-2 text-xs bg-gradient-to-r text-white from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 shadow-md shadow-amber-200"
             >
-              {isRejectPending ? (
+              {isDisapprovePending ? (
                 <>
                   <RefreshCw className="mr-1 h-3.5 w-3.5 animate-spin" />
                   Rejecting...

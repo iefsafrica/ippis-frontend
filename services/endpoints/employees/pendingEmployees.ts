@@ -1,4 +1,4 @@
-import { get, put, post, patch, del } from "@/services/axios";
+import { get, put, post, del } from "@/services/axios";
 import { 
   PendingEmployeesResponse, 
   PendingEmployeeResponse,
@@ -27,15 +27,13 @@ export const updateEmployeeStatus = async (
 };
 
 export const approvePendingEmployee = async (
-  registrationId: string,
-  payload: { id: string }
+  registrationId: string
 ): Promise<PendingEmployeeResponse> => {
-  const cleanRegistrationId = registrationId.replace(/%20/g, ' ');
-  
-  const { data } = await patch<PendingEmployeeResponse>(
-    `/admin/pending/${cleanRegistrationId}/approve`,
-    payload
-  );
+  const cleanRegistrationId = registrationId.replace(/%20/g, " ");
+
+  const { data } = await post<PendingEmployeeResponse>("/admin/employees/approve", {
+    registration_id: cleanRegistrationId,
+  });
   // @ts-expect-error axios response mismatch
   return data;
 };
@@ -52,15 +50,16 @@ export const deletePendingEmployee = async (
   return data;
 };
 
-export const rejectPendingEmployee = async (
+export const disapprovePendingEmployee = async (
   registrationId: string
 ): Promise<RejectPendingEmployeeResponse> => {
-  const cleanRegistrationId = registrationId.replace(/%20/g, ' ');
+  const cleanRegistrationId = registrationId.replace(/%20/g, " ");
   
-  const { data } = await patch<RejectPendingEmployeeResponse>(
-    `/admin/pending/${cleanRegistrationId}/reject`
+  const { data } = await post<RejectPendingEmployeeResponse>(
+    "/admin/employees/disapprove",
+    { registration_id: cleanRegistrationId }
   );
- // @ts-expect-error axios response mismatch
+  // @ts-expect-error axios response mismatch
   return data;
 };
 
