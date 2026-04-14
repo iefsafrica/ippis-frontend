@@ -8,6 +8,7 @@ import AdminLoading from "./loading"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import Providers from "../providers"
 
 // Create a proper error boundary component
 function ErrorBoundaryComponent({ children }: { children: React.ReactNode }) {
@@ -60,10 +61,12 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <ErrorBoundaryComponent>
-      <Suspense fallback={<AdminLoading />}>
-        <DashboardContent />
-      </Suspense>
-    </ErrorBoundaryComponent>
+    <Providers>
+      <ErrorBoundaryComponent>
+        <Suspense fallback={<AdminLoading />}>
+          <DashboardContent />
+        </Suspense>
+      </ErrorBoundaryComponent>
+    </Providers>
   )
 }

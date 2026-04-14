@@ -258,6 +258,7 @@ interface DataTableProps {
   addButtonLoading?: boolean
   onExport?: () => void
   exportLabel?: string
+  addButtonLabel?: string
   tableClassName?: string
 }
 
@@ -275,6 +276,7 @@ export function DataTable({
   addButtonLoading = false,
   onExport,
   exportLabel,
+  addButtonLabel,
   tableClassName,
 }: DataTableProps) {
   const normalizedTitle = title?.trim() || "Records"
@@ -473,7 +475,9 @@ export function DataTable({
                   >
                     {addButtonLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                     <Plus className="h-4 w-4" />
-                    {addButtonLoading ? "Processing..." : "Add New"}
+                    {addButtonLoading
+                      ? "Processing..."
+                      : addButtonLabel ?? "Add New"}
                   </Button>
                 )
               })()}
