@@ -54,12 +54,17 @@ export function FinanceCard({
   const trendColor = trend !== undefined ? (trend > 0 ? "text-green-500" : trend < 0 ? "text-red-500" : "") : ""
 
   return (
-    <Card className={cn("overflow-hidden", className)}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {icon}
+    <Card className={cn("overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm", className)}>
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
+        <div className="space-y-1">
+          <CardTitle className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">{title}</CardTitle>
+          {trend !== undefined && trendLabel ? (
+            <p className="text-xs text-slate-500">{trendLabel}</p>
+          ) : null}
+        </div>
+        {icon ? <div className="rounded-2xl border border-slate-100 bg-slate-50 p-2 text-slate-500">{icon}</div> : null}
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-2">
         {isLoading ? (
           <div className="space-y-2">
             <div className="h-8 w-3/4 bg-gray-200 rounded animate-pulse" />
@@ -67,15 +72,14 @@ export function FinanceCard({
           </div>
         ) : (
           <>
-            <div className={cn("text-2xl font-bold", valueClassName)}>{formattedValue}</div>
-            {description && <p className="text-xs text-muted-foreground">{description}</p>}
+            <div className={cn("text-3xl font-semibold tracking-tight text-slate-950", valueClassName)}>{formattedValue}</div>
+            {description && <p className="text-xs text-slate-500">{description}</p>}
             {trend !== undefined && (
-              <div className="flex items-center mt-1">
+              <div className="flex items-center gap-1 pt-1">
                 {trendIcon}
-                <span className={cn("text-xs font-medium ml-1", trendColor)}>
-                  {Math.abs(trend)}% {trend > 0 ? "increase" : trend < 0 ? "decrease" : ""}
+                <span className={cn("text-xs font-medium", trendColor)}>
+                  {Math.abs(trend)}% {trend > 0 ? "increase" : trend < 0 ? "decrease" : "no change"}
                 </span>
-                {trendLabel && <span className="text-xs text-muted-foreground ml-1">{trendLabel}</span>}
               </div>
             )}
           </>

@@ -30,7 +30,6 @@ import {
   X,
   ArrowUpDown,
 } from "lucide-react"
-import { Pagination } from "@/app/admin/components/pagination"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -38,6 +37,8 @@ import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
+import ExportService from "@/app/admin/services/export-service"
+import { toast } from "sonner"
 
 interface Column {
   key: string
@@ -90,12 +91,11 @@ export function FinanceDataTable({
 }: FinanceDataTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(10);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-  const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [activeFilters, setActiveFilters] = useState<Record<string, any>>({});
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -196,24 +196,61 @@ export function FinanceDataTable({
   };
 
   const handleExportPDF = () => {
-    console.log(
-      "Exporting to PDF:",
-      selectedRows.length ? selectedRows : "all data"
-    );
-    // Implement PDF export logic
+    try {
+      const exportColumns = columns.map((col) => ({
+        header: col.label,
+        accessor: col.key,
+      }))
+
+      ExportService.exportToPDF(sortedData, {
+        title,
+        filename: `${title.replace(/\s+/g, "_")}_export`,
+        columns: exportColumns,
+      })
+
+      toast.success("PDF export opened in a new window")
+    } catch (error) {
+      console.error("PDF export error:", error)
+      toast.error("Failed to export PDF")
+    }
   };
 
   const handleExportCSV = () => {
-    console.log(
-      "Exporting to CSV:",
-      selectedRows.length ? selectedRows : "all data"
-    );
-    // Implement CSV export logic
+    try {
+      const exportColumns = columns.map((col) => ({
+        header: col.label,
+        accessor: col.key,
+      }))
+
+      ExportService.exportToCSV(sortedData, {
+        title,
+        filename: `${title.replace(/\s+/g, "_")}_export`,
+        columns: exportColumns,
+      })
+
+      toast.success("CSV export downloaded successfully")
+    } catch (error) {
+      console.error("CSV export error:", error)
+      toast.error("Failed to export CSV")
+    }
   };
 
   const handlePrint = () => {
-    console.log("Printing:", selectedRows.length ? selectedRows : "all data");
-    window.print();
+    try {
+      const exportColumns = columns.map((col) => ({
+        header: col.label,
+        accessor: col.key,
+      }))
+
+      ExportService.printData(sortedData, {
+        title,
+        filename: `${title.replace(/\s+/g, "_")}_export`,
+        columns: exportColumns,
+      })
+    } catch (error) {
+      console.error("Print export error:", error)
+      toast.error("Failed to open print dialog")
+    }
   };
 
   const confirmDelete = (id: string) => {
@@ -226,20 +263,6 @@ export function FinanceDataTable({
       onDelete(itemToDelete);
       setDeleteDialogOpen(false);
       setItemToDelete(null);
-    }
-  };
-
-  const handleSelectRow = (id: string) => {
-    setSelectedRows((prev) =>
-      prev.includes(id) ? prev.filter((rowId) => rowId !== id) : [...prev, id]
-    );
-  };
-
-  const handleSelectAllRows = () => {
-    if (selectedRows.length === currentItems.length) {
-      setSelectedRows([]);
-    } else {
-      setSelectedRows(currentItems.map((item) => item.id));
     }
   };
 
@@ -581,16 +604,6 @@ export function FinanceDataTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[40px]">
-                <Checkbox
-                  checked={
-                    selectedRows.length === currentItems.length &&
-                    currentItems.length > 0
-                  }
-                  onCheckedChange={handleSelectAllRows}
-                  aria-label="Select all rows"
-                />
-              </TableHead>
               {columns.map((column) => (
                 <TableHead
                   key={column.key}
@@ -621,9 +634,6 @@ export function FinanceDataTable({
             {isLoading ? (
               Array.from({ length: 5 }).map((_, index) => (
                 <TableRow key={`loading-${index}`}>
-                  <TableCell>
-                    <div className="h-4 w-4 bg-gray-200 rounded animate-pulse" />
-                  </TableCell>
                   {columns.map((column, colIndex) => (
                     <TableCell key={`loading-cell-${index}-${colIndex}`}>
                       <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4" />
@@ -637,7 +647,7 @@ export function FinanceDataTable({
             ) : currentItems.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length + 2}
+                  colSpan={columns.length + 1}
                   className="text-center py-8 text-gray-500"
                 >
                   No records found
@@ -646,13 +656,6 @@ export function FinanceDataTable({
             ) : (
               currentItems.map((row) => (
                 <TableRow key={row.id} className="group">
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedRows.includes(row.id)}
-                      onCheckedChange={() => handleSelectRow(row.id)}
-                      aria-label={`Select row ${row.id}`}
-                    />
-                  </TableCell>
                   {columns.map((column) => (
                     <TableCell key={`${row.id}-${column.key}`}>
                       {column.render
@@ -661,60 +664,34 @@ export function FinanceDataTable({
                     </TableCell>
                   ))}
                   <TableCell className="text-right">
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-2">
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
                         onClick={() => onView(row.id)}
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-8 w-8 text-gray-600 hover:bg-gray-50"
                       >
                         <Eye className="h-4 w-4" />
                         <span className="sr-only">View</span>
                       </Button>
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
                         onClick={() => onEdit(row.id)}
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-8 w-8 text-blue-600 hover:bg-blue-50"
                       >
                         <Edit className="h-4 w-4" />
                         <span className="sr-only">Edit</span>
                       </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">More options</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => onView(row.id)}
-                            className="cursor-pointer"
-                          >
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => onEdit(row.id)}
-                            className="cursor-pointer"
-                          >
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => confirmDelete(row.id)}
-                            className="cursor-pointer text-red-600 focus:text-red-600"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => confirmDelete(row.id)}
+                        className="h-8 w-8 text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete</span>
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -724,9 +701,6 @@ export function FinanceDataTable({
             {/* Totals row */}
             {showTotals && Object.keys(totals).length > 0 && (
               <TableRow className="font-medium bg-gray-50">
-                <TableCell>
-                  <div className="h-4 w-4" />
-                </TableCell>
                 {columns.map((column) => (
                   <TableCell key={`total-${column.key}`}>
                     {totalFields.includes(column.key)
@@ -745,74 +719,50 @@ export function FinanceDataTable({
         </Table>
       </div>
 
-      <div className="flex items-center justify-between mt-4">
-        <div className="text-sm text-gray-500">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
-            {/* Item range + per-page selector */}
-            <div className="flex items-center gap-2">
-              <p className="text-sm text-gray-500">
-                Showing 1 -
-                50 of
-                50 payer
-              </p>
+      {sortedData.length > 0 && (
+        <div className="px-1 py-3 text-sm text-gray-600">
+          Showing {sortedData.length} {title.toLowerCase()}
+        </div>
+      )}
 
-              <Select
-                value={itemsPerPage.toString()}
-                onValueChange={(value) => {
-                  setItemsPerPage(Number(value));
-                  setCurrentPage(1); // Reset to page 1 when itemsPerPage changes
-                }}
-              >
-                <SelectTrigger className="h-8 w-[110px]">
-                  <SelectValue placeholder="Items per page" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10 per page</SelectItem>
-                  <SelectItem value="20">20 per page</SelectItem>
-                  <SelectItem value="50">50 per page</SelectItem>
-                  <SelectItem value="100">100 per page</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      {totalPages > 1 && (
+        <div className="mt-4 flex items-center justify-center">
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+
+            {Array.from({ length: totalPages }, (_, index) => {
+              const page = index + 1;
+              return (
+                <Button
+                  key={page}
+                  variant="outline"
+                  size="sm"
+                  className={page === currentPage ? "bg-green-300" : ""}
+                  onClick={() => handlePageChange(page)}
+                >
+                  {page}
+                </Button>
+              );
+            })}
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
           </div>
         </div>
-
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            // onClick={handlePrev}
-            disabled={currentPage === 1}
-          >
-            Previous
-          </Button>
-
-          {/* Dynamically render page numbers */}
-          {Array.from({ length: totalPages }, (_, index) => {
-            const page = index + 1;
-            return (
-              <Button
-                key={page}
-                variant="outline"
-                size="sm"
-                className={page === currentPage ? "bg-green-300" : ""}
-                onClick={() => setCurrentPage(page)}
-              >
-                {page}
-              </Button>
-            );
-          })}
-
-          <Button
-            variant="outline"
-            size="sm"
-            // onClick={handleNext}
-            disabled={currentPage === totalPages}
-          >
-            Next
-          </Button>
-        </div>
-      </div>
+      )}
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
