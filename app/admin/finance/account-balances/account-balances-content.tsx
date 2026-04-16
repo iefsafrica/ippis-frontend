@@ -1,8 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import axios from "axios"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
+import { saveAs } from "file-saver"
+
+import { useGetFinanceAccountAnalytics } from "@/services/hooks/finance/accounts"
+import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 
 import { FinanceCard } from "../components/finance-card"
 import { Button } from "@/components/ui/button"
@@ -10,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import ExportService from "@/app/admin/services/export-service"
 
 import {
   Wallet,
@@ -24,50 +28,229 @@ import {
   PieChart,
   LineChart,
 } from "lucide-react"
+import {
+  CartesianGrid,
+  Cell,
+  Line,
+  Bar,
+  BarChart,
+  LineChart as ReLineChart,
+  Pie,
+  PieChart as RePieChart,
+  XAxis,
+  YAxis,
+  LabelList,
+} from "recharts"
 
-import { format, subDays } from "date-fns"
+type AccountBalanceRow = {
+  id: string
+  accountName: string
+  bankName: string
+  currentBalance: number
+  previousBalance: number
+  change: number
+  changePercentage: number
+  currency: string
+  lastUpdated: string
+}
+
+type AnalyticsTrendRow = {
+  date: string
+  balance: number
+  previousBalance: number
+  change: number
+  percentChange: number
+}
+
+type AnalyticsDownloadRow = {
+  Account: string
+  Bank: string
+  "Current Balance": number
+  "Previous Balance": number
+  Change: number
+  "% Change": number
+  "Last Updated": string
+}
+
+const normalizeAccountBalance = (account: any): AccountBalanceRow => ({
+  id: String(account.id ?? account.account_id ?? account.accountId ?? `${account.accountName ?? account.account_name ?? "account"}-${account.bankName ?? account.bank_name ?? "bank"}`),
+  accountName: account.accountName ?? account.account_name ?? "",
+  bankName: account.bankName ?? account.bank_name ?? "",
+  currentBalance: Number(account.currentBalance ?? account.current_balance ?? 0),
+  previousBalance: Number(account.previousBalance ?? account.previous_balance ?? 0),
+  change: Number(account.change ?? 0),
+  changePercentage: Number(account.changePercentage ?? account.change_percentage ?? 0),
+  currency: account.currency ?? "NGN",
+  lastUpdated: account.lastUpdated ?? account.last_updated ?? account.updated_at ?? account.created_at ?? "",
+})
+
+const chartColors = ["#0f172a", "#2563eb", "#16a34a", "#dc2626", "#f59e0b", "#7c3aed", "#0891b2", "#db2777"]
+
+const sanitizeFilename = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")
 
 export function AccountBalancesContent() {
-  const [balances, setBalances] = useState<any[]>([])
+  const { data, isLoading, isFetching, isError, refetch } = useGetFinanceAccountAnalytics()
   const [timeRange, setTimeRange] = useState("30days")
   const [chartType, setChartType] = useState("line")
 
   useEffect(() => {
-    const fetchBalances = async () => {
-      try {
-        const response = await axios.get("/api/accounts/balance")
-        setBalances(response.data)
-      } catch (error) {
-        console.error("Error fetching balances", error)
-        toast.error("Failed to load account balances")
-      }
+    if (isError) {
+      toast.error("Failed to load account analytics")
+    }
+  }, [isError])
+
+  const summary = data?.data?.summary
+  const balances = (data?.data?.accountDetails ?? [])
+    .map(normalizeAccountBalance)
+    .sort((a, b) => {
+      const aTime = a.lastUpdated ? new Date(a.lastUpdated).getTime() : 0
+      const bTime = b.lastUpdated ? new Date(b.lastUpdated).getTime() : 0
+
+      if (bTime !== aTime) return bTime - aTime
+      return b.currentBalance - a.currentBalance
+    })
+  const trend = data?.data?.trend ?? []
+  const chartData = useMemo<AnalyticsTrendRow[]>(() => {
+    const normalizedTrend = trend
+      .map((entry, index) => ({
+        date: entry.label ?? entry.date ?? `Point ${index + 1}`,
+        balance: Number(entry.balance ?? 0),
+        previousBalance: Number(entry.previousBalance ?? 0),
+        change: Number(entry.change ?? 0),
+        percentChange: Number(entry.percentChange ?? 0),
+      }))
+      .filter((entry) => entry.date)
+
+    if (normalizedTrend.length > 0) {
+      return normalizedTrend
     }
 
-    fetchBalances()
-  }, [])
+    return balances.map((account) => ({
+      date: account.accountName || account.bankName || account.id,
+      balance: account.currentBalance,
+      previousBalance: account.previousBalance,
+      change: account.change,
+      percentChange: account.changePercentage,
+    }))
+  }, [trend, balances])
 
-  const totalCurrentBalance = balances.reduce((sum, account) => {
-    return sum + (account.currency === "NGN" ? account.currentBalance : account.currentBalance * 1500)
-  }, 0)
+  const pieData = useMemo(
+    () =>
+      balances.map((account, index) => ({
+        name: account.accountName || account.bankName || account.id,
+        value: account.currentBalance,
+        fill: chartColors[index % chartColors.length],
+      })),
+    [balances],
+  )
 
-  const totalPreviousBalance = balances.reduce((sum, account) => {
-    return sum + (account.currency === "NGN" ? account.previousBalance : account.previousBalance * 1500)
-  }, 0)
+  const chartConfig = {
+    balance: {
+      label: "Current balance",
+      color: "#2563eb",
+    },
+    previousBalance: {
+      label: "Previous balance",
+      color: "#94a3b8",
+    },
+    change: {
+      label: "Change",
+      color: "#16a34a",
+    },
+    percentChange: {
+      label: "Percent change",
+      color: "#7c3aed",
+    },
+  } as const
 
-  const totalChange = totalCurrentBalance - totalPreviousBalance
-  const totalChangePercentage = (totalChange / totalPreviousBalance) * 100
+  const exportRows = useMemo<AnalyticsDownloadRow[]>(
+    () =>
+      balances.map((account) => ({
+        Account: account.accountName,
+        Bank: account.bankName,
+        "Current Balance": account.currentBalance,
+        "Previous Balance": account.previousBalance,
+        Change: account.change,
+        "% Change": account.changePercentage,
+        "Last Updated": account.lastUpdated ? new Date(account.lastUpdated).toLocaleString() : "N/A",
+      })),
+    [balances],
+  )
 
-  const positiveChangeAccounts = balances.filter((account) => account.change > 0).length
-  const negativeChangeAccounts = balances.filter((account) => account.change < 0).length
+  const exportColumns = [
+    { header: "Account", accessor: "Account" },
+    { header: "Bank", accessor: "Bank" },
+    { header: "Current Balance", accessor: "Current Balance" },
+    { header: "Previous Balance", accessor: "Previous Balance" },
+    { header: "Change", accessor: "Change" },
+    { header: "% Change", accessor: "% Change" },
+    { header: "Last Updated", accessor: "Last Updated" },
+  ]
+
+  const totalCurrentBalance =
+    summary?.totalBalance ??
+    balances.reduce((sum, account) => sum + (account.currency === "NGN" ? account.currentBalance : account.currentBalance * 1500), 0)
+
+  const totalPreviousBalance =
+    summary?.previousBalance ??
+    balances.reduce((sum, account) => sum + (account.currency === "NGN" ? account.previousBalance : account.previousBalance * 1500), 0)
+
+  const totalChange = summary?.change ?? totalCurrentBalance - totalPreviousBalance
+  const totalChangePercentage =
+    summary?.percentChange ?? (totalPreviousBalance ? (totalChange / totalPreviousBalance) * 100 : 0)
+
+  const positiveChangeAccounts =
+    summary?.increaseAccounts ?? balances.filter((account) => account.change > 0).length
+  const negativeChangeAccounts =
+    summary?.decreaseAccounts ?? balances.filter((account) => account.change < 0).length
+  const totalAccounts = summary?.totalAccounts ?? balances.length
 
   const handleExportPDF = () => {
-    console.log("Exporting to PDF")
-    // Implement export logic
+    const filename = `account_balances_${sanitizeFilename(getTimeRangeLabel()) || "report"}`
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8" />
+          <title>Account Balances Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #111827; }
+            h1 { margin: 0 0 8px; }
+            .muted { color: #6b7280; margin: 0 0 24px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+            th, td { border: 1px solid #d1d5db; padding: 10px 12px; text-align: left; }
+            th { background: #f3f4f6; }
+          </style>
+        </head>
+        <body>
+          <h1>Account Balances Report</h1>
+          <p class="muted">Generated for ${getTimeRangeLabel()}</p>
+          <table>
+            <thead>
+              <tr>${exportColumns.map((column) => `<th>${column.header}</th>`).join("")}</tr>
+            </thead>
+            <tbody>
+              ${exportRows
+                .map(
+                  (row) =>
+                    `<tr>${exportColumns.map((column) => `<td>${String((row as Record<string, unknown>)[column.accessor] ?? "")}</td>`).join("")}</tr>`,
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" })
+    saveAs(blob, `${filename}.html`)
   }
 
   const handleExportCSV = () => {
-    console.log("Exporting to CSV")
-    // Implement export logic
+    ExportService.exportToCSV(exportRows, {
+      title: "Account Balances",
+      filename: `account_balances_${sanitizeFilename(getTimeRangeLabel()) || "report"}`,
+      columns: exportColumns,
+    })
   }
 
   const handlePrint = () => {
@@ -96,7 +279,7 @@ export function AccountBalancesContent() {
         <div className="flex items-center gap-2">
           <Select value={timeRange} onValueChange={setTimeRange}>
             <SelectTrigger className="w-[180px]">
-              <Calendar className="h-4 w-4 mr-2" />
+              <Calendar className="mr-2 h-4 w-4" />
               <SelectValue placeholder="Select time range" />
             </SelectTrigger>
             <SelectContent>
@@ -133,29 +316,41 @@ export function AccountBalancesContent() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {isError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          We had trouble loading the account analytics.
+          <Button variant="outline" onClick={() => refetch()} className="ml-3 rounded-xl border-red-200 bg-white">
+            Retry
+          </Button>
+        </div>
+      ) : null}
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <FinanceCard
           title="Total Balance"
           value={totalCurrentBalance}
-          isCurrency={true}
+          isCurrency
           currencySymbol="₦"
           icon={<Wallet className="h-4 w-4 text-gray-500" />}
           trend={totalChangePercentage}
           trendLabel="vs previous period"
+          isLoading={isLoading || isFetching}
           className="bg-white"
         />
         <FinanceCard
           title="Accounts with Increase"
           value={positiveChangeAccounts}
           icon={<TrendingUp className="h-4 w-4 text-green-500" />}
-          description={`${positiveChangeAccounts} of ${balances.length} accounts`}
+          description={`${positiveChangeAccounts} of ${totalAccounts} accounts`}
+          isLoading={isLoading || isFetching}
           className="bg-white"
         />
         <FinanceCard
           title="Accounts with Decrease"
           value={negativeChangeAccounts}
           icon={<TrendingDown className="h-4 w-4 text-red-500" />}
-          description={`${negativeChangeAccounts} of ${balances.length} accounts`}
+          description={`${negativeChangeAccounts} of ${totalAccounts} accounts`}
+          isLoading={isLoading || isFetching}
           className="bg-white"
         />
       </div>
@@ -194,17 +389,79 @@ export function AccountBalancesContent() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="h-[300px] w-full">
-            <div className="flex items-center justify-center h-full border border-dashed border-gray-200 rounded-lg">
-              <div className="text-center">
-                <p className="text-sm text-gray-500">
-                  {chartType.charAt(0).toUpperCase() + chartType.slice(1)} chart showing balance trend over{" "}
-                  {getTimeRangeLabel().toLowerCase()}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">Chart visualization would be rendered here</p>
-              </div>
-            </div>
-          </div>
+          <ChartContainer
+            config={chartConfig}
+            className="h-[320px] w-full"
+          >
+            {chartType === "line" ? (
+              <ReLineChart data={chartData} margin={{ left: 12, right: 12, top: 12, bottom: 12 }}>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="date"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  minTickGap={24}
+                />
+                <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+                <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
+                <Line
+                  type="monotone"
+                  dataKey="balance"
+                  stroke="var(--color-balance)"
+                  strokeWidth={3}
+                  dot={{ r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="previousBalance"
+                  stroke="var(--color-previousBalance)"
+                  strokeWidth={2}
+                  dot={false}
+                  strokeDasharray="5 5"
+                />
+                <ChartLegend content={<ChartLegendContent />} />
+              </ReLineChart>
+            ) : chartType === "bar" ? (
+              <BarChart data={chartData} margin={{ left: 12, right: 12, top: 12, bottom: 12 }}>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="date"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  minTickGap={24}
+                />
+                <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+                <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
+                <Bar dataKey="balance" fill="var(--color-balance)" radius={6} />
+                <Bar dataKey="change" fill="var(--color-change)" radius={6} />
+                <ChartLegend content={<ChartLegendContent />} />
+              </BarChart>
+            ) : (
+              <RePieChart margin={{ top: 12, right: 12, bottom: 12, left: 12 }}>
+                <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
+                <Pie
+                  data={pieData}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={70}
+                  outerRadius={110}
+                  paddingAngle={3}
+                >
+                  {pieData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.fill} />
+                  ))}
+                  <LabelList
+                    dataKey="name"
+                    position="outside"
+                    className="fill-muted-foreground text-xs"
+                  />
+                </Pie>
+              </RePieChart>
+            )}
+          </ChartContainer>
         </CardContent>
       </Card>
 
@@ -226,55 +483,69 @@ export function AccountBalancesContent() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {balances.map((account) => (
-                <TableRow key={account.id}>
-                  <TableCell className="font-medium">{account.accountName}</TableCell>
-                  <TableCell>{account.bankName}</TableCell>
-                  <TableCell className="text-right">
-                    {new Intl.NumberFormat("en-US", { style: "currency", currency: account.currency }).format(
-                      account.currentBalance
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {new Intl.NumberFormat("en-US", { style: "currency", currency: account.currency }).format(
-                      account.previousBalance
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span
-                      className={
-                        account.change > 0
-                          ? "text-green-600"
-                          : account.change < 0
-                          ? "text-red-600"
-                          : "text-gray-600"
-                      }
-                    >
-                      {new Intl.NumberFormat("en-US", {
-                        style: "currency",
-                        currency: account.currency,
-                        signDisplay: "always",
-                      }).format(account.change)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span
-                      className={
-                        account.changePercentage > 0
-                          ? "text-green-600"
-                          : account.changePercentage < 0
-                          ? "text-red-600"
-                          : "text-gray-600"
-                      }
-                    >
-                      {account.changePercentage.toFixed(2)}%
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {format(new Date(account.lastUpdated), "MMM d, yyyy")}
+              {isLoading || isFetching ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="py-10 text-center text-sm text-gray-500">
+                    Loading account analytics...
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : balances.length > 0 ? (
+                balances.map((account) => (
+                  <TableRow key={account.id}>
+                    <TableCell className="font-medium">{account.accountName}</TableCell>
+                    <TableCell>{account.bankName}</TableCell>
+                    <TableCell className="text-right">
+                      {new Intl.NumberFormat("en-US", { style: "currency", currency: account.currency }).format(
+                        account.currentBalance,
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {new Intl.NumberFormat("en-US", { style: "currency", currency: account.currency }).format(
+                        account.previousBalance,
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span
+                        className={
+                          account.change > 0 ? "text-green-600" : account.change < 0 ? "text-red-600" : "text-gray-600"
+                        }
+                      >
+                        {new Intl.NumberFormat("en-US", {
+                          style: "currency",
+                          currency: account.currency,
+                          signDisplay: "always",
+                        }).format(account.change)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span
+                        className={
+                          account.changePercentage > 0
+                            ? "text-green-600"
+                            : account.changePercentage < 0
+                              ? "text-red-600"
+                              : "text-gray-600"
+                        }
+                      >
+                        {account.changePercentage.toFixed(2)}%
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {account.lastUpdated ? new Date(account.lastUpdated).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      }) : "N/A"}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={7} className="py-10 text-center text-sm text-gray-500">
+                    No account analytics found.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

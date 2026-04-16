@@ -71,6 +71,8 @@ const accountFields: FinanceField[] = [
   { name: "description", label: "Description", type: "textarea" },
 ];
 
+const createAccountFields = accountFields.filter((field) => field.name !== "openingDate");
+
 const accountFieldToRecordKey: Record<string, keyof FinanceAccountUI> = {
   accountName: "account_name",
   accountNumber: "account_number",
@@ -233,15 +235,23 @@ export function AccountsListContent() {
   const detailsFields: FinanceDetailsField[] = accountFields.map(({ name, label, type }) => {
     const mappedType: FinanceDetailsField["type"] =
       type === "date" ? "date" : type === "number" || type === "currency" ? "currency" : type === "select" && name === "status" ? "status" : "text";
-    return { key: name, label, type: mappedType };
+    if (name === "openingDate") {
+      return {
+        key: "created_at",
+        label,
+        type: "date",
+        render: (value) => formatDate(selectedAccount?.opening_date ?? value ?? null),
+      };
+    }
+    return { key: accountFieldToRecordKey[name], label, type: mappedType };
   });
 
   const editFields = useMemo(() => {
     if (!selectedAccount) return accountFields;
 
     return accountFields.filter((field) => {
-      const recordKey = accountFieldToRecordKey[field.name]
-      const value = selectedAccount[recordKey]
+      const recordKey = accountFieldToRecordKey[field.name];
+      const value = selectedAccount[recordKey];
       return value !== null && value !== undefined && value !== ""
     })
   }, [selectedAccount]);
@@ -374,7 +384,7 @@ export function AccountsListContent() {
 
       <FinanceFormDialog
         title={isEditMode ? "Edit Account" : "New Account"}
-        fields={isEditMode ? editFields : accountFields}
+        fields={isEditMode ? editFields : createAccountFields}
         initialValues={isEditMode && selectedAccount ? {
           accountName: selectedAccount.account_name,
           accountNumber: selectedAccount.account_number,
@@ -409,6 +419,12 @@ export function AccountsListContent() {
         onCopy={() => selectedAccount && navigator.clipboard.writeText(selectedAccount.account_number)}
         actions={{ edit: true, delete: true, print: true, copy: true }}
         currencySymbol="NGN"
+        deleteConfirmation={{
+          enabled: true,
+          title: "Delete Account",
+          description: `Are you sure you want to delete ${selectedAccount?.account_name ?? "this account"}?`,
+          itemName: selectedAccount?.account_name ?? "this account",
+        }}
       />
     </div>
   );

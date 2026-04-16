@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import type React from "react"
 
 import {
@@ -11,6 +12,7 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog"
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -53,6 +55,12 @@ interface FinanceDetailsDialogProps {
   isOpen?: boolean
   onOpenChange?: (open: boolean) => void
   currencySymbol?: string
+  deleteConfirmation?: {
+    title?: string
+    description?: string
+    itemName?: string
+    enabled?: boolean
+  }
 }
 
 export function FinanceDetailsDialog({
@@ -69,7 +77,10 @@ export function FinanceDetailsDialog({
   isOpen,
   onOpenChange,
   currencySymbol = "$",
+  deleteConfirmation,
 }: FinanceDetailsDialogProps) {
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+
   const renderValue = (field: FinanceDetailsField, value: any) => {
     if (value === undefined || value === null) {
       return <span className="text-muted-foreground">Not provided</span>
@@ -133,75 +144,103 @@ export function FinanceDetailsDialog({
     }
   }
 
+  const handleDeleteClick = () => {
+    if (deleteConfirmation?.enabled) {
+      setIsDeleteDialogOpen(true)
+      return
+    }
+
+    onDelete?.()
+  }
+
+  const confirmDelete = () => {
+    onDelete?.()
+  }
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        <div className="py-4">
-          <div className="space-y-4">
-            {fields.map((field) => (
-              <div key={field.key} className="grid grid-cols-3 gap-4">
-                <div className="font-medium text-sm">{field.label}</div>
-                <div className="col-span-2">{renderValue(field, data[field.key])}</div>
-                <Separator className="col-span-3" />
-              </div>
-            ))}
+    <>
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
+        {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="space-y-4">
+              {fields.map((field) => (
+                <div key={field.key} className="grid grid-cols-3 gap-4">
+                  <div className="font-medium text-sm">{field.label}</div>
+                  <div className="col-span-2">{renderValue(field, data[field.key])}</div>
+                  <Separator className="col-span-3" />
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-        {actions && (
-          <DialogFooter className="flex justify-between sm:justify-between">
-            <div className="flex gap-2">
-              {actions.edit && onEdit && (
-                <Button variant="outline" size="sm" onClick={onEdit}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-              )}
-              {actions.delete && onDelete && (
-                <Button variant="destructive" size="sm" onClick={onDelete}>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
-              )}
-            </div>
-            <div className="flex gap-2">
-              {actions.copy && onCopy && (
-                <Button variant="outline" size="sm" onClick={onCopy}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy
-                </Button>
-              )}
-              {actions.download && onDownload && (
-                <Button variant="outline" size="sm" onClick={onDownload}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </Button>
-              )}
-              {actions.print && onPrint && (
-                <Button variant="outline" size="sm" onClick={onPrint}>
-                  <Printer className="h-4 w-4 mr-2" />
-                  Print
-                </Button>
-              )}
-              {actions.custom &&
-                actions.custom.map((action) => (
-                  <Button key={action.label} variant="outline" size="sm" onClick={action.onClick}>
-                    {action.icon}
-                    {action.label}
+          {actions && (
+            <DialogFooter className="flex justify-between sm:justify-between">
+              <div className="flex gap-2">
+                {actions.edit && onEdit && (
+                  <Button variant="outline" size="sm" onClick={onEdit}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
                   </Button>
-                ))}
-              <DialogClose asChild>
-                <Button variant="secondary" size="sm">
-                  Close
-                </Button>
-              </DialogClose>
-            </div>
-          </DialogFooter>
-        )}
-      </DialogContent>
-    </Dialog>
+                )}
+                {actions.delete && onDelete && (
+                  <Button variant="destructive" size="sm" onClick={handleDeleteClick}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                {actions.copy && onCopy && (
+                  <Button variant="outline" size="sm" onClick={onCopy}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy
+                  </Button>
+                )}
+                {actions.download && onDownload && (
+                  <Button variant="outline" size="sm" onClick={onDownload}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                )}
+                {actions.print && onPrint && (
+                  <Button variant="outline" size="sm" onClick={onPrint}>
+                    <Printer className="h-4 w-4 mr-2" />
+                    Print
+                  </Button>
+                )}
+                {actions.custom &&
+                  actions.custom.map((action) => (
+                    <Button key={action.label} variant="outline" size="sm" onClick={action.onClick}>
+                      {action.icon}
+                      {action.label}
+                    </Button>
+                  ))}
+                <DialogClose asChild>
+                  <Button variant="secondary" size="sm">
+                    Close
+                  </Button>
+                </DialogClose>
+              </div>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <DeleteConfirmationDialog
+        isOpen={isDeleteDialogOpen && Boolean(deleteConfirmation?.enabled)}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={async () => {
+          await confirmDelete()
+          setIsDeleteDialogOpen(false)
+          onOpenChange?.(false)
+        }}
+        title={deleteConfirmation?.title || `Delete ${title}`}
+        description={deleteConfirmation?.description || "Are you sure you want to delete this item?"}
+        itemName={deleteConfirmation?.itemName || title}
+      />
+    </>
   )
 }

@@ -2,22 +2,25 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   CREATE_FINANCE_ACCOUNT,
   DELETE_FINANCE_ACCOUNT,
+  GET_FINANCE_ACCOUNT_ANALYTICS,
   GET_FINANCE_ACCOUNTS,
   UPDATE_FINANCE_ACCOUNT,
 } from "@/services/constants/finance"
 import {
   createFinanceAccount,
   deleteFinanceAccount,
+  getFinanceAccountAnalytics,
   getFinanceAccounts,
   updateFinanceAccount,
 } from "@/services/endpoints/finance/accounts"
 import type {
-  CreateFinanceAccountRequest,
-  CreateFinanceAccountResponse,
-  DeleteFinanceAccountResponse,
-  GetFinanceAccountsResponse,
-  UpdateFinanceAccountRequest,
-  UpdateFinanceAccountResponse,
+    CreateFinanceAccountRequest,
+    CreateFinanceAccountResponse,
+    DeleteFinanceAccountResponse,
+    GetFinanceAccountAnalyticsResponse,
+    GetFinanceAccountsResponse,
+    UpdateFinanceAccountRequest,
+    UpdateFinanceAccountResponse,
 } from "@/types/finance/accounts"
 
 export const useGetFinanceAccounts = () => {
@@ -25,7 +28,16 @@ export const useGetFinanceAccounts = () => {
     queryKey: [GET_FINANCE_ACCOUNTS],
     queryFn: getFinanceAccounts,
     staleTime: 1000 * 60 * 5,
-    cacheTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 10,
+  })
+}
+
+export const useGetFinanceAccountAnalytics = () => {
+  return useQuery<GetFinanceAccountAnalyticsResponse>({
+    queryKey: [GET_FINANCE_ACCOUNT_ANALYTICS],
+    queryFn: getFinanceAccountAnalytics,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
   })
 }
 

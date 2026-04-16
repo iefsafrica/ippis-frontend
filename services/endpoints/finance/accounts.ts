@@ -1,17 +1,23 @@
 import { del, get, patch, post } from "@/services/axios"
 import type {
-  CreateFinanceAccountRequest,
-  CreateFinanceAccountResponse,
-  DeleteFinanceAccountResponse,
-  GetFinanceAccountsResponse,
-  UpdateFinanceAccountRequest,
-  UpdateFinanceAccountResponse,
+    CreateFinanceAccountRequest,
+    CreateFinanceAccountResponse,
+    DeleteFinanceAccountResponse,
+    GetFinanceAccountAnalyticsResponse,
+    GetFinanceAccountsResponse,
+    UpdateFinanceAccountRequest,
+    UpdateFinanceAccountResponse,
 } from "@/types/finance/accounts"
 
 const FINANCE_ACCOUNTS_ENDPOINT = "/finance/account"
+const FINANCE_ACCOUNT_ANALYTICS_ENDPOINT = "/finance/account/analytics"
 
 export const getFinanceAccounts = async (): Promise<GetFinanceAccountsResponse> => {
   return get<GetFinanceAccountsResponse>(FINANCE_ACCOUNTS_ENDPOINT)
+}
+
+export const getFinanceAccountAnalytics = async (): Promise<GetFinanceAccountAnalyticsResponse> => {
+  return get<GetFinanceAccountAnalyticsResponse>(FINANCE_ACCOUNT_ANALYTICS_ENDPOINT)
 }
 
 export const createFinanceAccount = async (

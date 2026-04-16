@@ -12,9 +12,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog"
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import {
   Search,
   Plus,
@@ -764,28 +763,19 @@ export function FinanceDataTable({
         </div>
       )}
 
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this item? This action cannot be
-              undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex space-x-2 justify-end">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={executeDelete}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteConfirmationDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false)
+          setItemToDelete(null)
+        }}
+        onConfirm={async () => {
+          executeDelete()
+        }}
+        title={`Delete ${title}`}
+        description={`Are you sure you want to delete this ${title.toLowerCase().replace(/s$/, "")}?`}
+        itemName={itemToDelete ? `${title.slice(0, -1)} ${itemToDelete}` : title}
+      />
     </div>
   );
 }
