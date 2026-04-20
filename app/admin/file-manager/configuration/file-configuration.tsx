@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch"
 import { Slider } from "@/components/ui/slider"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import { useCreateFolder, useDeleteFolder, useGetFolder, useGetFolders, useUpdateFolder } from "@/services/hooks/file-manager/folders"
 
@@ -34,7 +34,6 @@ const fileTypes = [
 ]
 
 export function FileConfiguration() {
-  const { toast } = useToast()
   const [isAddFileTypeDialogOpen, setIsAddFileTypeDialogOpen] = useState(false)
   const [storageLimit, setStorageLimit] = useState(1000) // GB
   const [autoDeleteEnabled, setAutoDeleteEnabled] = useState(false)
@@ -83,9 +82,12 @@ export function FileConfiguration() {
     return folders.find((folder) => folder.folder_id === parentId)?.name ?? parentId
   }
 
-  const rootFolders = folders.filter((folder) => folder.parent_id === null)
-  const subFolders = folders.filter((folder) => folder.parent_id !== null)
-  const filteredFolders = folders.filter((folder) => {
+  const orderedFolders = [...folders].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  )
+  const rootFolders = orderedFolders.filter((folder) => folder.parent_id === null)
+  const subFolders = orderedFolders.filter((folder) => folder.parent_id !== null)
+  const filteredFolders = orderedFolders.filter((folder) => {
     const term = folderSearchTerm.toLowerCase()
     return (
       folder.name.toLowerCase().includes(term) ||
@@ -93,9 +95,7 @@ export function FileConfiguration() {
       resolveParentName(folder.parent_id).toLowerCase().includes(term)
     )
   })
-  const latestFolder = [...folders].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-  )[0]
+  const latestFolder = orderedFolders[0]
 
   const formatFolderDate = (value: string) =>
     new Date(value).toLocaleString("en-NG", {
@@ -109,11 +109,7 @@ export function FileConfiguration() {
   const handleCreateFolder = async () => {
     const trimmedName = folderName.trim()
     if (!trimmedName) {
-      toast({
-        title: "Folder name required",
-        description: "Enter a folder name before creating it.",
-        variant: "destructive",
-      })
+      toast.error("Enter a folder name before creating it.")
       return
     }
 
@@ -122,21 +118,14 @@ export function FileConfiguration() {
         name: trimmedName,
         parent_id: folderParentId === "root" ? null : folderParentId,
       })
-      toast({
-        title: "Folder created",
-        description: "The folder was created successfully.",
-      })
+      toast.success("Folder created successfully")
       setFolderName("")
       setFolderParentId("root")
       setIsFolderDialogOpen(false)
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to create folder. Please try again."
-      toast({
-        title: "Unable to create folder",
-        description: message,
-        variant: "destructive",
-      })
+      toast.error(message)
     }
   }
 
@@ -147,11 +136,7 @@ export function FileConfiguration() {
 
     const trimmedName = renameFolderName.trim()
     if (!trimmedName) {
-      toast({
-        title: "Folder name required",
-        description: "Enter a folder name before saving.",
-        variant: "destructive",
-      })
+      toast.error("Enter a folder name before saving.")
       return
     }
 
@@ -160,20 +145,13 @@ export function FileConfiguration() {
         folder_id: renameFolderId,
         name: trimmedName,
       })
-      toast({
-        title: "Folder updated",
-        description: "The folder name was updated successfully.",
-      })
+      toast.success("Folder renamed successfully")
       setRenameFolderId(null)
       setIsRenameDialogOpen(false)
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to update folder. Please try again."
-      toast({
-        title: "Unable to rename folder",
-        description: message,
-        variant: "destructive",
-      })
+      toast.error(message)
     }
   }
 
@@ -184,20 +162,13 @@ export function FileConfiguration() {
 
     try {
       await deleteFolderMutation.mutateAsync(deleteFolderId)
-      toast({
-        title: "Folder deleted",
-        description: "The folder was deleted successfully.",
-      })
+      toast.success("Folder deleted successfully")
       setDeleteFolderId(null)
       setIsDeleteDialogOpen(false)
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to delete folder. Delete child folders first."
-      toast({
-        title: "Unable to delete folder",
-        description: message,
-        variant: "destructive",
-      })
+      toast.error(message)
     }
   }
 
@@ -913,7 +884,7 @@ export function FileConfiguration() {
                       Add Folder
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="sm:max-w-[600px]">
                     <DialogHeader>
                       <DialogTitle>Create Folder</DialogTitle>
                     </DialogHeader>
@@ -1090,7 +1061,7 @@ export function FileConfiguration() {
       </Tabs>
 
       <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Rename Folder</DialogTitle>
           </DialogHeader>
@@ -1142,7 +1113,7 @@ export function FileConfiguration() {
       />
 
       <Dialog open={Boolean(viewFolderId)} onOpenChange={(open) => !open && setViewFolderId(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Folder Details</DialogTitle>
           </DialogHeader>

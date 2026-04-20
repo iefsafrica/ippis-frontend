@@ -1,176 +1,141 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { RefreshCw, Sparkles } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  FileText,
-  FolderPlus,
-  Upload,
-  Download,
-  Search,
-  Filter,
-  MoreVertical,
-  Trash2,
-  Edit,
-  Eye,
-  FileUp,
-  FilePlus2,
-  FileImage,
-  FileSpreadsheet,
-  FileArchive,
-  FilePieChart,
-  Printer,
-  FileOutput,
-} from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
-import { useToast } from "@/components/ui/use-toast"
-import { useCreateFolder, useGetFolders } from "@/services/hooks/file-manager/folders"
-
-// Mock data for file manager
-const mockFiles = [
-  {
-    id: "1",
-    name: "Employee Handbook.pdf",
-    type: "pdf",
-    size: "2.4 MB",
-    modified: "2023-05-12",
-    owner: "HR Department",
-    shared: true,
-    category: "Documents",
-    icon: <FileText className="h-5 w-5 text-red-500" />,
-  },
-  {
-    id: "2",
-    name: "Quarterly Report Q1.xlsx",
-    type: "xlsx",
-    size: "1.8 MB",
-    modified: "2023-05-10",
-    owner: "Finance Team",
-    shared: true,
-    category: "Spreadsheets",
-    icon: <FileSpreadsheet className="h-5 w-5 text-green-500" />,
-  },
-  {
-    id: "3",
-    name: "Company Logo.png",
-    type: "png",
-    size: "0.5 MB",
-    modified: "2023-05-08",
-    owner: "Marketing",
-    shared: false,
-    category: "Images",
-    icon: <FileImage className="h-5 w-5 text-blue-500" />,
-  },
-  {
-    id: "4",
-    name: "Training Videos.zip",
-    type: "zip",
-    size: "156 MB",
-    modified: "2023-05-05",
-    owner: "Training Dept",
-    shared: true,
-    category: "Archives",
-    icon: <FileArchive className="h-5 w-5 text-yellow-500" />,
-  },
-  {
-    id: "5",
-    name: "Annual Budget.xlsx",
-    type: "xlsx",
-    size: "3.2 MB",
-    modified: "2023-05-01",
-    owner: "Finance Team",
-    shared: false,
-    category: "Spreadsheets",
-    icon: <FileSpreadsheet className="h-5 w-5 text-green-500" />,
-  },
-  {
-    id: "6",
-    name: "Onboarding Presentation.pptx",
-    type: "pptx",
-    size: "8.7 MB",
-    modified: "2023-04-28",
-    owner: "HR Department",
-    shared: true,
-    category: "Presentations",
-    icon: <FilePieChart className="h-5 w-5 text-orange-500" />,
-  },
-  {
-    id: "7",
-    name: "Website Backup.zip",
-    type: "zip",
-    size: "245 MB",
-    modified: "2023-04-25",
-    owner: "IT Department",
-    shared: false,
-    category: "Archives",
-    icon: <FileArchive className="h-5 w-5 text-yellow-500" />,
-  },
-  {
-    id: "8",
-    name: "Company Policies.docx",
-    type: "docx",
-    size: "1.2 MB",
-    modified: "2023-04-20",
-    owner: "Legal Team",
-    shared: true,
-    category: "Documents",
-    icon: <FileText className="h-5 w-5 text-blue-500" />,
-  },
-]
-
-// Mock data for storage usage
-const storageData = {
-  total: 1000, // GB
-  used: 427, // GB
-  categories: [
-    { name: "Documents", size: 120, color: "bg-blue-500" },
-    { name: "Images", size: 85, color: "bg-green-500" },
-    { name: "Videos", size: 150, color: "bg-red-500" },
-    { name: "Archives", size: 72, color: "bg-yellow-500" },
-  ],
-}
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { FileManagerDataTable } from "@/app/admin/file-manager/components/file-manager-data-table"
+import {
+  useCreateFolder,
+  useDeleteFolder,
+  useGetFolder,
+  useGetFolders,
+  useUpdateFolder,
+} from "@/services/hooks/file-manager/folders"
 
 export function FileManagerDashboard() {
-  const { toast } = useToast()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedTab, setSelectedTab] = useState("all")
-  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
-  const [isNewFolderDialogOpen, setIsNewFolderDialogOpen] = useState(false)
-  const [folderName, setFolderName] = useState("")
-  const [parentFolderId, setParentFolderId] = useState("root")
-
-  const { data: foldersResponse } = useGetFolders()
+  const {
+    data: foldersResponse,
+    isLoading: isFoldersLoading,
+    isFetching: isFoldersFetching,
+    isError: isFoldersError,
+    refetch: refetchFolders,
+  } = useGetFolders()
   const folders = foldersResponse?.data ?? []
+
   const createFolderMutation = useCreateFolder()
+  const updateFolderMutation = useUpdateFolder()
+  const deleteFolderMutation = useDeleteFolder()
 
-  // Filter files based on search term and selected tab
-  const filteredFiles = mockFiles.filter((file) => {
-    const matchesSearch = file.name.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesTab = selectedTab === "all" || file.category.toLowerCase() === selectedTab.toLowerCase()
-    return matchesSearch && matchesTab
-  })
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [viewFolderId, setViewFolderId] = useState<string | null>(null)
+  const [renameFolderId, setRenameFolderId] = useState<string | null>(null)
+  const [deleteFolderId, setDeleteFolderId] = useState<string | null>(null)
+  const [folderName, setFolderName] = useState("")
+  const [parentFolderId, setParentFolderId] = useState<string>("root")
+  const [renameFolderName, setRenameFolderName] = useState("")
 
-  // Calculate storage usage percentage
-  const storageUsagePercentage = (storageData.used / storageData.total) * 100
+  const { data: viewedFolderResponse } = useGetFolder(viewFolderId ?? undefined, Boolean(viewFolderId))
+  const viewedFolder = viewedFolderResponse?.data
+
+  useEffect(() => {
+    if (!renameFolderId) {
+      setRenameFolderName("")
+      return
+    }
+
+    const folder = folders.find((item) => item.folder_id === renameFolderId)
+    setRenameFolderName(folder?.name ?? "")
+  }, [folders, renameFolderId])
+
+  const resolveParentName = (parentId: string | null) => {
+    if (!parentId) {
+      return "Root"
+    }
+
+    return folders.find((folder) => folder.folder_id === parentId)?.name ?? parentId
+  }
+
+  const rootFolders = folders.filter((folder) => folder.parent_id === null)
+  const nestedFolders = folders.filter((folder) => folder.parent_id !== null)
+  const latestFolder = [...folders].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  )[0]
+
+  const formatDate = (value: string) =>
+    new Date(value).toLocaleString("en-NG", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+
+  const tableColumns = [
+    { key: "name", label: "Folder Name", sortable: true },
+    { key: "folder_id", label: "Folder ID", sortable: true },
+    {
+      key: "parent_name",
+      label: "Parent Folder",
+      sortable: true,
+    },
+    {
+      key: "created_at",
+      label: "Created At",
+      sortable: true,
+      render: (value: string) => (value ? formatDate(value) : "-"),
+    },
+    {
+      key: "scope",
+      label: "Scope",
+      sortable: true,
+      render: (value: string) => (
+        <span
+          className={`rounded-full px-2 py-1 text-xs font-medium ${
+            value === "Root"
+              ? "bg-green-100 text-green-800"
+              : "bg-blue-100 text-blue-800"
+          }`}
+        >
+          {value}
+        </span>
+      ),
+    },
+  ]
+
+  const tableData = folders.map((folder) => ({
+    id: folder.folder_id,
+    name: folder.name,
+    folder_id: folder.folder_id,
+    parent_id: folder.parent_id,
+    parent_name: resolveParentName(folder.parent_id),
+    created_at: folder.created_at,
+    scope: folder.parent_id === null ? "Root" : "Nested",
+  }))
+
+  const filterOptions = [
+    {
+      id: "folder_scope",
+      label: "Folder Type",
+      options: [
+        { value: "root", label: "Root" },
+        { value: "nested", label: "Nested" },
+      ],
+    },
+  ]
 
   const handleCreateFolder = async () => {
     const trimmedName = folderName.trim()
-
     if (!trimmedName) {
-      toast({
-        title: "Folder name required",
-        description: "Enter a folder name before creating it.",
-        variant: "destructive",
-      })
+      toast.error("Enter a folder name before creating it.")
       return
     }
 
@@ -179,361 +144,319 @@ export function FileManagerDashboard() {
         name: trimmedName,
         parent_id: parentFolderId === "root" ? null : parentFolderId,
       })
-      toast({
-        title: "Folder created",
-        description: "The folder was created successfully.",
-      })
+      toast.success("Folder created successfully")
       setFolderName("")
       setParentFolderId("root")
-      setIsNewFolderDialogOpen(false)
+      setIsCreateDialogOpen(false)
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to create folder. Please try again."
-      toast({
-        title: "Unable to create folder",
-        description: message,
-        variant: "destructive",
+      toast.error(message)
+    }
+  }
+
+  const handleRenameFolder = async () => {
+    if (!renameFolderId) {
+      return
+    }
+
+    const trimmedName = renameFolderName.trim()
+    if (!trimmedName) {
+      toast.error("Enter a folder name before saving.")
+      return
+    }
+
+    try {
+      await updateFolderMutation.mutateAsync({
+        folder_id: renameFolderId,
+        name: trimmedName,
       })
+      toast.success("Folder renamed successfully")
+      setRenameFolderId(null)
+      setIsRenameDialogOpen(false)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to rename folder. Please try again."
+      toast.error(message)
+    }
+  }
+
+  const handleDeleteFolder = async () => {
+    if (!deleteFolderId) {
+      return
+    }
+
+    try {
+      await deleteFolderMutation.mutateAsync(deleteFolderId)
+      toast.success("Folder deleted successfully")
+      setDeleteFolderId(null)
+      setIsDeleteDialogOpen(false)
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Folder could not be deleted. Delete the folder contents first."
+      toast.error(message)
     }
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">File Manager</h1>
-          <p className="text-muted-foreground">Manage and organize all your files in one place</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-[#008751] hover:bg-[#00724a]">
-                <Upload className="mr-2 h-4 w-4" />
-                Upload Files
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Upload Files</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="border-2 border-dashed rounded-lg p-12 text-center">
-                  <Upload className="h-8 w-8 mx-auto text-gray-400" />
-                  <p className="mt-2 text-sm text-gray-600">Drag and drop files here, or click to browse</p>
-                  <Input type="file" multiple className="hidden" id="file-upload" onChange={() => {}} />
-                  <Button
-                    variant="outline"
-                    onClick={() => document.getElementById("file-upload")?.click()}
-                    className="mt-4"
-                  >
-                    Browse Files
-                  </Button>
-                </div>
-                <div>
-                  <Label htmlFor="folder">Upload to folder</Label>
-                  <Select defaultValue="root">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select folder" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="root">Root Directory</SelectItem>
-                      {folders.map((folder) => (
-                        <SelectItem key={folder.folder_id} value={folder.folder_id}>
-                          {folder.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button className="bg-[#008751] hover:bg-[#00724a]">Upload</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+    <div className="space-y-6">
+      <div className="rounded-[28px] border border-slate-200 bg-white/90 p-6 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.28)] backdrop-blur">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500">
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              File manager module
+            </div>
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">Folder Management</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                Manage live folders from the file-manager endpoints with create, rename, view, and delete flows.
+              </p>
+            </div>
+          </div>
 
-          <Dialog
-            open={isNewFolderDialogOpen}
-            onOpenChange={(open) => {
-              setIsNewFolderDialogOpen(open)
-              if (!open) {
-                setFolderName("")
-                setParentFolderId("root")
-              }
-            }}
+          <Button
+            variant="outline"
+            onClick={() => refetchFolders()}
+            className="w-full gap-2 rounded-2xl border-slate-200 bg-white text-slate-700 shadow-sm xl:w-auto"
           >
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <FolderPlus className="mr-2 h-4 w-4" />
-                New Folder
-              </Button>
-            </DialogTrigger>
-              <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create New Folder</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div>
-                  <Label htmlFor="folder-name">Folder Name</Label>
-                  <Input
-                    id="folder-name"
-                    placeholder="Enter folder name"
-                    value={folderName}
-                    onChange={(e) => setFolderName(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="parent-folder">Parent Folder</Label>
-                  <Select value={parentFolderId} onValueChange={setParentFolderId}>
-                    <SelectTrigger id="parent-folder">
-                      <SelectValue placeholder="Select parent folder" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="root">Root Directory</SelectItem>
-                      {folders.map((folder) => (
-                        <SelectItem key={folder.folder_id} value={folder.folder_id}>
-                          {folder.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsNewFolderDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  className="bg-[#008751] hover:bg-[#00724a]"
-                  onClick={handleCreateFolder}
-                  disabled={createFolderMutation.isPending}
-                >
-                  {createFolderMutation.isPending ? "Creating..." : "Create"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
+
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          <Card className="border-slate-200 shadow-none">
+            <CardHeader className="pb-2">
+              <CardDescription>Total Folders</CardDescription>
+              <CardTitle className="text-3xl">{folders.length}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">All folders returned by the API.</p>
+            </CardContent>
+          </Card>
+          <Card className="border-slate-200 shadow-none">
+            <CardHeader className="pb-2">
+              <CardDescription>Root Folders</CardDescription>
+              <CardTitle className="text-3xl">{rootFolders.length}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Folders with no parent folder.</p>
+            </CardContent>
+          </Card>
+          <Card className="border-slate-200 shadow-none">
+            <CardHeader className="pb-2">
+              <CardDescription>Nested Folders</CardDescription>
+              <CardTitle className="text-3xl">{nestedFolders.length}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                {latestFolder ? `Latest: ${latestFolder.name}` : "No folders created yet."}
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
-      {/* Storage Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Storage Usage</CardTitle>
-            <CardDescription>
-              {storageData.used} GB of {storageData.total} GB used
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-              <div className="h-full bg-[#008751]" style={{ width: `${storageUsagePercentage}%` }}></div>
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              {(storageData.total - storageData.used).toFixed(1)} GB available
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Storage by Category</CardTitle>
-            <CardDescription>Breakdown of storage usage</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {storageData.categories.map((category, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className={`h-3 w-3 rounded-full ${category.color} mr-2`}></div>
-                    <span className="text-sm">{category.name}</span>
-                  </div>
-                  <span className="text-sm font-medium">{category.size} GB</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Quick Actions</CardTitle>
-            <CardDescription>Common file operations</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" className="justify-start" onClick={() => setIsUploadDialogOpen(true)}>
-                <FileUp className="mr-2 h-4 w-4" />
-                Upload
-              </Button>
-              <Button variant="outline" className="justify-start" onClick={() => setIsNewFolderDialogOpen(true)}>
-                <FolderPlus className="mr-2 h-4 w-4" />
-                New Folder
-              </Button>
-              <Button variant="outline" className="justify-start">
-                <FilePlus2 className="mr-2 h-4 w-4" />
-                New File
-              </Button>
-              <Button variant="outline" className="justify-start">
-                <Download className="mr-2 h-4 w-4" />
-                Download
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* File Browser */}
-      <div className="mt-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
-          <h2 className="text-xl font-semibold">Files & Folders</h2>
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <div className="relative flex-1 md:w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+      <Dialog
+        open={isCreateDialogOpen}
+        onOpenChange={(open) => {
+          setIsCreateDialogOpen(open)
+          if (!open) {
+            setFolderName("")
+            setParentFolderId("root")
+          }
+        }}
+      >
+            <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Create Folder</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <Label htmlFor="folder-name">Folder Name</Label>
               <Input
-                type="search"
-                placeholder="Search files..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                id="folder-name"
+                placeholder="Enter folder name"
+                value={folderName}
+                onChange={(e) => setFolderName(e.target.value)}
               />
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <Filter className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>Filter by Type</DropdownMenuItem>
-                <DropdownMenuItem>Filter by Date</DropdownMenuItem>
-                <DropdownMenuItem>Filter by Size</DropdownMenuItem>
-                <DropdownMenuItem>Filter by Owner</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <FileOutput className="mr-2 h-4 w-4" />
-                  Export
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>
-                  <FileSpreadsheet className="mr-2 h-4 w-4" />
-                  Export to CSV
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <FileText className="mr-2 h-4 w-4" />
-                  Export to PDF
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Printer className="mr-2 h-4 w-4" />
-                  Print
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div>
+              <Label htmlFor="parent-folder">Parent Folder</Label>
+              <Select value={parentFolderId} onValueChange={setParentFolderId}>
+                <SelectTrigger id="parent-folder">
+                  <SelectValue placeholder="Select parent folder" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="root">Root Folder</SelectItem>
+                  {folders.map((folder) => (
+                    <SelectItem key={folder.folder_id} value={folder.folder_id}>
+                      {folder.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-[#008751] hover:bg-[#00724a]"
+              onClick={handleCreateFolder}
+              disabled={createFolderMutation.isPending}
+            >
+              {createFolderMutation.isPending ? "Creating..." : "Create"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {isFoldersError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          We had trouble fetching folders.
+          <Button variant="outline" onClick={() => refetchFolders()} className="ml-3 rounded-xl border-red-200 bg-white">
+            Retry
+          </Button>
+        </div>
+      ) : null}
+
+      <Card className="overflow-hidden rounded-[28px] border border-slate-200 bg-white/95 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.26)]">
+        <div className="border-b border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-950">Folder registry</h2>
+              <p className="text-sm text-slate-500">Browse, filter, and manage file-manager folders.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-400">
+                {isFoldersLoading || isFoldersFetching
+                  ? "Loading folders..."
+                  : `Showing ${tableData.length} folders`}
+              </span>
+            </div>
           </div>
         </div>
 
-        <Tabs defaultValue="all" onValueChange={setSelectedTab}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="all">All Files</TabsTrigger>
-            <TabsTrigger value="Documents">Documents</TabsTrigger>
-            <TabsTrigger value="Images">Images</TabsTrigger>
-            <TabsTrigger value="Spreadsheets">Spreadsheets</TabsTrigger>
-            <TabsTrigger value="Archives">Archives</TabsTrigger>
-            <TabsTrigger value="Presentations">Presentations</TabsTrigger>
-          </TabsList>
+        <div className="px-6 py-5">
+          <FileManagerDataTable
+            title="Folders"
+            description="Premium file manager folder table"
+            data={tableData}
+            columns={tableColumns}
+            filterOptions={filterOptions}
+            defaultSortColumn="created_at"
+            defaultSortDirection="desc"
+            onAdd={() => setIsCreateDialogOpen(true)}
+            onEdit={(id) => {
+              setRenameFolderId(id)
+              setIsRenameDialogOpen(true)
+            }}
+            onView={(id) => setViewFolderId(id)}
+            onDelete={(id) => {
+              setDeleteFolderId(id)
+              setIsDeleteDialogOpen(true)
+            }}
+            isLoading={isFoldersLoading || isFoldersFetching}
+          />
+        </div>
+      </Card>
 
-          <TabsContent value={selectedTab} className="mt-0">
-            <div className="border rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[40px]">
-                      <Checkbox />
-                    </TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Modified</TableHead>
-                    <TableHead>Owner</TableHead>
-                    <TableHead>Shared</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredFiles.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                        No files found. Try adjusting your search or filters.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredFiles.map((file) => (
-                      <TableRow key={file.id}>
-                        <TableCell>
-                          <Checkbox />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {file.icon}
-                            <span>{file.name}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{file.size}</TableCell>
-                        <TableCell>{file.modified}</TableCell>
-                        <TableCell>{file.owner}</TableCell>
-                        <TableCell>
-                          {file.shared ? (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                              Shared
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
-                              Private
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Download className="mr-2 h-4 w-4" />
-                                Download
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Rename
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+      <Dialog
+        open={isRenameDialogOpen}
+        onOpenChange={(open) => {
+          setIsRenameDialogOpen(open)
+          if (!open) {
+            setRenameFolderId(null)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Rename Folder</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <Label htmlFor="rename-folder-name">Folder Name</Label>
+              <Input
+                id="rename-folder-name"
+                value={renameFolderName}
+                onChange={(e) => setRenameFolderName(e.target.value)}
+                placeholder="Enter new folder name"
+              />
             </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsRenameDialogOpen(false)
+                setRenameFolderId(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-[#008751] hover:bg-[#00724a]"
+              onClick={handleRenameFolder}
+              disabled={updateFolderMutation.isPending}
+            >
+              {updateFolderMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <DeleteConfirmationDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => {
+          setIsDeleteDialogOpen(false)
+          setDeleteFolderId(null)
+        }}
+        onConfirm={handleDeleteFolder}
+        title="Delete Folder"
+        description="This action removes the folder from the file manager."
+        itemName={
+          deleteFolderId
+            ? folders.find((folder) => folder.folder_id === deleteFolderId)?.name ?? "this folder"
+            : "this folder"
+        }
+        isLoading={deleteFolderMutation.isPending}
+      />
+
+      <Dialog open={Boolean(viewFolderId)} onOpenChange={(open) => !open && setViewFolderId(null)}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Folder Details</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 py-4 text-sm">
+            <div className="rounded-lg border p-3">
+              <div className="text-muted-foreground">Folder Name</div>
+              <div className="font-medium">{viewedFolder?.name ?? "Loading..."}</div>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="text-muted-foreground">Folder ID</div>
+              <div className="font-mono">{viewedFolder?.folder_id ?? "-"}</div>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="text-muted-foreground">Parent Folder</div>
+              <div className="font-medium">{resolveParentName(viewedFolder?.parent_id ?? null)}</div>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="text-muted-foreground">Created At</div>
+              <div className="font-medium">{viewedFolder ? formatDate(viewedFolder.created_at) : "-"}</div>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="text-muted-foreground">Updated At</div>
+              <div className="font-medium">{viewedFolder ? formatDate(viewedFolder.updated_at) : "-"}</div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
