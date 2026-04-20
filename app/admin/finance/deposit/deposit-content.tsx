@@ -1,529 +1,453 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { format } from "date-fns"
+import { Building2, CreditCard, RefreshCw, Search, Sparkles, Wallet } from "lucide-react"
+import { toast } from "sonner"
+
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
+import { FinanceCard } from "../components/finance-card"
+import { FinanceDataTable } from "../components/finance-data-table"
+import { FinanceDetailsDialog, type FinanceDetailsField } from "../components/finance-details-dialog"
+import { FinanceFormDialog } from "../components/finance-form-dialog"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ChevronDown, Download, FileText, Filter, MoreHorizontal, Plus, Printer, Search } from "lucide-react"
+  useCreateFinanceDeposit,
+  useDeleteFinanceDeposit,
+  useGetFinanceDeposit,
+  useGetFinanceDeposits,
+  useUpdateFinanceDeposit,
+} from "@/services/hooks/finance/deposits"
+
+type DepositUI = {
+  id: string
+  deposit_id: string
+  accountId: string
+  accountName: string
+  payerId: string
+  payerName: string
+  amount: number
+  paymentMethod: string
+  category: string
+  reference: string
+  description?: string | null
+  status: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+const categoryOptions = [
+  { value: "Government Funding", label: "Government Funding" },
+  { value: "Education Grant Payment", label: "Education Grant Payment" },
+  { value: "Operational Funding", label: "Operational Funding" },
+  { value: "Capital Expenditure", label: "Capital Expenditure" },
+  { value: "Project Funding", label: "Project Funding" },
+  { value: "Updated Revenue", label: "Updated Revenue" },
+]
+
+const paymentMethodOptions = [
+  { value: "Bank Transfer", label: "Bank Transfer" },
+  { value: "Direct Deposit", label: "Direct Deposit" },
+  { value: "Cash", label: "Cash" },
+  { value: "Card", label: "Card" },
+]
+
+const resolveCategory = (value?: string | null) => {
+  const normalized = String(value ?? "").trim().toLowerCase()
+  return categoryOptions.find((item) => item.value.toLowerCase() === normalized)?.value || categoryOptions[0].value
+}
+
+const editFields = [
+  { name: "amount", label: "Amount", type: "currency" as const, required: true, placeholder: "Enter amount", width: "half" as const, currencySymbol: "₦" },
+  { name: "category", label: "Category", type: "select" as const, required: true, options: categoryOptions, width: "half" as const },
+]
+
+const createFields = [
+  { name: "account_id", label: "Account ID", type: "text" as const, required: true, placeholder: "Enter account ID", width: "half" as const },
+  { name: "payer_id", label: "Payer ID", type: "text" as const, required: true, placeholder: "Enter payer ID", width: "half" as const },
+  { name: "amount", label: "Amount", type: "currency" as const, required: true, placeholder: "Enter amount", width: "half" as const, currencySymbol: "₦" },
+  { name: "payment_method", label: "Payment Method", type: "select" as const, required: true, options: paymentMethodOptions, width: "half" as const },
+  { name: "category", label: "Category", type: "select" as const, required: true, options: categoryOptions, width: "half" as const },
+  { name: "date", label: "Date", type: "date" as const, required: true, width: "half" as const },
+  { name: "description", label: "Description", type: "textarea" as const, placeholder: "Enter deposit description", width: "full" as const },
+]
+
+const detailsFields: FinanceDetailsField[] = [
+  { label: "Deposit ID", key: "deposit_id", type: "reference" },
+  { label: "Reference", key: "reference", type: "reference" },
+  { label: "Account", key: "accountName" },
+  { label: "Account ID", key: "accountId" },
+  { label: "Payer", key: "payerName" },
+  { label: "Payer ID", key: "payerId" },
+  { label: "Payment Method", key: "paymentMethod" },
+  {
+    label: "Category",
+    key: "category",
+    render: (value: string) => {
+      const category = categoryOptions.find((item) => item.value.toLowerCase() === String(value ?? "").toLowerCase())
+      return category ? category.label : value
+    },
+  },
+  { label: "Amount", key: "amount", type: "currency", currencySymbol: "₦" },
+  {
+    label: "Status",
+    key: "status",
+    type: "status",
+    statusMap: {
+      completed: { label: "Completed", variant: "default" },
+      pending: { label: "Pending", variant: "secondary" },
+      failed: { label: "Failed", variant: "destructive" },
+      reversed: { label: "Reversed", variant: "outline" },
+    },
+  },
+  { label: "Created At", key: "createdAt", type: "date", format: "PPpp" },
+  { label: "Updated At", key: "updatedAt", type: "date", format: "PPpp" },
+  { label: "Description", key: "description" },
+]
+
+const normalizeDeposit = (deposit: any): DepositUI => ({
+  id: String(deposit.id ?? deposit.deposit_id),
+  deposit_id: String(deposit.deposit_id ?? deposit.id ?? ""),
+  accountId: deposit.account_id ?? deposit.accountId ?? "",
+  accountName: deposit.account_name ?? deposit.accountName ?? deposit.account_id ?? "",
+  payerId: deposit.payer_id ?? deposit.payerId ?? "",
+  payerName: deposit.payer_name ?? deposit.payerName ?? deposit.payer_id ?? "",
+  amount: Number(deposit.amount ?? 0),
+  paymentMethod: deposit.payment_method ?? deposit.paymentMethod ?? "",
+  category: resolveCategory(deposit.category),
+  reference: deposit.reference ?? "",
+  description: deposit.description ?? null,
+  status: String(deposit.status ?? "pending").toLowerCase(),
+  createdAt: deposit.created_at ?? deposit.createdAt ?? undefined,
+  updatedAt: deposit.updated_at ?? deposit.updatedAt ?? undefined,
+})
 
 export function DepositContent() {
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
-  const [selectedDeposit, setSelectedDeposit] = useState<any>(null)
+  const { data, isLoading, isFetching, isError, refetch } = useGetFinanceDeposits()
+  const createDeposit = useCreateFinanceDeposit()
+  const updateDeposit = useUpdateFinanceDeposit()
+  const deleteDeposit = useDeleteFinanceDeposit()
 
-  // Mock data for demonstration
-  const deposits = [
+  const [selectedDeposit, setSelectedDeposit] = useState<DepositUI | null>(null)
+  const [selectedDepositId, setSelectedDepositId] = useState<string | null>(null)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+
+  const deposits = useMemo(() => (data?.data?.deposits ?? []).map(normalizeDeposit), [data])
+  const selectedDepositDetailsQuery = useGetFinanceDeposit(selectedDepositId ?? undefined, isDetailsOpen || isEditOpen)
+  const selectedDepositDetails = selectedDepositDetailsQuery.data?.data
+    ? normalizeDeposit(selectedDepositDetailsQuery.data.data)
+    : selectedDeposit
+
+  useEffect(() => {
+    if (isError) toast.error("Failed to load deposits")
+  }, [isError])
+
+  useEffect(() => {
+    if (selectedDepositDetailsQuery.isError && selectedDepositId) {
+      toast.error("Failed to load deposit details")
+    }
+  }, [selectedDepositDetailsQuery.isError, selectedDepositId])
+
+  const totalAmount = deposits.reduce((sum, deposit) => sum + Number(deposit.amount ?? 0), 0)
+  const completedDeposits = deposits.filter((deposit) => deposit.status === "completed").length
+  const uniqueAccounts = new Set(deposits.map((deposit) => deposit.accountId).filter(Boolean)).size
+
+  const columns = [
+    { key: "reference", label: "Reference", sortable: true },
+    { key: "accountName", label: "Account", sortable: true },
+    { key: "payerName", label: "Payer", sortable: true },
     {
-      id: 1,
-      account: "Main Account",
-      payer: "Ministry of Finance",
-      amount: "₦2,500,000.00",
-      paymentMethod: "Bank Transfer",
-      reference: "DEP-2023-001",
-      date: "2023-05-15",
-      category: "Salary Funding",
-      status: "Completed",
+      key: "amount",
+      label: "Amount",
+      sortable: true,
+      render: (value: number) =>
+        new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "NGN",
+        }).format(Number(value ?? 0)),
     },
     {
-      id: 2,
-      account: "Reserve Account",
-      payer: "Federal Treasury",
-      amount: "₦1,750,000.00",
-      paymentMethod: "Direct Deposit",
-      reference: "DEP-2023-002",
-      date: "2023-05-20",
-      category: "Capital Expenditure",
-      status: "Pending",
+      key: "paymentMethod",
+      label: "Method",
+      sortable: true,
     },
     {
-      id: 3,
-      account: "Operations Account",
-      payer: "Ministry of Education",
-      amount: "₦950,000.00",
-      paymentMethod: "Check",
-      reference: "DEP-2023-003",
-      date: "2023-05-25",
-      category: "Project Funding",
-      status: "Completed",
+      key: "category",
+      label: "Category",
+      sortable: true,
+      render: (value: string) => {
+        const category = categoryOptions.find((item) => item.value.toLowerCase() === String(value ?? "").toLowerCase())
+        return category ? category.label : value
+      },
     },
     {
-      id: 4,
-      account: "Main Account",
-      payer: "Federal Government",
-      amount: "₦3,200,000.00",
-      paymentMethod: "Bank Transfer",
-      reference: "DEP-2023-004",
-      date: "2023-06-01",
-      category: "Operational Funding",
-      status: "Completed",
+      key: "status",
+      label: "Status",
+      sortable: true,
+      render: (value: string) => (
+        <span className={`rounded-full px-2 py-1 text-xs font-medium ${value === "completed" ? "bg-green-100 text-green-800" : value === "pending" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}`}>
+          {value ? value.charAt(0).toUpperCase() + value.slice(1) : "Unknown"}
+        </span>
+      ),
     },
     {
-      id: 5,
-      account: "Reserve Account",
-      payer: "Ministry of Finance",
-      amount: "₦1,100,000.00",
-      paymentMethod: "Direct Deposit",
-      reference: "DEP-2023-005",
-      date: "2023-06-05",
-      category: "Emergency Fund",
-      status: "Pending",
+      key: "createdAt",
+      label: "Created",
+      sortable: true,
+      render: (value: string) => (value ? format(new Date(value), "MMM d, yyyy") : "N/A"),
     },
   ]
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(50); // default 50
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentRows = deposits.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(deposits.length / itemsPerPage);
+  const handleViewDeposit = (id: string) => {
+    const deposit = deposits.find((item) => item.id === id)
+    if (!deposit) return
 
-  const handlePrev = () => {
-    setCurrentPage((prev) => Math.max(prev - 1, 1));
-  };
-
-  const handleNext = () => {
-    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
-  };
-  
-
-  const handleViewDetails = (deposit: any) => {
     setSelectedDeposit(deposit)
-    setIsDetailsDialogOpen(true)
+    setSelectedDepositId(deposit.deposit_id)
+    setIsDetailsOpen(true)
+  }
+
+  const handleEditDeposit = (id: string) => {
+    const deposit = deposits.find((item) => item.id === id)
+    if (!deposit) return
+
+    setSelectedDeposit(deposit)
+    setSelectedDepositId(deposit.deposit_id)
+    setIsEditOpen(true)
+  }
+
+  const handleDeleteDeposit = async (depositId: string) => {
+    try {
+      await deleteDeposit.mutateAsync(depositId)
+      toast.success("Deposit deleted successfully")
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete deposit")
+    }
+  }
+
+  const handleDetailsOpenChange = (open: boolean) => {
+    setIsDetailsOpen(open)
+    if (!open) {
+      setSelectedDepositId(null)
+    }
+  }
+
+  const handleEditOpenChange = (open: boolean) => {
+    setIsEditOpen(open)
+    if (!open) {
+      setSelectedDepositId(null)
+    }
+  }
+
+  const handleCreateOpenChange = (open: boolean) => {
+    setIsCreateOpen(open)
+  }
+
+  const handleAddDeposit = () => {
+    setSelectedDeposit(null)
+    setSelectedDepositId(null)
+    setIsCreateOpen(true)
+  }
+
+  const handleSubmitDeposit = async (formData: Record<string, any>) => {
+    if (!selectedDeposit) {
+      toast.error("No deposit selected")
+      return
+    }
+
+    try {
+      await updateDeposit.mutateAsync({
+        deposit_id: selectedDeposit.deposit_id,
+        amount: Number(formData.amount),
+        category: formData.category,
+      })
+      toast.success("Deposit updated successfully")
+      setIsEditOpen(false)
+      setSelectedDeposit(null)
+      setSelectedDepositId(null)
+    } catch (error: any) {
+      toast.error(error?.message || "Update failed")
+    }
+  }
+
+  const handleSubmitCreateDeposit = async (formData: Record<string, any>) => {
+    try {
+      await createDeposit.mutateAsync({
+        account_id: String(formData.account_id ?? "").trim(),
+        payer_id: String(formData.payer_id ?? "").trim(),
+        amount: Number(formData.amount ?? 0),
+        payment_method: String(formData.payment_method ?? "").trim(),
+        category: String(formData.category ?? "").trim(),
+        date: String(formData.date ?? "").slice(0, 10),
+        description: formData.description ? String(formData.description).trim() : null,
+      })
+      toast.success("Deposit created successfully")
+      setIsCreateOpen(false)
+    } catch (error: any) {
+      toast.error(error?.message || "Create failed")
+    }
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Deposit Management</h1>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Add New Deposit
-        </Button>
+      <div className="rounded-[28px] border border-slate-200 bg-white/90 p-6 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.28)] backdrop-blur">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500">
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              Finance module
+            </div>
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">Deposits</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                Review deposit records with live React Query updates, details lookup, edits, and deletes.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={() => refetch()}
+            className="w-full gap-2 rounded-2xl border-slate-200 bg-white text-slate-700 shadow-sm xl:w-auto"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
+
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          <FinanceCard
+            title="Total Deposits"
+            value={totalAmount}
+            isCurrency
+            currencySymbol="₦"
+            icon={<Wallet className="h-4 w-4 text-slate-500" />}
+            isLoading={isLoading || isFetching}
+          />
+          <FinanceCard
+            title="Completed"
+            value={completedDeposits}
+            icon={<CreditCard className="h-4 w-4 text-slate-500" />}
+            description={`${completedDeposits} completed deposits`}
+            isLoading={isLoading || isFetching}
+          />
+          <FinanceCard
+            title="Accounts"
+            value={uniqueAccounts}
+            icon={<Building2 className="h-4 w-4 text-slate-500" />}
+            description="Unique deposit accounts"
+            isLoading={isLoading || isFetching}
+          />
+        </div>
       </div>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle>Deposits</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row justify-between items-center mb-4 space-y-2 md:space-y-0">
-            <div className="flex items-center w-full md:w-auto space-x-2">
-              <div className="relative w-full md:w-64">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                <Input
-                  type="search"
-                  placeholder="Search deposits..."
-                  className="pl-8 w-full"
-                />
-              </div>
+      {isError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          We had trouble fetching deposits.
+          <Button variant="outline" onClick={() => refetch()} className="ml-3 rounded-xl border-red-200 bg-white">
+            Retry
+          </Button>
+        </div>
+      ) : null}
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Filter className="mr-2 h-4 w-4" /> Filter
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-[200px]">
-                  <div className="p-2">
-                    <div className="mb-2">
-                      <Label htmlFor="status-filter">Status</Label>
-                      <Select defaultValue="all">
-                        <SelectTrigger id="status-filter">
-                          <SelectValue placeholder="All Statuses" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Statuses</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="pending">Pending</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="mb-2">
-                      <Label htmlFor="date-filter">Date Range</Label>
-                      <Select defaultValue="all">
-                        <SelectTrigger id="date-filter">
-                          <SelectValue placeholder="All Time" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Time</SelectItem>
-                          <SelectItem value="today">Today</SelectItem>
-                          <SelectItem value="this-week">This Week</SelectItem>
-                          <SelectItem value="this-month">This Month</SelectItem>
-                          <SelectItem value="this-year">This Year</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="account-filter">Account</Label>
-                      <Select defaultValue="all">
-                        <SelectTrigger id="account-filter">
-                          <SelectValue placeholder="All Accounts" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Accounts</SelectItem>
-                          <SelectItem value="main">Main Account</SelectItem>
-                          <SelectItem value="reserve">
-                            Reserve Account
-                          </SelectItem>
-                          <SelectItem value="operations">
-                            Operations Account
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
+      <Card className="overflow-hidden rounded-[28px] border border-slate-200 bg-white/95 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.26)]">
+        <div className="border-b border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-950">Deposit registry</h2>
+              <p className="text-sm text-slate-500">Browse, filter, and manage deposit entries.</p>
             </div>
-
-            <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
-              <Button variant="outline" size="sm">
-                <Download className="mr-2 h-4 w-4" /> Export CSV
-              </Button>
-              <Button variant="outline" size="sm">
-                <FileText className="mr-2 h-4 w-4" /> Export PDF
-              </Button>
-              <Button variant="outline" size="sm">
-                <Printer className="mr-2 h-4 w-4" /> Print
-              </Button>
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-slate-400" />
+              <span className="text-sm text-slate-400">Use the table search and filters for quick lookup</span>
             </div>
           </div>
+        </div>
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Account</TableHead>
-                  <TableHead>Payer</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {deposits.map((deposit) => (
-                  <TableRow key={deposit.id}>
-                    <TableCell className="font-medium">
-                      {deposit.reference}
-                    </TableCell>
-                    <TableCell>{deposit.date}</TableCell>
-                    <TableCell>{deposit.account}</TableCell>
-                    <TableCell>{deposit.payer}</TableCell>
-                    <TableCell>{deposit.amount}</TableCell>
-                    <TableCell>{deposit.category}</TableCell>
-                    <TableCell>
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          deposit.status === "Completed"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}
-                      >
-                        {deposit.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Open menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => handleViewDetails(deposit)}
-                          >
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>Edit</DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-gray-500">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
-                {/* Item range + per-page selector */}
-                <div className="flex items-center gap-2">
-                  <p className="text-sm text-gray-500">
-                    Showing {indexOfFirstItem + 1}-
-                    {Math.min(indexOfLastItem, currentRows.length)} of{" "}
-                    {currentRows.length} deposits
-                  </p>
-
-                  <Select
-                    value={itemsPerPage.toString()}
-                    onValueChange={(value) => {
-                      setItemsPerPage(Number(value));
-                      setCurrentPage(1); // Reset to page 1 when itemsPerPage changes
-                    }}
-                  >
-                    <SelectTrigger className="h-8 w-[110px]">
-                      <SelectValue placeholder="Items per page" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10 per page</SelectItem>
-                      <SelectItem value="20">20 per page</SelectItem>
-                      <SelectItem value="50">50 per page</SelectItem>
-                      <SelectItem value="100">100 per page</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePrev}
-                disabled={currentPage === 1}
-              >
-                Previous
-              </Button>
-
-              {/* Dynamically render page numbers */}
-              {Array.from({ length: totalPages }, (_, index) => {
-                const page = index + 1;
-                return (
-                  <Button
-                    key={page}
-                    variant="outline"
-                    size="sm"
-                    className={page === currentPage ? "bg-green-300" : ""}
-                    onClick={() => setCurrentPage(page)}
-                  >
-                    {page}
-                  </Button>
-                );
-              })}
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNext}
-                disabled={currentPage === totalPages}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </CardContent>
+        <div className="px-6 py-5">
+          <FinanceDataTable
+            title="Deposits"
+            description="Premium deposit management table"
+            data={deposits}
+            filterOptions={[]}
+            columns={columns}
+            onAdd={handleAddDeposit}
+            onEdit={handleEditDeposit}
+            onView={handleViewDeposit}
+            onDelete={(id) => handleDeleteDeposit(deposits.find((item) => item.id === id)?.deposit_id ?? id)}
+            currencySymbol="₦"
+            isLoading={isLoading || isFetching}
+          />
+        </div>
       </Card>
 
-      {/* Add New Deposit Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[550px]">
-          <DialogHeader>
-            <DialogTitle>Add New Deposit</DialogTitle>
-            <DialogDescription>
-              Enter the details for the new deposit record.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="account">Account</Label>
-                <Select>
-                  <SelectTrigger id="account">
-                    <SelectValue placeholder="Select Account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="main">Main Account</SelectItem>
-                    <SelectItem value="reserve">Reserve Account</SelectItem>
-                    <SelectItem value="operations">
-                      Operations Account
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount (₦)</Label>
-                <Input id="amount" placeholder="0.00" type="number" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="payer">Payer</Label>
-                <Select>
-                  <SelectTrigger id="payer">
-                    <SelectValue placeholder="Select Payer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="mof">Ministry of Finance</SelectItem>
-                    <SelectItem value="treasury">Federal Treasury</SelectItem>
-                    <SelectItem value="moe">Ministry of Education</SelectItem>
-                    <SelectItem value="fg">Federal Government</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="date">Date</Label>
-                <Input id="date" type="date" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="payment-method">Payment Method</Label>
-                <Select>
-                  <SelectTrigger id="payment-method">
-                    <SelectValue placeholder="Select Method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bank-transfer">Bank Transfer</SelectItem>
-                    <SelectItem value="direct-deposit">
-                      Direct Deposit
-                    </SelectItem>
-                    <SelectItem value="check">Check</SelectItem>
-                    <SelectItem value="cash">Cash</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select>
-                  <SelectTrigger id="category">
-                    <SelectValue placeholder="Select Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="salary">Salary Funding</SelectItem>
-                    <SelectItem value="capital">Capital Expenditure</SelectItem>
-                    <SelectItem value="project">Project Funding</SelectItem>
-                    <SelectItem value="operational">
-                      Operational Funding
-                    </SelectItem>
-                    <SelectItem value="emergency">Emergency Fund</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="reference">Reference Number</Label>
-              <Input id="reference" placeholder="DEP-YYYY-XXX" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Enter deposit details..."
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">Save Deposit</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <FinanceFormDialog
+        title="New Deposit"
+        fields={createFields}
+        initialValues={{
+          account_id: "",
+          payer_id: "",
+          amount: "",
+          payment_method: paymentMethodOptions[0].value,
+          category: categoryOptions[0].value,
+          date: new Date().toISOString().slice(0, 10),
+          description: "",
+        }}
+        isOpen={isCreateOpen}
+        onOpenChange={handleCreateOpenChange}
+        onSubmit={handleSubmitCreateDeposit}
+        submitLabel="Save Deposit"
+        currencySymbol="₦"
+      />
 
-      {/* Deposit Details Dialog */}
-      {selectedDeposit && (
-        <Dialog
-          open={isDetailsDialogOpen}
-          onOpenChange={setIsDetailsDialogOpen}
-        >
-          <DialogContent className="sm:max-w-[550px]">
-            <DialogHeader>
-              <DialogTitle>Deposit Details</DialogTitle>
-              <DialogDescription>
-                Reference: {selectedDeposit.reference}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Account</p>
-                  <p>{selectedDeposit.account}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Amount</p>
-                  <p className="font-semibold">{selectedDeposit.amount}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Payer</p>
-                  <p>{selectedDeposit.payer}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Date</p>
-                  <p>{selectedDeposit.date}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">
-                    Payment Method
-                  </p>
-                  <p>{selectedDeposit.paymentMethod}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Category</p>
-                  <p>{selectedDeposit.category}</p>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Status</p>
-                <p>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      selectedDeposit.status === "Completed"
-                        ? "bg-green-100 text-green-800"
-                        : "bg-yellow-100 text-yellow-800"
-                    }`}
-                  >
-                    {selectedDeposit.status}
-                  </span>
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Description</p>
-                <p className="text-sm text-gray-700">
-                  Deposit for {selectedDeposit.category.toLowerCase()} received
-                  from {selectedDeposit.payer}
-                  via {selectedDeposit.paymentMethod.toLowerCase()}.
-                </p>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsDetailsDialogOpen(false)}
-              >
-                Close
-              </Button>
-              <Button>Edit Deposit</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      <FinanceFormDialog
+        title="Edit Deposit"
+        fields={editFields}
+        initialValues={
+          selectedDeposit
+            ? {
+                amount: String(selectedDeposit.amount ?? ""),
+                category: selectedDeposit.category,
+              }
+            : {
+                amount: "",
+                category: categoryOptions[0].value,
+              }
+        }
+        isOpen={isEditOpen}
+        onOpenChange={handleEditOpenChange}
+        onSubmit={handleSubmitDeposit}
+        submitLabel="Update Deposit"
+        currencySymbol="₦"
+      />
+
+      <FinanceDetailsDialog
+        title="Deposit Details"
+        data={selectedDepositDetails || {}}
+        fields={detailsFields}
+        isOpen={isDetailsOpen}
+        onOpenChange={handleDetailsOpenChange}
+        currencySymbol="₦"
+        actions={{
+          edit: true,
+          delete: true,
+        }}
+        onEdit={() => {
+          setIsDetailsOpen(false)
+          if (selectedDepositDetails) {
+            setSelectedDeposit(normalizeDeposit(selectedDepositDetails))
+            setIsEditOpen(true)
+          }
+        }}
+        onDelete={() => {
+          setIsDetailsOpen(false)
+          if (selectedDepositDetails) {
+            handleDeleteDeposit(selectedDepositDetails.deposit_id)
+          }
+        }}
+      />
     </div>
-  );
+  )
 }

@@ -1,581 +1,523 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { format } from "date-fns"
+import { Building2, CreditCard, RefreshCw, Search, Sparkles, Wallet } from "lucide-react"
+import { toast } from "sonner"
+
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
+import { useGetFinanceAccounts } from "@/services/hooks/finance/accounts"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ChevronDown, Download, FileText, Filter, MoreHorizontal, Plus, Printer, Search } from "lucide-react"
+  useCreateFinanceTransaction,
+  useDeleteFinanceTransaction,
+  useGetFinanceTransaction,
+  useGetFinanceTransactions,
+  useUpdateFinanceTransaction,
+} from "@/services/hooks/finance/transactions"
+import { FinanceCard } from "../components/finance-card"
+import { FinanceDataTable } from "../components/finance-data-table"
+import { FinanceDetailsDialog, type FinanceDetailsField } from "../components/finance-details-dialog"
+import { FinanceFormDialog } from "../components/finance-form-dialog"
+
+type TransactionUI = {
+  id: string
+  transaction_id: string
+  accountId: string
+  accountName: string
+  transactionType: string
+  amount: number
+  paymentMethod: string
+  category: string
+  referenceId: string
+  description?: string | null
+  status: string
+  transactionDate?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+const transactionTypeOptions = [
+  { value: "Income", label: "Income" },
+  { value: "Expense", label: "Expense" },
+]
+
+const categoryOptions = [
+  { value: "Salary", label: "Salary" },
+  { value: "Office Supplies", label: "Office Supplies" },
+  { value: "Utilities", label: "Utilities" },
+  { value: "Training", label: "Training" },
+  { value: "Travel", label: "Travel" },
+  { value: "Maintenance", label: "Maintenance" },
+  { value: "Other", label: "Other" },
+]
+
+const paymentMethodOptions = [
+  { value: "Transfer", label: "Transfer" },
+  { value: "Cash", label: "Cash" },
+  { value: "Card", label: "Card" },
+  { value: "Cheque", label: "Cheque" },
+  { value: "Direct Debit", label: "Direct Debit" },
+]
+
+const statusOptions = [
+  { value: "Completed", label: "Completed" },
+  { value: "Pending", label: "Pending" },
+  { value: "Failed", label: "Failed" },
+  { value: "Reversed", label: "Reversed" },
+]
+
+const resolveTransactionType = (value?: string | null) => {
+  const normalized = String(value ?? "Income").trim().toLowerCase()
+  return (
+    transactionTypeOptions.find((item) => item.value.toLowerCase() === normalized)?.value ||
+    transactionTypeOptions[0].value
+  )
+}
+
+const resolveCategory = (value?: string | null) => {
+  const normalized = String(value ?? "").trim().toLowerCase()
+  return categoryOptions.find((item) => item.value.toLowerCase() === normalized)?.value || categoryOptions[0].value
+}
+
+const resolveStatus = (value?: string | null) => {
+  const normalized = String(value ?? "Completed").trim().toLowerCase()
+  return statusOptions.find((item) => item.value.toLowerCase() === normalized)?.value || "Completed"
+}
+
+const normalizeAccountOptions = (accounts: any[] = []) =>
+  accounts.map((account) => ({
+    value: String(account.account_id ?? account.id ?? ""),
+    label: String(account.account_name ?? account.accountName ?? account.account_id ?? ""),
+  }))
+
+const buildCreateFields = (accountOptions: { label: string; value: string }[]) => [
+  {
+    name: "account_id",
+    label: "Account",
+    type: "select" as const,
+    required: true,
+    options: accountOptions,
+    width: "half" as const,
+    placeholder: "Select account",
+  },
+  {
+    name: "transaction_type",
+    label: "Transaction Type",
+    type: "select" as const,
+    required: true,
+    options: transactionTypeOptions,
+    width: "half" as const,
+  },
+  { name: "amount", label: "Amount", type: "currency" as const, required: true, placeholder: "Enter amount", width: "half" as const, currencySymbol: "₦" },
+  { name: "payment_method", label: "Payment Method", type: "select" as const, required: true, options: paymentMethodOptions, width: "half" as const },
+  { name: "category", label: "Category", type: "select" as const, required: true, options: categoryOptions, width: "half" as const },
+  { name: "reference_id", label: "Reference ID", type: "text" as const, required: true, placeholder: "Enter reference ID", width: "half" as const },
+  { name: "transaction_date", label: "Transaction Date", type: "date" as const, required: true, width: "half" as const },
+  { name: "description", label: "Description", type: "textarea" as const, placeholder: "Enter transaction description", width: "full" as const },
+]
+
+const editFields = [
+  { name: "amount", label: "Amount", type: "currency" as const, required: true, placeholder: "Enter amount", width: "half" as const, currencySymbol: "₦" },
+  { name: "category", label: "Category", type: "select" as const, required: true, options: categoryOptions, width: "half" as const },
+  { name: "description", label: "Description", type: "textarea" as const, placeholder: "Enter transaction description", width: "full" as const },
+]
+
+const detailsFields: FinanceDetailsField[] = [
+  { label: "Transaction ID", key: "transaction_id", type: "reference" },
+  { label: "Reference ID", key: "referenceId", type: "reference" },
+  { label: "Account", key: "accountName" },
+  { label: "Account ID", key: "accountId" },
+  { label: "Transaction Type", key: "transactionType" },
+  {
+    label: "Category",
+    key: "category",
+    render: (value: string) => {
+      const category = categoryOptions.find((item) => item.value.toLowerCase() === String(value ?? "").toLowerCase())
+      return category ? category.label : value
+    },
+  },
+  { label: "Payment Method", key: "paymentMethod" },
+  { label: "Amount", key: "amount", type: "currency", currencySymbol: "₦" },
+  {
+    label: "Status",
+    key: "status",
+    type: "status",
+    statusMap: {
+      Completed: { label: "Completed", variant: "default" },
+      Pending: { label: "Pending", variant: "secondary" },
+      Failed: { label: "Failed", variant: "destructive" },
+      Reversed: { label: "Reversed", variant: "outline" },
+    },
+  },
+  { label: "Transaction Date", key: "transactionDate", type: "date", format: "PP" },
+  { label: "Created At", key: "createdAt", type: "date", format: "PPpp" },
+  { label: "Updated At", key: "updatedAt", type: "date", format: "PPpp" },
+  { label: "Description", key: "description" },
+]
+
+const normalizeTransaction = (transaction: any): TransactionUI => ({
+  id: String(transaction.id ?? transaction.transaction_id),
+  transaction_id: String(transaction.transaction_id ?? transaction.id ?? ""),
+  accountId: String(transaction.account_id ?? transaction.accountId ?? ""),
+  accountName: String(transaction.account_name ?? transaction.accountName ?? transaction.account_id ?? ""),
+  transactionType: resolveTransactionType(transaction.transaction_type),
+  amount: Number(transaction.amount ?? 0),
+  paymentMethod: String(transaction.payment_method ?? transaction.paymentMethod ?? ""),
+  category: resolveCategory(transaction.category),
+  referenceId: String(transaction.reference_id ?? transaction.referenceId ?? ""),
+  description: transaction.description ?? null,
+  status: resolveStatus(transaction.status),
+  transactionDate: transaction.transaction_date ?? transaction.created_at ?? transaction.createdAt ?? undefined,
+  createdAt: transaction.created_at ?? transaction.createdAt ?? undefined,
+  updatedAt: transaction.updated_at ?? transaction.updatedAt ?? undefined,
+})
 
 export function TransactionContent() {
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
-  const [selectedExpense, setSelectedExpense] = useState<any>(null);
+  const { data, isLoading, isFetching, isError, refetch } = useGetFinanceTransactions()
+  const { data: accountsData } = useGetFinanceAccounts()
+  const createTransaction = useCreateFinanceTransaction()
+  const updateTransaction = useUpdateFinanceTransaction()
+  const deleteTransaction = useDeleteFinanceTransaction()
 
-  // Mock data for demonstration
-  const transactions = [
-    {
-      id: 1,
-      account: "Operations Account",
-      payee: "Office Supplies Ltd",
-      amount: "₦150,000.00",
-      paymentMethod: "Bank Transfer",
-      reference: "EXP-2023-001",
-      date: "2023-05-10",
-      category: "Office Supplies",
-      status: "credit",
-    },
-    {
-      id: 2,
-      account: "Main Account",
-      payee: "IT Solutions Nigeria",
-      amount: "₦450,000.00",
-      paymentMethod: "Check",
-      reference: "EXP-2023-002",
-      date: "2023-05-15",
-      category: "IT Equipment",
-      status: "debit",
-    },
-    {
-      id: 3,
-      account: "Operations Account",
-      payee: "Lagos Power Distribution",
-      amount: "₦280,000.00",
-      paymentMethod: "Direct Debit",
-      reference: "EXP-2023-003",
-      date: "2023-05-20",
-      category: "Utilities",
-      status: "credit",
-    },
-    {
-      id: 4,
-      account: "Main Account",
-      payee: "Staff Salaries",
-      amount: "₦1,850,000.00",
-      paymentMethod: "Bank Transfer",
-      reference: "EXP-2023-004",
-      date: "2023-05-28",
-      category: "Salaries",
-      status: "credit",
-    },
-    {
-      id: 5,
-      account: "Operations Account",
-      payee: "Training Solutions Ltd",
-      amount: "₦320,000.00",
-      paymentMethod: "Bank Transfer",
-      reference: "EXP-2023-005",
-      date: "2023-06-02",
-      category: "Training",
-      status: "debit",
-    },
-    {
-      id: 6,
-      account: "Operations Account",
-      payee: "Training Solutions Ltd",
-      amount: "₦320,000.00",
-      paymentMethod: "Bank Transfer",
-      reference: "EXP-2023-005",
-      date: "2023-06-02",
-      category: "Training",
-      status: "debit",
-    },
-    {
-      id: 7,
-      account: "Operations Account",
-      payee: "Training Solutions Ltd",
-      amount: "₦320,000.00",
-      paymentMethod: "Bank Transfer",
-      reference: "EXP-2023-005",
-      date: "2023-06-02",
-      category: "Training",
-      status: "debit",
-    },
-    {
-      id: 8,
-      account: "Operations Account",
-      payee: "Training Solutions Ltd",
-      amount: "₦320,000.00",
-      paymentMethod: "Bank Transfer",
-      reference: "EXP-2023-005",
-      date: "2023-06-02",
-      category: "Training",
-      status: "debit",
-    },
-    {
-      id: 9,
-      account: "Operations Account",
-      payee: "Training Solutions Ltd",
-      amount: "₦320,000.00",
-      paymentMethod: "Bank Transfer",
-      reference: "EXP-2023-005",
-      date: "2023-06-02",
-      category: "Training",
-      status: "Pending",
-    },
-    {
-      id: 10,
-      account: "Operations Account",
-      payee: "Training Solutions Ltd",
-      amount: "₦320,000.00",
-      paymentMethod: "Bank Transfer",
-      reference: "EXP-2023-005",
-      date: "2023-06-02",
-      category: "Training",
-      status: "Pending",
-    },
-    {
-      id: 11,
-      account: "Operations Account",
-      payee: "Training Solutions Ltd",
-      amount: "₦320,000.00",
-      paymentMethod: "Bank Transfer",
-      reference: "EXP-2023-005",
-      date: "2023-06-02",
-      category: "Training",
-      status: "Pending",
-    },
-  ];
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionUI | null>(null)
+  const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [isEditOpen, setIsEditOpen] = useState(false)
 
+  const transactions = useMemo(() => (data?.data?.transactions ?? []).map(normalizeTransaction), [data])
+  const selectedTransactionDetailsQuery = useGetFinanceTransaction(selectedTransactionId ?? undefined, isDetailsOpen || isEditOpen)
+  const selectedTransactionDetails = selectedTransactionDetailsQuery.data?.data
+    ? normalizeTransaction(selectedTransactionDetailsQuery.data.data)
+    : selectedTransaction
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(50); // default 50
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentRows = transactions.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(transactions.length / itemsPerPage);
-  
-  const handlePrev = () => {
-    setCurrentPage((prev) => Math.max(prev - 1, 1));
-  };
+  const accountOptions = useMemo(() => normalizeAccountOptions(accountsData?.data?.accounts ?? []), [accountsData])
+  const createFields = useMemo(() => buildCreateFields(accountOptions), [accountOptions])
 
-  const handleNext = () => {
-    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
-  };
-  
+  useEffect(() => {
+    if (isError) toast.error("Failed to load transactions")
+  }, [isError])
 
-  const handleViewDetails = (expense: any) => {
-    setSelectedExpense(expense);
-    setIsDetailsDialogOpen(true);
-  };
+  useEffect(() => {
+    if (selectedTransactionDetailsQuery.isError && selectedTransactionId) {
+      toast.error("Failed to load transaction details")
+    }
+  }, [selectedTransactionDetailsQuery.isError, selectedTransactionId])
+
+  const totalAmount = transactions.reduce((sum, transaction) => sum + Number(transaction.amount ?? 0), 0)
+  const incomeCount = transactions.filter((transaction) => transaction.transactionType === "Income").length
+  const expenseCount = transactions.filter((transaction) => transaction.transactionType === "Expense").length
+
+  const columns = [
+    {
+      key: "transactionDate",
+      label: "Date",
+      sortable: true,
+      render: (value: string) => (value ? format(new Date(value), "MMM d, yyyy") : "N/A"),
+    },
+    { key: "accountName", label: "Account", sortable: true },
+    { key: "transactionType", label: "Type", sortable: true },
+    {
+      key: "amount",
+      label: "Amount",
+      sortable: true,
+      render: (value: number) =>
+        new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "NGN",
+        }).format(Number(value ?? 0)),
+    },
+    {
+      key: "paymentMethod",
+      label: "Payment Method",
+      sortable: true,
+    },
+    {
+      key: "category",
+      label: "Category",
+      sortable: true,
+      render: (value: string) => {
+        const category = categoryOptions.find((item) => item.value.toLowerCase() === String(value ?? "").toLowerCase())
+        return category ? category.label : value
+      },
+    },
+    { key: "referenceId", label: "Reference ID", sortable: true },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      render: (value: string) => (
+        <span
+          className={`rounded-full px-2 py-1 text-xs font-medium ${
+            value === "Completed"
+              ? "bg-green-100 text-green-800"
+              : value === "Pending"
+                ? "bg-amber-100 text-amber-800"
+                : value === "Failed"
+                  ? "bg-red-100 text-red-800"
+                  : "bg-slate-100 text-slate-700"
+          }`}
+        >
+          {value}
+        </span>
+      ),
+    },
+  ]
+
+  const handleViewTransaction = (id: string) => {
+    const transaction = transactions.find((item) => item.id === id)
+    if (!transaction) return
+
+    setSelectedTransaction(transaction)
+    setSelectedTransactionId(transaction.transaction_id)
+    setIsDetailsOpen(true)
+  }
+
+  const handleEditTransaction = (id: string) => {
+    const transaction = transactions.find((item) => item.id === id)
+    if (!transaction) return
+
+    setSelectedTransaction(transaction)
+    setSelectedTransactionId(transaction.transaction_id)
+    setIsEditOpen(true)
+  }
+
+  const handleDeleteTransaction = async (transactionId: string) => {
+    try {
+      await deleteTransaction.mutateAsync(transactionId)
+      toast.success("Transaction deleted successfully")
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete transaction")
+    }
+  }
+
+  const handleDetailsOpenChange = (open: boolean) => {
+    setIsDetailsOpen(open)
+    if (!open) {
+      setSelectedTransactionId(null)
+    }
+  }
+
+  const handleEditOpenChange = (open: boolean) => {
+    setIsEditOpen(open)
+    if (!open) {
+      setSelectedTransactionId(null)
+    }
+  }
+
+  const handleCreateOpenChange = (open: boolean) => {
+    setIsCreateOpen(open)
+  }
+
+  const handleAddTransaction = () => {
+    setSelectedTransaction(null)
+    setSelectedTransactionId(null)
+    setIsCreateOpen(true)
+  }
+
+  const handleSubmitTransaction = async (formData: Record<string, any>) => {
+    if (!selectedTransaction) {
+      toast.error("No transaction selected")
+      return
+    }
+
+    try {
+      await updateTransaction.mutateAsync({
+        transaction_id: selectedTransaction.transaction_id,
+        amount: Number(formData.amount),
+        category: String(formData.category ?? "").trim(),
+        description: formData.description ? String(formData.description).trim() : null,
+      })
+      toast.success("Transaction updated successfully")
+      setIsEditOpen(false)
+      setSelectedTransaction(null)
+      setSelectedTransactionId(null)
+    } catch (error: any) {
+      toast.error(error?.message || "Update failed")
+    }
+  }
+
+  const handleSubmitCreateTransaction = async (formData: Record<string, any>) => {
+    try {
+      await createTransaction.mutateAsync({
+        account_id: String(formData.account_id ?? "").trim(),
+        amount: Number(formData.amount ?? 0),
+        payment_method: String(formData.payment_method ?? "").trim(),
+        category: String(formData.category ?? "").trim(),
+        reference_id: String(formData.reference_id ?? "").trim(),
+        description: formData.description ? String(formData.description).trim() : null,
+        transaction_date: String(formData.transaction_date ?? "").slice(0, 10),
+        transaction_type: String(formData.transaction_type ?? "").trim(),
+      })
+      toast.success("Transaction created successfully")
+      setIsCreateOpen(false)
+    } catch (error: any) {
+      toast.error(error?.message || "Create failed")
+    }
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Transaction History</h1>
+      <div className="rounded-[28px] border border-slate-200 bg-white/90 p-6 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.28)] backdrop-blur">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500">
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              Finance module
+            </div>
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">Transactions</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                Review transaction records with live React Query updates, details lookup, edits, and deletes.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={() => refetch()}
+            className="w-full gap-2 rounded-2xl border-slate-200 bg-white text-slate-700 shadow-sm xl:w-auto"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
+
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          <FinanceCard
+            title="Total Amount"
+            value={totalAmount}
+            isCurrency
+            currencySymbol="₦"
+            icon={<Wallet className="h-4 w-4 text-slate-500" />}
+            isLoading={isLoading || isFetching}
+          />
+          <FinanceCard
+            title="Income"
+            value={incomeCount}
+            icon={<CreditCard className="h-4 w-4 text-slate-500" />}
+            description={`${incomeCount} income transactions`}
+            isLoading={isLoading || isFetching}
+          />
+          <FinanceCard
+            title="Expense"
+            value={expenseCount}
+            icon={<Building2 className="h-4 w-4 text-slate-500" />}
+            description={`${expenseCount} expense transactions`}
+            isLoading={isLoading || isFetching}
+          />
+        </div>
       </div>
 
-      <Card>
-        <CardHeader className="pb-2"></CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row justify-between items-center mb-4 space-y-2 md:space-y-0">
-            <div className="flex items-center w-full md:w-auto space-x-2">
-              <div className="relative w-full md:w-64">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                <Input
-                  type="search"
-                  placeholder="Search expenses..."
-                  className="pl-8 w-full"
-                />
-              </div>
+      {isError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          We had trouble fetching transactions.
+          <Button variant="outline" onClick={() => refetch()} className="ml-3 rounded-xl border-red-200 bg-white">
+            Retry
+          </Button>
+        </div>
+      ) : null}
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Filter className="mr-2 h-4 w-4" /> Filter
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-[200px]">
-                  <div className="p-2">
-                    <div className="mb-2">
-                      <Label htmlFor="status-filter">Status</Label>
-                      <Select defaultValue="all">
-                        <SelectTrigger id="status-filter">
-                          <SelectValue placeholder="All Statuses" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Statuses</SelectItem>
-                          <SelectItem value="paid">Paid</SelectItem>
-                          <SelectItem value="pending">Pending</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="mb-2">
-                      <Label htmlFor="date-filter">Date Range</Label>
-                      <Select defaultValue="all">
-                        <SelectTrigger id="date-filter">
-                          <SelectValue placeholder="All Time" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Time</SelectItem>
-                          <SelectItem value="today">Today</SelectItem>
-                          <SelectItem value="this-week">This Week</SelectItem>
-                          <SelectItem value="this-month">This Month</SelectItem>
-                          <SelectItem value="this-year">This Year</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="category-filter">Category</Label>
-                      <Select defaultValue="all">
-                        <SelectTrigger id="category-filter">
-                          <SelectValue placeholder="All Categories" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Categories</SelectItem>
-                          <SelectItem value="office">
-                            Office Supplies
-                          </SelectItem>
-                          <SelectItem value="it">IT Equipment</SelectItem>
-                          <SelectItem value="utilities">Utilities</SelectItem>
-                          <SelectItem value="salaries">Salaries</SelectItem>
-                          <SelectItem value="training">Training</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
+      <Card className="overflow-hidden rounded-[28px] border border-slate-200 bg-white/95 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.26)]">
+        <div className="border-b border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-950">Transaction registry</h2>
+              <p className="text-sm text-slate-500">Browse, filter, and manage transaction entries.</p>
             </div>
-
-            <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
-              <Button variant="outline" size="sm">
-                <Download className="mr-2 h-4 w-4" /> Export CSV
-              </Button>
-              <Button variant="outline" size="sm">
-                <FileText className="mr-2 h-4 w-4" /> Export PDF
-              </Button>
-              <Button variant="outline" size="sm">
-                <Printer className="mr-2 h-4 w-4" /> Print
-              </Button>
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-slate-400" />
+              <span className="text-sm text-slate-400">Use the table search and filters for quick lookup</span>
             </div>
           </div>
+        </div>
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Payee</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>(₦) Account</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Status</TableHead>
-                  {/* <TableHead className="text-right">Actions</TableHead> */}
-                </TableRow>
-              </TableHeader>
-              <TableBody className="max-h-[50vh] overflow-y-auto">
-                {currentRows.map((expense) => (
-                  <TableRow key={expense.id}>
-                    <TableCell>{expense.date}</TableCell>
-                    <TableCell>{expense.account}</TableCell>
-                    <TableCell>{expense.amount}</TableCell>
-                    <TableCell>{expense.category}</TableCell>
-                    <TableCell>{expense.payee}</TableCell>
-                    <TableCell className="font-medium">
-                      {expense.reference}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          expense.status === "credit"
-                            ? "bg-green-600 text-white"
-                            : "bg-red-600 text-white"
-                        }`}
-                      >
-                        {expense.status}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-gray-500">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
-                {/* Item range + per-page selector */}
-                <div className="flex items-center gap-2">
-                  <p className="text-sm text-gray-500">
-                    Showing {indexOfFirstItem + 1}-
-                    {Math.min(indexOfLastItem, currentRows.length)} of{" "}
-                    {currentRows.length} transactions
-                  </p>
-
-                  <Select
-                    value={itemsPerPage.toString()}
-                    onValueChange={(value) => {
-                      setItemsPerPage(Number(value));
-                      setCurrentPage(1); // Reset to page 1 when itemsPerPage changes
-                    }}
-                  >
-                    <SelectTrigger className="h-8 w-[110px]">
-                      <SelectValue placeholder="Items per page" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10 per page</SelectItem>
-                      <SelectItem value="20">20 per page</SelectItem>
-                      <SelectItem value="50">50 per page</SelectItem>
-                      <SelectItem value="100">100 per page</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePrev}
-                disabled={currentPage === 1}
-              >
-                Previous
-              </Button>
-
-              {/* Dynamically render page numbers */}
-              {Array.from({ length: totalPages }, (_, index) => {
-                const page = index + 1;
-                return (
-                  <Button
-                    key={page}
-                    variant="outline"
-                    size="sm"
-                    className={page === currentPage ? "bg-green-300" : ""}
-                    onClick={() => setCurrentPage(page)}
-                  >
-                    {page}
-                  </Button>
-                );
-              })}
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNext}
-                disabled={currentPage === totalPages}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </CardContent>
+        <div className="px-6 py-5">
+          <FinanceDataTable
+            title="Transactions"
+            description="Premium transaction management table"
+            data={transactions}
+            filterOptions={[]}
+            columns={columns}
+            onAdd={handleAddTransaction}
+            onEdit={handleEditTransaction}
+            onView={handleViewTransaction}
+            onDelete={(id) => handleDeleteTransaction(transactions.find((item) => item.id === id)?.transaction_id ?? id)}
+            currencySymbol="₦"
+            isLoading={isLoading || isFetching}
+          />
+        </div>
       </Card>
 
-      {/* Add New Expense Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[550px]">
-          <DialogHeader>
-            <DialogTitle>Add New Expense</DialogTitle>
-            <DialogDescription>
-              Enter the details for the new expense record.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="account">Account</Label>
-                <Select>
-                  <SelectTrigger id="account">
-                    <SelectValue placeholder="Select Account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="main">Main Account</SelectItem>
-                    <SelectItem value="operations">
-                      Operations Account
-                    </SelectItem>
-                    <SelectItem value="reserve">Reserve Account</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount (₦)</Label>
-                <Input id="amount" placeholder="0.00" type="number" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="payee">Payee</Label>
-                <Select>
-                  <SelectTrigger id="payee">
-                    <SelectValue placeholder="Select Payee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="office-supplies">
-                      Office Supplies Ltd
-                    </SelectItem>
-                    <SelectItem value="it-solutions">
-                      IT Solutions Nigeria
-                    </SelectItem>
-                    <SelectItem value="lagos-power">
-                      Lagos Power Distribution
-                    </SelectItem>
-                    <SelectItem value="staff-salaries">
-                      Staff Salaries
-                    </SelectItem>
-                    <SelectItem value="training-solutions">
-                      Training Solutions Ltd
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="date">Date</Label>
-                <Input id="date" type="date" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="payment-method">Payment Method</Label>
-                <Select>
-                  <SelectTrigger id="payment-method">
-                    <SelectValue placeholder="Select Method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bank-transfer">Bank Transfer</SelectItem>
-                    <SelectItem value="check">Check</SelectItem>
-                    <SelectItem value="direct-debit">Direct Debit</SelectItem>
-                    <SelectItem value="cash">Cash</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select>
-                  <SelectTrigger id="category">
-                    <SelectValue placeholder="Select Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="office-supplies">
-                      Office Supplies
-                    </SelectItem>
-                    <SelectItem value="it-equipment">IT Equipment</SelectItem>
-                    <SelectItem value="utilities">Utilities</SelectItem>
-                    <SelectItem value="salaries">Salaries</SelectItem>
-                    <SelectItem value="training">Training</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="reference">Reference Number</Label>
-              <Input id="reference" placeholder="EXP-YYYY-XXX" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Enter expense details..."
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">Save Expense</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <FinanceFormDialog
+        title="New Transaction"
+        fields={createFields}
+        initialValues={{
+          account_id: accountOptions[0]?.value ?? "",
+          transaction_type: transactionTypeOptions[0].value,
+          amount: "",
+          payment_method: paymentMethodOptions[0].value,
+          category: categoryOptions[0].value,
+          reference_id: "",
+          transaction_date: new Date().toISOString().slice(0, 10),
+          description: "",
+        }}
+        isOpen={isCreateOpen}
+        onOpenChange={handleCreateOpenChange}
+        onSubmit={handleSubmitCreateTransaction}
+        submitLabel="Save Transaction"
+        currencySymbol="₦"
+      />
 
-      {/* Expense Details Dialog */}
-      {selectedExpense && (
-        <Dialog
-          open={isDetailsDialogOpen}
-          onOpenChange={setIsDetailsDialogOpen}
-        >
-          <DialogContent className="sm:max-w-[550px]">
-            <DialogHeader>
-              <DialogTitle>Expense Details</DialogTitle>
-              <DialogDescription>
-                Reference: {selectedExpense.reference}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Account</p>
-                  <p>{selectedExpense.account}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Amount</p>
-                  <p className="font-semibold">{selectedExpense.amount}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Payee</p>
-                  <p>{selectedExpense.payee}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Date</p>
-                  <p>{selectedExpense.date}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">
-                    Payment Method
-                  </p>
-                  <p>{selectedExpense.paymentMethod}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Category</p>
-                  <p>{selectedExpense.category}</p>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Status</p>
-                <p>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      selectedExpense.status === "Paid"
-                        ? "bg-green-100 text-green-800"
-                        : "bg-yellow-100 text-yellow-800"
-                    }`}
-                  >
-                    {selectedExpense.status}
-                  </span>
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Description</p>
-                <p className="text-sm text-gray-700">
-                  Payment for {selectedExpense.category.toLowerCase()} to{" "}
-                  {selectedExpense.payee}
-                  via {selectedExpense.paymentMethod.toLowerCase()}.
-                </p>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsDetailsDialogOpen(false)}
-              >
-                Close
-              </Button>
-              <Button>Edit Expense</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      <FinanceFormDialog
+        title="Edit Transaction"
+        fields={editFields}
+        initialValues={
+          selectedTransaction
+            ? {
+                amount: String(selectedTransaction.amount ?? ""),
+                category: selectedTransaction.category,
+                description: selectedTransaction.description ?? "",
+              }
+            : {
+                amount: "",
+                category: categoryOptions[0].value,
+                description: "",
+              }
+        }
+        isOpen={isEditOpen}
+        onOpenChange={handleEditOpenChange}
+        onSubmit={handleSubmitTransaction}
+        submitLabel="Update Transaction"
+        currencySymbol="₦"
+      />
+
+      <FinanceDetailsDialog
+        title="Transaction Details"
+        data={selectedTransactionDetails || {}}
+        fields={detailsFields}
+        isOpen={isDetailsOpen}
+        onOpenChange={handleDetailsOpenChange}
+        currencySymbol="₦"
+        actions={{
+          edit: true,
+          delete: true,
+        }}
+        onEdit={() => {
+          setIsDetailsOpen(false)
+          if (selectedTransactionDetails) {
+            setSelectedTransaction(normalizeTransaction(selectedTransactionDetails))
+            setIsEditOpen(true)
+          }
+        }}
+        onDelete={() => {
+          setIsDetailsOpen(false)
+          if (selectedTransactionDetails) {
+            handleDeleteTransaction(selectedTransactionDetails.transaction_id)
+          }
+        }}
+      />
     </div>
-  );
+  )
 }

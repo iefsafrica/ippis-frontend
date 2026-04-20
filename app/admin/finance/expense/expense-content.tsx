@@ -1,538 +1,532 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { format } from "date-fns"
+import { Building2, CreditCard, RefreshCw, Search, Sparkles, Wallet } from "lucide-react"
+import { toast } from "sonner"
+
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
+import { useGetFinanceAccounts } from "@/services/hooks/finance/accounts"
+import { useGetFinancePayees } from "@/services/hooks/finance/payees"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ChevronDown, Download, FileText, Filter, MoreHorizontal, Plus, Printer, Search } from "lucide-react"
+  useCreateFinanceExpense,
+  useDeleteFinanceExpense,
+  useGetFinanceExpense,
+  useGetFinanceExpenses,
+  useUpdateFinanceExpense,
+} from "@/services/hooks/finance/expenses"
+import { FinanceCard } from "../components/finance-card"
+import { FinanceDataTable } from "../components/finance-data-table"
+import { FinanceDetailsDialog, type FinanceDetailsField } from "../components/finance-details-dialog"
+import { FinanceFormDialog } from "../components/finance-form-dialog"
+
+type ExpenseUI = {
+  id: string
+  expense_id: string
+  accountId: string
+  accountName: string
+  payeeId: string
+  payeeName: string
+  amount: number
+  paymentMethod: string
+  category: string
+  reference: string
+  description?: string | null
+  status: string
+  date?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+const categoryOptions = [
+  { value: "Office Supplies", label: "Office Supplies" },
+  { value: "Utilities", label: "Utilities" },
+  { value: "Salaries", label: "Salaries" },
+  { value: "Training", label: "Training" },
+  { value: "Travel", label: "Travel" },
+  { value: "Maintenance", label: "Maintenance" },
+  { value: "Marketing", label: "Marketing" },
+  { value: "Other", label: "Other" },
+]
+
+const paymentMethodOptions = [
+  { value: "bank_transfer", label: "Bank Transfer" },
+  { value: "cash", label: "Cash" },
+  { value: "card", label: "Card" },
+  { value: "cheque", label: "Cheque" },
+  { value: "direct_debit", label: "Direct Debit" },
+]
+
+const statusOptions = [
+  { value: "paid", label: "Paid" },
+  { value: "pending", label: "Pending" },
+  { value: "failed", label: "Failed" },
+  { value: "reversed", label: "Reversed" },
+]
+
+const resolveCategory = (value?: string | null) => {
+  const normalized = String(value ?? "").trim().toLowerCase()
+  return (
+    categoryOptions.find((item) => item.value.toLowerCase() === normalized)?.value ||
+    categoryOptions[0].value
+  )
+}
+
+const resolveStatus = (value?: string | null) => {
+  const normalized = String(value ?? "pending").trim().toLowerCase()
+  return statusOptions.find((item) => item.value.toLowerCase() === normalized)?.value || "pending"
+}
+
+const normalizeAccountOptions = (accounts: any[] = []) =>
+  accounts.map((account) => ({
+    value: String(account.account_id ?? account.id ?? ""),
+    label: String(account.account_name ?? account.accountName ?? account.account_id ?? ""),
+  }))
+
+const normalizePayeeOptions = (payees: any[] = []) =>
+  payees.map((payee) => ({
+    value: String(payee.payee_id ?? payee.id ?? ""),
+    label: String(payee.payee_name ?? payee.name ?? payee.payee_id ?? ""),
+  }))
+
+const editFields = [
+  { name: "amount", label: "Amount", type: "currency" as const, required: true, placeholder: "Enter amount", width: "half" as const, currencySymbol: "₦" },
+  { name: "category", label: "Category", type: "select" as const, required: true, options: categoryOptions, width: "half" as const },
+  { name: "description", label: "Description", type: "textarea" as const, placeholder: "Enter expense description", width: "full" as const },
+]
+
+const buildCreateFields = (
+  accountOptions: { label: string; value: string }[],
+  payeeOptions: { label: string; value: string }[],
+) => [
+  {
+    name: "account_id",
+    label: "Account",
+    type: "select" as const,
+    required: true,
+    options: accountOptions,
+    width: "half" as const,
+    placeholder: "Select account",
+  },
+  {
+    name: "payee_id",
+    label: "Payee",
+    type: "select" as const,
+    required: true,
+    options: payeeOptions,
+    width: "half" as const,
+    placeholder: "Select payee",
+  },
+  { name: "amount", label: "Amount", type: "currency" as const, required: true, placeholder: "Enter amount", width: "half" as const, currencySymbol: "₦" },
+  { name: "payment_method", label: "Payment Method", type: "select" as const, required: true, options: paymentMethodOptions, width: "half" as const },
+  { name: "category", label: "Category", type: "select" as const, required: true, options: categoryOptions, width: "half" as const },
+  { name: "date", label: "Date", type: "date" as const, required: true, width: "half" as const },
+  { name: "description", label: "Description", type: "textarea" as const, placeholder: "Enter expense description", width: "full" as const },
+]
+
+const detailsFields: FinanceDetailsField[] = [
+  { label: "Expense ID", key: "expense_id", type: "reference" },
+  { label: "Reference", key: "reference", type: "reference" },
+  { label: "Account", key: "accountName" },
+  { label: "Account ID", key: "accountId" },
+  { label: "Payee", key: "payeeName" },
+  { label: "Payee ID", key: "payeeId" },
+  { label: "Payment Method", key: "paymentMethod" },
+  {
+    label: "Category",
+    key: "category",
+    render: (value: string) => {
+      const category = categoryOptions.find((item) => item.value.toLowerCase() === String(value ?? "").toLowerCase())
+      return category ? category.label : value
+    },
+  },
+  { label: "Amount", key: "amount", type: "currency", currencySymbol: "₦" },
+  {
+    label: "Status",
+    key: "status",
+    type: "status",
+    statusMap: {
+      paid: { label: "Paid", variant: "default" },
+      pending: { label: "Pending", variant: "secondary" },
+      failed: { label: "Failed", variant: "destructive" },
+      reversed: { label: "Reversed", variant: "outline" },
+    },
+  },
+  { label: "Date", key: "date", type: "date", format: "PP" },
+  { label: "Created At", key: "createdAt", type: "date", format: "PPpp" },
+  { label: "Updated At", key: "updatedAt", type: "date", format: "PPpp" },
+  { label: "Description", key: "description" },
+]
+
+const normalizeExpense = (expense: any): ExpenseUI => ({
+  id: String(expense.id ?? expense.expense_id),
+  expense_id: String(expense.expense_id ?? expense.id ?? ""),
+  accountId: String(expense.account_id ?? expense.accountId ?? ""),
+  accountName: String(expense.account_name ?? expense.accountName ?? expense.account_id ?? ""),
+  payeeId: String(expense.payee_id ?? expense.payeeId ?? ""),
+  payeeName: String(expense.payee_name ?? expense.payeeName ?? expense.payee_id ?? ""),
+  amount: Number(expense.amount ?? 0),
+  paymentMethod: String(expense.payment_method ?? expense.paymentMethod ?? ""),
+  category: resolveCategory(expense.category),
+  reference: String(expense.reference ?? expense.expense_id ?? ""),
+  description: expense.description ?? null,
+  status: resolveStatus(expense.status),
+  date: expense.date ?? expense.created_at ?? expense.createdAt ?? undefined,
+  createdAt: expense.created_at ?? expense.createdAt ?? undefined,
+  updatedAt: expense.updated_at ?? expense.updatedAt ?? undefined,
+})
 
 export function ExpenseContent() {
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
-  const [selectedExpense, setSelectedExpense] = useState<any>(null)
+  const { data, isLoading, isFetching, isError, refetch } = useGetFinanceExpenses()
+  const { data: accountsData } = useGetFinanceAccounts()
+  const { data: payeesData } = useGetFinancePayees()
+  const createExpense = useCreateFinanceExpense()
+  const updateExpense = useUpdateFinanceExpense()
+  const deleteExpense = useDeleteFinanceExpense()
 
-  // Mock data for demonstration
-  const expenses = [
+  const [selectedExpense, setSelectedExpense] = useState<ExpenseUI | null>(null)
+  const [selectedExpenseId, setSelectedExpenseId] = useState<string | null>(null)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+
+  const expenses = useMemo(() => (data?.data?.expenses ?? []).map(normalizeExpense), [data])
+  const selectedExpenseDetailsQuery = useGetFinanceExpense(selectedExpenseId ?? undefined, isDetailsOpen || isEditOpen)
+  const selectedExpenseDetails = selectedExpenseDetailsQuery.data?.data
+    ? normalizeExpense(selectedExpenseDetailsQuery.data.data)
+    : selectedExpense
+
+  const accountOptions = useMemo(() => normalizeAccountOptions(accountsData?.data?.accounts ?? []), [accountsData])
+  const payeeOptions = useMemo(() => normalizePayeeOptions(payeesData?.data?.payees ?? []), [payeesData])
+
+  const createFields = useMemo(() => buildCreateFields(accountOptions, payeeOptions), [accountOptions, payeeOptions])
+
+  useEffect(() => {
+    if (isError) toast.error("Failed to load expenses")
+  }, [isError])
+
+  useEffect(() => {
+    if (selectedExpenseDetailsQuery.isError && selectedExpenseId) {
+      toast.error("Failed to load expense details")
+    }
+  }, [selectedExpenseDetailsQuery.isError, selectedExpenseId])
+
+  const totalAmount = expenses.reduce((sum, expense) => sum + Number(expense.amount ?? 0), 0)
+  const uniqueAccounts = new Set(expenses.map((expense) => expense.accountId).filter(Boolean)).size
+  const uniquePayees = new Set(expenses.map((expense) => expense.payeeId).filter(Boolean)).size
+
+  const columns = [
+    { key: "reference", label: "Reference", sortable: true },
+    { key: "accountName", label: "Account", sortable: true },
+    { key: "payeeName", label: "Payee", sortable: true },
     {
-      id: 1,
-      account: "Operations Account",
-      payee: "Office Supplies Ltd",
-      amount: "₦150,000.00",
-      paymentMethod: "Bank Transfer",
-      reference: "EXP-2023-001",
-      date: "2023-05-10",
-      category: "Office Supplies",
-      status: "Paid",
+      key: "amount",
+      label: "Amount",
+      sortable: true,
+      render: (value: number) =>
+        new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "NGN",
+        }).format(Number(value ?? 0)),
     },
     {
-      id: 2,
-      account: "Main Account",
-      payee: "IT Solutions Nigeria",
-      amount: "₦450,000.00",
-      paymentMethod: "Check",
-      reference: "EXP-2023-002",
-      date: "2023-05-15",
-      category: "IT Equipment",
-      status: "Pending",
+      key: "paymentMethod",
+      label: "Payment Method",
+      sortable: true,
+      render: (value: string) =>
+        String(value ?? "")
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (char) => char.toUpperCase()),
     },
     {
-      id: 3,
-      account: "Operations Account",
-      payee: "Lagos Power Distribution",
-      amount: "₦280,000.00",
-      paymentMethod: "Direct Debit",
-      reference: "EXP-2023-003",
-      date: "2023-05-20",
-      category: "Utilities",
-      status: "Paid",
+      key: "category",
+      label: "Category",
+      sortable: true,
+      render: (value: string) => {
+        const category = categoryOptions.find((item) => item.value.toLowerCase() === String(value ?? "").toLowerCase())
+        return category ? category.label : value
+      },
     },
     {
-      id: 4,
-      account: "Main Account",
-      payee: "Staff Salaries",
-      amount: "₦1,850,000.00",
-      paymentMethod: "Bank Transfer",
-      reference: "EXP-2023-004",
-      date: "2023-05-28",
-      category: "Salaries",
-      status: "Paid",
+      key: "status",
+      label: "Status",
+      sortable: true,
+      render: (value: string) => (
+        <span
+          className={`rounded-full px-2 py-1 text-xs font-medium ${
+            value === "paid"
+              ? "bg-green-100 text-green-800"
+              : value === "pending"
+                ? "bg-amber-100 text-amber-800"
+                : value === "failed"
+                  ? "bg-red-100 text-red-800"
+                  : "bg-slate-100 text-slate-700"
+          }`}
+        >
+          {value ? value.charAt(0).toUpperCase() + value.slice(1) : "Unknown"}
+        </span>
+      ),
     },
     {
-      id: 5,
-      account: "Operations Account",
-      payee: "Training Solutions Ltd",
-      amount: "₦320,000.00",
-      paymentMethod: "Bank Transfer",
-      reference: "EXP-2023-005",
-      date: "2023-06-02",
-      category: "Training",
-      status: "Pending",
+      key: "createdAt",
+      label: "Created",
+      sortable: true,
+      render: (value: string) => (value ? format(new Date(value), "MMM d, yyyy") : "N/A"),
     },
   ]
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(50); // default 50
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentRows = expenses.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(expenses.length / itemsPerPage);
+  const handleViewExpense = (id: string) => {
+    const expense = expenses.find((item) => item.id === id)
+    if (!expense) return
 
-  const handlePrev = () => {
-    setCurrentPage((prev) => Math.max(prev - 1, 1));
-  };
-
-  const handleNext = () => {
-    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
-  };
-  
-
-  const handleViewDetails = (expense: any) => {
     setSelectedExpense(expense)
-    setIsDetailsDialogOpen(true)
+    setSelectedExpenseId(expense.expense_id)
+    setIsDetailsOpen(true)
+  }
+
+  const handleEditExpense = (id: string) => {
+    const expense = expenses.find((item) => item.id === id)
+    if (!expense) return
+
+    setSelectedExpense(expense)
+    setSelectedExpenseId(expense.expense_id)
+    setIsEditOpen(true)
+  }
+
+  const handleDeleteExpense = async (expenseId: string) => {
+    try {
+      await deleteExpense.mutateAsync(expenseId)
+      toast.success("Expense deleted successfully")
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete expense")
+    }
+  }
+
+  const handleDetailsOpenChange = (open: boolean) => {
+    setIsDetailsOpen(open)
+    if (!open) {
+      setSelectedExpenseId(null)
+    }
+  }
+
+  const handleEditOpenChange = (open: boolean) => {
+    setIsEditOpen(open)
+    if (!open) {
+      setSelectedExpenseId(null)
+    }
+  }
+
+  const handleCreateOpenChange = (open: boolean) => {
+    setIsCreateOpen(open)
+  }
+
+  const handleAddExpense = () => {
+    setSelectedExpense(null)
+    setSelectedExpenseId(null)
+    setIsCreateOpen(true)
+  }
+
+  const handleSubmitExpense = async (formData: Record<string, any>) => {
+    if (!selectedExpense) {
+      toast.error("No expense selected")
+      return
+    }
+
+    try {
+      await updateExpense.mutateAsync({
+        expense_id: selectedExpense.expense_id,
+        amount: Number(formData.amount),
+        category: String(formData.category ?? "").trim(),
+        description: formData.description ? String(formData.description).trim() : null,
+      })
+      toast.success("Expense updated successfully")
+      setIsEditOpen(false)
+      setSelectedExpense(null)
+      setSelectedExpenseId(null)
+    } catch (error: any) {
+      toast.error(error?.message || "Update failed")
+    }
+  }
+
+  const handleSubmitCreateExpense = async (formData: Record<string, any>) => {
+    try {
+      await createExpense.mutateAsync({
+        account_id: String(formData.account_id ?? "").trim(),
+        payee_id: String(formData.payee_id ?? "").trim(),
+        amount: Number(formData.amount ?? 0),
+        payment_method: String(formData.payment_method ?? "").trim(),
+        category: String(formData.category ?? "").trim(),
+        date: String(formData.date ?? "").slice(0, 10),
+        description: formData.description ? String(formData.description).trim() : null,
+      })
+      toast.success("Expense created successfully")
+      setIsCreateOpen(false)
+    } catch (error: any) {
+      toast.error(error?.message || "Create failed")
+    }
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Expense Management</h1>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Add New Expense
-        </Button>
+      <div className="rounded-[28px] border border-slate-200 bg-white/90 p-6 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.28)] backdrop-blur">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500">
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              Finance module
+            </div>
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">Expenses</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                Review expense records with live React Query updates, details lookup, edits, and deletes.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={() => refetch()}
+            className="w-full gap-2 rounded-2xl border-slate-200 bg-white text-slate-700 shadow-sm xl:w-auto"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
+
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          <FinanceCard
+            title="Total Expenses"
+            value={totalAmount}
+            isCurrency
+            currencySymbol="₦"
+            icon={<Wallet className="h-4 w-4 text-slate-500" />}
+            isLoading={isLoading || isFetching}
+          />
+          <FinanceCard
+            title="Accounts"
+            value={uniqueAccounts}
+            icon={<Building2 className="h-4 w-4 text-slate-500" />}
+            description="Unique expense accounts"
+            isLoading={isLoading || isFetching}
+          />
+          <FinanceCard
+            title="Payees"
+            value={uniquePayees}
+            icon={<CreditCard className="h-4 w-4 text-slate-500" />}
+            description="Unique payees"
+            isLoading={isLoading || isFetching}
+          />
+        </div>
       </div>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle>Expenses</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row justify-between items-center mb-4 space-y-2 md:space-y-0">
-            <div className="flex items-center w-full md:w-auto space-x-2">
-              <div className="relative w-full md:w-64">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                <Input
-                  type="search"
-                  placeholder="Search expenses..."
-                  className="pl-8 w-full"
-                />
-              </div>
+      {isError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          We had trouble fetching expenses.
+          <Button variant="outline" onClick={() => refetch()} className="ml-3 rounded-xl border-red-200 bg-white">
+            Retry
+          </Button>
+        </div>
+      ) : null}
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Filter className="mr-2 h-4 w-4" /> Filter
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-[200px]">
-                  <div className="p-2">
-                    <div className="mb-2">
-                      <Label htmlFor="status-filter">Status</Label>
-                      <Select defaultValue="all">
-                        <SelectTrigger id="status-filter">
-                          <SelectValue placeholder="All Statuses" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Statuses</SelectItem>
-                          <SelectItem value="paid">Paid</SelectItem>
-                          <SelectItem value="pending">Pending</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="mb-2">
-                      <Label htmlFor="date-filter">Date Range</Label>
-                      <Select defaultValue="all">
-                        <SelectTrigger id="date-filter">
-                          <SelectValue placeholder="All Time" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Time</SelectItem>
-                          <SelectItem value="today">Today</SelectItem>
-                          <SelectItem value="this-week">This Week</SelectItem>
-                          <SelectItem value="this-month">This Month</SelectItem>
-                          <SelectItem value="this-year">This Year</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="category-filter">Category</Label>
-                      <Select defaultValue="all">
-                        <SelectTrigger id="category-filter">
-                          <SelectValue placeholder="All Categories" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Categories</SelectItem>
-                          <SelectItem value="office">
-                            Office Supplies
-                          </SelectItem>
-                          <SelectItem value="it">IT Equipment</SelectItem>
-                          <SelectItem value="utilities">Utilities</SelectItem>
-                          <SelectItem value="salaries">Salaries</SelectItem>
-                          <SelectItem value="training">Training</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
+      <Card className="overflow-hidden rounded-[28px] border border-slate-200 bg-white/95 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.26)]">
+        <div className="border-b border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-950">Expense registry</h2>
+              <p className="text-sm text-slate-500">Browse, filter, and manage expense entries.</p>
             </div>
-
-            <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
-              <Button variant="outline" size="sm">
-                <Download className="mr-2 h-4 w-4" /> Export CSV
-              </Button>
-              <Button variant="outline" size="sm">
-                <FileText className="mr-2 h-4 w-4" /> Export PDF
-              </Button>
-              <Button variant="outline" size="sm">
-                <Printer className="mr-2 h-4 w-4" /> Print
-              </Button>
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-slate-400" />
+              <span className="text-sm text-slate-400">Use the table search and filters for quick lookup</span>
             </div>
           </div>
+        </div>
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Account</TableHead>
-                  <TableHead>Payee</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {expenses.map((expense) => (
-                  <TableRow key={expense.id}>
-                    <TableCell className="font-medium">
-                      {expense.reference}
-                    </TableCell>
-                    <TableCell>{expense.date}</TableCell>
-                    <TableCell>{expense.account}</TableCell>
-                    <TableCell>{expense.payee}</TableCell>
-                    <TableCell>{expense.amount}</TableCell>
-                    <TableCell>{expense.category}</TableCell>
-                    <TableCell>
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          expense.status === "Paid"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}
-                      >
-                        {expense.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Open menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => handleViewDetails(expense)}
-                          >
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>Edit</DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-gray-500">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
-                {/* Item range + per-page selector */}
-                <div className="flex items-center gap-2">
-                  <p className="text-sm text-gray-500">
-                    Showing {indexOfFirstItem + 1}-
-                    {Math.min(indexOfLastItem, currentRows.length)} of{" "}
-                    {currentRows.length} expenses
-                  </p>
-
-                  <Select
-                    value={itemsPerPage.toString()}
-                    onValueChange={(value) => {
-                      setItemsPerPage(Number(value));
-                      setCurrentPage(1); // Reset to page 1 when itemsPerPage changes
-                    }}
-                  >
-                    <SelectTrigger className="h-8 w-[110px]">
-                      <SelectValue placeholder="Items per page" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10 per page</SelectItem>
-                      <SelectItem value="20">20 per page</SelectItem>
-                      <SelectItem value="50">50 per page</SelectItem>
-                      <SelectItem value="100">100 per page</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePrev}
-                disabled={currentPage === 1}
-              >
-                Previous
-              </Button>
-
-              {/* Dynamically render page numbers */}
-              {Array.from({ length: totalPages }, (_, index) => {
-                const page = index + 1;
-                return (
-                  <Button
-                    key={page}
-                    variant="outline"
-                    size="sm"
-                    className={page === currentPage ? "bg-green-300" : ""}
-                    onClick={() => setCurrentPage(page)}
-                  >
-                    {page}
-                  </Button>
-                );
-              })}
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNext}
-                disabled={currentPage === totalPages}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </CardContent>
+        <div className="px-6 py-5">
+          <FinanceDataTable
+            title="Expenses"
+            description="Premium expense management table"
+            data={expenses}
+            filterOptions={[]}
+            columns={columns}
+            onAdd={handleAddExpense}
+            onEdit={handleEditExpense}
+            onView={handleViewExpense}
+            onDelete={(id) => handleDeleteExpense(expenses.find((item) => item.id === id)?.expense_id ?? id)}
+            currencySymbol="₦"
+            isLoading={isLoading || isFetching}
+          />
+        </div>
       </Card>
 
-      {/* Add New Expense Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[550px]">
-          <DialogHeader>
-            <DialogTitle>Add New Expense</DialogTitle>
-            <DialogDescription>
-              Enter the details for the new expense record.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="account">Account</Label>
-                <Select>
-                  <SelectTrigger id="account">
-                    <SelectValue placeholder="Select Account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="main">Main Account</SelectItem>
-                    <SelectItem value="operations">
-                      Operations Account
-                    </SelectItem>
-                    <SelectItem value="reserve">Reserve Account</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount (₦)</Label>
-                <Input id="amount" placeholder="0.00" type="number" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="payee">Payee</Label>
-                <Select>
-                  <SelectTrigger id="payee">
-                    <SelectValue placeholder="Select Payee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="office-supplies">
-                      Office Supplies Ltd
-                    </SelectItem>
-                    <SelectItem value="it-solutions">
-                      IT Solutions Nigeria
-                    </SelectItem>
-                    <SelectItem value="lagos-power">
-                      Lagos Power Distribution
-                    </SelectItem>
-                    <SelectItem value="staff-salaries">
-                      Staff Salaries
-                    </SelectItem>
-                    <SelectItem value="training-solutions">
-                      Training Solutions Ltd
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="date">Date</Label>
-                <Input id="date" type="date" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="payment-method">Payment Method</Label>
-                <Select>
-                  <SelectTrigger id="payment-method">
-                    <SelectValue placeholder="Select Method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bank-transfer">Bank Transfer</SelectItem>
-                    <SelectItem value="check">Check</SelectItem>
-                    <SelectItem value="direct-debit">Direct Debit</SelectItem>
-                    <SelectItem value="cash">Cash</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select>
-                  <SelectTrigger id="category">
-                    <SelectValue placeholder="Select Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="office-supplies">
-                      Office Supplies
-                    </SelectItem>
-                    <SelectItem value="it-equipment">IT Equipment</SelectItem>
-                    <SelectItem value="utilities">Utilities</SelectItem>
-                    <SelectItem value="salaries">Salaries</SelectItem>
-                    <SelectItem value="training">Training</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="reference">Reference Number</Label>
-              <Input id="reference" placeholder="EXP-YYYY-XXX" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Enter expense details..."
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">Save Expense</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <FinanceFormDialog
+        title="New Expense"
+        fields={createFields}
+        initialValues={{
+          account_id: accountOptions[0]?.value ?? "",
+          payee_id: payeeOptions[0]?.value ?? "",
+          amount: "",
+          payment_method: paymentMethodOptions[0].value,
+          category: categoryOptions[0].value,
+          date: new Date().toISOString().slice(0, 10),
+          description: "",
+        }}
+        isOpen={isCreateOpen}
+        onOpenChange={handleCreateOpenChange}
+        onSubmit={handleSubmitCreateExpense}
+        submitLabel="Save Expense"
+        currencySymbol="₦"
+      />
 
-      {/* Expense Details Dialog */}
-      {selectedExpense && (
-        <Dialog
-          open={isDetailsDialogOpen}
-          onOpenChange={setIsDetailsDialogOpen}
-        >
-          <DialogContent className="sm:max-w-[550px]">
-            <DialogHeader>
-              <DialogTitle>Expense Details</DialogTitle>
-              <DialogDescription>
-                Reference: {selectedExpense.reference}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Account</p>
-                  <p>{selectedExpense.account}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Amount</p>
-                  <p className="font-semibold">{selectedExpense.amount}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Payee</p>
-                  <p>{selectedExpense.payee}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Date</p>
-                  <p>{selectedExpense.date}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">
-                    Payment Method
-                  </p>
-                  <p>{selectedExpense.paymentMethod}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Category</p>
-                  <p>{selectedExpense.category}</p>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Status</p>
-                <p>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      selectedExpense.status === "Paid"
-                        ? "bg-green-100 text-green-800"
-                        : "bg-yellow-100 text-yellow-800"
-                    }`}
-                  >
-                    {selectedExpense.status}
-                  </span>
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Description</p>
-                <p className="text-sm text-gray-700">
-                  Payment for {selectedExpense.category.toLowerCase()} to{" "}
-                  {selectedExpense.payee}
-                  via {selectedExpense.paymentMethod.toLowerCase()}.
-                </p>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsDetailsDialogOpen(false)}
-              >
-                Close
-              </Button>
-              <Button>Edit Expense</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      <FinanceFormDialog
+        title="Edit Expense"
+        fields={editFields}
+        initialValues={
+          selectedExpense
+            ? {
+                amount: String(selectedExpense.amount ?? ""),
+                category: selectedExpense.category,
+                description: selectedExpense.description ?? "",
+              }
+            : {
+                amount: "",
+                category: categoryOptions[0].value,
+                description: "",
+              }
+        }
+        isOpen={isEditOpen}
+        onOpenChange={handleEditOpenChange}
+        onSubmit={handleSubmitExpense}
+        submitLabel="Update Expense"
+        currencySymbol="₦"
+      />
+
+      <FinanceDetailsDialog
+        title="Expense Details"
+        data={selectedExpenseDetails || {}}
+        fields={detailsFields}
+        isOpen={isDetailsOpen}
+        onOpenChange={handleDetailsOpenChange}
+        currencySymbol="₦"
+        actions={{
+          edit: true,
+          delete: true,
+        }}
+        onEdit={() => {
+          setIsDetailsOpen(false)
+          if (selectedExpenseDetails) {
+            setSelectedExpense(normalizeExpense(selectedExpenseDetails))
+            setIsEditOpen(true)
+          }
+        }}
+        onDelete={() => {
+          setIsDetailsOpen(false)
+          if (selectedExpenseDetails) {
+            handleDeleteExpense(selectedExpenseDetails.expense_id)
+          }
+        }}
+      />
     </div>
-  );
+  )
 }

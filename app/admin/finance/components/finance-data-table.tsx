@@ -68,6 +68,7 @@ interface FinanceDataTableProps {
   currencySymbol?: string
   showTotals?: boolean
   totalFields?: string[]
+  showAddButton?: boolean
 }
 
 export function FinanceDataTable({
@@ -84,6 +85,7 @@ export function FinanceDataTable({
   currencySymbol = "$",
   showTotals = false,
   totalFields = [],
+  showAddButton = true,
   // currentRows,
   // handlePrev,
   // handleNext,
@@ -573,13 +575,15 @@ export function FinanceDataTable({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button
-              onClick={onAdd}
-              className="gap-1 bg-green-600 hover:bg-green-700"
-            >
-              <Plus className="h-4 w-4" />
-              Add New
-            </Button>
+            {showAddButton ? (
+              <Button
+                onClick={onAdd}
+                className="gap-1 bg-green-600 hover:bg-green-700"
+              >
+                <Plus className="h-4 w-4" />
+                Add New
+              </Button>
+            ) : null}
           </div>
         </div>
 
