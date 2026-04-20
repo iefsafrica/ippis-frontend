@@ -500,23 +500,6 @@ export function TransactionContent() {
         isOpen={isDetailsOpen}
         onOpenChange={handleDetailsOpenChange}
         currencySymbol="₦"
-        actions={{
-          edit: true,
-          delete: true,
-        }}
-        onEdit={() => {
-          setIsDetailsOpen(false)
-          if (selectedTransactionDetails) {
-            setSelectedTransaction(normalizeTransaction(selectedTransactionDetails))
-            setIsEditOpen(true)
-          }
-        }}
-        onDelete={() => {
-          setIsDetailsOpen(false)
-          if (selectedTransactionDetails) {
-            handleDeleteTransaction(selectedTransactionDetails.transaction_id)
-          }
-        }}
       />
     </div>
   )

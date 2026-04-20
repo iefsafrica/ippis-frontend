@@ -509,23 +509,6 @@ export function ExpenseContent() {
         isOpen={isDetailsOpen}
         onOpenChange={handleDetailsOpenChange}
         currencySymbol="₦"
-        actions={{
-          edit: true,
-          delete: true,
-        }}
-        onEdit={() => {
-          setIsDetailsOpen(false)
-          if (selectedExpenseDetails) {
-            setSelectedExpense(normalizeExpense(selectedExpenseDetails))
-            setIsEditOpen(true)
-          }
-        }}
-        onDelete={() => {
-          setIsDetailsOpen(false)
-          if (selectedExpenseDetails) {
-            handleDeleteExpense(selectedExpenseDetails.expense_id)
-          }
-        }}
       />
     </div>
   )

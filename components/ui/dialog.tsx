@@ -31,12 +31,11 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    hideCloseButton?: boolean
+  }
 >(function DialogContent(props, ref) {
-  const { className, children, ...rest } = props
-  const hideCloseButton = Boolean(
-    (rest as Record<string, unknown>)["data-hide-close"],
-  )
+  const { className, children, hideCloseButton, ...rest } = props
 
   return (
     <DialogPortal>

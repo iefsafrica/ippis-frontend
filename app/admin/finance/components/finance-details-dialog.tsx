@@ -35,6 +35,7 @@ interface FinanceDetailsDialogProps {
   data: Record<string, any>
   fields: FinanceDetailsField[]
   trigger?: React.ReactNode
+  hideCloseButton?: boolean
   actions?: {
     edit?: boolean
     delete?: boolean
@@ -78,6 +79,7 @@ export function FinanceDetailsDialog({
   onOpenChange,
   currencySymbol = "$",
   deleteConfirmation,
+  hideCloseButton = false,
 }: FinanceDetailsDialogProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
@@ -161,7 +163,7 @@ export function FinanceDetailsDialog({
     <>
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
         {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px]" hideCloseButton={hideCloseButton}>
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
           </DialogHeader>

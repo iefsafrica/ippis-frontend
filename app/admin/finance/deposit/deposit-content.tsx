@@ -430,23 +430,6 @@ export function DepositContent() {
         isOpen={isDetailsOpen}
         onOpenChange={handleDetailsOpenChange}
         currencySymbol="₦"
-        actions={{
-          edit: true,
-          delete: true,
-        }}
-        onEdit={() => {
-          setIsDetailsOpen(false)
-          if (selectedDepositDetails) {
-            setSelectedDeposit(normalizeDeposit(selectedDepositDetails))
-            setIsEditOpen(true)
-          }
-        }}
-        onDelete={() => {
-          setIsDetailsOpen(false)
-          if (selectedDepositDetails) {
-            handleDeleteDeposit(selectedDepositDetails.deposit_id)
-          }
-        }}
       />
     </div>
   )
