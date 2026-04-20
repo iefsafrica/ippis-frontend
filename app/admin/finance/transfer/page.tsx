@@ -1,5 +1,5 @@
 import { TransferContent } from "./transfer-content"
 
-export default function TransactionPage() {
+export default function TransferPage() {
   return <TransferContent />;
 }
