@@ -1,575 +1,509 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import {
-  ChevronDown,
-  Download,
-  FileText,
-  Filter,
-  MoreHorizontal,
-  Plus,
-  Printer,
-  Search,
-  SlidersHorizontal,
-  Trash2,
-  Wrench,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { useEffect, useMemo, useState } from "react"
+import { format } from "date-fns"
+import { Box, Layers3, RefreshCw, Search, Sparkles, Warehouse } from "lucide-react"
+import { toast } from "sonner"
 
-// Mock data for assets
-const assets = [
-  {
-    id: 1,
-    name: "Dell Latitude 5420",
-    category: "Computers",
-    purchaseDate: "2023-01-15",
-    purchaseValue: 1200,
-    currentValue: 950,
-    status: "In Use",
-    assignedTo: "John Doe",
-    location: "Headquarters",
-    serialNumber: "DL5420-2023-001",
-    warrantyEnd: "2026-01-15",
-    condition: "Good",
-  },
-  {
-    id: 2,
-    name: "HP LaserJet Pro M404dn",
-    category: "Printers",
-    purchaseDate: "2022-11-05",
-    purchaseValue: 350,
-    currentValue: 280,
-    status: "In Use",
-    assignedTo: "Finance Department",
-    location: "Headquarters",
-    serialNumber: "HPM404-2022-023",
-    warrantyEnd: "2024-11-05",
-    condition: "Good",
-  },
-  {
-    id: 3,
-    name: "Office Desk - Executive",
-    category: "Furniture",
-    purchaseDate: "2021-06-20",
-    purchaseValue: 550,
-    currentValue: 400,
-    status: "In Use",
-    assignedTo: "Sarah Johnson",
-    location: "Branch Office",
-    serialNumber: "FURN-DESK-2021-015",
-    warrantyEnd: "2026-06-20",
-    condition: "Excellent",
-  },
-  {
-    id: 4,
-    name: "Toyota Hilux",
-    category: "Vehicles",
-    purchaseDate: "2020-03-10",
-    purchaseValue: 35000,
-    currentValue: 25000,
-    status: "In Use",
-    assignedTo: "Operations Department",
-    location: "Headquarters",
-    serialNumber: "VIN-TH2020-005",
-    warrantyEnd: "2023-03-10",
-    condition: "Good",
-    maintenanceDue: "2023-09-15",
-  },
-  {
-    id: 5,
-    name: "Cisco Switch 24-Port",
-    category: "Networking",
-    purchaseDate: "2022-08-12",
-    purchaseValue: 1800,
-    currentValue: 1600,
-    status: "In Use",
-    assignedTo: "IT Department",
-    location: "Data Center",
-    serialNumber: "CS24P-2022-007",
-    warrantyEnd: "2027-08-12",
-    condition: "Excellent",
-  },
-  {
-    id: 6,
-    name: 'MacBook Pro 16"',
-    category: "Computers",
-    purchaseDate: "2023-02-28",
-    purchaseValue: 2500,
-    currentValue: 2300,
-    status: "In Use",
-    assignedTo: "Design Team",
-    location: "Headquarters",
-    serialNumber: "MBP16-2023-012",
-    warrantyEnd: "2026-02-28",
-    condition: "Excellent",
-  },
-  {
-    id: 7,
-    name: "Conference Room Table",
-    category: "Furniture",
-    purchaseDate: "2021-04-15",
-    purchaseValue: 1200,
-    currentValue: 900,
-    status: "In Use",
-    assignedTo: "Meeting Room A",
-    location: "Headquarters",
-    serialNumber: "FURN-TABLE-2021-003",
-    warrantyEnd: "2031-04-15",
-    condition: "Good",
-  },
-  {
-    id: 8,
-    name: 'Samsung Smart TV 65"',
-    category: "Electronics",
-    purchaseDate: "2022-12-10",
-    purchaseValue: 800,
-    currentValue: 650,
-    status: "In Use",
-    assignedTo: "Conference Room",
-    location: "Headquarters",
-    serialNumber: "SSTV65-2022-019",
-    warrantyEnd: "2025-12-10",
-    condition: "Excellent",
-  },
-  {
-    id: 9,
-    name: "Lenovo ThinkPad X1",
-    category: "Computers",
-    purchaseDate: "2022-05-20",
-    purchaseValue: 1800,
-    currentValue: 1400,
-    status: "Under Repair",
-    assignedTo: "Michael Brown",
-    location: "IT Department",
-    serialNumber: "LTP-X1-2022-031",
-    warrantyEnd: "2025-05-20",
-    condition: "Needs Repair",
-  },
-  {
-    id: 10,
-    name: "Office Chair - Ergonomic",
-    category: "Furniture",
-    purchaseDate: "2022-01-30",
-    purchaseValue: 350,
-    currentValue: 280,
-    status: "In Use",
-    assignedTo: "Various Staff",
-    location: "Headquarters",
-    serialNumber: "FURN-CHAIR-2022-045",
-    warrantyEnd: "2027-01-30",
-    condition: "Good",
-  },
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { FinanceCard } from "@/app/admin/finance/components/finance-card"
+import { FinanceDataTable } from "@/app/admin/finance/components/finance-data-table"
+import { FinanceDetailsDialog, type FinanceDetailsField } from "@/app/admin/finance/components/finance-details-dialog"
+import { FinanceFormDialog } from "@/app/admin/finance/components/finance-form-dialog"
+import { useGetAssetCategories } from "@/services/hooks/assets/categories"
+import {
+  useCreateAsset,
+  useDeleteAsset,
+  useGetAsset,
+  useGetAssets,
+  useGetAssetsMetrics,
+  useUpdateAsset,
+} from "@/services/hooks/assets/assets"
+
+type AssetUI = {
+  id: string
+  asset_id: string
+  asset_name: string
+  category_id: string
+  categoryName: string
+  serial_number: string
+  status: string
+  location: string
+  assigned_to: string
+  notes: string
+  purchase_date?: string | null
+  purchase_cost?: number | string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+const statusOptions = [
+  { value: "Available", label: "Available" },
+  { value: "Assigned", label: "Assigned" },
+  { value: "In Use", label: "In Use" },
+  { value: "Maintenance", label: "Maintenance" },
+  { value: "Retired", label: "Retired" },
 ]
 
-// Asset categories for filtering
-const categories = ["All Categories", "Computers", "Printers", "Furniture", "Vehicles", "Networking", "Electronics"]
+const resolveStatus = (value?: string | null) => {
+  const normalized = String(value ?? "").trim().toLowerCase().replace(/[-_]+/g, " ")
+  return statusOptions.find((item) => item.value.toLowerCase() === normalized)?.value || statusOptions[0].value
+}
 
-// Asset statuses for filtering
-const statuses = ["All Statuses", "In Use", "Available", "Under Repair", "Disposed", "Lost"]
+const normalizeCategories = (responseData: any): Array<{ id: string; name: string }> => {
+  const rawCategories = Array.isArray(responseData)
+    ? responseData
+    : Array.isArray(responseData?.categories)
+      ? responseData.categories
+      : []
+
+  return rawCategories.map((category: any) => ({
+    id: String(category.category_id ?? category.id ?? ""),
+    name: String(category.category_name ?? category.name ?? ""),
+  }))
+}
+
+const normalizeAsset = (asset: any, categories: Array<{ id: string; name: string }>): AssetUI => ({
+  id: String(asset.id ?? asset.asset_id),
+  asset_id: String(asset.asset_id ?? asset.id ?? ""),
+  asset_name: String(asset.asset_name ?? ""),
+  category_id: String(asset.category_id ?? ""),
+  categoryName: categories.find((category) => category.id === String(asset.category_id ?? ""))?.name || String(asset.category_id ?? ""),
+  serial_number: String(asset.serial_number ?? ""),
+  status: resolveStatus(asset.status),
+  location: String(asset.location ?? ""),
+  assigned_to: String(asset.assigned_to ?? ""),
+  notes: String(asset.notes ?? ""),
+  purchase_date: asset.purchase_date ?? null,
+  purchase_cost: asset.purchase_cost ?? null,
+  createdAt: asset.created_at ?? asset.createdAt ?? undefined,
+  updatedAt: asset.updated_at ?? asset.updatedAt ?? undefined,
+})
+
+const detailsFields: FinanceDetailsField[] = [
+  { label: "Asset ID", key: "asset_id", type: "reference" },
+  { label: "Asset Name", key: "asset_name" },
+  { label: "Category", key: "categoryName" },
+  { label: "Serial Number", key: "serial_number" },
+  {
+    label: "Status",
+    key: "status",
+    type: "status",
+    statusMap: {
+      Available: { label: "Available", variant: "default" },
+      Assigned: { label: "Assigned", variant: "secondary" },
+      "In Use": { label: "In Use", variant: "secondary" },
+      Maintenance: { label: "Maintenance", variant: "outline" },
+      Retired: { label: "Retired", variant: "destructive" },
+    },
+  },
+  { label: "Location", key: "location" },
+  { label: "Assigned To", key: "assigned_to" },
+  { label: "Purchase Date", key: "purchase_date", type: "date", format: "PP" },
+  { label: "Purchase Cost", key: "purchase_cost", type: "currency", currencySymbol: "₦" },
+  { label: "Notes", key: "notes" },
+  { label: "Created At", key: "createdAt", type: "date", format: "PPpp" },
+  { label: "Updated At", key: "updatedAt", type: "date", format: "PPpp" },
+]
 
 export function AssetListContent() {
-  const router = useRouter()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("All Categories")
-  const [selectedStatus, setSelectedStatus] = useState("All Statuses")
-  const [showAddAssetDialog, setShowAddAssetDialog] = useState(false)
-  const [newAsset, setNewAsset] = useState({
-    name: "",
-    category: "",
-    purchaseDate: "",
-    purchaseValue: "",
-    status: "Available",
-    assignedTo: "",
-    location: "",
-    serialNumber: "",
-    warrantyEnd: "",
-    condition: "Excellent",
-  })
+  const { data: metricsData, isLoading: metricsLoading, isFetching: metricsFetching, isError: metricsError, refetch: refetchMetrics } = useGetAssetsMetrics()
+  const { data: assetsData, isLoading, isFetching, isError, refetch } = useGetAssets()
+  const { data: categoriesData } = useGetAssetCategories()
+  const createAsset = useCreateAsset()
+  const updateAsset = useUpdateAsset()
+  const deleteAsset = useDeleteAsset()
 
-  // Filter assets based on search term, category, and status
-  const filteredAssets = assets.filter((asset) => {
-    const matchesSearch =
-      asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asset.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asset.assignedTo.toLowerCase().includes(searchTerm.toLowerCase())
+  const categories = useMemo(() => normalizeCategories(categoriesData?.data), [categoriesData])
+  const categoryOptions = useMemo(() => categories.map((category) => ({ value: category.id, label: category.name })), [categories])
 
-    const matchesCategory = selectedCategory === "All Categories" || asset.category === selectedCategory
+  const [selectedAsset, setSelectedAsset] = useState<AssetUI | null>(null)
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [isEditOpen, setIsEditOpen] = useState(false)
 
-    const matchesStatus = selectedStatus === "All Statuses" || asset.status === selectedStatus
+  const assets = useMemo(
+    () => (assetsData?.data?.assets ?? []).map((asset) => normalizeAsset(asset, categories)),
+    [assetsData, categories],
+  )
 
-    return matchesSearch && matchesCategory && matchesStatus
-  })
+  const selectedAssetDetailsQuery = useGetAsset(selectedAssetId ?? undefined, isDetailsOpen || isEditOpen)
+  const selectedAssetDetails = selectedAssetDetailsQuery.data?.data
+    ? normalizeAsset(selectedAssetDetailsQuery.data.data, categories)
+    : selectedAsset
 
-  const handleAddAsset = () => {
-    // In a real application, this would send data to the server
-    console.log("Adding new asset:", newAsset)
-    setShowAddAssetDialog(false)
-    // Reset form
-    setNewAsset({
-      name: "",
-      category: "",
-      purchaseDate: "",
-      purchaseValue: "",
-      status: "Available",
-      assignedTo: "",
-      location: "",
-      serialNumber: "",
-      warrantyEnd: "",
-      condition: "Excellent",
-    })
+  useEffect(() => {
+    if (isError) toast.error("Failed to load assets")
+  }, [isError])
+
+  useEffect(() => {
+    if (metricsError) toast.error("Failed to load asset metrics")
+  }, [metricsError])
+
+  useEffect(() => {
+    if (selectedAssetDetailsQuery.isError && selectedAssetId) {
+      toast.error("Failed to load asset details")
+    }
+  }, [selectedAssetDetailsQuery.isError, selectedAssetId])
+
+  const metrics = metricsData?.data?.highlights
+  const totalAssets = metrics?.total_assets ?? assets.length
+  const activeCategories = metrics?.active_categories ?? categories.length
+  const inventoryValue = metrics?.total_inventory_value ?? assets.reduce((sum, asset) => sum + Number(asset.purchase_cost ?? 0), 0)
+
+  const columns = [
+    { key: "asset_id", label: "Asset ID", sortable: true },
+    { key: "asset_name", label: "Asset Name", sortable: true },
+    { key: "categoryName", label: "Category", sortable: true },
+    { key: "serial_number", label: "Serial Number", sortable: true },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      render: (value: string) => {
+        const normalized = String(value ?? "").toLowerCase().replace(/[-_]+/g, " ")
+        return (
+          <span
+            className={`rounded-full px-2 py-1 text-xs font-medium ${
+              normalized === "available"
+                ? "bg-green-100 text-green-800"
+                : normalized === "assigned" || normalized === "in use"
+                  ? "bg-blue-100 text-blue-800"
+                  : normalized === "maintenance"
+                    ? "bg-amber-100 text-amber-800"
+                    : "bg-slate-100 text-slate-700"
+            }`}
+          >
+            {value || "Unknown"}
+          </span>
+        )
+      },
+    },
+    { key: "location", label: "Location", sortable: true },
+    { key: "assigned_to", label: "Assigned To", sortable: true },
+    {
+      key: "purchase_cost",
+      label: "Purchase Cost",
+      sortable: true,
+      render: (value: number) =>
+        new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "NGN",
+        }).format(Number(value ?? 0)),
+    },
+    {
+      key: "createdAt",
+      label: "Created",
+      sortable: true,
+      render: (value: string) => (value ? format(new Date(value), "MMM d, yyyy") : "N/A"),
+    },
+  ]
+
+  const filterOptions = [
+    {
+      id: "category_id",
+      label: "Category",
+      options: categoryOptions,
+      type: "select" as const,
+    },
+    {
+      id: "status",
+      label: "Status",
+      options: statusOptions,
+      type: "select" as const,
+    },
+  ]
+
+  const createFields = [
+    { name: "asset_name", label: "Asset Name", type: "text" as const, required: true, placeholder: "Enter asset name", width: "full" as const },
+    { name: "category_id", label: "Category", type: "select" as const, required: true, options: categoryOptions, width: "half" as const },
+    { name: "serial_number", label: "Serial Number", type: "text" as const, required: true, placeholder: "Enter serial number", width: "half" as const },
+    { name: "purchase_date", label: "Purchase Date", type: "date" as const, width: "half" as const },
+    { name: "purchase_cost", label: "Purchase Cost", type: "currency" as const, placeholder: "Enter purchase cost", width: "half" as const, currencySymbol: "₦" },
+    { name: "status", label: "Status", type: "select" as const, required: true, options: statusOptions, width: "half" as const },
+    { name: "location", label: "Location", type: "text" as const, required: true, placeholder: "Enter location", width: "half" as const },
+    { name: "assigned_to", label: "Assigned To", type: "text" as const, placeholder: "Enter assigned to", width: "half" as const },
+    { name: "notes", label: "Notes", type: "textarea" as const, placeholder: "Enter notes", width: "full" as const },
+  ]
+
+  const editFields = [
+    { name: "status", label: "Status", type: "select" as const, required: true, options: statusOptions, width: "half" as const },
+    { name: "location", label: "Location", type: "text" as const, required: true, placeholder: "Enter location", width: "half" as const },
+    { name: "notes", label: "Notes", type: "textarea" as const, placeholder: "Enter notes", width: "full" as const },
+  ]
+
+  const handleViewAsset = (id: string) => {
+    const asset = assets.find((item) => item.id === id)
+    if (!asset) return
+
+    setSelectedAsset(asset)
+    setSelectedAssetId(asset.asset_id)
+    setIsDetailsOpen(true)
   }
 
-  const getStatusBadgeVariant = (status) => {
-    switch (status) {
-      case "In Use":
-        return "default"
-      case "Available":
-        return "success"
-      case "Under Repair":
-        return "warning"
-      case "Disposed":
-        return "destructive"
-      case "Lost":
-        return "outline"
-      default:
-        return "secondary"
+  const handleEditAsset = (id: string) => {
+    const asset = assets.find((item) => item.id === id)
+    if (!asset) return
+
+    setSelectedAsset(asset)
+    setSelectedAssetId(asset.asset_id)
+    setIsEditOpen(true)
+  }
+
+  const handleDeleteAsset = async (assetId: string) => {
+    try {
+      await deleteAsset.mutateAsync(assetId)
+      toast.success("Asset deleted successfully")
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete asset")
     }
   }
 
+  const handleAddAsset = () => {
+    setSelectedAsset(null)
+    setSelectedAssetId(null)
+    setIsCreateOpen(true)
+  }
+
+  const handleSubmitCreateAsset = async (formData: Record<string, any>) => {
+    try {
+      await createAsset.mutateAsync({
+        asset_name: String(formData.asset_name ?? "").trim(),
+        category_id: String(formData.category_id ?? "").trim(),
+        serial_number: String(formData.serial_number ?? "").trim(),
+        status: String(formData.status ?? "").trim(),
+        location: String(formData.location ?? "").trim(),
+        assigned_to: formData.assigned_to ? String(formData.assigned_to).trim() : null,
+        notes: formData.notes ? String(formData.notes).trim() : null,
+        purchase_date: formData.purchase_date ? String(formData.purchase_date).slice(0, 10) : null,
+        purchase_cost: formData.purchase_cost ? Number(formData.purchase_cost) : null,
+      })
+      toast.success("Asset created successfully")
+      setIsCreateOpen(false)
+    } catch (error: any) {
+      toast.error(error?.message || "Create failed")
+    }
+  }
+
+  const handleSubmitUpdateAsset = async (formData: Record<string, any>) => {
+    if (!selectedAsset) {
+      toast.error("No asset selected")
+      return
+    }
+
+    try {
+      await updateAsset.mutateAsync({
+        asset_id: selectedAsset.asset_id,
+        status: String(formData.status ?? "").trim(),
+        location: String(formData.location ?? "").trim(),
+        notes: formData.notes ? String(formData.notes).trim() : null,
+      })
+      toast.success("Asset updated successfully")
+      setIsEditOpen(false)
+      setSelectedAsset(null)
+      setSelectedAssetId(null)
+    } catch (error: any) {
+      toast.error(error?.message || "Update failed")
+    }
+  }
+
+  const handleDetailsOpenChange = (open: boolean) => {
+    setIsDetailsOpen(open)
+    if (!open) {
+      setSelectedAssetId(null)
+    }
+  }
+
+  const handleEditOpenChange = (open: boolean) => {
+    setIsEditOpen(open)
+    if (!open) {
+      setSelectedAssetId(null)
+    }
+  }
+
+  const handleCreateOpenChange = (open: boolean) => {
+    setIsCreateOpen(open)
+  }
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Assets List</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => router.push("/admin/assets/maintenance")}>
-            <Wrench className="mr-2 h-4 w-4" />
-            Maintenance
+    <div className="space-y-6">
+      <div className="rounded-[28px] border border-slate-200 bg-white/90 p-6 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.28)] backdrop-blur">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500">
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              Assets module
+            </div>
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">Assets</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                Manage asset records with live React Query updates, details lookup, edits, and deletes.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={() => {
+              refetch()
+              refetchMetrics()
+            }}
+            className="w-full gap-2 rounded-2xl border-slate-200 bg-white text-slate-700 shadow-sm xl:w-auto"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh
           </Button>
-          <Dialog open={showAddAssetDialog} onOpenChange={setShowAddAssetDialog}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Asset
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>Add New Asset</DialogTitle>
-                <DialogDescription>Enter the details of the new asset. Click save when you're done.</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Asset Name</Label>
-                    <Input
-                      id="name"
-                      value={newAsset.name}
-                      onChange={(e) => setNewAsset({ ...newAsset, name: e.target.value })}
-                      placeholder="Enter asset name"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="category">Category</Label>
-                    <Select onValueChange={(value) => setNewAsset({ ...newAsset, category: value })}>
-                      <SelectTrigger id="category">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.slice(1).map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {category}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="purchaseDate">Purchase Date</Label>
-                    <Input
-                      id="purchaseDate"
-                      type="date"
-                      value={newAsset.purchaseDate}
-                      onChange={(e) => setNewAsset({ ...newAsset, purchaseDate: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="purchaseValue">Purchase Value</Label>
-                    <Input
-                      id="purchaseValue"
-                      type="number"
-                      value={newAsset.purchaseValue}
-                      onChange={(e) => setNewAsset({ ...newAsset, purchaseValue: e.target.value })}
-                      placeholder="Enter value"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="serialNumber">Serial Number</Label>
-                    <Input
-                      id="serialNumber"
-                      value={newAsset.serialNumber}
-                      onChange={(e) => setNewAsset({ ...newAsset, serialNumber: e.target.value })}
-                      placeholder="Enter serial number"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="warrantyEnd">Warranty End Date</Label>
-                    <Input
-                      id="warrantyEnd"
-                      type="date"
-                      value={newAsset.warrantyEnd}
-                      onChange={(e) => setNewAsset({ ...newAsset, warrantyEnd: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="status">Status</Label>
-                    <Select
-                      defaultValue="Available"
-                      onValueChange={(value) => setNewAsset({ ...newAsset, status: value })}
-                    >
-                      <SelectTrigger id="status">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {statuses.slice(1).map((status) => (
-                          <SelectItem key={status} value={status}>
-                            {status}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="condition">Condition</Label>
-                    <Select
-                      defaultValue="Excellent"
-                      onValueChange={(value) => setNewAsset({ ...newAsset, condition: value })}
-                    >
-                      <SelectTrigger id="condition">
-                        <SelectValue placeholder="Select condition" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Excellent">Excellent</SelectItem>
-                        <SelectItem value="Good">Good</SelectItem>
-                        <SelectItem value="Fair">Fair</SelectItem>
-                        <SelectItem value="Poor">Poor</SelectItem>
-                        <SelectItem value="Needs Repair">Needs Repair</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="assignedTo">Assigned To</Label>
-                    <Input
-                      id="assignedTo"
-                      value={newAsset.assignedTo}
-                      onChange={(e) => setNewAsset({ ...newAsset, assignedTo: e.target.value })}
-                      placeholder="Enter person or department"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Location</Label>
-                    <Input
-                      id="location"
-                      value={newAsset.location}
-                      onChange={(e) => setNewAsset({ ...newAsset, location: e.target.value })}
-                      placeholder="Enter location"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    placeholder="Enter any additional notes about this asset"
-                    className="min-h-[80px]"
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowAddAssetDialog(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleAddAsset}>Save Asset</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+        </div>
+
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          <FinanceCard
+            title="Total Assets"
+            value={totalAssets}
+            icon={<Box className="h-4 w-4 text-slate-500" />}
+            isLoading={isLoading || isFetching || metricsLoading || metricsFetching}
+          />
+          <FinanceCard
+            title="Active Categories"
+            value={activeCategories}
+            icon={<Layers3 className="h-4 w-4 text-slate-500" />}
+            description={`${activeCategories} active categories`}
+            isLoading={isLoading || isFetching || metricsLoading || metricsFetching}
+          />
+          <FinanceCard
+            title="Inventory Value"
+            value={inventoryValue}
+            isCurrency
+            currencySymbol="₦"
+            icon={<Warehouse className="h-4 w-4 text-slate-500" />}
+            description="Current inventory value"
+            isLoading={isLoading || isFetching || metricsLoading || metricsFetching}
+          />
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Asset Inventory</CardTitle>
-          <CardDescription>
-            Manage and track all organizational assets. Use the filters to narrow down results.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-              <Input
-                placeholder="Search assets..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <div className="flex gap-2">
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-[180px]">
-                  <Filter className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger className="w-[180px]">
-                  <SlidersHorizontal className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {statuses.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
-                    <Download className="mr-2 h-4 w-4" />
-                    Export
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Export Options</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <FileText className="mr-2 h-4 w-4" />
-                    Export as CSV
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <FileText className="mr-2 h-4 w-4" />
-                    Export as Excel
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <FileText className="mr-2 h-4 w-4" />
-                    Export as PDF
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Printer className="mr-2 h-4 w-4" />
-                    Print List
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
+      {isError || metricsError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          We had trouble fetching assets.
+          <Button
+            variant="outline"
+            onClick={() => {
+              refetch()
+              refetchMetrics()
+            }}
+            className="ml-3 rounded-xl border-red-200 bg-white"
+          >
+            Retry
+          </Button>
+        </div>
+      ) : null}
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Asset Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Serial Number</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Assigned To</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Purchase Date</TableHead>
-                  <TableHead>Value</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAssets.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">
-                      No assets found matching your criteria
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredAssets.map((asset) => (
-                    <TableRow key={asset.id}>
-                      <TableCell className="font-medium">{asset.name}</TableCell>
-                      <TableCell>{asset.category}</TableCell>
-                      <TableCell>{asset.serialNumber}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusBadgeVariant(asset.status)}>{asset.status}</Badge>
-                      </TableCell>
-                      <TableCell>{asset.assignedTo}</TableCell>
-                      <TableCell>{asset.location}</TableCell>
-                      <TableCell>{new Date(asset.purchaseDate).toLocaleDateString()}</TableCell>
-                      <TableCell>₦{asset.purchaseValue.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem>View Details</DropdownMenuItem>
-                            <DropdownMenuItem>Edit Asset</DropdownMenuItem>
-                            <DropdownMenuItem>Schedule Maintenance</DropdownMenuItem>
-                            <DropdownMenuItem>Transfer Asset</DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-600">
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete Asset
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+      <Card className="overflow-hidden rounded-[28px] border border-slate-200 bg-white/95 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.26)]">
+        <div className="border-b border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-950">Asset registry</h2>
+              <p className="text-sm text-slate-500">Browse, filter, and manage asset entries.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-slate-400" />
+              <span className="text-sm text-slate-400">Use the table search and filters for quick lookup</span>
+            </div>
           </div>
-        </CardContent>
+        </div>
+
+        <div className="px-6 py-5">
+          <FinanceDataTable
+            title="Assets"
+            description="Premium asset management table"
+            data={assets}
+            filterOptions={filterOptions}
+            columns={columns}
+            onAdd={handleAddAsset}
+            onEdit={handleEditAsset}
+            onView={handleViewAsset}
+            onDelete={(id) => handleDeleteAsset(assets.find((item) => item.id === id)?.asset_id ?? id)}
+            currencySymbol="₦"
+            isLoading={isLoading || isFetching}
+          />
+        </div>
       </Card>
+
+      <FinanceFormDialog
+        title="New Asset"
+        fields={createFields}
+        initialValues={{
+          asset_name: "",
+          category_id: categoryOptions[0]?.value || "",
+          serial_number: "",
+          purchase_date: new Date().toISOString().slice(0, 10),
+          purchase_cost: "",
+          status: statusOptions[0].value,
+          location: "",
+          assigned_to: "",
+          notes: "",
+        }}
+        isOpen={isCreateOpen}
+        onOpenChange={handleCreateOpenChange}
+        onSubmit={handleSubmitCreateAsset}
+        submitLabel="Save Asset"
+        currencySymbol="₦"
+      />
+
+      <FinanceFormDialog
+        title="Edit Asset"
+        fields={editFields}
+        initialValues={
+          selectedAsset
+            ? {
+                status: selectedAsset.status,
+                location: selectedAsset.location,
+                notes: selectedAsset.notes,
+              }
+            : {
+                status: statusOptions[0].value,
+                location: "",
+                notes: "",
+              }
+        }
+        isOpen={isEditOpen}
+        onOpenChange={handleEditOpenChange}
+        onSubmit={handleSubmitUpdateAsset}
+        submitLabel="Update Asset"
+        currencySymbol="₦"
+      />
+
+      <FinanceDetailsDialog
+        title="Asset Details"
+        data={selectedAssetDetails || {}}
+        fields={detailsFields}
+        isOpen={isDetailsOpen}
+        onOpenChange={handleDetailsOpenChange}
+        onEdit={() => {
+          setIsDetailsOpen(false)
+          if (selectedAsset) {
+            setIsEditOpen(true)
+          }
+        }}
+        onDelete={() => {
+          setIsDetailsOpen(false)
+          if (selectedAsset) {
+            handleDeleteAsset(selectedAsset.asset_id)
+          }
+        }}
+        actions={{
+          edit: true,
+          delete: true,
+        }}
+        deleteConfirmation={{
+          enabled: true,
+          title: "Delete Asset",
+          description: "This will permanently remove the asset record.",
+          itemName: selectedAsset?.asset_name || "Asset",
+        }}
+        currencySymbol="₦"
+      />
     </div>
   )
 }

@@ -1,0 +1,5 @@
+export const GET_FOLDERS = "GET_FOLDERS"
+export const GET_FOLDER = "GET_FOLDER"
+export const CREATE_FOLDER = "CREATE_FOLDER"
+export const UPDATE_FOLDER = "UPDATE_FOLDER"
+export const DELETE_FOLDER = "DELETE_FOLDER"

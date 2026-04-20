@@ -209,7 +209,7 @@ export function FinanceDataTable({
         columns: exportColumns,
       })
 
-      toast.success("PDF export opened in a new window")
+      toast.success("PDF downloaded successfully")
     } catch (error) {
       console.error("PDF export error:", error)
       toast.error("Failed to export PDF")
@@ -556,7 +556,7 @@ export function FinanceDataTable({
                   className="cursor-pointer"
                 >
                   <FileText className="mr-2 h-4 w-4" />
-                  Export to PDF
+                  Download PDF
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={handleExportCSV}

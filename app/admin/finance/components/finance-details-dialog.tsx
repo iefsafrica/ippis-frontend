@@ -9,15 +9,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
-  DialogClose,
 } from "@/components/ui/dialog"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { format } from "date-fns"
-import { Download, Printer, Edit, Trash2, Copy } from "lucide-react"
+import { Download, Printer, Copy } from "lucide-react"
 
 export type FinanceDetailsField = {
   label: string
@@ -179,54 +177,33 @@ export function FinanceDetailsDialog({
             </div>
           </div>
           {actions && (
-            <DialogFooter className="flex justify-between sm:justify-between">
-              <div className="flex gap-2">
-                {actions.edit && onEdit && (
-                  <Button variant="outline" size="sm" onClick={onEdit}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
+            <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">
+              {actions.copy && onCopy && (
+                <Button variant="outline" size="sm" onClick={onCopy}>
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy
+                </Button>
+              )}
+              {actions.download && onDownload && (
+                <Button variant="outline" size="sm" onClick={onDownload}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+              )}
+              {actions.print && onPrint && (
+                <Button variant="outline" size="sm" onClick={onPrint}>
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print
+                </Button>
+              )}
+              {actions.custom &&
+                actions.custom.map((action) => (
+                  <Button key={action.label} variant="outline" size="sm" onClick={action.onClick}>
+                    {action.icon}
+                    {action.label}
                   </Button>
-                )}
-                {actions.delete && onDelete && (
-                  <Button variant="destructive" size="sm" onClick={handleDeleteClick}>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </Button>
-                )}
-              </div>
-              <div className="flex gap-2">
-                {actions.copy && onCopy && (
-                  <Button variant="outline" size="sm" onClick={onCopy}>
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy
-                  </Button>
-                )}
-                {actions.download && onDownload && (
-                  <Button variant="outline" size="sm" onClick={onDownload}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                )}
-                {actions.print && onPrint && (
-                  <Button variant="outline" size="sm" onClick={onPrint}>
-                    <Printer className="h-4 w-4 mr-2" />
-                    Print
-                  </Button>
-                )}
-                {actions.custom &&
-                  actions.custom.map((action) => (
-                    <Button key={action.label} variant="outline" size="sm" onClick={action.onClick}>
-                      {action.icon}
-                      {action.label}
-                    </Button>
-                  ))}
-                <DialogClose asChild>
-                  <Button variant="secondary" size="sm">
-                    Close
-                  </Button>
-                </DialogClose>
-              </div>
-            </DialogFooter>
+                ))}
+            </div>
           )}
         </DialogContent>
       </Dialog>

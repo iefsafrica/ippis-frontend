@@ -3,7 +3,7 @@ import { AssetListContent } from "./asset-list-content"
 
 export const metadata: Metadata = {
   title: "Assets List | IPPIS Admin",
-  description: "View and manage all organizational assets",
+  description: "View and manage all organizational assets with live CRUD actions",
 }
 
 export default function AssetListPage() {

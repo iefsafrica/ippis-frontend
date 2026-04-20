@@ -32,6 +32,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { useToast } from "@/components/ui/use-toast"
+import { useCreateFolder, useGetFolders } from "@/services/hooks/file-manager/folders"
 
 // Mock data for file manager
 const mockFiles = [
@@ -138,10 +140,17 @@ const storageData = {
 }
 
 export function FileManagerDashboard() {
+  const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedTab, setSelectedTab] = useState("all")
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
   const [isNewFolderDialogOpen, setIsNewFolderDialogOpen] = useState(false)
+  const [folderName, setFolderName] = useState("")
+  const [parentFolderId, setParentFolderId] = useState("root")
+
+  const { data: foldersResponse } = useGetFolders()
+  const folders = foldersResponse?.data ?? []
+  const createFolderMutation = useCreateFolder()
 
   // Filter files based on search term and selected tab
   const filteredFiles = mockFiles.filter((file) => {
@@ -152,6 +161,41 @@ export function FileManagerDashboard() {
 
   // Calculate storage usage percentage
   const storageUsagePercentage = (storageData.used / storageData.total) * 100
+
+  const handleCreateFolder = async () => {
+    const trimmedName = folderName.trim()
+
+    if (!trimmedName) {
+      toast({
+        title: "Folder name required",
+        description: "Enter a folder name before creating it.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      await createFolderMutation.mutateAsync({
+        name: trimmedName,
+        parent_id: parentFolderId === "root" ? null : parentFolderId,
+      })
+      toast({
+        title: "Folder created",
+        description: "The folder was created successfully.",
+      })
+      setFolderName("")
+      setParentFolderId("root")
+      setIsNewFolderDialogOpen(false)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to create folder. Please try again."
+      toast({
+        title: "Unable to create folder",
+        description: message,
+        variant: "destructive",
+      })
+    }
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -193,9 +237,11 @@ export function FileManagerDashboard() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="root">Root Directory</SelectItem>
-                      <SelectItem value="documents">Documents</SelectItem>
-                      <SelectItem value="images">Images</SelectItem>
-                      <SelectItem value="videos">Videos</SelectItem>
+                      {folders.map((folder) => (
+                        <SelectItem key={folder.folder_id} value={folder.folder_id}>
+                          {folder.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -209,33 +255,49 @@ export function FileManagerDashboard() {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={isNewFolderDialogOpen} onOpenChange={setIsNewFolderDialogOpen}>
+          <Dialog
+            open={isNewFolderDialogOpen}
+            onOpenChange={(open) => {
+              setIsNewFolderDialogOpen(open)
+              if (!open) {
+                setFolderName("")
+                setParentFolderId("root")
+              }
+            }}
+          >
             <DialogTrigger asChild>
               <Button variant="outline">
                 <FolderPlus className="mr-2 h-4 w-4" />
                 New Folder
               </Button>
             </DialogTrigger>
-            <DialogContent>
+              <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create New Folder</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div>
                   <Label htmlFor="folder-name">Folder Name</Label>
-                  <Input id="folder-name" placeholder="Enter folder name" />
+                  <Input
+                    id="folder-name"
+                    placeholder="Enter folder name"
+                    value={folderName}
+                    onChange={(e) => setFolderName(e.target.value)}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="parent-folder">Parent Folder</Label>
-                  <Select defaultValue="root">
-                    <SelectTrigger>
+                  <Select value={parentFolderId} onValueChange={setParentFolderId}>
+                    <SelectTrigger id="parent-folder">
                       <SelectValue placeholder="Select parent folder" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="root">Root Directory</SelectItem>
-                      <SelectItem value="documents">Documents</SelectItem>
-                      <SelectItem value="images">Images</SelectItem>
-                      <SelectItem value="videos">Videos</SelectItem>
+                      {folders.map((folder) => (
+                        <SelectItem key={folder.folder_id} value={folder.folder_id}>
+                          {folder.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -244,7 +306,13 @@ export function FileManagerDashboard() {
                 <Button variant="outline" onClick={() => setIsNewFolderDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button className="bg-[#008751] hover:bg-[#00724a]">Create</Button>
+                <Button
+                  className="bg-[#008751] hover:bg-[#00724a]"
+                  onClick={handleCreateFolder}
+                  disabled={createFolderMutation.isPending}
+                >
+                  {createFolderMutation.isPending ? "Creating..." : "Create"}
+                </Button>
               </div>
             </DialogContent>
           </Dialog>

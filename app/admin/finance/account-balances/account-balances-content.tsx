@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import { saveAs } from "file-saver"
 
 import { useGetFinanceAccountAnalytics } from "@/services/hooks/finance/accounts"
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
@@ -206,43 +205,13 @@ export function AccountBalancesContent() {
   const totalAccounts = summary?.totalAccounts ?? balances.length
 
   const handleExportPDF = () => {
-    const filename = `account_balances_${sanitizeFilename(getTimeRangeLabel()) || "report"}`
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="UTF-8" />
-          <title>Account Balances Report</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 24px; color: #111827; }
-            h1 { margin: 0 0 8px; }
-            .muted { color: #6b7280; margin: 0 0 24px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-            th, td { border: 1px solid #d1d5db; padding: 10px 12px; text-align: left; }
-            th { background: #f3f4f6; }
-          </style>
-        </head>
-        <body>
-          <h1>Account Balances Report</h1>
-          <p class="muted">Generated for ${getTimeRangeLabel()}</p>
-          <table>
-            <thead>
-              <tr>${exportColumns.map((column) => `<th>${column.header}</th>`).join("")}</tr>
-            </thead>
-            <tbody>
-              ${exportRows
-                .map(
-                  (row) =>
-                    `<tr>${exportColumns.map((column) => `<td>${String((row as Record<string, unknown>)[column.accessor] ?? "")}</td>`).join("")}</tr>`,
-                )
-                .join("")}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" })
-    saveAs(blob, `${filename}.html`)
+    ExportService.exportToPDF(exportRows, {
+      title: "Account Balances Report",
+      filename: `account_balances_${sanitizeFilename(getTimeRangeLabel()) || "report"}`,
+      columns: exportColumns,
+    })
+
+    toast.success("PDF downloaded successfully")
   }
 
   const handleExportCSV = () => {
@@ -301,7 +270,7 @@ export function AccountBalancesContent() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={handleExportPDF} className="cursor-pointer">
                 <FileText className="mr-2 h-4 w-4" />
-                Export to PDF
+                Download PDF
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportCSV} className="cursor-pointer">
                 <FileText className="mr-2 h-4 w-4" />

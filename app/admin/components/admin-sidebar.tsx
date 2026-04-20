@@ -562,7 +562,7 @@ export function AdminSidebar() {
       title: "Assets",
       icon: Package,
       isDropdown: true,
-      href: "/admin/assets",
+      // href: "/admin/assets",
       isOpen: isDropdownOpen("assets"), // for performance
       section: "assets",
       toggle: () => toggleDropdown("assets"),
