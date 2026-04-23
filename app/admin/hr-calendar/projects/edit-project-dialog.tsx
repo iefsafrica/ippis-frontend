@@ -63,6 +63,11 @@ const parseDate = (value?: string) => {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? undefined : date
 }
+const toDateInput = (value?: string) => {
+  if (!value) return ""
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString().split("T")[0]
+}
 
 export function EditProjectDialog({ isOpen, onClose, project }: EditProjectDialogProps) {
   const updateProjectMutation = useUpdateProject()
@@ -82,21 +87,21 @@ export function EditProjectDialog({ isOpen, onClose, project }: EditProjectDialo
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    if (project) {
-      setFormData({
-        project_title: project.project_title || "",
-        start_date: toDateInput(project.start_date),
-        end_date: toDateInput(project.end_date),
-        project_manager_id: project.project_manager_id || "",
-        team_member_ids: project.team_member_ids?.join(", ") || "",
-        project_description: project.project_description || "",
-        project_status: project.project_status || "active",
-        priority: project.priority || "medium",
-        budget: project.budget || "",
-        completion_percentage: project.completion_percentage?.toString() || "0",
-      })
-    }
-  }, [project])
+    if (!isOpen || !project) return
+
+    setFormData({
+      project_title: project.project_title || "",
+      start_date: toDateInput(project.start_date),
+      end_date: toDateInput(project.end_date),
+      project_manager_id: project.project_manager_id || "",
+      team_member_ids: project.team_member_ids?.join(", ") || "",
+      project_description: project.project_description || "",
+      project_status: project.project_status || "active",
+      priority: project.priority || "medium",
+      budget: project.budget || "",
+      completion_percentage: project.completion_percentage?.toString() || "0",
+    })
+  }, [project, isOpen])
 
   useEffect(() => {
     if (!isOpen) {

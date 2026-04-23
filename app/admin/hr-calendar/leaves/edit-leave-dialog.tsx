@@ -48,6 +48,11 @@ const parseIsoDate = (value?: string) => {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? undefined : date
 }
+const toDateInput = (value?: string) => {
+  if (!value) return ""
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString().split("T")[0]
+}
 
 export function EditLeaveDialog({ isOpen, onClose, leave }: EditLeaveDialogProps) {
   const updateLeaveMutation = useUpdateLeave()
@@ -64,18 +69,18 @@ export function EditLeaveDialog({ isOpen, onClose, leave }: EditLeaveDialogProps
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    if (leave) {
-      setFormData({
-        employee_id: leave.employee_id || "",
-        leave_type: leave.leave_type || "",
-        start_date: toDateInput(leave.start_date),
-        end_date: toDateInput(leave.end_date),
-        reason: leave.reason || "",
-        emergency_contact: leave.emergency_contact || "",
-        status: leave.status || "pending",
-      })
-    }
-  }, [leave])
+    if (!isOpen || !leave) return
+
+    setFormData({
+      employee_id: leave.employee_id || "",
+      leave_type: leave.leave_type || "",
+      start_date: toDateInput(leave.start_date),
+      end_date: toDateInput(leave.end_date),
+      reason: leave.reason || "",
+      emergency_contact: leave.emergency_contact || "",
+      status: leave.status || "pending",
+    })
+  }, [leave, isOpen])
 
   useEffect(() => {
     if (!isOpen) {

@@ -78,20 +78,20 @@ export function EditCalendarEventDialog({ isOpen, onClose, event }: EditCalendar
   })
 
   useEffect(() => {
-    if (event) {
-      setFormData({
-        title: event.title || "",
-        event_type: event.event_type || "",
-        department: event.department || "",
-        start_date: event.start_date ? toIsoDateString(new Date(event.start_date)) : "",
-        end_date: event.end_date ? toIsoDateString(new Date(event.end_date)) : "",
-        all_day: !!event.all_day,
-        location: event.location || "",
-        description: event.description || "",
-        attendees: Array.isArray(event.attendees) ? event.attendees.join(", ") : "",
-      })
-    }
-  }, [event])
+    if (!isOpen || !event) return
+
+    setFormData({
+      title: event.title || "",
+      event_type: event.event_type || "",
+      department: event.department || "",
+      start_date: event.start_date ? toIsoDateString(new Date(event.start_date)) : "",
+      end_date: event.end_date ? toIsoDateString(new Date(event.end_date)) : "",
+      all_day: !!event.all_day,
+      location: event.location || "",
+      description: event.description || "",
+      attendees: Array.isArray(event.attendees) ? event.attendees.join(", ") : "",
+    })
+  }, [event, isOpen])
 
   useEffect(() => {
     if (!isOpen) {
