@@ -8,10 +8,11 @@ import { Card, CardContent, CardHeader, CardDescription, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { AddCalendarEventDialog } from "@/app/admin/hr-calendar/add-calendar-event-dialog"
 import { EditCalendarEventDialog } from "@/app/admin/hr-calendar/edit-calendar-event-dialog"
 import { ViewCalendarEventDialog } from "@/app/admin/hr-calendar/view-calendar-event-dialog"
-import { useDeleteCalendarEvent, useGetCalendarEvents } from "@/services/hooks/calendar/events"
+import { useDeleteCalendarEvent, useGetCalendarEvents, useUpdateCalendarEvent } from "@/services/hooks/calendar/events"
 import type { CalendarEvent } from "@/types/calendar/events"
 import { format } from "date-fns"
 import { toast } from "sonner"
@@ -19,11 +20,19 @@ import { toast } from "sonner"
 export function EventsContent() {
   const { data, isLoading, error, refetch } = useGetCalendarEvents()
   const deleteCalendarEventMutation = useDeleteCalendarEvent()
+  const updateCalendarEventMutation = useUpdateCalendarEvent()
   const [currentEvent, setCurrentEvent] = useState<CalendarEvent | null>(null)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
+  const [eventToUpdateStatus, setEventToUpdateStatus] = useState<CalendarEvent | null>(null)
+
+  const statusOptions = [
+    { value: "active", label: "Active" },
+    { value: "inactive", label: "Inactive" },
+  ]
 
   const events = useMemo(() => data?.data ?? [], [data])
   const sortedEvents = useMemo(() => [...events].sort((a, b) => b.id - a.id), [events])
@@ -94,6 +103,19 @@ export function EventsContent() {
     [sortedEvents],
   )
 
+  const handleOpenStatusDialog = useCallback(
+    (id: number) => {
+      const event = sortedEvents.find((item) => item.id === id)
+      if (!event) {
+        toast.error("Calendar event not found")
+        return
+      }
+      setEventToUpdateStatus(event)
+      setIsStatusDialogOpen(true)
+    },
+    [sortedEvents],
+  )
+
   const handleDeleteEvent = async () => {
     if (!currentEvent) return
     try {
@@ -103,6 +125,20 @@ export function EventsContent() {
       setCurrentEvent(null)
     } catch (deleteError: any) {
       toast.error(deleteError.message || "Failed to delete calendar event")
+    }
+  }
+
+  const handleStatusUpdate = async (status: string) => {
+    if (!eventToUpdateStatus) return
+    try {
+      await updateCalendarEventMutation.mutateAsync({
+        id: eventToUpdateStatus.id,
+        status,
+      })
+      toast.success("Calendar event status updated successfully")
+      setIsStatusDialogOpen(false)
+    } catch (statusError: any) {
+      toast.error(statusError.message || "Failed to update calendar event status")
     }
   }
 
@@ -151,6 +187,9 @@ export function EventsContent() {
         label: "Actions",
         render: (_: any, row: CalendarEvent) => (
           <div className="flex justify-start gap-2">
+            <Button variant="outline" size="icon" onClick={() => handleOpenStatusDialog(row.id)} title="Change Status">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
             <Button variant="outline" size="icon" onClick={() => handleViewEvent(row.id)} title="View">
               <Eye className="h-4 w-4" />
             </Button>
@@ -164,7 +203,7 @@ export function EventsContent() {
         ),
       },
     ],
-    [handleEditEvent, handleOpenDeleteDialog, handleViewEvent],
+    [handleEditEvent, handleOpenDeleteDialog, handleOpenStatusDialog, handleViewEvent],
   )
 
   return (
@@ -194,11 +233,8 @@ export function EventsContent() {
                 <TooltipContent>
                   <p>Reload calendar events</p>
                 </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <Button onClick={handleAddEvent} className="h-10 px-4 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white">
-              Add Event
-            </Button>
+                </Tooltip>
+              </TooltipProvider>
           </div>
         </div>
 
@@ -237,7 +273,15 @@ export function EventsContent() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <DataTable title="Events" columns={columns} data={sortedEvents} searchFields={[]} itemsPerPage={10} />
+            <DataTable
+              title="Events"
+              columns={columns}
+              data={sortedEvents}
+              searchFields={[]}
+              itemsPerPage={10}
+              onAdd={handleAddEvent}
+              addButtonLabel="Add Event"
+            />
           </CardContent>
         </Card>
 
@@ -275,6 +319,22 @@ export function EventsContent() {
           itemName={currentEvent?.title || "calendar event"}
           isLoading={deleteCalendarEventMutation.isPending}
         />
+
+        {eventToUpdateStatus && (
+          <StatusChangeDialog
+            isOpen={isStatusDialogOpen}
+            onClose={() => {
+              setIsStatusDialogOpen(false)
+              setEventToUpdateStatus(null)
+            }}
+            title="Change Event Status"
+            description={`Update the status for ${eventToUpdateStatus.title}.`}
+            currentStatus={eventToUpdateStatus.status}
+            options={statusOptions}
+            onConfirm={handleStatusUpdate}
+            isLoading={updateCalendarEventMutation.isPending}
+          />
+        )}
       </div>
     </CoreHRClientWrapper>
   )

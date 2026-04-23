@@ -5,6 +5,7 @@ import { format } from "date-fns"
 
 import { EnhancedForm, type FormField } from "@/app/admin/components/enhanced-form"
 import { DetailsView } from "@/app/admin/components/details-view"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
-import { Eye, Edit, Trash2, Loader2 } from "lucide-react"
+import { Eye, Edit, Trash2, Loader2, RefreshCw } from "lucide-react"
 import { buttonHoverEnhancements } from "@/app/admin/employees/button-hover"
 import { toast } from "sonner"
 import {
@@ -146,6 +147,8 @@ const jobPostFields: FormField[] = [
   },
 ]
 
+const jobPostEditFields = jobPostFields.filter((field) => field.name !== "status")
+
 const getNextTab = (current: JobPostTab): JobPostTab => {
   const currentIndex = JOB_TAB_SEQUENCE.indexOf(current)
   if (currentIndex === -1 || currentIndex >= JOB_TAB_SEQUENCE.length - 1) {
@@ -206,12 +209,14 @@ export function JobPostContent() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [selectedJob, setSelectedJob] = useState<RecruitmentJob | null>(null)
+  const [jobToUpdateStatus, setJobToUpdateStatus] = useState<RecruitmentJob | null>(null)
   const [activeAddTab, setActiveAddTab] = useState<JobPostTab>("basic")
   const [activeEditTab, setActiveEditTab] = useState<JobPostTab>("basic")
   const [addFormValues, setAddFormValues] = useState<Partial<RecruitmentJobPayload>>({})
   const [editFormValues, setEditFormValues] = useState<Partial<RecruitmentJobPayload>>({})
   const [viewJob, setViewJob] = useState<RecruitmentJob | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
   const [jobToDelete, setJobToDelete] = useState<RecruitmentJob | null>(null)
   const [statusFilter, setStatusFilter] = useState("")
 
@@ -262,6 +267,12 @@ export function JobPostContent() {
     }
   }, [isDeleteDialogOpen])
 
+  useEffect(() => {
+    if (!isStatusDialogOpen) {
+      setJobToUpdateStatus(null)
+    }
+  }, [isStatusDialogOpen])
+
   const openAddDialog = () => {
     setAddFormValues({})
     setActiveAddTab("basic")
@@ -295,7 +306,7 @@ export function JobPostContent() {
 
   const handleEdit = (data: Record<string, any>) => {
     if (!selectedJob) return
-    const combinedValues = { ...editFormValues, ...data }
+    const combinedValues = { ...selectedJob, ...editFormValues, ...data }
     const jobTitle = combinedValues.job_title ?? selectedJob.job_title ?? "Job post"
     const payload = sanitizePayload(combinedValues)
     updateJobMutation.mutate(
@@ -307,6 +318,30 @@ export function JobPostContent() {
           setEditFormValues({})
           setActiveEditTab("basic")
           setSelectedJob(null)
+        },
+        onError: (error) => toast.error(getErrorMessage(error)),
+      },
+    )
+  }
+
+  const openStatusDialog = (job: RecruitmentJob) => {
+    setJobToUpdateStatus(job)
+    setIsStatusDialogOpen(true)
+  }
+
+  const handleStatusUpdate = (nextStatus: string) => {
+    if (!jobToUpdateStatus) return
+    const payload = sanitizePayload({
+      ...jobToUpdateStatus,
+      status: nextStatus,
+    })
+
+    updateJobMutation.mutate(
+      { id: jobToUpdateStatus.id, payload },
+      {
+        onSuccess: () => {
+          toast.success(`${jobToUpdateStatus.job_title} status updated`)
+          setIsStatusDialogOpen(false)
         },
         onError: (error) => toast.error(getErrorMessage(error)),
       },
@@ -399,10 +434,16 @@ export function JobPostContent() {
         key: "actions",
         label: "Actions",
         render: (_: unknown, row: RecruitmentJob) => {
-          const normalizedStatus = row.status?.toLowerCase() ?? ""
-          const disableActions = normalizedStatus === "closed"
           return (
             <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => openStatusDialog(row)}
+                title="Change Status"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
               <Button variant="outline" size="icon" onClick={() => handleView(row.id)} title="View Details">
                 <Eye className="h-4 w-4" />
               </Button>
@@ -411,8 +452,7 @@ export function JobPostContent() {
                 size="icon"
                 onClick={() => handleEdit2(row.id)}
                 title="Edit"
-                disabled={disableActions}
-                className="text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-blue-600 hover:text-blue-800"
               >
                 <Edit className="h-4 w-4" />
               </Button>
@@ -421,7 +461,7 @@ export function JobPostContent() {
                 size="icon"
                 onClick={() => handleOpenDeleteDialog(row)}
                 title="Delete"
-                disabled={disableActions || deleteJobMutation.isLoading}
+                disabled={deleteJobMutation.isLoading}
                 className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Trash2 className="h-4 w-4" />
@@ -431,7 +471,7 @@ export function JobPostContent() {
         },
       },
     ],
-    [handleEdit2, handleOpenDeleteDialog, handleView],
+    [handleEdit2, handleOpenDeleteDialog, handleView, openStatusDialog],
   )
 
   const departmentOptions = useMemo(() => {
@@ -645,7 +685,7 @@ export function JobPostContent() {
 
       {/* Edit Job Post Dialog */}
       {selectedJob && (
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Job Post</DialogTitle>
@@ -658,7 +698,7 @@ export function JobPostContent() {
               </TabsList>
               <TabsContent value="basic" className="mt-4 space-y-4">
                 <EnhancedForm
-                  fields={jobPostFields.slice(0, 8)}
+                  fields={jobPostEditFields.slice(0, 7)}
                   onSubmit={handleEditStepSubmit("basic")}
                   onCancel={() => setIsEditDialogOpen(false)}
                   submitLabel="Next"
@@ -668,7 +708,7 @@ export function JobPostContent() {
               </TabsContent>
               <TabsContent value="details" className="mt-4 space-y-4">
                 <EnhancedForm
-                  fields={[jobPostFields[8], jobPostFields[9], jobPostFields[10]]}
+                  fields={jobPostEditFields.slice(7, 10)}
                   onSubmit={handleEditStepSubmit("details")}
                   onCancel={() => setActiveEditTab(getPreviousTab("details"))}
                   submitLabel="Next"
@@ -678,7 +718,7 @@ export function JobPostContent() {
               </TabsContent>
               <TabsContent value="requirements" className="mt-4 space-y-4">
                 <EnhancedForm
-                  fields={[jobPostFields[11], jobPostFields[12]]}
+                  fields={jobPostEditFields.slice(10, 12)}
                   onSubmit={handleEdit}
                   onCancel={() => setActiveEditTab(getPreviousTab("requirements"))}
                   submitLabel="Update Job Post"
@@ -690,6 +730,19 @@ export function JobPostContent() {
             </Tabs>
           </DialogContent>
         </Dialog>
+      )}
+
+      {jobToUpdateStatus && (
+        <StatusChangeDialog
+          isOpen={isStatusDialogOpen}
+          onClose={() => setIsStatusDialogOpen(false)}
+          title="Change Job Status"
+          description={`Update the status for ${jobToUpdateStatus.job_title}.`}
+          currentStatus={jobToUpdateStatus.status}
+          options={STATUS_OPTIONS}
+          onConfirm={handleStatusUpdate}
+          isLoading={updateJobMutation.isLoading}
+        />
       )}
 
       {viewJob && isViewDialogOpen && (

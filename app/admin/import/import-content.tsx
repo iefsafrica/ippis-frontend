@@ -323,47 +323,6 @@ export function ImportContent() {
     )
   }
 
-  // Create a simpler CSV template with just name, email, department, position
-  const downloadSimpleTemplate = () => {
-    const headers = "Surname,FirstName,Email,Department,Position"
-    const exampleRow1 = "Doe,John,john.doe@example.com,IT,Software Engineer"
-    const exampleRow2 = "Smith,Jane,jane.smith@example.com,HR,HR Manager"
-    const exampleRow3 = "Johnson,Michael,michael.johnson@example.com,Finance,Accountant"
-    const csvContent = `${headers}\n${exampleRow1}\n${exampleRow2}\n${exampleRow3}`
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-    const link = document.createElement("a")
-    const url = URL.createObjectURL(blob)
-
-    link.setAttribute("href", url)
-    link.setAttribute("download", "Simple_Employee_Template.csv")
-    link.style.visibility = "hidden"
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
-
-  // Create a working sample CSV that will definitely work
-  const downloadWorkingSample = () => {
-    const csvContent = `Surname,FirstName,Email,Department,Position
-Doe,John,john.doe@example.com,IT,Software Engineer
-Smith,Jane,jane.smith@example.com,HR,HR Manager
-Johnson,Michael,michael.johnson@example.com,Finance,Accountant
-Williams,Sarah,sarah.williams@example.com,Marketing,Marketing Specialist
-Brown,Robert,robert.brown@example.com,Operations,Operations Manager`
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-    const link = document.createElement("a")
-    const url = URL.createObjectURL(blob)
-
-    link.setAttribute("href", url)
-    link.setAttribute("download", "Working_Sample.csv")
-    link.style.visibility = "hidden"
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
-
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-end">
@@ -437,21 +396,6 @@ Brown,Robert,robert.brown@example.com,Operations,Operations Manager`
                   </Button>
                 </div>
               )}
-
-              <div className="flex flex-col gap-2">
-                <Button
-                  onClick={downloadWorkingSample}
-                  variant="outline"
-                  size="sm"
-                  className={`${buttonHoverEnhancements} w-full`}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Working Sample CSV
-                </Button>
-                <p className="text-xs text-muted-foreground text-center">
-                  Download this sample CSV file that is guaranteed to work with our system
-                </p>
-              </div>
 
               {uploading && (
                 <div className="space-y-2">
@@ -582,23 +526,6 @@ Brown,Robert,robert.brown@example.com,Operations,Operations Manager`
                   Download Full CSV Template
                 </Button>
 
-                <Button
-                  onClick={downloadWorkingSample}
-                  variant="outline"
-                  className={`${buttonHoverEnhancements} w-full`}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Working Sample CSV
-                </Button>
-
-                <Button
-                  onClick={downloadSimpleTemplate}
-                  variant="outline"
-                  className={`${buttonHoverEnhancements} w-full`}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Simple CSV Template
-                </Button>
               </div>
 
               <div className="space-y-6">

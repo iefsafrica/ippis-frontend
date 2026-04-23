@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { CoreHRClientWrapper } from "@/app/admin/core-hr/components/core-hr-client-wrapper"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import { EnhancedForm, type FormField } from "@/app/admin/components/enhanced-form"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { format } from "date-fns"
-import { Briefcase, Calendar, DollarSign, Edit, Eye, Trash2, Users } from "lucide-react"
+import { Briefcase, Calendar, DollarSign, Edit, Eye, RefreshCw, Trash2, Users } from "lucide-react"
 import { toast } from "sonner"
 import { useCreateTraining, useDeleteTraining, useGetTrainings, useUpdateTraining } from "@/services/hooks/trainings"
 import { LocalTraining, TrainingFormData, mapApiTrainingToLocal, transformFormToCreateTraining, transformFormToUpdateTraining } from "@/utils/training-converters"
@@ -135,16 +136,23 @@ const trainingTabFields: Record<TrainingTab, FormField[]> = {
   ],
 }
 
+const trainingEditTabFields: Record<TrainingTab, FormField[]> = {
+  basic: trainingTabFields.basic.filter((field) => field.name !== "status"),
+  schedule: trainingTabFields.schedule,
+}
+
 export function TrainingListContent() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [addEditDialogOpen, setAddEditDialogOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [selectedTraining, setSelectedTraining] = useState<LocalTraining | null>(null)
+  const [trainingToUpdateStatus, setTrainingToUpdateStatus] = useState<LocalTraining | null>(null)
   const [localTrainings, setLocalTrainings] = useState<LocalTraining[]>([])
   const [activeAddTab, setActiveAddTab] = useState<TrainingTab>("basic")
   const [activeEditTab, setActiveEditTab] = useState<TrainingTab>("basic")
   const [addFormValues, setAddFormValues] = useState<Partial<TrainingFormData>>({})
   const [editFormValues, setEditFormValues] = useState<Partial<TrainingFormData>>({})
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false)
 
   const {
     data: trainingsData,
@@ -187,6 +195,12 @@ export function TrainingListContent() {
       toast.error("Unable to load trainings. Please try again.")
     }
   }, [isTrainingsError, trainingsError])
+
+  useEffect(() => {
+    if (!statusDialogOpen) {
+      setTrainingToUpdateStatus(null)
+    }
+  }, [statusDialogOpen])
 
   const isBusy =
     isFetchingTrainings ||
@@ -242,10 +256,13 @@ export function TrainingListContent() {
       title: training.title,
       type: training.type,
       trainer: training.trainer,
-      status: training.status,
       startDate: training.startDate,
       participants: training.participants,
       cost: training.cost,
+      location: training.location,
+      description: training.description,
+      objectives: training.objectives,
+      materials: training.materials,
     })
     setActiveEditTab("basic")
     setAddEditDialogOpen(true)
@@ -287,9 +304,14 @@ export function TrainingListContent() {
   const handleFinalSubmit = async (form: TrainingFormData) => {
     try {
       if (isEditing && selectedTraining) {
+        const mergedForm = {
+          ...selectedTraining,
+          ...form,
+          status: form.status || selectedTraining.status,
+        } as TrainingFormData
         const response = await updateTrainingMutation.mutateAsync({
           id: Number(selectedTraining.id),
-          data: transformFormToUpdateTraining(form),
+          data: transformFormToUpdateTraining(mergedForm),
         })
         if (response.success) {
           const updated = mapApiTrainingToLocal(response.data)
@@ -334,6 +356,36 @@ export function TrainingListContent() {
       await handleFinalSubmit(combined as TrainingFormData)
     } else {
       setActiveEditTab(getNextTrainingTab(tab))
+    }
+  }
+
+  const openStatusDialog = (training: LocalTraining) => {
+    setTrainingToUpdateStatus(training)
+    setStatusDialogOpen(true)
+  }
+
+  const handleStatusUpdate = async (nextStatus: string) => {
+    if (!trainingToUpdateStatus) return
+
+    try {
+      const response = await updateTrainingMutation.mutateAsync({
+        id: Number(trainingToUpdateStatus.id),
+        data: transformFormToUpdateTraining({
+          ...trainingToUpdateStatus,
+          status: nextStatus,
+          endDate: trainingToUpdateStatus.endDate ?? "",
+        } as TrainingFormData),
+      })
+
+      if (response.success) {
+        const updated = mapApiTrainingToLocal(response.data)
+        setLocalTrainings((prev) => prev.map((item) => (item.id === trainingToUpdateStatus.id ? updated : item)))
+        setSelectedTraining((current) => (current?.id === trainingToUpdateStatus.id ? updated : current))
+        toast.success(`${trainingToUpdateStatus.title} status updated`)
+        setStatusDialogOpen(false)
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update training status")
     }
   }
 
@@ -431,6 +483,15 @@ export function TrainingListContent() {
       label: "Actions",
       render: (_: any, row: LocalTraining) => (
         <div className="flex justify-end items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => openStatusDialog(row)}
+            className="border-emerald-200 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50"
+            title="Change Status"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <Button
             variant="outline"
             size="icon"
@@ -534,14 +595,6 @@ export function TrainingListContent() {
               </p>
             </div>
           </div>
-          <Button
-            onClick={handleAdd}
-            className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
-            disabled={isBusy}
-          >
-            <Briefcase className="h-4 w-4 mr-2" />
-            Add Training Program
-          </Button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -577,6 +630,10 @@ export function TrainingListContent() {
               data={localTrainings}
               searchFields={trainingSearchFields}
               itemsPerPage={10}
+              onAdd={handleAdd}
+              addButtonLabel="Add Training Program"
+              addButtonProps={{ disabled: isBusy }}
+              addButtonLoading={isBusy}
             />
           </CardContent>
         </Card>
@@ -611,7 +668,7 @@ export function TrainingListContent() {
               {TRAINING_TAB_SEQUENCE.map((tab) => (
                 <TabsContent key={tab} value={tab}>
                   <EnhancedForm
-                    fields={trainingTabFields[tab]}
+                    fields={isEditing ? trainingEditTabFields[tab] : trainingTabFields[tab]}
                     onSubmit={(data) =>
                       isEditing ? handleEditTabSubmit(tab, data) : handleAddTabSubmit(tab, data)
                     }
@@ -636,8 +693,8 @@ export function TrainingListContent() {
           </DialogContent>
         </Dialog>
 
-        {selectedTraining && (
-          <ViewTrainingDialog
+      {selectedTraining && (
+        <ViewTrainingDialog
             training={selectedTraining}
             isOpen={viewDialogOpen}
             onClose={() => {
@@ -652,8 +709,26 @@ export function TrainingListContent() {
               setViewDialogOpen(false)
               handleOpenDeleteDialog(selectedTraining)
             }}
-          />
-        )}
+        />
+      )}
+
+      {trainingToUpdateStatus && (
+        <StatusChangeDialog
+          isOpen={statusDialogOpen}
+          onClose={() => setStatusDialogOpen(false)}
+          title="Change Training Status"
+          description={`Update the status for ${trainingToUpdateStatus.title}.`}
+          currentStatus={trainingToUpdateStatus.status}
+          options={[
+            { value: "upcoming", label: "Upcoming" },
+            { value: "in-progress", label: "In Progress" },
+            { value: "completed", label: "Completed" },
+            { value: "cancelled", label: "Cancelled" },
+          ]}
+          onConfirm={handleStatusUpdate}
+          isLoading={updateTrainingMutation.isPending}
+        />
+      )}
 
         <DeleteConfirmationDialog
           isOpen={isDeleteDialogOpen}

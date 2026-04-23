@@ -2543,7 +2543,6 @@ import {
   ChevronLeft,
   ChevronRight
 } from "lucide-react"
-import { ClearPendingEmployeesButton } from "../components/clear-pending-employees-button"
 import { toast } from "sonner"
 import { 
   usePendingEmployees, 
@@ -3145,7 +3144,6 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        <ClearPendingEmployeesButton onSuccess={handleRefresh} />
       </div>
 
       <Card className="rounded-xl border border-gray-200 shadow-lg overflow-visible">

@@ -14,3 +14,14 @@ export interface GetCalendarMeetingsResponse {
   total?: number
   data: CalendarMeeting[]
 }
+
+export interface UpdateCalendarMeetingRequest {
+  id: number
+  status?: string
+}
+
+export interface UpdateCalendarMeetingResponse {
+  success: boolean
+  message: string
+  data?: CalendarMeeting
+}

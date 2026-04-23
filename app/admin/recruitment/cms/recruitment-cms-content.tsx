@@ -6,13 +6,14 @@ import { format } from "date-fns"
 
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import { EnhancedForm, type FormField } from "@/app/admin/components/enhanced-form"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
-import { Eye, Edit, Trash2, Calendar, Clock, Users, FileText, ClipboardList, X, Loader2, User, Hash } from "lucide-react"
+import { Eye, Edit, Trash2, Calendar, Clock, Users, FileText, ClipboardList, X, Loader2, User, Hash, RefreshCw } from "lucide-react"
 
 import {
   useCreateRecruitmentCms,
@@ -168,9 +169,11 @@ export function RecruitmentCMSContent() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
   const [selectedContent, setSelectedContent] = useState<RecruitmentCmsContent | null>(null)
   const [contentToEdit, setContentToEdit] = useState<RecruitmentCmsContent | null>(null)
   const [contentToDelete, setContentToDelete] = useState<RecruitmentCmsContent | null>(null)
+  const [contentToUpdateStatus, setContentToUpdateStatus] = useState<RecruitmentCmsContent | null>(null)
   const [typeFilter, setTypeFilter] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
 
@@ -218,6 +221,12 @@ export function RecruitmentCMSContent() {
       setContentToDelete(null)
     }
   }, [isDeleteDialogOpen])
+
+  useEffect(() => {
+    if (!isStatusDialogOpen) {
+      setContentToUpdateStatus(null)
+    }
+  }, [isStatusDialogOpen])
 
   const statsCards = useMemo(() => {
     const data = cmsQuery.data?.data ?? []
@@ -272,6 +281,11 @@ export function RecruitmentCMSContent() {
     [],
   )
 
+  const cmsEditFields = useMemo(
+    () => cmsFormFields.filter((field) => field.name !== "status"),
+    [],
+  )
+
   const handleAdd = (values: Record<string, any>) => {
     const payload = buildCmsPayload(values)
     createCmsMutation.mutate(payload, {
@@ -301,6 +315,30 @@ export function RecruitmentCMSContent() {
       },
       onError: (error) => toast.error(getErrorMessage(error)),
     })
+  }
+
+  const openStatusDialog = (content: RecruitmentCmsContent) => {
+    setContentToUpdateStatus(content)
+    setIsStatusDialogOpen(true)
+  }
+
+  const handleStatusUpdate = (nextStatus: string) => {
+    if (!contentToUpdateStatus) return
+    const payload = buildCmsPayload({
+      ...contentToUpdateStatus,
+      status: nextStatus,
+    })
+
+    updateCmsMutation.mutate(
+      { id: contentToUpdateStatus.id, payload },
+      {
+        onSuccess: () => {
+          toast.success("CMS content status updated successfully.")
+          setIsStatusDialogOpen(false)
+        },
+        onError: (error) => toast.error(getErrorMessage(error)),
+      },
+    )
   }
 
   const handleDelete = (id: string) => {
@@ -389,6 +427,9 @@ export function RecruitmentCMSContent() {
         label: "Actions",
         render: (_: unknown, row: RecruitmentCmsContent) => (
           <div className="flex justify-start space-x-2">
+            <Button variant="outline" size="icon" onClick={() => openStatusDialog(row)} title="Change Status">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
             <Button variant="outline" size="icon" onClick={() => handleView(row.id)} title="View">
               <Eye className="h-4 w-4" />
             </Button>
@@ -409,7 +450,7 @@ export function RecruitmentCMSContent() {
         ),
       },
     ],
-    [handleView, handleEdit, handleDelete],
+    [handleView, handleEdit, handleDelete, openStatusDialog],
   )
 
   return (
@@ -535,7 +576,7 @@ export function RecruitmentCMSContent() {
             </DialogHeader>
             <EnhancedForm
               key={`edit-cms-${contentToEdit.id}`}
-              fields={cmsFormFields}
+              fields={cmsEditFields}
               initialValues={editInitialValues}
               onSubmit={handleEdit}
               cancelLabel="Cancel"
@@ -545,6 +586,19 @@ export function RecruitmentCMSContent() {
             />
           </DialogContent>
         </Dialog>
+      )}
+
+      {contentToUpdateStatus && (
+        <StatusChangeDialog
+          isOpen={isStatusDialogOpen}
+          onClose={() => setIsStatusDialogOpen(false)}
+          title="Change Content Status"
+          description={`Update the publication status for ${contentToUpdateStatus.title}.`}
+          currentStatus={contentToUpdateStatus.status}
+          options={CMS_STATUS_OPTIONS}
+          onConfirm={handleStatusUpdate}
+          isLoading={updateCmsMutation.isLoading}
+        />
       )}
 
       {/* View Dialog */}

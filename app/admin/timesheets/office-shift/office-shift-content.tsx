@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,24 +17,15 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import {
   Briefcase,
   Clock,
   Eye,
-  FileSpreadsheet,
-  FileIcon as FilePdf,
   Layers,
   Loader2,
   Pencil,
-  Printer,
   Plus,
   RefreshCw,
   Trash2,
@@ -68,6 +60,7 @@ export function OfficeShiftContent() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<ShiftRecord | null>(null)
 
   const initialAddShiftForm: CreateShiftPayload = {
@@ -82,8 +75,8 @@ export function OfficeShiftContent() {
   const [editShiftForm, setEditShiftForm] = useState<UpdateShiftPayload>({
     id: 0,
     department: departmentOptions[0],
-    status: "active",
   })
+  const [statusValue, setStatusValue] = useState("active")
 
   const shiftsQuery = useShifts()
   const createShiftMutation = useCreateShift()
@@ -91,7 +84,6 @@ export function OfficeShiftContent() {
   const deleteShiftMutation = useDeleteShift()
 
   const shiftList = shiftsQuery.data ?? []
-  const isFetching = shiftsQuery.isFetching
 
   const totalShifts = shiftList.length
   const activeShifts = shiftList.filter((shift) => shift.status === "active").length
@@ -141,9 +133,14 @@ export function OfficeShiftContent() {
       end_time: shift.end_time,
       late_mark_time: shift.late_mark_time ?? "",
       department: shift.department,
-      status: shift.status,
     })
     setEditDialogOpen(true)
+  }
+
+  const openStatusDialog = (shift: ShiftRecord) => {
+    setSelectedItem(shift)
+    setStatusValue(shift.status)
+    setStatusDialogOpen(true)
   }
 
   const handleView = (shift: ShiftRecord) => {
@@ -154,11 +151,6 @@ export function OfficeShiftContent() {
   const handleDelete = (shift: ShiftRecord) => {
     setSelectedItem(shift)
     setDeleteDialogOpen(true)
-  }
-
-  const handleManualRefresh = () => {
-    shiftsQuery.refetch()
-    toast.success("Shift data refreshed")
   }
 
   const handleAddSubmit = () => {
@@ -190,6 +182,26 @@ export function OfficeShiftContent() {
         toast.error(error instanceof Error ? error.message : "Unable to update shift")
       },
     })
+  }
+
+  const handleUpdateShiftStatus = (nextStatus: string) => {
+    if (!selectedItem) return
+    updateShiftMutation.mutate(
+      {
+        id: selectedItem.id,
+        status: nextStatus as "active" | "inactive",
+      },
+      {
+        onSuccess: () => {
+          toast.success("Shift status updated")
+          setStatusDialogOpen(false)
+          setSelectedItem(null)
+        },
+        onError: (error) => {
+          toast.error(error instanceof Error ? error.message : "Unable to update shift status")
+        },
+      },
+    )
   }
 
   const handleDeleteConfirm = () => {
@@ -323,6 +335,15 @@ export function OfficeShiftContent() {
             <Button
               variant="outline"
               size="icon"
+              onClick={() => openStatusDialog(shift)}
+              title="Change Status"
+              className="text-amber-600 hover:text-amber-800"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
               onClick={() => handleEdit(shift)}
               title="Edit shift"
               className="text-blue-600 hover:text-blue-800"
@@ -390,59 +411,7 @@ export function OfficeShiftContent() {
             Configure and manage employee work shifts.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="h-10 px-3.5 border-gray-300 text-gray-700 rounded-lg hover:border-gray-400 hover:bg-gray-50"
-                  onClick={handleManualRefresh}
-                  disabled={isFetching}
-                >
-                  {isFetching ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4" />
-                  )}
-                  <span className="ml-2 hidden sm:inline">Refresh</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Refresh shift data</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-10 px-3.5 border-gray-300 text-gray-700 rounded-lg">
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                Export to CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <FilePdf className="mr-2 h-4 w-4" />
-                Export to PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Printer className="mr-2 h-4 w-4" />
-                Print
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button
-            onClick={handleAdd}
-            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Shift
-          </Button>
-        </div>
+        <div className="flex flex-wrap items-center gap-2" />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -489,6 +458,8 @@ export function OfficeShiftContent() {
             data={shiftList}
             searchFields={shiftSearchFields}
             itemsPerPage={10}
+            onAdd={handleAdd}
+            addButtonLabel="Add Shift"
             emptyMessage={
               <div className="text-center py-12">
                 <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-blue-50 border border-blue-200 mb-4">
@@ -691,29 +662,6 @@ export function OfficeShiftContent() {
                     }
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-status">Status</Label>
-                  <Select
-                    value={editShiftForm.status ?? selectedItem.status}
-                    onValueChange={(value) =>
-                      setEditShiftForm((prev) => ({
-                        ...prev,
-                        status: value as "active" | "inactive",
-                      }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {shiftStatusOptions.map((status) => (
-                        <SelectItem key={status.value} value={status.value}>
-                          {status.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
             </div>
           )}
@@ -731,6 +679,21 @@ export function OfficeShiftContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <StatusChangeDialog
+        isOpen={statusDialogOpen}
+        onClose={() => {
+          setStatusDialogOpen(false)
+          setSelectedItem(null)
+        }}
+        title="Change Shift Status"
+        description={`Update the status for ${selectedItem?.shift_name || "this shift"}.`}
+        currentStatus={statusValue}
+        options={shiftStatusOptions}
+        onConfirm={handleUpdateShiftStatus}
+        confirmLabel="Save Status"
+        isLoading={updateShiftMutation.isPending}
+      />
 
       <Dialog open={viewDialogOpen} onOpenChange={(open) => (open ? setViewDialogOpen(true) : closeViewModal())}>
         <DialogContent className="sm:max-w-[600px]">

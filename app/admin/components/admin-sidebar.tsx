@@ -288,14 +288,6 @@ export function AdminSidebar() {
           href: "/admin/timesheets/monthly-attendances",
         },
         {
-          title: "Update Attendances",
-          href: "/admin/timesheets/update-attendances",
-        },
-        {
-          title: "Import Attendances",
-          href: "/admin/timesheets/import-attendances",
-        },
-        {
           title: "Office Shift",
           href: "/admin/timesheets/office-shift",
         },

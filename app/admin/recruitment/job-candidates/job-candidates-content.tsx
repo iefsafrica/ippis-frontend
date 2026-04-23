@@ -5,13 +5,14 @@ import { format } from "date-fns"
 
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import { EnhancedForm, type FormField } from "@/app/admin/components/enhanced-form"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
-import { Eye, Edit, Trash2, User, Mail, Phone, Hash, Calendar, Briefcase, GraduationCap, FileText, ClipboardList, X, Loader2 } from "lucide-react"
+import { Eye, Edit, Trash2, User, Mail, Phone, Hash, Calendar, Briefcase, GraduationCap, FileText, ClipboardList, X, Loader2, RefreshCw } from "lucide-react"
 import {
   useCreateRecruitmentCandidate,
   useDeleteRecruitmentCandidate,
@@ -183,6 +184,8 @@ export function JobCandidatesContent() {
   const [selectedCandidate, setSelectedCandidate] = useState<RecruitmentCandidate | null>(null)
   const [viewCandidate, setViewCandidate] = useState<RecruitmentCandidate | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
+  const [candidateToUpdateStatus, setCandidateToUpdateStatus] = useState<RecruitmentCandidate | null>(null)
   const [candidateToDelete, setCandidateToDelete] = useState<RecruitmentCandidate | null>(null)
   const [addFormValues, setAddFormValues] = useState<Partial<RecruitmentCandidatePayload>>({})
   const [editFormValues, setEditFormValues] = useState<Partial<RecruitmentCandidatePayload>>({})
@@ -205,6 +208,10 @@ export function JobCandidatesContent() {
     }))
   }, [jobsQuery.data?.data])
   const candidateFields = useMemo(() => buildCandidateFields(jobOptions), [jobOptions])
+  const candidateEditFields = useMemo(
+    () => candidateFields.filter((field) => field.name !== "status"),
+    [candidateFields],
+  )
   const candidateSearchFields = useMemo(
     () => [
       { name: "candidate_name", label: "Candidate Name", type: "text" },
@@ -240,6 +247,12 @@ export function JobCandidatesContent() {
       setCandidateToDelete(null)
     }
   }, [isDeleteDialogOpen])
+
+  useEffect(() => {
+    if (!isStatusDialogOpen) {
+      setCandidateToUpdateStatus(null)
+    }
+  }, [isStatusDialogOpen])
 
   const statsCards = useMemo(() => {
     const counts = candidateList.reduce<Record<string, number>>((acc, candidate) => {
@@ -285,7 +298,7 @@ export function JobCandidatesContent() {
       return
     }
     if (!selectedCandidate) return
-    const payload = sanitizeCandidatePayload({ ...editFormValues, ...idOrValues })
+    const payload = sanitizeCandidatePayload({ ...selectedCandidate, ...editFormValues, ...idOrValues })
     updateCandidateMutation.mutate(
       { id: selectedCandidate.id, payload },
       {
@@ -296,6 +309,30 @@ export function JobCandidatesContent() {
         onError: (error) => {
           toast.error(getErrorMessage(error))
         },
+      },
+    )
+  }
+
+  const openStatusDialog = (candidate: RecruitmentCandidate) => {
+    setCandidateToUpdateStatus(candidate)
+    setIsStatusDialogOpen(true)
+  }
+
+  const handleStatusUpdate = async (nextStatus: string) => {
+    if (!candidateToUpdateStatus) return
+    const payload = sanitizeCandidatePayload({
+      ...candidateToUpdateStatus,
+      status: nextStatus,
+    })
+
+    updateCandidateMutation.mutate(
+      { id: candidateToUpdateStatus.id, payload },
+      {
+        onSuccess: () => {
+          toast.success(`${candidateToUpdateStatus.candidate_name} status updated successfully.`)
+          setIsStatusDialogOpen(false)
+        },
+        onError: (error) => toast.error(getErrorMessage(error)),
       },
     )
   }
@@ -350,6 +387,9 @@ export function JobCandidatesContent() {
         label: "Actions",
         render: (_: unknown, row: RecruitmentCandidate) => (
           <div className="flex justify-end space-x-2">
+            <Button variant="outline" size="icon" onClick={() => openStatusDialog(row)} title="Change Status">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
             <Button variant="outline" size="icon" onClick={() => handleView(row.id)} title="View">
               <Eye className="h-4 w-4" />
             </Button>
@@ -373,7 +413,7 @@ export function JobCandidatesContent() {
         ),
       },
     ],
-    [handleEdit, handleView],
+    [handleEdit, handleView, openStatusDialog],
   )
 
   return (
@@ -481,7 +521,7 @@ export function JobCandidatesContent() {
               <DialogTitle>Edit Candidate</DialogTitle>
             </DialogHeader>
             <EnhancedForm
-              fields={candidateFields}
+              fields={candidateEditFields}
               onSubmit={handleEdit}
               initialValues={selectedCandidate}
               cancelLabel="Cancel"
@@ -490,6 +530,19 @@ export function JobCandidatesContent() {
             />
           </DialogContent>
         </Dialog>
+      )}
+
+      {candidateToUpdateStatus && (
+        <StatusChangeDialog
+          isOpen={isStatusDialogOpen}
+          onClose={() => setIsStatusDialogOpen(false)}
+          title="Change Candidate Status"
+          description={`Update the application status for ${candidateToUpdateStatus.candidate_name}.`}
+          currentStatus={candidateToUpdateStatus.status}
+          options={RECRUITMENT_CANDIDATE_STATUS_OPTIONS}
+          onConfirm={handleStatusUpdate}
+          isLoading={updateCandidateMutation.isLoading}
+        />
       )}
 
       {viewCandidate && (

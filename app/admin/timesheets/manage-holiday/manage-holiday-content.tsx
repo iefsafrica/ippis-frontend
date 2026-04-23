@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import {
@@ -23,11 +24,7 @@ import {
   Briefcase,
   Globe,
   RefreshCw,
-  FileSpreadsheet,
-  FileText,
-  Printer,
 } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
 import {
   useCreateHoliday,
@@ -62,6 +59,7 @@ export function ManageHolidayContent() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const [selectedHoliday, setSelectedHoliday] = useState<HolidayRecord | null>(null)
 
   const [addForm, setAddForm] = useState<CreateHolidayPayload>({
@@ -73,8 +71,8 @@ export function ManageHolidayContent() {
   })
   const [editForm, setEditForm] = useState<UpdateHolidayPayload>({
     id: 0,
-    status: "active",
   })
+  const [statusValue, setStatusValue] = useState("active")
 
   const holidaysQuery = useHolidays()
   const createMutation = useCreateHoliday()
@@ -82,7 +80,6 @@ export function ManageHolidayContent() {
   const deleteMutation = useDeleteHoliday()
 
   const holidays = holidaysQuery.data ?? []
-  const isFetching = holidaysQuery.isFetching
 
   const totalHolidays = holidays.length
   const activeHolidays = holidays.filter((holiday) => holiday.status === "active").length
@@ -132,11 +129,6 @@ export function ManageHolidayContent() {
     }
   }
 
-  const handleManualRefresh = () => {
-    holidaysQuery.refetch()
-    toast.success("Holiday data refreshed")
-  }
-
   const resetAddForm = () => {
     setAddForm({
       holiday_name: "",
@@ -165,9 +157,14 @@ export function ManageHolidayContent() {
       start_date: holiday.start_date,
       end_date: holiday.end_date,
       description: holiday.description ?? "",
-      status: holiday.status,
     })
     setEditDialogOpen(true)
+  }
+
+  const openStatusDialog = (holiday: HolidayRecord) => {
+    setSelectedHoliday(holiday)
+    setStatusValue(holiday.status)
+    setStatusDialogOpen(true)
   }
 
   const handleDeleteHoliday = (holiday: HolidayRecord) => {
@@ -220,6 +217,26 @@ export function ManageHolidayContent() {
         toast.error(error instanceof Error ? error.message : "Unable to update holiday")
       },
     })
+  }
+
+  const handleUpdateHolidayStatus = (nextStatus: string) => {
+    if (!selectedHoliday) return
+    updateMutation.mutate(
+      {
+        id: selectedHoliday.id,
+        status: nextStatus,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Holiday status updated")
+          setStatusDialogOpen(false)
+          setSelectedHoliday(null)
+        },
+        onError: (error) => {
+          toast.error(error instanceof Error ? error.message : "Unable to update holiday status")
+        },
+      },
+    )
   }
 
   const handleDeleteConfirm = () => {
@@ -326,6 +343,15 @@ export function ManageHolidayContent() {
             <Button
               variant="outline"
               size="icon"
+              onClick={() => openStatusDialog(row)}
+              title="Change Status"
+              className="text-amber-600 hover:text-amber-800"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
               onClick={() => handleEditHoliday(row)}
               title="Edit"
               className="text-blue-600 hover:text-blue-800"
@@ -357,59 +383,7 @@ export function ManageHolidayContent() {
           <h1 className="text-3xl font-bold tracking-tight">Manage Holidays</h1>
           <p className="text-gray-600 mt-1">Configure approved company holidays and special observances.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="h-10 px-3.5 border-gray-300 text-gray-700 rounded-lg hover:border-gray-400 hover:bg-gray-50"
-                  onClick={handleManualRefresh}
-                  disabled={isFetching}
-                >
-                  {isFetching ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4" />
-                  )}
-                  <span className="ml-2 hidden sm:inline">Refresh</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Refresh holiday data</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-10 px-3.5 border-gray-300 text-gray-700 rounded-lg">
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                Export
-              </Button>
-            </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem disabled>
-              <FileSpreadsheet className="mr-2 h-4 w-4" />
-              Export to CSV
-            </DropdownMenuItem>
-            <DropdownMenuItem disabled>
-              <FileText className="mr-2 h-4 w-4" />
-              Export to PDF
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => window.print()}>
-              <Printer className="mr-2 h-4 w-4" />
-              Print
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-          </DropdownMenu>
-          <Button
-            onClick={handleAddHoliday}
-            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Holiday
-          </Button>
-        </div>
+        <div className="flex flex-wrap items-center gap-2" />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -456,6 +430,8 @@ export function ManageHolidayContent() {
             defaultSortColumn="id"
             defaultSortDirection="desc"
             itemsPerPage={10}
+            onAdd={handleAddHoliday}
+            addButtonLabel="Add Holiday"
             emptyMessage={
               <div className="text-center py-12">
                 <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-blue-50 border border-blue-200 mb-4">
@@ -571,26 +547,6 @@ export function ManageHolidayContent() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-status">Status</Label>
-                  <Select
-                    value={editForm.status ?? selectedHoliday.status}
-                    onValueChange={(value) =>
-                      setEditForm((prev) => ({ ...prev, status: value as "active" | "inactive" }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {holidayStatusOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="edit-startDate">Start Date</Label>
                   <Input
                     id="edit-startDate"
@@ -629,6 +585,21 @@ export function ManageHolidayContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <StatusChangeDialog
+        isOpen={statusDialogOpen}
+        onClose={() => {
+          setStatusDialogOpen(false)
+          setSelectedHoliday(null)
+        }}
+        title="Change Holiday Status"
+        description={`Update the status for ${selectedHoliday?.holiday_name || "this holiday"}.`}
+        currentStatus={statusValue}
+        options={holidayStatusOptions}
+        onConfirm={handleUpdateHolidayStatus}
+        confirmLabel="Save Status"
+        isLoading={updateMutation.isPending}
+      />
 
       <Dialog open={viewDialogOpen} onOpenChange={(open) => (open ? setViewDialogOpen(true) : closeViewModal())}>
         <DialogContent className="sm:max-w-[600px]">

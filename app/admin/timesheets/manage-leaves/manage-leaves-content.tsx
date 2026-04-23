@@ -14,10 +14,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { EnhancedForm, type FormField } from "@/app/admin/components/enhanced-form"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import { toast } from "sonner"
-import { Download, FileUp, RefreshCw, Trash2, UserCheck, Eye, Pencil } from "lucide-react"
+import { FileUp, RefreshCw, Trash2, UserCheck, Eye, Pencil } from "lucide-react"
 import {
   useCreateLeave,
   useDeleteLeave,
@@ -93,8 +94,10 @@ export function ManageLeavesContent() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const [selectedLeave, setSelectedLeave] = useState<LeaveRecord | null>(null)
   const [leaveToDelete, setLeaveToDelete] = useState<LeaveRecord | null>(null)
+  const [statusValue, setStatusValue] = useState("pending")
 
   const tableData = useMemo<LeaveRow[]>(
     () =>
@@ -223,6 +226,11 @@ export function ManageLeavesContent() {
     [employeeOptions],
   )
 
+  const editFields = useMemo(
+    () => formFields.filter((field) => field.name !== "status"),
+    [formFields],
+  )
+
   const editInitialValues = useMemo(() => {
     if (!selectedLeave) return undefined
     return {
@@ -231,7 +239,6 @@ export function ManageLeavesContent() {
       fromDate: selectedLeave.from_date?.split("T")[0] ?? "",
       toDate: selectedLeave.to_date?.split("T")[0] ?? "",
       reason: selectedLeave.reason,
-      status: selectedLeave.status,
     }
   }, [selectedLeave])
 
@@ -269,6 +276,14 @@ export function ManageLeavesContent() {
         <div className="flex items-center justify-start gap-2">
           <Button variant="outline" size="icon" onClick={() => handleView(row.id)}>
             <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="text-amber-600 hover:text-amber-800"
+            onClick={() => openStatusDialog(row.id)}
+          >
+            <RefreshCw className="h-4 w-4" />
           </Button>
           <Button variant="outline" size="icon" onClick={() => handleEdit(row.id)}>
             <Pencil className="h-4 w-4" />
@@ -313,6 +328,14 @@ export function ManageLeavesContent() {
     if (!leave) return
     setSelectedLeave(leave)
     setViewDialogOpen(true)
+  }
+
+  const openStatusDialog = (id: string) => {
+    const leave = leavesQuery.data?.find((item) => item.id.toString() === id)
+    if (!leave) return
+    setSelectedLeave(leave)
+    setStatusValue(leave.status)
+    setStatusDialogOpen(true)
   }
 
   const openDeleteDialog = (id: string) => {
@@ -373,7 +396,6 @@ export function ManageLeavesContent() {
       from_date: getIsoDateValue(data.fromDate),
       to_date: getIsoDateValue(data.toDate),
       reason: data.reason ?? "",
-      status: data.status ?? selectedLeave.status,
     }
 
     updateLeaveMutation.mutate(payload, {
@@ -386,6 +408,28 @@ export function ManageLeavesContent() {
       onError: (error) => {
         const description = error instanceof Error ? error.message : "Unable to update leave"
         toast.error("Update failed", { description })
+      },
+    })
+  }
+
+  const handleUpdateStatus = (nextStatus: string) => {
+    if (!selectedLeave) return
+
+    const payload: UpdateLeavePayload = {
+      id: Number(selectedLeave.id),
+      status: nextStatus,
+    }
+
+    updateLeaveMutation.mutate(payload, {
+      onSuccess: () => {
+        toast.success("Leave status updated", { description: "The request status has been changed." })
+        leavesQuery.refetch()
+        setStatusDialogOpen(false)
+        setSelectedLeave(null)
+      },
+      onError: (error) => {
+        const description = error instanceof Error ? error.message : "Unable to update leave status"
+        toast.error("Status update failed", { description })
       },
     })
   }
@@ -418,28 +462,11 @@ export function ManageLeavesContent() {
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
-            className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"
-            onClick={handleRefresh}
-            disabled={isLoading}
-          >
-            <RefreshCw className="h-4 w-4" />
-            <span className="ml-2 hidden sm:inline">Refresh</span>
-          </Button>
-          <Button
-            variant="outline"
             size="sm"
             className="h-10 px-3.5 border-gray-300 text-gray-700 font-medium rounded-lg"
           >
             <FileUp className="mr-2 h-4 w-4" />
             Import
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-10 px-3.5 border-gray-300 text-gray-700 font-medium rounded-lg"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Export
           </Button>
         </div>
       </div>
@@ -468,6 +495,8 @@ export function ManageLeavesContent() {
             itemsPerPage={10}
             defaultSortColumn="id"
             defaultSortDirection="desc"
+            onAdd={handleAdd}
+            addButtonLabel="Add Leave"
           />
         </CardContent>
       </Card>
@@ -493,10 +522,10 @@ export function ManageLeavesContent() {
         <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
             <DialogTitle>Edit Leave Request</DialogTitle>
-            <DialogDescription>Update dates, reason, or status for the selected request.</DialogDescription>
+            <DialogDescription>Update dates or reason for the selected request.</DialogDescription>
           </DialogHeader>
           <EnhancedForm
-            fields={formFields}
+            fields={editFields}
             onSubmit={handleSubmitEdit}
             onCancel={closeEditModal}
             isSubmitting={updateLeaveMutation.isPending}
@@ -506,6 +535,25 @@ export function ManageLeavesContent() {
           />
         </DialogContent>
       </Dialog>
+
+      <StatusChangeDialog
+        isOpen={statusDialogOpen}
+        onClose={() => {
+          setStatusDialogOpen(false)
+          setSelectedLeave(null)
+        }}
+        title="Change Leave Status"
+        description={`Update the status for ${selectedLeave?.employee_name || selectedLeave?.employee_code || "this leave request"}.`}
+        currentStatus={statusValue}
+        options={[
+          { value: "pending", label: "Pending" },
+          { value: "approved", label: "Approved" },
+          { value: "rejected", label: "Rejected" },
+        ]}
+        onConfirm={handleUpdateStatus}
+        confirmLabel="Save Status"
+        isLoading={updateLeaveMutation.isPending}
+      />
 
       <DeleteConfirmationDialog
         isOpen={deleteDialogOpen}

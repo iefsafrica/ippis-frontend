@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import { toast } from "sonner"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import {
   useAttendances,
   useDeleteAttendance,
@@ -29,7 +30,7 @@ import {
   UpdateAttendancePayload,
 } from "@/types/timesheets/attendance"
 import { useEmployeesList } from "@/services/hooks/employees/useEmployees"
-import { Calendar, Download, Edit, Eye, FileUp, RefreshCw, Trash2, UserCheck } from "lucide-react"
+import { Calendar, Edit, Eye, FileUp, RefreshCw, Trash2, UserCheck } from "lucide-react"
 
 const ATTENDANCE_STATUS_OPTIONS = [
   { value: "present", label: "Present" },
@@ -85,9 +86,11 @@ export function AttendancesContent() {
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<AttendanceRecord | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [attendanceToDelete, setAttendanceToDelete] = useState<AttendanceRecord | null>(null)
+  const [statusValue, setStatusValue] = useState<AttendanceStatus>("present")
   const attendancesQuery = useAttendances()
   const markAttendanceMutation = useMarkAttendance()
   const updateAttendanceMutation = useUpdateAttendance()
@@ -122,7 +125,6 @@ export function AttendancesContent() {
 
   const searchFields = useMemo(
     () => [
-      { name: "employeeId", label: "Employee ID", type: "text" },
       { name: "name", label: "Name", type: "text" },
       {
         name: "department",
@@ -227,7 +229,7 @@ export function AttendancesContent() {
   const editFields = useMemo(
     () =>
       formFields.map((field) => {
-        if (field.name === "employeeId" || field.name === "date") {
+        if (field.name === "employeeId" || field.name === "date" || field.name === "status") {
           return { ...field, disabled: true, required: false }
         }
         return field
@@ -315,6 +317,14 @@ export function AttendancesContent() {
           <Button variant="outline" size="icon" onClick={() => handleView(row.id)}>
             <Eye className="h-4 w-4" />
           </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="text-amber-600 hover:text-amber-800"
+            onClick={() => openStatusDialog(row.id)}
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <Button variant="outline" size="icon" className="text-blue-600 hover:text-blue-800" onClick={() => handleEdit(row.id)}>
             <Edit className="h-4 w-4" />
           </Button>
@@ -349,6 +359,14 @@ export function AttendancesContent() {
     if (!attendance) return
     setSelectedItem(attendance)
     setViewDialogOpen(true)
+  }
+
+  const openStatusDialog = (id: string) => {
+    const attendance = attendancesQuery.data?.find((item) => item.id.toString() === id)
+    if (!attendance) return
+    setSelectedItem(attendance)
+    setStatusValue(attendance.status)
+    setStatusDialogOpen(true)
   }
 
   const openDeleteDialog = (id: string) => {
@@ -410,7 +428,6 @@ export function AttendancesContent() {
       id: Number(selectedItem.id),
       clock_in: data.clockIn,
       clock_out: data.clockOut,
-      status: data.status,
       notes: data.notes ?? "",
     }
 
@@ -425,6 +442,28 @@ export function AttendancesContent() {
       },
       onError: (error) => handleMutationError(error, "Unable to update attendance"),
     })
+  }
+
+  const handleUpdateStatus = (nextStatus: string) => {
+    if (!selectedItem) return
+
+    updateAttendanceMutation.mutate(
+      {
+        id: Number(selectedItem.id),
+        status: nextStatus as AttendanceStatus,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Attendance status updated", {
+            description: "The record status has been changed.",
+          })
+          attendancesQuery.refetch()
+          setStatusDialogOpen(false)
+          setSelectedItem(null)
+        },
+        onError: (error) => handleMutationError(error, "Unable to update attendance status"),
+      },
+    )
   }
 
   const handleMutationError = (error: unknown, title: string) => {
@@ -464,35 +503,11 @@ export function AttendancesContent() {
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
-            className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"
-            onClick={handleRefresh}
-            disabled={isLoading}
-          >
-            <RefreshCw className="h-4 w-4" />
-            <span className="ml-2 hidden sm:inline">Refresh</span>
-          </Button>
-          <Button
-            variant="outline"
             size="sm"
             className="h-10 px-3.5 border-gray-300 text-gray-700 font-medium rounded-lg"
           >
             <FileUp className="mr-2 h-4 w-4" />
             Import
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-10 px-3.5 border-gray-300 text-gray-700 font-medium rounded-lg"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
-          <Button
-            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
-            onClick={handleAdd}
-          >
-            <UserCheck className="mr-2 h-4 w-4" />
-            Mark Attendance
           </Button>
         </div>
       </div>
@@ -522,6 +537,8 @@ export function AttendancesContent() {
             data={tableData}
             searchFields={searchFields}
             itemsPerPage={10}
+            onAdd={handleAdd}
+            addButtonLabel="Mark Attendance"
           />
         </CardContent>
       </Card>
@@ -564,7 +581,6 @@ export function AttendancesContent() {
               onSubmit={handleSubmitEdit}
               onCancel={closeEditModal}
               isSubmitting={updateAttendanceMutation.isPending}
-              submitLabel="Update Attendance"
               initialValues={editInitialValues}
               formClassName="grid gap-4 md:grid-cols-2"
             />
@@ -650,6 +666,26 @@ export function AttendancesContent() {
           )}
         </DialogContent>
       </Dialog>
+
+      <StatusChangeDialog
+        isOpen={statusDialogOpen}
+        onClose={() => {
+          setStatusDialogOpen(false)
+          setSelectedItem(null)
+        }}
+        title="Change Attendance Status"
+        description={`Update the status for ${selectedItem?.employee_name || selectedItem?.employee_code || "this record"}.`}
+        currentStatus={statusValue}
+        options={[
+          { value: "present", label: "Present" },
+          { value: "absent", label: "Absent" },
+          { value: "late", label: "Late" },
+          { value: "leave", label: "Leave" },
+        ]}
+        onConfirm={handleUpdateStatus}
+        confirmLabel="Save Status"
+        isLoading={updateAttendanceMutation.isPending}
+      />
     </div>
   )
 }

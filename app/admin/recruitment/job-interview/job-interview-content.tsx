@@ -5,13 +5,14 @@ import { format } from "date-fns"
 
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import { EnhancedForm, type FormField } from "@/app/admin/components/enhanced-form"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
-import { Eye, Edit, Trash2, Calendar, Clock, Users, MapPin, Link2, FileText, ClipboardList, X, Loader2, User, Video, Building2 } from "lucide-react"
+import { Eye, Edit, Trash2, Calendar, Clock, Users, MapPin, Link2, FileText, ClipboardList, X, Loader2, User, Video, Building2, RefreshCw } from "lucide-react"
 
 import { useRecruitmentCandidates } from "@/services/hooks/recruitment/candidates"
 import { useRecruitmentJobs } from "@/services/hooks/recruitment/jobs"
@@ -245,6 +246,8 @@ export function JobInterviewContent() {
   const [interviewToEdit, setInterviewToEdit] = useState<RecruitmentInterview | null>(null)
   const [feedbackInterview, setFeedbackInterview] = useState<RecruitmentInterview | null>(null)
   const [interviewToDelete, setInterviewToDelete] = useState<RecruitmentInterview | null>(null)
+  const [interviewToUpdateStatus, setInterviewToUpdateStatus] = useState<RecruitmentInterview | null>(null)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
   const [typeFilter, setTypeFilter] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
 
@@ -304,6 +307,10 @@ export function JobInterviewContent() {
   }, [interviewsQuery.data?.data, candidateMap, jobMap])
 
   const interviewFormFields = useMemo(() => interviewFields(candidateOptions, jobOptions), [candidateOptions, jobOptions])
+  const interviewEditFields = useMemo(
+    () => interviewFormFields.filter((field) => field.name !== "status"),
+    [interviewFormFields],
+  )
   const interviewSearchFields = useMemo(
     () => [
       { name: "candidate_id", label: "Candidate", type: "select", options: candidateOptions },
@@ -401,6 +408,12 @@ export function JobInterviewContent() {
     }
   }, [isDeleteDialogOpen])
 
+  useEffect(() => {
+    if (!isStatusDialogOpen) {
+      setInterviewToUpdateStatus(null)
+    }
+  }, [isStatusDialogOpen])
+
   const statsCards = useMemo(() => {
     const interviews = interviewsQuery.data?.data ?? []
     const counts = interviews.reduce<Record<string, number>>((acc, interview) => {
@@ -456,6 +469,30 @@ export function JobInterviewContent() {
         onSuccess: () => {
           toast.success("Interview updated successfully.")
           setIsEditDialogOpen(false)
+        },
+        onError: (error) => toast.error(getErrorMessage(error)),
+      },
+    )
+  }
+
+  const openStatusDialog = (interview: RecruitmentInterview) => {
+    setInterviewToUpdateStatus(interview)
+    setIsStatusDialogOpen(true)
+  }
+
+  const handleStatusUpdate = (nextStatus: string) => {
+    if (!interviewToUpdateStatus) return
+    const payload = sanitizeInterviewPayload({
+      ...interviewToUpdateStatus,
+      status: nextStatus,
+    })
+
+    updateInterviewMutation.mutate(
+      { id: interviewToUpdateStatus.id, payload },
+      {
+        onSuccess: () => {
+          toast.success("Interview status updated successfully.")
+          setIsStatusDialogOpen(false)
         },
         onError: (error) => toast.error(getErrorMessage(error)),
       },
@@ -573,6 +610,9 @@ export function JobInterviewContent() {
         label: "Actions",
         render: (_: unknown, row: RecruitmentInterview & { candidateName: string }) => (
           <div className="flex justify-start space-x-2">
+            <Button variant="outline" size="icon" onClick={() => openStatusDialog(row)} title="Change Status">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
             <Button variant="outline" size="icon" onClick={() => handleView(row.id)} title="View">
               <Eye className="h-4 w-4" />
             </Button>
@@ -593,7 +633,7 @@ export function JobInterviewContent() {
         ),
       },
     ],
-    [handleView, handleEdit, handleDelete],
+    [handleView, handleEdit, handleDelete, openStatusDialog],
   )
 
   return (
@@ -719,7 +759,7 @@ export function JobInterviewContent() {
             </DialogHeader>
             <EnhancedForm
               key={`edit-${interviewToEdit.id}`}
-              fields={interviewFormFields}
+              fields={interviewEditFields}
               initialValues={editInitialValues}
               onSubmit={handleEdit}
               cancelLabel="Cancel"
@@ -729,6 +769,19 @@ export function JobInterviewContent() {
             />
           </DialogContent>
         </Dialog>
+      )}
+
+      {interviewToUpdateStatus && (
+        <StatusChangeDialog
+          isOpen={isStatusDialogOpen}
+          onClose={() => setIsStatusDialogOpen(false)}
+          title="Change Interview Status"
+          description={`Update the status for the interview with ${candidateMap.get(interviewToUpdateStatus.candidate_id)?.candidate_name || interviewToUpdateStatus.candidate_id}.`}
+          currentStatus={interviewToUpdateStatus.status}
+          options={RECRUITMENT_INTERVIEW_STATUS_OPTIONS}
+          onConfirm={handleStatusUpdate}
+          isLoading={updateInterviewMutation.isLoading}
+        />
       )}
 
       {/* View Dialog */}

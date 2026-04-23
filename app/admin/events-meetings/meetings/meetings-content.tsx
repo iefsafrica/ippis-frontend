@@ -1,13 +1,15 @@
 "use client"
 
-import { useMemo, useEffect } from "react"
+import { useCallback, useMemo, useEffect, useState } from "react"
 import { CoreHRClientWrapper } from "@/app/admin/core-hr/components/core-hr-client-wrapper"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import { Card, CardContent, CardHeader, CardDescription, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Briefcase, Loader2, RefreshCw } from "lucide-react"
-import { useGetCalendarMeetings } from "@/services/hooks/calendar/meetings"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
+import { useGetCalendarMeetings, useUpdateCalendarMeeting } from "@/services/hooks/calendar/meetings"
+import type { CalendarMeeting } from "@/types/calendar/meetings"
 import { toast } from "sonner"
 
 const columns = [
@@ -26,8 +28,16 @@ const columns = [
 
 export function MeetingsContent() {
   const { data, isLoading, error, refetch } = useGetCalendarMeetings()
+  const updateCalendarMeetingMutation = useUpdateCalendarMeeting()
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
+  const [meetingToUpdateStatus, setMeetingToUpdateStatus] = useState<CalendarMeeting | null>(null)
 
   const meetings = useMemo(() => data?.data ?? [], [data])
+
+  const statusOptions = [
+    { value: "active", label: "Active" },
+    { value: "inactive", label: "Inactive" },
+  ]
 
   const stats = useMemo(
     () => ({
@@ -50,6 +60,52 @@ export function MeetingsContent() {
       toast.error("Unable to refresh meetings")
     }
   }
+
+  const handleOpenStatusDialog = useCallback(
+    (id: number) => {
+      const meeting = meetings.find((item) => item.id === id)
+      if (!meeting) {
+        toast.error("Meeting not found")
+        return
+      }
+      setMeetingToUpdateStatus(meeting)
+      setIsStatusDialogOpen(true)
+    },
+    [meetings],
+  )
+
+  const handleStatusUpdate = async (status: string) => {
+    if (!meetingToUpdateStatus) return
+
+    try {
+      await updateCalendarMeetingMutation.mutateAsync({
+        id: meetingToUpdateStatus.id,
+        status,
+      })
+      toast.success("Meeting status updated successfully")
+      setIsStatusDialogOpen(false)
+    } catch (statusError: any) {
+      toast.error(statusError.message || "Failed to update meeting status")
+    }
+  }
+
+  const meetingColumns = useMemo(
+    () => [
+      ...columns,
+      {
+        key: "actions",
+        label: "Actions",
+        render: (_: any, row: CalendarMeeting) => (
+          <div className="flex justify-start gap-2">
+            <Button variant="outline" size="icon" onClick={() => handleOpenStatusDialog(row.id)} title="Change Status">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [handleOpenStatusDialog],
+  )
 
   return (
     <CoreHRClientWrapper title="Meetings" endpoint="/api/admin/hr/calendar/meetings">
@@ -118,9 +174,25 @@ export function MeetingsContent() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <DataTable title="Meetings" columns={columns} data={meetings} searchFields={[]} itemsPerPage={10} />
+            <DataTable title="Meetings" columns={meetingColumns} data={meetings} searchFields={[]} itemsPerPage={10} />
           </CardContent>
         </Card>
+
+        {meetingToUpdateStatus && (
+          <StatusChangeDialog
+            isOpen={isStatusDialogOpen}
+            onClose={() => {
+              setIsStatusDialogOpen(false)
+              setMeetingToUpdateStatus(null)
+            }}
+            title="Change Meeting Status"
+            description={`Update the status for ${meetingToUpdateStatus.meeting_title}.`}
+            currentStatus={meetingToUpdateStatus.status}
+            options={statusOptions}
+            onConfirm={handleStatusUpdate}
+            isLoading={updateCalendarMeetingMutation.isPending}
+          />
+        )}
       </div>
     </CoreHRClientWrapper>
   )
