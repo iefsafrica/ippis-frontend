@@ -3,13 +3,12 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Loader2, AlertTriangle, RefreshCw, Search, Hash, Upload, Download, Eye, Edit, Trash2 } from "lucide-react"
+import { Loader2, AlertTriangle, RefreshCw, Upload, Download, Eye, Edit, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { CoreHRClientWrapper } from "../components/core-hr-client-wrapper"
 import { DataTable } from "../components/data-table"
-import { useGetEmployeeWarnings, useGetEmployeeWarningByEmployeeId } from "@/services/hooks/hr-core/employeeWarnings"
+import { StatusChangeDialog } from "../components/status-change-dialog"
+import { useGetEmployeeWarnings } from "@/services/hooks/hr-core/employeeWarnings"
 import type { EmployeeWarning } from "@/types/hr-core/employeeWarnings"
 import { AddWarningDialog } from "./AddWarningDialog"
 import { EditWarningDialog } from "./EditWarningDialog"
@@ -22,9 +21,10 @@ export function WarningsContent() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
   const [selectedWarning, setSelectedWarning] = useState<EmployeeWarning | null>(null)
-  const [searchEmployeeId, setSearchEmployeeId] = useState("")
   const [isUploading, setIsUploading] = useState(false)
+  const [statusValue, setStatusValue] = useState("active")
 
   // Use the hooks
   const { 
@@ -32,12 +32,6 @@ export function WarningsContent() {
     isLoading: isLoadingWarnings,
     refetch: refetchWarnings
   } = useGetEmployeeWarnings()
-
-  const {
-    data: employeeWarningsData,
-    isLoading: isLoadingEmployeeWarnings,
-    refetch: refetchEmployeeWarnings
-  } = useGetEmployeeWarningByEmployeeId(searchEmployeeId)
 
   const createWarningMutation = useCreateEmployeeWarning()
   const updateWarningMutation = useUpdateEmployeeWarning()
@@ -67,12 +61,6 @@ export function WarningsContent() {
 
   // Get warnings data based on search
   const getWarningsData = () => {
-    if (searchEmployeeId && employeeWarningsData?.data) {
-      return employeeWarningsData.data
-        .slice()
-        .sort((a: EmployeeWarning, b: EmployeeWarning) => Number(b.id) - Number(a.id))
-        .map(transformWarningData)
-    }
     if (warningsData?.data) {
       return warningsData.data
         .slice()
@@ -91,6 +79,15 @@ export function WarningsContent() {
     if (warning) {
       setSelectedWarning(warning)
       setIsEditDialogOpen(true)
+    }
+  }
+
+  const handleOpenStatusDialog = (id: string) => {
+    const warning = warningsData?.data?.find((w: EmployeeWarning) => w.id.toString() === id)
+    if (warning) {
+      setSelectedWarning(warning)
+      setStatusValue(warning.status || "active")
+      setIsStatusDialogOpen(true)
     }
   }
 
@@ -169,6 +166,30 @@ export function WarningsContent() {
     }
   }
 
+  const handleUpdateWarningStatus = async (status: string) => {
+    if (!selectedWarning) return
+
+    try {
+      const idNum = Number(selectedWarning.id)
+      const updatePayload = { id: idNum, status }
+
+      await updateWarningMutation.mutateAsync({
+        id: idNum,
+        data: updatePayload,
+      })
+
+      toast.success("Warning status updated successfully")
+      setIsStatusDialogOpen(false)
+      setSelectedWarning(null)
+      refetchWarnings()
+    } catch (error: any) {
+      const serverMessage = error?.response?.data?.error || error?.message
+      console.error("Status update error:", error)
+      toast.error(serverMessage || "Failed to update warning status")
+      throw error
+    }
+  }
+
   const handleFileUpload = async (file: File) => {
     setIsUploading(true)
     const formData = new FormData()
@@ -188,17 +209,8 @@ export function WarningsContent() {
     }
   }
 
-  const handleEmployeeSearch = () => {
-    if (searchEmployeeId) {
-      refetchEmployeeWarnings()
-    }
-  }
-
   const handleManualRefresh = () => {
     refetchWarnings()
-    if (searchEmployeeId) {
-      refetchEmployeeWarnings()
-    }
     toast.info("Refreshing warnings...")
   }
 
@@ -376,6 +388,15 @@ export function WarningsContent() {
           <Button
             variant="outline"
             size="icon"
+            onClick={() => handleOpenStatusDialog(row.id)}
+            title="Change Status"
+            className="text-amber-600 hover:text-amber-800"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
             onClick={() => handleEdit(row.id)}
             title="Edit"
             disabled={row.status === "withdrawn" || row.status === "expired"}
@@ -445,7 +466,6 @@ export function WarningsContent() {
   ]
 
   const isLoading = isLoadingWarnings || 
-    (searchEmployeeId ? isLoadingEmployeeWarnings : false) ||
     createWarningMutation.isPending || 
     updateWarningMutation.isPending || 
     deleteWarningMutation.isPending
@@ -590,55 +610,6 @@ export function WarningsContent() {
           </Card>
         </div>
 
-        {/* Search Section */}
-        <Card className="border border-gray-200 shadow-sm mb-6">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row md:items-center gap-4">
-              <div className="flex-1">
-                <Label htmlFor="employeeSearch" className="text-sm font-medium text-gray-700 mb-2 block">
-                  Search by Employee ID
-                </Label>
-                <div className="flex items-center space-x-3">
-                  <Hash className="h-5 w-5 text-gray-500" />
-                  <Input
-                    id="employeeSearch"
-                    type="text"
-                    value={searchEmployeeId}
-                    onChange={(e) => setSearchEmployeeId(e.target.value)}
-                    placeholder="Employee ID"
-                    aria-label="Search by employee ID"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center space-x-2 pt-2">
-                <Button
-                  onClick={handleEmployeeSearch}
-                  disabled={isLoadingEmployeeWarnings || !searchEmployeeId}
-                  className="h-11 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-                >
-                  {isLoadingEmployeeWarnings ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Search className="h-4 w-4 mr-2" />
-                  )}
-                  Search
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSearchEmployeeId("")
-                    refetchWarnings()
-                  }}
-                  className="h-11 border-gray-300 hover:bg-gray-100"
-                >
-                  Clear
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Main Table */}
         <Card className="border border-gray-200 shadow-lg rounded-xl overflow-hidden mb-6">
           <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
@@ -670,12 +641,7 @@ export function WarningsContent() {
                     <AlertTriangle className="h-8 w-8 text-red-600" />
                   </div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No warnings found</h3>
-                  <p className="text-gray-600 mb-4">
-                    {searchEmployeeId 
-                      ? `No warnings found for employee ID: ${searchEmployeeId}`
-                      : "Start by adding your first employee warning"
-                    }
-                  </p>
+                  <p className="text-gray-600 mb-4">Start by adding your first employee warning</p>
                 </div>
               }
             />
@@ -746,6 +712,24 @@ export function WarningsContent() {
             </div>
           </CardContent>
         </Card>
+
+        <StatusChangeDialog
+          isOpen={isStatusDialogOpen}
+          onClose={() => {
+            setIsStatusDialogOpen(false)
+            setSelectedWarning(null)
+          }}
+          title="Change Warning Status"
+          description={`Update the status for ${selectedWarning?.employee_name || "this warning"}.`}
+          currentStatus={statusValue}
+          options={[
+            { value: "active", label: "Active" },
+            { value: "expired", label: "Expired" },
+            { value: "withdrawn", label: "Withdrawn" },
+          ]}
+          onConfirm={handleUpdateWarningStatus}
+          isLoading={updateWarningMutation.isPending}
+        />
 
         {/* Dialogs */}
         <AddWarningDialog

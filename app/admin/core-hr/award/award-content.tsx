@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { CoreHRClientWrapper } from "../components/core-hr-client-wrapper"
 import { DataTable } from "../components/data-table"
+import { StatusChangeDialog } from "../components/status-change-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Award, Calendar, User, RefreshCw, Loader2, Eye, Edit, Trash2 } from "lucide-react"
 import { toast } from "sonner"
@@ -86,8 +87,10 @@ export function AwardContent() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
   const [currentAward, setCurrentAward] = useState<LocalAward | null>(null)
   const [localAwards, setLocalAwards] = useState<LocalAward[]>([])
+  const [statusValue, setStatusValue] = useState("active")
   
   // Query hooks
   const { 
@@ -159,6 +162,15 @@ export function AwardContent() {
     }
   }
 
+  const handleOpenStatusDialog = (id: string) => {
+    const award = localAwards.find((a) => a.id === id)
+    if (award) {
+      setCurrentAward(award)
+      setStatusValue(award.status || "active")
+      setIsStatusDialogOpen(true)
+    }
+  }
+
   const handleDeleteAward = async () => {
     if (!currentAward) return
 
@@ -199,6 +211,14 @@ export function AwardContent() {
         },
       })
     }
+  }
+
+  const handleUpdateAwardStatus = async (status: string) => {
+    if (!currentAward) return
+
+    await handleUpdateAward(currentAward.id, { status })
+    setIsStatusDialogOpen(false)
+    setCurrentAward(null)
   }
 
   const handleCreateAward = async (data: CreateAwardRequest) => {
@@ -423,6 +443,15 @@ export function AwardContent() {
           <Button
             variant="outline"
             size="icon"
+            onClick={() => handleOpenStatusDialog(row.id)}
+            title="Change Status"
+            className="text-amber-600 hover:text-amber-800"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
             onClick={() => handleEditAward(row.id)}
             title="Edit"
             className="text-blue-600 hover:text-blue-800"
@@ -517,6 +546,24 @@ export function AwardContent() {
             }
           />
         </div>
+
+        <StatusChangeDialog
+          isOpen={isStatusDialogOpen}
+          onClose={() => {
+            setIsStatusDialogOpen(false)
+            setCurrentAward(null)
+          }}
+          title="Change Award Status"
+          description={`Update the status for ${currentAward?.employeeName || "this award"}.`}
+          currentStatus={statusValue}
+          options={[
+            { value: "active", label: "Active" },
+            { value: "inactive", label: "Inactive" },
+            { value: "pending", label: "Pending" },
+          ]}
+          onConfirm={handleUpdateAwardStatus}
+          isLoading={updateAwardMutation.isPending}
+        />
 
         {/* Add Award Dialog */}
         <AddAwardDialog

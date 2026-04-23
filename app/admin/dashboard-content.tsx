@@ -460,13 +460,19 @@ export function RecentEmployeesTable({
                   <div className="flex-shrink-0">
                     <div className="h-10 w-10 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
                       <span className="text-white text-sm font-medium">
-                        {employee.name.split(' ').map(n => n[0]).join('')}
+                        {(employee.name || employee.email || "U")
+                          .split(" ")
+                          .filter(Boolean)
+                          .map((part) => part[0])
+                          .join("")
+                          .toUpperCase()
+                          .slice(0, 2)}
                       </span>
                     </div>
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-900 truncate">
-                      {employee.name}
+                      {employee.name || "Unknown Employee"}
                     </p>
                     <div className="flex items-center space-x-1 mt-1">
                       <Mail className="h-3 w-3 text-slate-400" />

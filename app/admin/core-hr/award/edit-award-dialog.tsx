@@ -56,7 +56,7 @@ export function EditAwardDialog({
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
-    if (initialData) {
+    if (isOpen && initialData) {
       setFormData({
         employeeId: initialData.employeeId || "",
         employeeName: initialData.employeeName || "",
@@ -68,10 +68,9 @@ export function EditAwardDialog({
         description: initialData.description || "",
         status: initialData.status || "active",
       })
+      return
     }
-  }, [initialData])
 
-  useEffect(() => {
     if (!isOpen) {
       setFormData({
         employeeId: "",
@@ -86,7 +85,7 @@ export function EditAwardDialog({
       })
       setErrors({})
     }
-  }, [isOpen])
+  }, [initialData, isOpen])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target

@@ -51,17 +51,16 @@ export function EditTerminationDialog({
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
-    if (initialData) {
+    if (isOpen && initialData) {
       setFormData({
         id: initialData.id,
         termination_reason: initialData.termination_reason || "",
         termination_type: initialData.termination_type || "resignation",
         status: initialData.status || "active",
       })
+      return
     }
-  }, [initialData])
 
-  useEffect(() => {
     if (!isOpen) {
       setFormData({
         id: 0,
@@ -70,7 +69,7 @@ export function EditTerminationDialog({
       })
       setErrors({})
     }
-  }, [isOpen])
+  }, [initialData, isOpen])
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const { name, value } = e.target

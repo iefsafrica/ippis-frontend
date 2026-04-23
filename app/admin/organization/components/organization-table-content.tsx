@@ -168,12 +168,6 @@ export default function OrganizationTableContent({ title, records }: Organizatio
             <RefreshCw className="h-4 w-4" />
             <span className="ml-2 hidden sm:inline">Refresh</span>
           </Button>
-          <Button
-            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
-            onClick={() => toast.info(`Add ${title} is in demo mode`)}
-          >
-            Add {title}
-          </Button>
         </div>
       </div>
 
@@ -214,7 +208,14 @@ export default function OrganizationTableContent({ title, records }: Organizatio
 
       <Card className="border border-gray-200 shadow-sm">
         <CardContent className="p-0">
-          <DataTable title={title} columns={columns} data={rows} searchFields={searchFields} />
+          <DataTable
+            title={title}
+            columns={columns}
+            data={rows}
+            searchFields={searchFields}
+            onAdd={() => toast.info(`Add ${title} is in demo mode`)}
+            addButtonLabel={`Add ${title}`}
+          />
         </CardContent>
       </Card>
     </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { CoreHRClientWrapper } from "../components/core-hr-client-wrapper"
 import { DataTable } from "../components/data-table"
+import { StatusChangeDialog } from "../components/status-change-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, MapPin, User, CreditCard, Loader2, RefreshCw, Plane, Hotel, Briefcase, Eye, Edit, Trash2 } from "lucide-react"
 import { toast } from "sonner"
@@ -86,8 +87,10 @@ export function TravelContent() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
   const [currentTravel, setCurrentTravel] = useState<LocalTravel | null>(null)
   const [localTravels, setLocalTravels] = useState<LocalTravel[]>([])
+  const [statusValue, setStatusValue] = useState("pending")
   
   const { 
     data: travelsResponse, 
@@ -145,6 +148,15 @@ export function TravelContent() {
     if (travel) {
       setCurrentTravel(travel)
       setIsDeleteDialogOpen(true)
+    }
+  }
+
+  const handleOpenStatusDialog = (id: string) => {
+    const travel = localTravels.find((t) => t.id === id)
+    if (travel) {
+      setCurrentTravel(travel)
+      setStatusValue(travel.status || "pending")
+      setIsStatusDialogOpen(true)
     }
   }
 
@@ -211,6 +223,17 @@ export function TravelContent() {
       toast.error(error.message || "Failed to update travel record")
       throw error
     }
+  }
+
+  const handleUpdateTravelStatus = async (status: string) => {
+    if (!currentTravel) return
+
+    await handleUpdateTravel({
+      id: Number(currentTravel.id),
+      status,
+    })
+    setIsStatusDialogOpen(false)
+    setCurrentTravel(null)
   }
 
   const handleManualRefresh = () => {
@@ -447,6 +470,15 @@ export function TravelContent() {
             title="View Details"
           >
             <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleOpenStatusDialog(row.id)}
+            title="Change Status"
+            className="text-amber-600 hover:text-amber-800"
+          >
+            <RefreshCw className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
@@ -698,9 +730,29 @@ export function TravelContent() {
                   </Button>
                 </div>
               }
-            />
+          />
           </CardContent>
         </Card>
+
+        <StatusChangeDialog
+          isOpen={isStatusDialogOpen}
+          onClose={() => {
+            setIsStatusDialogOpen(false)
+            setCurrentTravel(null)
+          }}
+          title="Change Travel Status"
+          description={`Update the status for ${currentTravel?.employeeName || "this travel request"}.`}
+          currentStatus={statusValue}
+          options={[
+            { value: "pending", label: "Pending" },
+            { value: "approved", label: "Approved" },
+            { value: "rejected", label: "Rejected" },
+            { value: "completed", label: "Completed" },
+            { value: "cancelled", label: "Cancelled" },
+          ]}
+          onConfirm={handleUpdateTravelStatus}
+          isLoading={updateTravelMutation.isPending}
+        />
 
         {/* Dialogs */}
         <AddTravelDialog

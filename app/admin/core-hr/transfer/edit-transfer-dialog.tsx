@@ -180,7 +180,7 @@ export function EditTransferDialog({
   }, [employeesData])
 
   useEffect(() => {
-    if (initialData) {
+    if (isOpen && initialData) {
       const updateData: UpdateTransferPayload = {
         id: initialData.id,
         employee_id: initialData.employee_id,
@@ -194,10 +194,28 @@ export function EditTransferDialog({
         reason: initialData.reason,
         status: initialData.status,
       }
-      
+
       setFormData(updateData)
+      return
     }
-  }, [initialData])
+
+    if (!isOpen) {
+      setFormData({
+        id: 0,
+        employee_id: "",
+        employee_name: "",
+        from_department: "",
+        from_position: "",
+        to_department: "",
+        to_position: "",
+        to_location: "",
+        effective_date: "",
+        reason: "",
+        status: "pending",
+      })
+      setErrors({})
+    }
+  }, [initialData, isOpen])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target

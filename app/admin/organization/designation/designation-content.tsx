@@ -52,6 +52,12 @@ const defaultFormState: DesignationFormState = {
   status: "active",
 }
 
+const designationStatusOptions = [
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
+  { value: "pending", label: "Pending" },
+]
+
 export default function DesignationContent() {
   const { data, isLoading, error, refetch } = useGetDesignations()
   const createDesignationMutation = useCreateDesignation()
@@ -60,10 +66,12 @@ export default function DesignationContent() {
 
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showStatusDialog, setShowStatusDialog] = useState(false)
   const [showViewDialog, setShowViewDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [form, setForm] = useState<DesignationFormState>(defaultFormState)
   const [selectedDesignation, setSelectedDesignation] = useState<Designation | null>(null)
+  const [statusValue, setStatusValue] = useState("active")
 
   const designations = data?.data || []
 
@@ -111,9 +119,14 @@ export default function DesignationContent() {
       company_code: designation.company_code || "",
       title: designation.title || "",
       description: designation.description || "",
-      status: designation.status || "active",
     })
     setShowEditDialog(true)
+  }
+
+  const openStatusDialog = (designation: Designation) => {
+    setSelectedDesignation(designation)
+    setStatusValue(designation.status || "active")
+    setShowStatusDialog(true)
   }
 
   const openViewDialog = (designation: Designation) => {
@@ -162,7 +175,6 @@ export default function DesignationContent() {
       title: form.title.trim(),
       designation_name: form.title.trim(),
       description: form.description.trim() || undefined,
-      status: form.status,
     }
 
     try {
@@ -171,6 +183,24 @@ export default function DesignationContent() {
       setShowEditDialog(false)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to update designation"
+      toast.error(message)
+    }
+  }
+
+  const handleUpdateDesignationStatus = async () => {
+    if (!selectedDesignation) return
+
+    const payload: UpdateDesignationPayload = {
+      id: selectedDesignation.id,
+      status: statusValue,
+    }
+
+    try {
+      await updateDesignationMutation.mutateAsync(payload)
+      toast.success("Designation status updated successfully")
+      setShowStatusDialog(false)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to update designation status"
       toast.error(message)
     }
   }
@@ -302,6 +332,9 @@ export default function DesignationContent() {
           <Button variant="outline" size="icon" onClick={() => openViewDialog(row)}>
             <Eye className="h-4 w-4" />
           </Button>
+          <Button variant="outline" size="icon" className="text-amber-600 hover:text-amber-800" onClick={() => openStatusDialog(row)}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <Button variant="outline" size="icon" className="text-blue-600 hover:text-blue-800" onClick={() => openEditDialog(row)}>
             <Edit className="h-4 w-4" />
           </Button>
@@ -365,12 +398,6 @@ export default function DesignationContent() {
             <RefreshCw className="h-4 w-4" />
             <span className="ml-2 hidden sm:inline">Refresh</span>
           </Button>
-          <Button
-            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg flex-1 md:flex-none"
-            onClick={openAddDialog}
-          >
-            Add Designation
-          </Button>
         </div>
       </div>
 
@@ -411,7 +438,14 @@ export default function DesignationContent() {
 
       <Card className="border border-gray-200 shadow-sm">
         <CardContent className="p-0">
-          <DataTable title="Designation" columns={columns} data={designations} searchFields={searchFields} />
+          <DataTable
+            title="Designation"
+            columns={columns}
+            data={designations}
+            searchFields={searchFields}
+            onAdd={openAddDialog}
+            addButtonLabel="Add Designation"
+          />
         </CardContent>
       </Card>
 
@@ -448,19 +482,6 @@ export default function DesignationContent() {
                 onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                 placeholder="Enter description"
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
           <DialogFooter>
@@ -505,23 +526,6 @@ export default function DesignationContent() {
                 onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select
-                value={form.status}
-                onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}
-                disabled={updateDesignationMutation.isPending}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={updateDesignationMutation.isPending}>
@@ -536,6 +540,38 @@ export default function DesignationContent() {
               ) : (
                 "Update"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>Change Designation Status</DialogTitle>
+            <DialogDescription>Update the designation status from the table action.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4">
+            <Label>Status</Label>
+            <Select value={statusValue} onValueChange={(value) => setStatusValue(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                {designationStatusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowStatusDialog(false)} disabled={updateDesignationMutation.isPending}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateDesignationStatus} disabled={updateDesignationMutation.isPending}>
+              {updateDesignationMutation.isPending ? "Updating..." : "Update Status"}
             </Button>
           </DialogFooter>
         </DialogContent>

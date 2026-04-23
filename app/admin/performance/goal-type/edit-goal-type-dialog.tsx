@@ -12,20 +12,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { CheckCircle, Target } from "lucide-react"
 import type { TableGoalType } from "./goal-type-content"
 
 interface EditGoalTypeDialogProps {
   isOpen: boolean
   onClose: () => void
-  onSubmit: (data: { goal_type: string; description: string; status: "active" | "inactive" }) => Promise<void>
+  onSubmit: (data: { goal_type: string; description: string }) => Promise<void>
   goalType: TableGoalType
 }
 
@@ -38,7 +31,6 @@ export function EditGoalTypeDialog({
   const [formData, setFormData] = useState({
     goalType: goalType.goalType,
     description: goalType.description,
-    status: goalType.status as "active" | "inactive",
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -46,9 +38,8 @@ export function EditGoalTypeDialog({
     setFormData({
       goalType: goalType.goalType,
       description: goalType.description,
-      status: goalType.status,
     })
-  }, [goalType.goalType, goalType.description, goalType.status])
+  }, [goalType.goalType, goalType.description])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,7 +48,6 @@ export function EditGoalTypeDialog({
       await onSubmit({
         goal_type: formData.goalType.trim(),
         description: formData.description.trim(),
-        status: formData.status,
       })
       onClose()
     } finally {
@@ -109,30 +99,13 @@ export function EditGoalTypeDialog({
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="status" className="text-sm font-medium text-gray-700 mb-2 block">
-                  Status
-                </Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(v) => setFormData((prev) => ({ ...prev, status: v as "active" | "inactive" }))}
-                >
-                  <SelectTrigger className="h-11 border-gray-300 text-gray-900">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </div>
 
           <DialogFooter className="px-8 py-5 border-t border-gray-200 bg-gray-50">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-sm text-gray-600">
-                Goal type name, description, and status can be updated here.
+                Goal type name and description can be updated here.
               </div>
               <div className="flex items-center space-x-3 w-full sm:w-auto">
                 <Button

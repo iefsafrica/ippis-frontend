@@ -26,6 +26,7 @@ import { useGoalTypes } from "@/services/hooks/performance/useGoalTypes"
 import type {
   CreateGoalTrackingPayload,
   GoalTracking,
+  GoalTrackingStatus,
   UpdateGoalTrackingPayload,
 } from "@/types/performance/goal-tracking"
 
@@ -48,6 +49,13 @@ const defaultFormState: GoalTrackingFormState = {
   target_date: "",
   achieved: false,
 }
+
+const goalStatusOptions: Array<{ value: GoalTrackingStatus; label: string }> = [
+  { value: "not-started", label: "Not Started" },
+  { value: "in-progress", label: "In Progress" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+]
 
 const formatDate = (value?: string | null) => {
   if (!value) return "N/A"
@@ -73,11 +81,13 @@ export default function GoalTrackingContent() {
 
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showStatusDialog, setShowStatusDialog] = useState(false)
   const [showViewDialog, setShowViewDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [selectedGoal, setSelectedGoal] = useState<GoalTracking | null>(null)
   const [selectedGoalId, setSelectedGoalId] = useState<string | number | undefined>(undefined)
   const [form, setForm] = useState<GoalTrackingFormState>(defaultFormState)
+  const [statusValue, setStatusValue] = useState<GoalTrackingStatus>("in-progress")
 
   const { data: selectedGoalResponse, isFetching: isFetchingGoal } = useGetGoalTrackingById(selectedGoalId)
 
@@ -135,6 +145,13 @@ export default function GoalTrackingContent() {
     setShowEditDialog(true)
   }
 
+  const openStatusDialog = (goal: GoalTracking) => {
+    setSelectedGoal(goal)
+    setSelectedGoalId(goal.id)
+    setStatusValue(goal.status || "in-progress")
+    setShowStatusDialog(true)
+  }
+
   const openViewDialog = (goal: GoalTracking) => {
     setSelectedGoal(goal)
     setSelectedGoalId(goal.id)
@@ -175,7 +192,7 @@ export default function GoalTrackingContent() {
 
   const handleUpdateGoal = async () => {
     if (!selectedGoal) return
-    if (!form.title.trim() || !form.description.trim() || !form.status.trim()) {
+    if (!form.title.trim() || !form.description.trim()) {
       toast.error("Please fill all required fields")
       return
     }
@@ -186,7 +203,6 @@ export default function GoalTrackingContent() {
       goal_type_id: form.goal_type_id ? Number(form.goal_type_id) : undefined,
       title: form.title.trim(),
       description: form.description.trim(),
-      status: form.status,
       target_date: form.target_date || undefined,
       achieved: form.achieved,
     }
@@ -197,6 +213,24 @@ export default function GoalTrackingContent() {
       setShowEditDialog(false)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to update goal"
+      toast.error(message)
+    }
+  }
+
+  const handleUpdateStatus = async () => {
+    if (!selectedGoal) return
+
+    const payload: UpdateGoalTrackingPayload = {
+      id: selectedGoal.id,
+      status: statusValue,
+    }
+
+    try {
+      await updateGoalMutation.mutateAsync(payload)
+      toast.success("Goal status updated successfully")
+      setShowStatusDialog(false)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to update goal status"
       toast.error(message)
     }
   }
@@ -299,6 +333,9 @@ export default function GoalTrackingContent() {
           <Button variant="outline" size="icon" onClick={() => openViewDialog(row)}>
             <Eye className="h-4 w-4" />
           </Button>
+          <Button variant="outline" size="icon" className="text-amber-600 hover:text-amber-800" onClick={() => openStatusDialog(row)}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <Button variant="outline" size="icon" className="text-blue-600 hover:text-blue-800" onClick={() => openEditDialog(row)}>
             <Edit className="h-4 w-4" />
           </Button>
@@ -358,16 +395,10 @@ export default function GoalTrackingContent() {
             className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"
             onClick={() => refetch()}
             disabled={isLoading}
-          >
-            <RefreshCw className="h-4 w-4" />
-            <span className="ml-2 hidden sm:inline">Refresh</span>
-          </Button>
-          <Button
-            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
-            onClick={openAddDialog}
-          >
-            Add Goal
-          </Button>
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span className="ml-2 hidden sm:inline">Refresh</span>
+            </Button>
         </div>
       </div>
 
@@ -413,6 +444,8 @@ export default function GoalTrackingContent() {
             columns={columns}
             data={goals}
             searchFields={searchFields}
+            onAdd={openAddDialog}
+            addButtonLabel="Add Goal"
           />
         </CardContent>
       </Card>
@@ -485,20 +518,6 @@ export default function GoalTrackingContent() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="not-started">Not Started</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="goal-target-date">Target Date</Label>
               <Input
                 id="goal-target-date"
@@ -544,20 +563,6 @@ export default function GoalTrackingContent() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="not-started">Not Started</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="edit-goal-target-date">Target Date</Label>
               <Input
                 id="edit-goal-target-date"
@@ -581,6 +586,38 @@ export default function GoalTrackingContent() {
             </Button>
             <Button onClick={handleUpdateGoal} disabled={updateGoalMutation.isPending}>
               {updateGoalMutation.isPending ? "Updating..." : "Update"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>Change Goal Status</DialogTitle>
+            <DialogDescription>Update the current goal status from the table action.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4">
+            <Label>Status</Label>
+            <Select value={statusValue} onValueChange={(value) => setStatusValue(value as GoalTrackingStatus)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                {goalStatusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowStatusDialog(false)} disabled={updateGoalMutation.isPending}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateStatus} disabled={updateGoalMutation.isPending}>
+              {updateGoalMutation.isPending ? "Updating..." : "Update Status"}
             </Button>
           </DialogFooter>
         </DialogContent>

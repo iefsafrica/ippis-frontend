@@ -57,11 +57,11 @@ export function EditComplaintDialog({
   const [selectedAssignee, setSelectedAssignee] = useState("")
 
   useEffect(() => {
-    if (initialData) {
+    if (isOpen && initialData) {
       const priority = initialData.priority || "medium"
       const status = initialData.status || "pending"
       const assignedTo = initialData.assigned_to || ""
-      
+
       setFormData({
         id: initialData.id || 0,
         complaint: initialData.complaint || "",
@@ -71,14 +71,13 @@ export function EditComplaintDialog({
         //@ts-expect-error - fix this later
         notes: initialData.notes || "",
       })
-      
+
       setSelectedPriority(priority)
       setSelectedStatus(status)
       setSelectedAssignee(assignedTo)
+      return
     }
-  }, [initialData])
 
-  useEffect(() => {
     if (!isOpen) {
       setFormData({
         id: 0,
@@ -94,7 +93,7 @@ export function EditComplaintDialog({
       setSelectedStatus("pending")
       setSelectedAssignee("")
     }
-  }, [isOpen])
+  }, [initialData, isOpen])
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const { name, value } = e.target

@@ -70,12 +70,18 @@ export const updateCompany = async (
   id: string | number,
   payload: UpdateCompanyPayload
 ): Promise<UpdateCompanyResponse> => {
+  const companyId = Number(id);
+
+  if (Number.isNaN(companyId)) {
+    throw new Error("Valid company ID is required");
+  }
+
   const updatePayload = {
-    id: String(id),
+    id: companyId,
     ...payload,
   };
 
-  const response = await request<UpdateCompanyResponse>(`${COMPANY_BASE_URL}?id=${id}`, {
+  const response = await request<UpdateCompanyResponse>(COMPANY_BASE_URL, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",

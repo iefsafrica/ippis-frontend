@@ -9,9 +9,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AddGoalTypeDialog } from "./add-goal-type-dialog"
 import { EditGoalTypeDialog } from "./edit-goal-type-dialog"
 import { ViewGoalTypeDialog } from "./view-goal-type-dialog"
@@ -45,6 +55,7 @@ interface GoalTypeContentProps {
   onRefresh: () => void
   onAddGoalType: (goalType: { goal_type: string; description: string; status: "active" | "inactive" }) => void
   onEditGoalType: (id: string, data: { goal_type: string; description: string; status: "active" | "inactive" }) => void
+  onChangeGoalTypeStatus: (id: string, status: "active" | "inactive") => void
   onDeleteGoalType: (id: string) => void
 }
 
@@ -71,13 +82,16 @@ export default function GoalTypeContent({
   onRefresh,
   onAddGoalType,
   onEditGoalType,
+  onChangeGoalTypeStatus,
   onDeleteGoalType,
 }: GoalTypeContentProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [currentGoalType, setCurrentGoalType] = useState<TableGoalType | null>(null)
+  const [statusValue, setStatusValue] = useState<"active" | "inactive">("active")
 
   const activeCount = useMemo(
     () => goalTypes.filter((g) => g.status === "active").length,
@@ -133,6 +147,17 @@ export default function GoalTypeContent({
     setIsEditDialogOpen(true)
   }
 
+  const handleChangeStatus = (id: string) => {
+    const goalType = goalTypes.find((g) => g.id === id)
+    if (!goalType) {
+      toast.error("Goal type not found")
+      return
+    }
+    setCurrentGoalType(goalType)
+    setStatusValue(goalType.status)
+    setIsStatusDialogOpen(true)
+  }
+
   const handleDeletePrompt = (id: string) => {
     const goalType = goalTypes.find((g) => g.id === id)
     if (!goalType) {
@@ -150,10 +175,20 @@ export default function GoalTypeContent({
     setCurrentGoalType(null)
   }
 
-  const handleEditSubmit = async (data: { goal_type: string; description: string; status: "active" | "inactive" }) => {
+  const handleEditSubmit = async (data: { goal_type: string; description: string }) => {
     if (!currentGoalType) return
-    await onEditGoalType(currentGoalType.id, data)
+    await onEditGoalType(currentGoalType.id, {
+      ...data,
+      status: currentGoalType.status,
+    })
     setIsEditDialogOpen(false)
+    setCurrentGoalType(null)
+  }
+
+  const handleStatusSubmit = async () => {
+    if (!currentGoalType) return
+    await onChangeGoalTypeStatus(currentGoalType.id, statusValue)
+    setIsStatusDialogOpen(false)
     setCurrentGoalType(null)
   }
 
@@ -248,6 +283,15 @@ export default function GoalTypeContent({
             title="View Details"
           >
             <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleChangeStatus(row.id)}
+            title="Change Status"
+            className="text-amber-600 hover:text-amber-800"
+          >
+            <RefreshCw className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
@@ -353,15 +397,7 @@ export default function GoalTypeContent({
           >
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             <span className="ml-2 hidden sm:inline">Refresh</span>
-          </Button>
-          <Button
-            onClick={() => setIsAddDialogOpen(true)}
-            disabled={isLoading}
-            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
-          >
-            <AlertCircle className="h-4 w-4 mr-2" />
-            Add Goal Type
-          </Button>
+            </Button>
         </div>
       </div>
 
@@ -452,6 +488,8 @@ export default function GoalTypeContent({
             columns={columns}
             data={sortedGoalTypes}
             searchFields={searchFields}
+            onAdd={() => setIsAddDialogOpen(true)}
+            addButtonLabel="Add Goal Type"
           />
         </CardContent>
       </Card>
@@ -472,6 +510,65 @@ export default function GoalTypeContent({
           onSubmit={handleEditSubmit}
           goalType={currentGoalType}
         />
+      )}
+
+      {currentGoalType && (
+        <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
+          <DialogContent className="p-0 max-w-2xl overflow-hidden border border-gray-200 shadow-xl">
+            <DialogHeader className="px-8 pt-8 pb-6 border-b border-gray-100">
+              <div>
+                <DialogTitle className="text-lg font-semibold text-gray-900">
+                  Change Goal Type Status
+                </DialogTitle>
+                <DialogDescription className="text-gray-600 mt-1">
+                  Update the status without editing the goal type details.
+                </DialogDescription>
+              </div>
+            </DialogHeader>
+
+            <div className="px-8 py-6">
+              <div className="space-y-2">
+                <Label htmlFor="goal-type-status" className="text-sm font-medium text-gray-700">
+                  Status
+                </Label>
+                <Select value={statusValue} onValueChange={(value) => setStatusValue(value as "active" | "inactive")}>
+                  <SelectTrigger id="goal-type-status" className="h-11 border-gray-300 text-gray-900">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <DialogFooter className="px-8 py-5 border-t border-gray-200 bg-gray-50">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
+                <div className="text-sm text-gray-600">
+                  Current status: <span className="font-medium capitalize">{currentGoalType.status}</span>
+                </div>
+                <div className="flex items-center space-x-3 w-full sm:w-auto">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsStatusDialogOpen(false)}
+                    className="h-10 px-6 border-gray-300 hover:bg-gray-100 text-gray-700 flex-1 sm:flex-none"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleStatusSubmit}
+                    className="h-10 px-8 bg-amber-600 hover:bg-amber-700 text-white flex-1 sm:flex-none"
+                  >
+                    Update Status
+                  </Button>
+                </div>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {currentGoalType && (

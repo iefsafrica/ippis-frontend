@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { CoreHRClientWrapper } from "../components/core-hr-client-wrapper"
 import { DataTable } from "../components/data-table"
+import { StatusChangeDialog } from "../components/status-change-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, MapPin, User, Building, Briefcase, Hash, Loader2, RefreshCw, ArrowRight, Eye, Edit, Trash2 } from "lucide-react"
 import { toast } from "sonner"
@@ -76,9 +77,11 @@ export function TransferContent() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
   const [currentTransfer, setCurrentTransfer] = useState<Transfer | null>(null)
   const [filters, setFilters] = useState<TransferFilters>({})
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [statusValue, setStatusValue] = useState("pending")
   
   const { 
     data: transfersResponse, 
@@ -121,6 +124,15 @@ export function TransferContent() {
       setCurrentTransfer(transfer)
       setDeleteTargetId(id)
       setIsDeleteDialogOpen(true)
+    }
+  }
+
+  const handleOpenStatusDialog = (id: string) => {
+    const transfer = transfers.find((t: Transfer) => t.id.toString() === id)
+    if (transfer) {
+      setCurrentTransfer(transfer)
+      setStatusValue(transfer.status || "pending")
+      setIsStatusDialogOpen(true)
     }
   }
 
@@ -167,6 +179,17 @@ export function TransferContent() {
       toast.error(error.message || "Failed to update transfer")
       throw error
     }
+  }
+
+  const handleUpdateTransferStatus = async (status: string) => {
+    if (!currentTransfer) return
+
+    await handleUpdateTransfer({
+      id: currentTransfer.id,
+      status,
+    })
+    setIsStatusDialogOpen(false)
+    setCurrentTransfer(null)
   }
 
   const handleManualRefresh = () => {
@@ -375,6 +398,15 @@ export function TransferContent() {
             title="View Details"
           >
             <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handleOpenStatusDialog(row.id.toString())}
+            title="Change Status"
+            className="text-amber-600 hover:text-amber-800"
+          >
+            <RefreshCw className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
@@ -622,9 +654,28 @@ export function TransferContent() {
                   </Button>
                 </div>
               }
-            />
+          />
           </CardContent>
         </Card>
+
+        <StatusChangeDialog
+          isOpen={isStatusDialogOpen}
+          onClose={() => {
+            setIsStatusDialogOpen(false)
+            setCurrentTransfer(null)
+          }}
+          title="Change Transfer Status"
+          description={`Update the status for ${currentTransfer?.employee_name || "this transfer request"}.`}
+          currentStatus={statusValue}
+          options={[
+            { value: "pending", label: "Pending" },
+            { value: "approved", label: "Approved" },
+            { value: "rejected", label: "Rejected" },
+            { value: "cancelled", label: "Cancelled" },
+          ]}
+          onConfirm={handleUpdateTransferStatus}
+          isLoading={updateTransferMutation.isPending}
+        />
 
         {/* Dialogs */}
         <AddTransferDialog

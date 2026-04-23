@@ -27,7 +27,7 @@ import type {
   CreateAppraiserPayload,
   UpdateAppraiserPayload,
 } from "@/types/performance/appraiser"
-import { CalendarDays, CheckCircle2, ClipboardCheck, Edit, Eye, Loader2, Plus, RefreshCw, Trash2, XCircle } from "lucide-react"
+import { CalendarDays, CheckCircle2, ClipboardCheck, Edit, Eye, Loader2, RefreshCw, Trash2, XCircle } from "lucide-react"
 import { toast } from "sonner"
 
 type AppraiserFormState = {
@@ -51,6 +51,13 @@ const defaultFormState: AppraiserFormState = {
   remarks: "",
   added_by: "",
 }
+
+const appraiserStatusOptions: Array<{ value: AppraiserStatus; label: string }> = [
+  { value: "scheduled", label: "Scheduled" },
+  { value: "in-progress", label: "In Progress" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+]
 
 const toInputDate = (value?: string | null) => {
   if (!value) return ""
@@ -83,11 +90,13 @@ export default function AppraisalContent() {
 
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showStatusDialog, setShowStatusDialog] = useState(false)
   const [showViewDialog, setShowViewDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [selectedAppraiser, setSelectedAppraiser] = useState<Appraiser | null>(null)
   const [selectedAppraiserId, setSelectedAppraiserId] = useState<string | number | undefined>(undefined)
   const [form, setForm] = useState<AppraiserFormState>(defaultFormState)
+  const [statusValue, setStatusValue] = useState<AppraiserStatus>("scheduled")
 
   const { data: selectedAppraiserResponse, isFetching: isFetchingAppraiser } =
     useGetAppraiserById(selectedAppraiserId)
@@ -152,6 +161,13 @@ export default function AppraisalContent() {
     setShowEditDialog(true)
   }
 
+  const openStatusDialog = (appraiser: Appraiser) => {
+    setSelectedAppraiser(appraiser)
+    setSelectedAppraiserId(appraiser.id)
+    setStatusValue((appraiser.status as AppraiserStatus) || "scheduled")
+    setShowStatusDialog(true)
+  }
+
   const openViewDialog = (appraiser: Appraiser) => {
     setSelectedAppraiser(appraiser)
     setSelectedAppraiserId(appraiser.id)
@@ -169,8 +185,7 @@ export default function AppraisalContent() {
       !form.employee_id.trim() ||
       !form.department_id.trim() ||
       !form.designation_id.trim() ||
-      !form.appraisal_date.trim() ||
-      !form.status.trim()
+      !form.appraisal_date.trim()
     ) {
       toast.error("Please fill all required fields")
       return
@@ -205,11 +220,6 @@ export default function AppraisalContent() {
 
   const handleUpdateAppraiser = async () => {
     if (!selectedAppraiser) return
-    if (!form.status.trim()) {
-      toast.error("Status is required")
-      return
-    }
-
     if (!isValidRating(form.rating)) {
       toast.error("Rating must be between 0 and 100")
       return
@@ -221,7 +231,6 @@ export default function AppraisalContent() {
       department_id: form.department_id.trim() ? Number(form.department_id) : undefined,
       designation_id: form.designation_id.trim() ? Number(form.designation_id) : undefined,
       appraisal_date: form.appraisal_date || undefined,
-      status: form.status,
       remarks: form.remarks.trim() || undefined,
       rating: form.rating.trim() ? Number(form.rating) : null,
       added_by: form.added_by.trim() || undefined,
@@ -233,6 +242,24 @@ export default function AppraisalContent() {
       setShowEditDialog(false)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to update appraiser"
+      toast.error(message)
+    }
+  }
+
+  const handleUpdateStatus = async () => {
+    if (!selectedAppraiser) return
+
+    const payload: UpdateAppraiserPayload = {
+      id: selectedAppraiser.id,
+      status: statusValue,
+    }
+
+    try {
+      await updateAppraiserMutation.mutateAsync(payload)
+      toast.success("Appraiser status updated successfully")
+      setShowStatusDialog(false)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to update appraiser status"
       toast.error(message)
     }
   }
@@ -333,6 +360,9 @@ export default function AppraisalContent() {
           <Button variant="outline" size="icon" onClick={() => openViewDialog(row)}>
             <Eye className="h-4 w-4" />
           </Button>
+          <Button variant="outline" size="icon" className="text-amber-600 hover:text-amber-800" onClick={() => openStatusDialog(row)}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <Button variant="outline" size="icon" className="text-blue-600 hover:text-blue-800" onClick={() => openEditDialog(row)}>
             <Edit className="h-4 w-4" />
           </Button>
@@ -392,18 +422,10 @@ export default function AppraisalContent() {
             className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"
             onClick={() => refetch()}
             disabled={isLoading}
-          >
-            <RefreshCw className="h-4 w-4" />
-            <span className="ml-2 hidden sm:inline">Refresh</span>
-          </Button>
-          <Button
-            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
-            onClick={openAddDialog}
-            disabled={createAppraiserMutation.isPending}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Appraiser
-          </Button>
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span className="ml-2 hidden sm:inline">Refresh</span>
+            </Button>
         </div>
       </div>
 
@@ -449,6 +471,9 @@ export default function AppraisalContent() {
             columns={columns}
             data={appraisers}
             searchFields={searchFields}
+            onAdd={openAddDialog}
+            addButtonLabel="Add Appraiser"
+            addButtonLoading={createAppraiserMutation.isPending}
           />
         </CardContent>
       </Card>
@@ -530,20 +555,6 @@ export default function AppraisalContent() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="scheduled">Scheduled</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="appraisal-rating">Rating (0 - 100)</Label>
               <Input
                 id="appraisal-rating"
@@ -593,20 +604,6 @@ export default function AppraisalContent() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="scheduled">Scheduled</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="edit-appraisal-rating">Rating (0 - 100)</Label>
               <Input
                 id="edit-appraisal-rating"
@@ -634,6 +631,38 @@ export default function AppraisalContent() {
             </Button>
             <Button onClick={handleUpdateAppraiser} disabled={updateAppraiserMutation.isPending}>
               {updateAppraiserMutation.isPending ? "Updating..." : "Update"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>Change Appraiser Status</DialogTitle>
+            <DialogDescription>Update the appraisal status from the table action.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4">
+            <Label>Status</Label>
+            <Select value={statusValue} onValueChange={(value) => setStatusValue(value as AppraiserStatus)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                {appraiserStatusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowStatusDialog(false)} disabled={updateAppraiserMutation.isPending}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateStatus} disabled={updateAppraiserMutation.isPending}>
+              {updateAppraiserMutation.isPending ? "Updating..." : "Update Status"}
             </Button>
           </DialogFooter>
         </DialogContent>

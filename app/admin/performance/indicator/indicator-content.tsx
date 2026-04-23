@@ -46,6 +46,11 @@ const defaultFormState: IndicatorFormState = {
   added_by: "",
 }
 
+const indicatorStatusOptions: Array<{ value: "active" | "inactive"; label: string }> = [
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
+]
+
 const formatDate = (value?: string | null) => {
   if (!value) return "N/A"
   const date = new Date(value)
@@ -63,11 +68,13 @@ export default function IndicatorContent() {
 
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showStatusDialog, setShowStatusDialog] = useState(false)
   const [showViewDialog, setShowViewDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [selectedIndicator, setSelectedIndicator] = useState<Indicator | null>(null)
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | number | undefined>(undefined)
   const [form, setForm] = useState<IndicatorFormState>(defaultFormState)
+  const [statusValue, setStatusValue] = useState<"active" | "inactive">("active")
 
   const { data: selectedIndicatorResponse, isFetching: isFetchingIndicator } = useGetIndicatorById(selectedIndicatorId)
 
@@ -133,6 +140,13 @@ export default function IndicatorContent() {
     setShowEditDialog(true)
   }
 
+  const openStatusDialog = (indicator: Indicator) => {
+    setSelectedIndicator(indicator)
+    setSelectedIndicatorId(indicator.id)
+    setStatusValue((indicator.status as "active" | "inactive") || "active")
+    setShowStatusDialog(true)
+  }
+
   const openViewDialog = (indicator: Indicator) => {
     setSelectedIndicator(indicator)
     setSelectedIndicatorId(indicator.id)
@@ -173,7 +187,7 @@ export default function IndicatorContent() {
 
   const handleUpdateIndicator = async () => {
     if (!selectedIndicator) return
-    if (!form.department_id.trim() || !form.description.trim() || !form.status.trim()) {
+    if (!form.department_id.trim() || !form.description.trim()) {
       toast.error("Please fill all required fields")
       return
     }
@@ -184,7 +198,6 @@ export default function IndicatorContent() {
       designation_id: form.designation_id ? Number(form.designation_id) : undefined,
       indicator_name: form.indicator_name.trim() || undefined,
       description: form.description.trim(),
-      status: form.status,
       added_by: form.added_by.trim() || undefined,
     }
 
@@ -194,6 +207,24 @@ export default function IndicatorContent() {
       setShowEditDialog(false)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to update indicator"
+      toast.error(message)
+    }
+  }
+
+  const handleUpdateStatus = async () => {
+    if (!selectedIndicator) return
+
+    const payload: UpdateIndicatorPayload = {
+      id: selectedIndicator.id,
+      status: statusValue,
+    }
+
+    try {
+      await updateIndicatorMutation.mutateAsync(payload)
+      toast.success("Indicator status updated successfully")
+      setShowStatusDialog(false)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to update indicator status"
       toast.error(message)
     }
   }
@@ -274,6 +305,9 @@ export default function IndicatorContent() {
           <Button variant="outline" size="icon" onClick={() => openViewDialog(row)}>
             <Eye className="h-4 w-4" />
           </Button>
+          <Button variant="outline" size="icon" className="text-amber-600 hover:text-amber-800" onClick={() => openStatusDialog(row)}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <Button variant="outline" size="icon" className="text-blue-600 hover:text-blue-800" onClick={() => openEditDialog(row)}>
             <Edit className="h-4 w-4" />
           </Button>
@@ -333,16 +367,10 @@ export default function IndicatorContent() {
             className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"
             onClick={() => refetch()}
             disabled={isLoading}
-          >
-            <RefreshCw className="h-4 w-4" />
-            <span className="ml-2 hidden sm:inline">Refresh</span>
-          </Button>
-          <Button
-            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
-            onClick={openAddDialog}
-          >
-            Add Indicator
-          </Button>
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span className="ml-2 hidden sm:inline">Refresh</span>
+            </Button>
         </div>
       </div>
 
@@ -388,6 +416,8 @@ export default function IndicatorContent() {
             columns={columns}
             data={indicators}
             searchFields={searchFields}
+            onAdd={openAddDialog}
+            addButtonLabel="Add Indicator"
           />
         </CardContent>
       </Card>
@@ -453,18 +483,6 @@ export default function IndicatorContent() {
                 onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                 rows={4}
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="added-by">Added By</Label>
@@ -540,18 +558,6 @@ export default function IndicatorContent() {
                 rows={4}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={updateIndicatorMutation.isPending}>
@@ -559,6 +565,38 @@ export default function IndicatorContent() {
             </Button>
             <Button onClick={handleUpdateIndicator} disabled={updateIndicatorMutation.isPending}>
               {updateIndicatorMutation.isPending ? "Updating..." : "Update"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>Change Indicator Status</DialogTitle>
+            <DialogDescription>Update the indicator status from the table action.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4">
+            <Label>Status</Label>
+            <Select value={statusValue} onValueChange={(value) => setStatusValue(value as "active" | "inactive")}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                {indicatorStatusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowStatusDialog(false)} disabled={updateIndicatorMutation.isPending}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateStatus} disabled={updateIndicatorMutation.isPending}>
+              {updateIndicatorMutation.isPending ? "Updating..." : "Update Status"}
             </Button>
           </DialogFooter>
         </DialogContent>

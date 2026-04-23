@@ -44,6 +44,11 @@ const defaultFormState: CompanyPolicyFormState = {
   expiry_date: "",
 }
 
+const companyPolicyStatusOptions = [
+  { value: "draft", label: "Draft" },
+  { value: "published", label: "Published" },
+]
+
 const formatDate = (value?: string | null) => {
   if (!value) return "N/A"
   const date = new Date(value)
@@ -75,11 +80,13 @@ export default function CompanyPolicyContent() {
 
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showStatusDialog, setShowStatusDialog] = useState(false)
   const [showViewDialog, setShowViewDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [selectedPolicy, setSelectedPolicy] = useState<CompanyPolicy | null>(null)
   const [selectedPolicyId, setSelectedPolicyId] = useState<string | number | undefined>(undefined)
   const [form, setForm] = useState<CompanyPolicyFormState>(defaultFormState)
+  const [statusValue, setStatusValue] = useState("draft")
 
   const { data: selectedPolicyResponse, isFetching: isFetchingPolicy } = useGetCompanyPolicyById(selectedPolicyId)
 
@@ -134,11 +141,17 @@ export default function CompanyPolicyContent() {
       company_code: policy.company_code || "",
       title: policy.title || "",
       content: policy.content || "",
-      status: policy.status || "draft",
       publish_date: isoToInputDateTime(policy.publish_date),
       expiry_date: isoToInputDateTime(policy.expiry_date),
     })
     setShowEditDialog(true)
+  }
+
+  const openStatusDialog = (policy: CompanyPolicy) => {
+    setSelectedPolicy(policy)
+    setSelectedPolicyId(policy.id)
+    setStatusValue(policy.status || "draft")
+    setShowStatusDialog(true)
   }
 
   const openViewDialog = (policy: CompanyPolicy) => {
@@ -190,7 +203,6 @@ export default function CompanyPolicyContent() {
       id: selectedPolicy.id,
       title: form.title.trim(),
       content: form.content.trim(),
-      status: form.status,
       publish_date: inputDateTimeToIso(form.publish_date),
       expiry_date: inputDateTimeToIso(form.expiry_date),
     }
@@ -201,6 +213,24 @@ export default function CompanyPolicyContent() {
       setShowEditDialog(false)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to update company policy"
+      toast.error(message)
+    }
+  }
+
+  const handleUpdateCompanyPolicyStatus = async () => {
+    if (!selectedPolicy) return
+
+    const payload: UpdateCompanyPolicyPayload = {
+      id: selectedPolicy.id,
+      status: statusValue,
+    }
+
+    try {
+      await updateCompanyPolicyMutation.mutateAsync(payload)
+      toast.success("Company policy status updated successfully")
+      setShowStatusDialog(false)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to update company policy status"
       toast.error(message)
     }
   }
@@ -289,6 +319,9 @@ export default function CompanyPolicyContent() {
           <Button variant="outline" size="icon" onClick={() => openViewDialog(row)}>
             <Eye className="h-4 w-4" />
           </Button>
+          <Button variant="outline" size="icon" className="text-amber-600 hover:text-amber-800" onClick={() => openStatusDialog(row)}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <Button variant="outline" size="icon" className="text-blue-600 hover:text-blue-800" onClick={() => openEditDialog(row)}>
             <Edit className="h-4 w-4" />
           </Button>
@@ -352,12 +385,6 @@ export default function CompanyPolicyContent() {
             <RefreshCw className="h-4 w-4" />
             <span className="ml-2 hidden sm:inline">Refresh</span>
           </Button>
-          <Button
-            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
-            onClick={openAddDialog}
-          >
-            Add Policy
-          </Button>
         </div>
       </div>
 
@@ -403,6 +430,8 @@ export default function CompanyPolicyContent() {
             columns={columns}
             data={policies}
             searchFields={searchFields}
+            onAdd={openAddDialog}
+            addButtonLabel="Add Policy"
           />
         </CardContent>
       </Card>
@@ -441,18 +470,6 @@ export default function CompanyPolicyContent() {
                 placeholder="Enter policy content"
                 rows={4}
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="published">Published</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="policy-publish-date">Publish Date</Label>
@@ -509,18 +526,6 @@ export default function CompanyPolicyContent() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="published">Published</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="edit-policy-publish-date">Publish Date</Label>
               <Input
                 id="edit-policy-publish-date"
@@ -545,6 +550,38 @@ export default function CompanyPolicyContent() {
             </Button>
             <Button onClick={handleUpdateCompanyPolicy} disabled={updateCompanyPolicyMutation.isPending}>
               {updateCompanyPolicyMutation.isPending ? "Updating..." : "Update"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>Change Company Policy Status</DialogTitle>
+            <DialogDescription>Update the policy status from the table action.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4">
+            <Label>Status</Label>
+            <Select value={statusValue} onValueChange={(value) => setStatusValue(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                {companyPolicyStatusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowStatusDialog(false)} disabled={updateCompanyPolicyMutation.isPending}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateCompanyPolicyStatus} disabled={updateCompanyPolicyMutation.isPending}>
+              {updateCompanyPolicyMutation.isPending ? "Updating..." : "Update Status"}
             </Button>
           </DialogFooter>
         </DialogContent>

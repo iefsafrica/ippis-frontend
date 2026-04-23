@@ -59,17 +59,16 @@ export function EditResignationDialog({
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
-    if (initialData) {
+    if (isOpen && initialData) {
       setFormData({
         id: initialData.id,
         notes: initialData.notes || "",
         //@ts-expect-error - fix this later
         exit_interview: parseExitInterviewValue(initialData.exit_interview || "pending"),
       })
+      return
     }
-  }, [initialData])
 
-  useEffect(() => {
     if (!isOpen) {
       setFormData({
         id: 0,
@@ -78,7 +77,7 @@ export function EditResignationDialog({
       })
       setErrors({})
     }
-  }, [isOpen])
+  }, [initialData, isOpen])
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const { name, value } = e.target

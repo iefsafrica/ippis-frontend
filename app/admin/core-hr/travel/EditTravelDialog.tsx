@@ -85,7 +85,7 @@ export function EditTravelDialog({
   }, [isOpen])
 
   useEffect(() => {
-    if (initialData) {
+    if (isOpen && initialData) {
       const updateData: UpdateTravelRequest = {
         id: parseInt(initialData.id),
         employee_id: initialData.employeeId || "",
@@ -101,12 +101,34 @@ export function EditTravelDialog({
         advance_amount: parseFloat(initialData.advanceAmount) || 0,
         status: initialData.status || "pending",
       }
-      
+
       setFormData(updateData)
       setEstimatedCostInput(initialData.estimatedCost || "")
       setAdvanceAmountInput(initialData.advanceAmount || "")
+      return
     }
-  }, [initialData])
+
+    if (!isOpen) {
+      setFormData({
+        id: 0,
+        employee_id: "",
+        employee_name: "",
+        department: "",
+        purpose: "",
+        start_date: "",
+        end_date: "",
+        destination: "",
+        travel_mode: "",
+        accommodation: "",
+        estimated_cost: 0,
+        advance_amount: 0,
+        status: "pending",
+      })
+      setEstimatedCostInput("")
+      setAdvanceAmountInput("")
+      setErrors({})
+    }
+  }, [initialData, isOpen])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target

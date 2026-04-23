@@ -59,7 +59,7 @@ export function EditWarningDialog({
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
-    if (initialData) {
+    if (isOpen && initialData) {
       setFormData({
         id: initialData.id,
         employee_id: initialData.employee_id,
@@ -74,10 +74,9 @@ export function EditWarningDialog({
         supporting_documents: initialData.supporting_documents,
         status: initialData.status,
       })
+      return
     }
-  }, [initialData])
 
-  useEffect(() => {
     if (!isOpen) {
       setFormData({
         id: 0,
@@ -95,7 +94,7 @@ export function EditWarningDialog({
       })
       setErrors({})
     }
-  }, [isOpen])
+  }, [initialData, isOpen])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target

@@ -153,6 +153,23 @@ export default function ClientWrapper() {
     }
   }
 
+  const handleChangeGoalTypeStatus = async (id: string, status: "active" | "inactive") => {
+    try {
+      const goalTypeId = parseInt(id)
+      if (!isNaN(goalTypeId)) {
+        await updateGoalTypeStatusMutation.mutateAsync({
+          id: goalTypeId,
+          status,
+        })
+      } else {
+        toast.error("Invalid goal type ID")
+        throw new Error("Invalid goal type ID")
+      }
+    } catch (error) {
+      throw error
+    }
+  }
+
   const handleDeleteGoalType = async (id: string) => {
     try {
       const goalTypeId = parseInt(id)
@@ -183,6 +200,7 @@ export default function ClientWrapper() {
       onRefresh={refreshGoalTypesData}
       onAddGoalType={handleAddGoalType}
       onEditGoalType={handleEditGoalType}
+      onChangeGoalTypeStatus={handleChangeGoalTypeStatus}
       onDeleteGoalType={handleDeleteGoalType}
     />
   )

@@ -1,7 +1,7 @@
 export type CompanyStatus = "active" | "inactive" | "pending" | string;
 
 export interface Company {
-  id: string;
+  id: number;
   name: string;
   email: string;
   phone: string;
@@ -50,4 +50,3 @@ export interface DeleteCompanyResponse {
   message?: string;
   data?: Company;
 }
-

@@ -40,6 +40,12 @@ const defaultFormState: LocationFormState = {
   status: "active",
 }
 
+const locationStatusOptions = [
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
+  { value: "pending", label: "Pending" },
+]
+
 export default function LocationContent() {
   const { data, isLoading, error, refetch } = useGetLocations()
   const createLocationMutation = useCreateLocation()
@@ -48,10 +54,12 @@ export default function LocationContent() {
 
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showStatusDialog, setShowStatusDialog] = useState(false)
   const [showViewDialog, setShowViewDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [form, setForm] = useState<LocationFormState>(defaultFormState)
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null)
+  const [statusValue, setStatusValue] = useState("active")
 
   const locations = data?.data || []
 
@@ -103,9 +111,14 @@ export default function LocationContent() {
       city: location.city || "",
       state: location.state || "",
       country: location.country || "",
-      status: location.status || "active",
     })
     setShowEditDialog(true)
+  }
+
+  const openStatusDialog = (location: Location) => {
+    setSelectedLocation(location)
+    setStatusValue(location.status || "active")
+    setShowStatusDialog(true)
   }
 
   const openViewDialog = (location: Location) => {
@@ -160,7 +173,6 @@ export default function LocationContent() {
       city: form.city.trim() || undefined,
       state: form.state.trim() || undefined,
       country: form.country.trim() || undefined,
-      status: form.status,
     }
 
     try {
@@ -169,6 +181,24 @@ export default function LocationContent() {
       setShowEditDialog(false)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to update location"
+      toast.error(message)
+    }
+  }
+
+  const handleUpdateLocationStatus = async () => {
+    if (!selectedLocation) return
+
+    const payload: UpdateLocationPayload = {
+      id: selectedLocation.id,
+      status: statusValue,
+    }
+
+    try {
+      await updateLocationMutation.mutateAsync(payload)
+      toast.success("Location status updated successfully")
+      setShowStatusDialog(false)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to update location status"
       toast.error(message)
     }
   }
@@ -302,6 +332,9 @@ export default function LocationContent() {
           <Button variant="outline" size="icon" onClick={() => openViewDialog(row)}>
             <Eye className="h-4 w-4" />
           </Button>
+          <Button variant="outline" size="icon" className="text-amber-600 hover:text-amber-800" onClick={() => openStatusDialog(row)}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <Button variant="outline" size="icon" className="text-blue-600 hover:text-blue-800" onClick={() => openEditDialog(row)}>
             <Edit className="h-4 w-4" />
           </Button>
@@ -365,12 +398,6 @@ export default function LocationContent() {
             <RefreshCw className="h-4 w-4" />
             <span className="ml-2 hidden sm:inline">Refresh</span>
           </Button>
-          <Button
-            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg flex-1 md:flex-none"
-            onClick={openAddDialog}
-          >
-            Add Location
-          </Button>
         </div>
       </div>
 
@@ -411,7 +438,14 @@ export default function LocationContent() {
 
       <Card className="border border-gray-200 shadow-sm">
         <CardContent className="p-0">
-          <DataTable title="Location" columns={columns} data={locations} searchFields={searchFields} />
+          <DataTable
+            title="Location"
+            columns={columns}
+            data={locations}
+            searchFields={searchFields}
+            onAdd={openAddDialog}
+            addButtonLabel="Add Location"
+          />
         </CardContent>
       </Card>
 
@@ -475,19 +509,6 @@ export default function LocationContent() {
                 onChange={(e) => setForm((prev) => ({ ...prev, country: e.target.value }))}
                 placeholder="Enter country"
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
           <DialogFooter>
@@ -556,23 +577,6 @@ export default function LocationContent() {
                 onChange={(e) => setForm((prev) => ({ ...prev, country: e.target.value }))}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select
-                value={form.status}
-                onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}
-                disabled={updateLocationMutation.isPending}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={updateLocationMutation.isPending}>
@@ -587,6 +591,38 @@ export default function LocationContent() {
               ) : (
                 "Update"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>Change Location Status</DialogTitle>
+            <DialogDescription>Update the location status from the table action.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4">
+            <Label>Status</Label>
+            <Select value={statusValue} onValueChange={(value) => setStatusValue(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                {locationStatusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowStatusDialog(false)} disabled={updateLocationMutation.isPending}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateLocationStatus} disabled={updateLocationMutation.isPending}>
+              {updateLocationMutation.isPending ? "Updating..." : "Update Status"}
             </Button>
           </DialogFooter>
         </DialogContent>

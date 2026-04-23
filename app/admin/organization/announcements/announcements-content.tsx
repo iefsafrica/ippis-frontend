@@ -362,12 +362,6 @@ export default function AnnouncementsContent() {
             <RefreshCw className="h-4 w-4" />
             <span className="ml-2 hidden sm:inline">Refresh</span>
           </Button>
-          <Button
-            className="h-10 px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg"
-            onClick={openAddDialog}
-          >
-            Add Announcement
-          </Button>
         </div>
       </div>
 
@@ -413,6 +407,8 @@ export default function AnnouncementsContent() {
             columns={columns}
             data={announcements}
             searchFields={searchFields}
+            onAdd={openAddDialog}
+            addButtonLabel="Add Announcement"
           />
         </CardContent>
       </Card>
@@ -461,18 +457,6 @@ export default function AnnouncementsContent() {
                 placeholder="all / staff / specific group"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="published">Published</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>
@@ -516,18 +500,6 @@ export default function AnnouncementsContent() {
                 value={form.audience}
                 onChange={(e) => setForm((prev) => ({ ...prev, audience: e.target.value }))}
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="published">Published</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
           <DialogFooter>

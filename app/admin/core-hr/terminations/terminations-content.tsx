@@ -17,6 +17,7 @@ import type {
   UpdateTerminationRequest,
 } from "@/types/hr-core/terminations"
 import { DataTable } from "../components/data-table"
+import { StatusChangeDialog } from "../components/status-change-dialog"
 import { AddTerminationDialog } from "./AddTerminationDialog"
 import { EditTerminationDialog } from "./EditTerminationDialog"
 import { ViewTerminationDialog } from "./ViewTerminationDialog"
@@ -96,7 +97,9 @@ export function TerminationsContent() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
   const [currentTermination, setCurrentTermination] = useState<Termination | null>(null)
+  const [statusValue, setStatusValue] = useState("active")
   
   const { 
     data: terminationsResponse, 
@@ -147,6 +150,17 @@ export function TerminationsContent() {
     setIsAddDialogOpen(true)
   }
 
+  const handleOpenStatusDialog = (id: number) => {
+    const termination = terminations.find((t: Termination) => t.id === id)
+    if (termination) {
+      setCurrentTermination(termination)
+      setStatusValue(termination.status || "active")
+      setIsStatusDialogOpen(true)
+    } else {
+      toast.error("Termination not found")
+    }
+  }
+
   const handleDeleteTermination = async () => {
     if (!currentTermination) return
 
@@ -187,6 +201,17 @@ export function TerminationsContent() {
       toast.error(error.message || "Failed to update termination")
       throw error
     }
+  }
+
+  const handleUpdateTerminationStatus = async (status: string) => {
+    if (!currentTermination) return
+
+    await handleUpdateTermination({
+      id: currentTermination.id,
+      status,
+    })
+    setIsStatusDialogOpen(false)
+    setCurrentTermination(null)
   }
 
   const handleManualRefresh = () => {
@@ -485,6 +510,15 @@ export function TerminationsContent() {
           <Button
             variant="outline"
             size="icon"
+            onClick={() => handleOpenStatusDialog(row.id)}
+            title="Change Status"
+            className="text-amber-600 hover:text-amber-800"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
             onClick={() => handleEditTermination(row.id)}
             title="Edit"
             className="text-blue-600 hover:text-blue-800"
@@ -730,6 +764,26 @@ export function TerminationsContent() {
           />
         </CardContent>
       </Card>
+
+      <StatusChangeDialog
+        isOpen={isStatusDialogOpen}
+        onClose={() => {
+          setIsStatusDialogOpen(false)
+          setCurrentTermination(null)
+        }}
+        title="Change Termination Status"
+        description={`Update the status for ${currentTermination?.employee_name || "this termination record"}.`}
+        currentStatus={statusValue}
+        options={[
+          { value: "active", label: "Active" },
+          { value: "pending", label: "Pending" },
+          { value: "completed", label: "Completed" },
+          { value: "revoked", label: "Revoked" },
+          { value: "cancelled", label: "Cancelled" },
+        ]}
+        onConfirm={handleUpdateTerminationStatus}
+        isLoading={updateTerminationMutation.isPending}
+      />
 
       {/* Dialogs */}
       <AddTerminationDialog
