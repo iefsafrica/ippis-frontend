@@ -53,6 +53,7 @@ export interface UpdateFinanceTransferRequest {
   amount?: number
   fees?: number
   description?: string | null
+  status?: string
 }
 
 export interface UpdateFinanceTransferResponse {

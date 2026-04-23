@@ -33,7 +33,6 @@ interface ProjectFormData {
   project_manager_id: string
   team_member_ids: string
   project_description: string
-  project_status: string
   priority: string
   budget: string
   completion_percentage: string
@@ -44,12 +43,6 @@ interface EditProjectDialogProps {
   onClose: () => void
   project: Project | null
 }
-
-const statusOptions = [
-  { value: "active", label: "Active" },
-  { value: "completed", label: "Completed" },
-  { value: "inactive", label: "Inactive" },
-]
 
 const priorityOptions = [
   { value: "high", label: "High" },
@@ -78,7 +71,6 @@ export function EditProjectDialog({ isOpen, onClose, project }: EditProjectDialo
     project_manager_id: "",
     team_member_ids: "",
     project_description: "",
-    project_status: "active",
     priority: "medium",
     budget: "",
     completion_percentage: "0",
@@ -96,7 +88,6 @@ export function EditProjectDialog({ isOpen, onClose, project }: EditProjectDialo
       project_manager_id: project.project_manager_id || "",
       team_member_ids: project.team_member_ids?.join(", ") || "",
       project_description: project.project_description || "",
-      project_status: project.project_status || "active",
       priority: project.priority || "medium",
       budget: project.budget || "",
       completion_percentage: project.completion_percentage?.toString() || "0",
@@ -130,7 +121,6 @@ export function EditProjectDialog({ isOpen, onClose, project }: EditProjectDialo
     if (!formData.end_date) nextErrors.end_date = "End date is required"
     if (!formData.project_manager_id.trim()) nextErrors.project_manager_id = "Manager ID is required"
     if (!formData.project_description.trim()) nextErrors.project_description = "Description is required"
-    if (!formData.project_status.trim()) nextErrors.project_status = "Status is required"
     if (!formData.priority.trim()) nextErrors.priority = "Priority is required"
     if (!formData.budget.trim()) nextErrors.budget = "Budget is required"
 
@@ -165,7 +155,6 @@ export function EditProjectDialog({ isOpen, onClose, project }: EditProjectDialo
           ? formData.team_member_ids.split(",").map((id) => id.trim()).filter(Boolean)
           : [],
         project_description: formData.project_description,
-        project_status: formData.project_status,
         priority: formData.priority,
         budget: Number(formData.budget || 0),
         completion_percentage: Number(formData.completion_percentage || 0),
@@ -305,26 +294,7 @@ export function EditProjectDialog({ isOpen, onClose, project }: EditProjectDialo
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700 mb-2 block">Status *</Label>
-                      <CustomSelect
-                        value={formData.project_status}
-                        onValueChange={(value) => setFormData((prev) => ({ ...prev, project_status: value }))}
-                        disabled={isLoading}
-                      >
-                        <CustomSelectTrigger className="h-11 border-gray-300 text-left">
-                          <CustomSelectValue placeholder="Select status" />
-                        </CustomSelectTrigger>
-                        <CustomSelectContent>
-                          {statusOptions.map((option) => (
-                            <CustomSelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </CustomSelectItem>
-                          ))}
-                        </CustomSelectContent>
-                      </CustomSelect>
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-gray-700 mb-2 block">Priority *</Label>
                       <CustomSelect

@@ -57,6 +57,7 @@ export interface UpdateFinanceExpenseRequest {
   payee_id?: string
   payment_method?: string
   date?: string
+  status?: string
 }
 
 export interface UpdateFinanceExpenseResponse {

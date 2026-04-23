@@ -7,6 +7,7 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { useGetFinanceAccounts } from "@/services/hooks/finance/accounts"
 import {
   useCreateFinanceTransaction,
@@ -185,6 +186,8 @@ export function TransactionContent() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [statusTransaction, setStatusTransaction] = useState<TransactionUI | null>(null)
+  const [isStatusOpen, setIsStatusOpen] = useState(false)
 
   const transactions = useMemo(() => (data?.data?.transactions ?? []).map(normalizeTransaction), [data])
   const selectedTransactionDetailsQuery = useGetFinanceTransaction(selectedTransactionId ?? undefined, isDetailsOpen || isEditOpen)
@@ -283,6 +286,14 @@ export function TransactionContent() {
     setIsEditOpen(true)
   }
 
+  const handleChangeStatus = (id: string) => {
+    const transaction = transactions.find((item) => item.id === id)
+    if (!transaction) return
+
+    setStatusTransaction(transaction)
+    setIsStatusOpen(true)
+  }
+
   const handleDeleteTransaction = async (transactionId: string) => {
     try {
       await deleteTransaction.mutateAsync(transactionId)
@@ -328,6 +339,7 @@ export function TransactionContent() {
         amount: Number(formData.amount),
         category: String(formData.category ?? "").trim(),
         description: formData.description ? String(formData.description).trim() : null,
+        status: selectedTransaction.status ?? "Completed",
       })
       toast.success("Transaction updated successfully")
       setIsEditOpen(false)
@@ -443,6 +455,7 @@ export function TransactionContent() {
             onAdd={handleAddTransaction}
             onEdit={handleEditTransaction}
             onView={handleViewTransaction}
+            onChangeStatus={handleChangeStatus}
             onDelete={(id) => handleDeleteTransaction(transactions.find((item) => item.id === id)?.transaction_id ?? id)}
             currencySymbol="₦"
             isLoading={isLoading || isFetching}
@@ -500,6 +513,40 @@ export function TransactionContent() {
         isOpen={isDetailsOpen}
         onOpenChange={handleDetailsOpenChange}
         currencySymbol="₦"
+      />
+      <StatusChangeDialog
+        isOpen={isStatusOpen}
+        onClose={() => {
+          setIsStatusOpen(false)
+          setStatusTransaction(null)
+        }}
+        title="Change Transaction Status"
+        description={`Update the status for ${statusTransaction?.referenceId ?? "this transaction"}.`}
+        currentStatus={statusTransaction?.status ?? "Completed"}
+        options={statusOptions}
+        isLoading={updateTransaction.isPending}
+        onConfirm={async (status) => {
+          if (!statusTransaction) return
+          try {
+            await updateTransaction.mutateAsync({
+              transaction_id: statusTransaction.transaction_id,
+              amount: Number(statusTransaction.amount ?? 0),
+              category: statusTransaction.category,
+              description: statusTransaction.description ?? null,
+              payment_method: statusTransaction.paymentMethod,
+              reference_id: statusTransaction.referenceId,
+              transaction_date: statusTransaction.transactionDate ? String(statusTransaction.transactionDate).slice(0, 10) : undefined,
+              transaction_type: statusTransaction.transactionType,
+              account_id: statusTransaction.accountId,
+              status,
+            })
+            toast.success("Transaction status updated successfully")
+            setIsStatusOpen(false)
+            setStatusTransaction(null)
+          } catch (error: any) {
+            toast.error(error?.message || "Failed to update transaction status")
+          }
+        }}
       />
     </div>
   )

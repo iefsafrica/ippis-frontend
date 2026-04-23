@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import {
   useCreateInvoice,
@@ -54,6 +55,12 @@ const statusBadgeClass = (status?: string) => {
   return "bg-gray-100 text-gray-700"
 }
 
+const STATUS_OPTIONS = [
+  { value: "Pending", label: "Pending" },
+  { value: "Unpaid", label: "Unpaid" },
+  { value: "Paid", label: "Paid" },
+  { value: "Draft", label: "Draft" },
+]
 
 const columns = (
   handleView: (invoice: Invoice) => void,
@@ -61,6 +68,7 @@ const columns = (
   handleDelete: (invoice: Invoice) => void,
   resolveClientName: (clientId?: number) => string,
   resolveProjectName: (projectId?: number) => string,
+  handleChangeStatus: (invoice: Invoice) => void,
 ) => [
   {
     key: "invoice_number",
@@ -128,6 +136,15 @@ const columns = (
         <Button
           variant="outline"
           size="icon"
+          onClick={() => handleChangeStatus(row)}
+          className="text-green-600 hover:text-green-800"
+          title="Change Status"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
           onClick={() => handleDelete(row)}
           className="text-red-600 hover:text-red-800"
           title="Delete Invoice"
@@ -183,8 +200,10 @@ const todayString = () => new Date().toISOString().split("T")[0]
 export default function InvoiceContent() {
   const [viewInvoice, setViewInvoice] = useState<Invoice | null>(null)
   const [editInvoice, setEditInvoice] = useState<Invoice | null>(null)
+  const [statusInvoice, setStatusInvoice] = useState<Invoice | null>(null)
   const [isViewOpen, setIsViewOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isStatusOpen, setIsStatusOpen] = useState(false)
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [deleteInvoiceCandidate, setDeleteInvoiceCandidate] = useState<Invoice | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -200,7 +219,6 @@ export default function InvoiceContent() {
 
   const [editClientId, setEditClientId] = useState("")
   const [editProjectId, setEditProjectId] = useState("")
-  const [editStatus, setEditStatus] = useState("Unpaid")
   const [editIssueDate, setEditIssueDate] = useState(todayString())
   const [editDueDate, setEditDueDate] = useState(todayString())
   const [editTotal, setEditTotal] = useState("")
@@ -554,11 +572,15 @@ export default function InvoiceContent() {
     setIsViewOpen(true)
   }
 
+  const handleChangeStatus = (invoice: Invoice) => {
+    setStatusInvoice(invoice)
+    setIsStatusOpen(true)
+  }
+
   const handleEdit = (invoice: Invoice) => {
     setEditInvoice(invoice)
     setEditClientId(String(invoice.client_id))
     setEditProjectId(String(invoice.project_id))
-    setEditStatus(invoice.status ?? "Pending")
     setEditIssueDate(invoice.issue_date?.split("T")[0] ?? todayString())
     setEditDueDate(invoice.due_date?.split("T")[0] ?? todayString())
     setEditTotal(String(invoice.total ?? "0"))
@@ -632,7 +654,6 @@ export default function InvoiceContent() {
           project_id: editProjectId ? Number(editProjectId) : undefined,
           issue_date: editIssueDate,
           due_date: editDueDate,
-          status: editStatus,
           total: editTotal ? Number(editTotal) : undefined,
         },
       })
@@ -641,6 +662,29 @@ export default function InvoiceContent() {
       setEditInvoice(null)
     } catch (error: any) {
       toast.error(error?.message || "Failed to update invoice")
+    }
+  }
+
+  const handleUpdateInvoiceStatus = async (status: string) => {
+    if (!statusInvoice) return
+    try {
+      await updateInvoice.mutateAsync({
+        id: statusInvoice.id,
+        data: {
+          id: statusInvoice.id,
+          client_id: statusInvoice.client_id,
+          project_id: statusInvoice.project_id,
+          issue_date: statusInvoice.issue_date,
+          due_date: statusInvoice.due_date,
+          status,
+          total: statusInvoice.total,
+        },
+      })
+      toast.success("Invoice status updated")
+      setIsStatusOpen(false)
+      setStatusInvoice(null)
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to update invoice status")
     }
   }
 
@@ -717,7 +761,7 @@ export default function InvoiceContent() {
         <CardContent>
           <DataTable
             title="Invoices"
-            columns={columns(handleView, handleEdit, handleDelete, resolveClientName, resolveProjectName)}
+            columns={columns(handleView, handleEdit, handleDelete, resolveClientName, resolveProjectName, handleChangeStatus)}
             data={invoices}
             searchFields={searchFields}
             onAdd={() => setIsAddOpen(true)}
@@ -1017,20 +1061,6 @@ export default function InvoiceContent() {
               </div>
             </div>
             <div>
-              <Label>Status</Label>
-              <Select value={editStatus} onValueChange={(value) => setEditStatus(value)} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Unpaid">Unpaid</SelectItem>
-                  <SelectItem value="Paid">Paid</SelectItem>
-                  <SelectItem value="Draft">Draft</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
               <Label>Total Amount</Label>
               <Input
                 type="number"
@@ -1067,6 +1097,20 @@ export default function InvoiceContent() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <StatusChangeDialog
+        isOpen={isStatusOpen}
+        onClose={() => {
+          setIsStatusOpen(false)
+          setStatusInvoice(null)
+        }}
+        title="Change Invoice Status"
+        description={`Update the status for ${statusInvoice?.invoice_number ?? "this invoice"}.`}
+        currentStatus={statusInvoice?.status ?? "Pending"}
+        options={STATUS_OPTIONS}
+        isLoading={updateInvoice.isPending}
+        onConfirm={handleUpdateInvoiceStatus}
+      />
 
       <DeleteConfirmationDialog
         isOpen={isDeleteDialogOpen}

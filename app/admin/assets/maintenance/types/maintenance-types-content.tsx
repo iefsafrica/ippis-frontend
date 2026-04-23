@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { EnhancedDataTable } from "@/app/admin/components/enhanced-data-table"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -122,6 +123,9 @@ export function MaintenanceTypesContent() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [selectedType, setSelectedType] = useState<any>(null)
+  const [statusType, setStatusType] = useState<any>(null)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
+  const [maintenanceTypes, setMaintenanceTypes] = useState(mockMaintenanceTypes)
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -177,7 +181,7 @@ export function MaintenanceTypesContent() {
         { value: "active", label: "Active" },
         { value: "inactive", label: "Inactive" },
       ],
-      type: "select",
+      type: "select" as const,
     },
     {
       id: "intervalUnit",
@@ -188,11 +192,12 @@ export function MaintenanceTypesContent() {
         { value: "months", label: "Months" },
         { value: "years", label: "Years" },
       ],
-      type: "select",
+      type: "select" as const,
     },
   ]
 
   const handleAdd = () => {
+    setSelectedType(null)
     setFormData({
       name: "",
       description: "",
@@ -204,7 +209,7 @@ export function MaintenanceTypesContent() {
   }
 
   const handleEdit = (id: string) => {
-    const type = mockMaintenanceTypes.find((t) => t.id === id)
+    const type = maintenanceTypes.find((t) => t.id === id)
     if (type) {
       setSelectedType(type)
       setFormData({
@@ -218,8 +223,16 @@ export function MaintenanceTypesContent() {
     }
   }
 
+  const handleChangeStatus = (id: string) => {
+    const type = maintenanceTypes.find((t) => t.id === id)
+    if (type) {
+      setStatusType(type)
+      setIsStatusDialogOpen(true)
+    }
+  }
+
   const handleView = (id: string) => {
-    const type = mockMaintenanceTypes.find((t) => t.id === id)
+    const type = maintenanceTypes.find((t) => t.id === id)
     if (type) {
       setSelectedType(type)
       setIsViewDialogOpen(true)
@@ -235,6 +248,21 @@ export function MaintenanceTypesContent() {
     e.preventDefault()
     // In a real application, this would call an API to add or update the maintenance type
     console.log("Form submitted:", formData)
+    if (selectedType) {
+      setMaintenanceTypes((prev) =>
+        prev.map((type) =>
+          type.id === selectedType.id
+            ? {
+                ...type,
+                name: formData.name,
+                description: formData.description,
+                interval: formData.interval,
+                intervalUnit: formData.intervalUnit,
+              }
+            : type,
+        ),
+      )
+    }
     setIsAddDialogOpen(false)
     setIsEditDialogOpen(false)
   }
@@ -255,12 +283,13 @@ export function MaintenanceTypesContent() {
       <EnhancedDataTable
         title="Maintenance Types"
         columns={columns}
-        data={mockMaintenanceTypes}
+        data={maintenanceTypes}
         filterOptions={filterOptions}
         onAdd={handleAdd}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onView={handleView}
+        onChangeStatus={handleChangeStatus}
       />
 
       {/* Add Maintenance Type Dialog */}
@@ -405,18 +434,6 @@ export function MaintenanceTypesContent() {
                 </Select>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => handleSelectChange("status", value)}>
-                <SelectTrigger id="edit-status">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                 Cancel
@@ -428,6 +445,28 @@ export function MaintenanceTypesContent() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <StatusChangeDialog
+        isOpen={isStatusDialogOpen}
+        onClose={() => {
+          setIsStatusDialogOpen(false)
+          setStatusType(null)
+        }}
+        title="Change Maintenance Type Status"
+        description={`Update the status for ${statusType?.name ?? "this maintenance type"}.`}
+        currentStatus={statusType?.status ?? "active"}
+        options={[
+          { value: "active", label: "Active" },
+          { value: "inactive", label: "Inactive" },
+        ]}
+        onConfirm={async (status) => {
+          if (!statusType) return
+          setMaintenanceTypes((prev) => prev.map((type) => (type.id === statusType.id ? { ...type, status } : type)))
+          setStatusType(null)
+          setIsStatusDialogOpen(false)
+          console.log("Maintenance type status updated successfully")
+        }}
+      />
 
       {/* View Maintenance Type Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>

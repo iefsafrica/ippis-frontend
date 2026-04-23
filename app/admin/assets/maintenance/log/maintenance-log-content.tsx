@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { EnhancedDataTable } from "@/app/admin/components/enhanced-data-table"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -184,6 +185,9 @@ export function MaintenanceLogContent() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [selectedLog, setSelectedLog] = useState<any>(null)
+  const [statusLog, setStatusLog] = useState<any>(null)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
+  const [maintenanceLogs, setMaintenanceLogs] = useState(mockMaintenanceLogs)
   const [formData, setFormData] = useState({
     assetId: "",
     maintenanceTypeId: "",
@@ -260,13 +264,13 @@ export function MaintenanceLogContent() {
       id: "assetId",
       label: "Asset",
       options: mockAssets.map((asset) => ({ value: asset.id, label: asset.name })),
-      type: "select",
+      type: "select" as const,
     },
     {
       id: "maintenanceTypeId",
       label: "Maintenance Type",
       options: mockMaintenanceTypes.map((type) => ({ value: type.id, label: type.name })),
-      type: "select",
+      type: "select" as const,
     },
     {
       id: "status",
@@ -275,16 +279,18 @@ export function MaintenanceLogContent() {
         { value: "completed", label: "Completed" },
         { value: "in-progress", label: "In Progress" },
       ],
-      type: "select",
+      type: "select" as const,
     },
     {
       id: "performedDate",
       label: "Date Performed",
-      type: "date",
+      options: [],
+      type: "date" as const,
     },
   ]
 
   const handleAdd = () => {
+    setSelectedLog(null)
     setFormData({
       assetId: "",
       maintenanceTypeId: "",
@@ -299,7 +305,7 @@ export function MaintenanceLogContent() {
   }
 
   const handleEdit = (id: string) => {
-    const log = mockMaintenanceLogs.find((l) => l.id === id)
+    const log = maintenanceLogs.find((l) => l.id === id)
     if (log) {
       setSelectedLog(log)
       setFormData({
@@ -316,8 +322,16 @@ export function MaintenanceLogContent() {
     }
   }
 
+  const handleChangeStatus = (id: string) => {
+    const log = maintenanceLogs.find((l) => l.id === id)
+    if (log) {
+      setStatusLog(log)
+      setIsStatusDialogOpen(true)
+    }
+  }
+
   const handleView = (id: string) => {
-    const log = mockMaintenanceLogs.find((l) => l.id === id)
+    const log = maintenanceLogs.find((l) => l.id === id)
     if (log) {
       setSelectedLog(log)
       setIsViewDialogOpen(true)
@@ -333,6 +347,24 @@ export function MaintenanceLogContent() {
     e.preventDefault()
     // In a real application, this would call an API to add or update the maintenance log
     console.log("Form submitted:", formData)
+    if (selectedLog) {
+      setMaintenanceLogs((prev) =>
+        prev.map((log) =>
+          log.id === selectedLog.id
+            ? {
+                ...log,
+                assetId: formData.assetId,
+                maintenanceTypeId: formData.maintenanceTypeId,
+                description: formData.description,
+                performedBy: formData.performedBy,
+                performedDate: formData.performedDate ? formData.performedDate.toISOString() : log.performedDate,
+                cost: Number(formData.cost),
+                notes: formData.notes,
+              }
+            : log,
+        ),
+      )
+    }
     setIsAddDialogOpen(false)
     setIsEditDialogOpen(false)
   }
@@ -357,12 +389,13 @@ export function MaintenanceLogContent() {
       <EnhancedDataTable
         title="Maintenance Records"
         columns={columns}
-        data={mockMaintenanceLogs}
+        data={maintenanceLogs}
         filterOptions={filterOptions}
         onAdd={handleAdd}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onView={handleView}
+        onChangeStatus={handleChangeStatus}
       />
 
       {/* Add Maintenance Log Dialog */}
@@ -446,7 +479,7 @@ export function MaintenanceLogContent() {
                   <Calendar
                     mode="single"
                     selected={formData.performedDate || undefined}
-                    onSelect={(date) => handleDateChange("performedDate", date)}
+                    onSelect={(date) => handleDateChange("performedDate", date ?? null)}
                     initialFocus
                   />
                 </PopoverContent>
@@ -580,7 +613,7 @@ export function MaintenanceLogContent() {
                   <Calendar
                     mode="single"
                     selected={formData.performedDate || undefined}
-                    onSelect={(date) => handleDateChange("performedDate", date)}
+                    onSelect={(date) => handleDateChange("performedDate", date ?? null)}
                     initialFocus
                   />
                 </PopoverContent>
@@ -597,18 +630,6 @@ export function MaintenanceLogContent() {
                 onChange={handleInputChange}
                 placeholder="Enter cost"
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => handleSelectChange("status", value)}>
-                <SelectTrigger id="edit-status">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-notes">Notes</Label>
@@ -632,6 +653,28 @@ export function MaintenanceLogContent() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <StatusChangeDialog
+        isOpen={isStatusDialogOpen}
+        onClose={() => {
+          setIsStatusDialogOpen(false)
+          setStatusLog(null)
+        }}
+        title="Change Maintenance Record Status"
+        description={`Update the status for ${statusLog?.description ?? "this maintenance record"}.`}
+        currentStatus={statusLog?.status ?? "completed"}
+        options={[
+          { value: "completed", label: "Completed" },
+          { value: "in-progress", label: "In Progress" },
+        ]}
+        onConfirm={async (status) => {
+          if (!statusLog) return
+          setMaintenanceLogs((prev) => prev.map((log) => (log.id === statusLog.id ? { ...log, status } : log)))
+          setStatusLog(null)
+          setIsStatusDialogOpen(false)
+          console.log("Maintenance log status updated successfully")
+        }}
+      />
 
       {/* View Maintenance Log Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>

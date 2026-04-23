@@ -8,17 +8,30 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Plus } from "lucide-react"
 import { SupportTicketsShell } from "../components/support-tickets-shell"
 import { SupportTicketList } from "../components/support-ticket-list"
-import { useGetSupportTickets } from "@/services/hooks/supportTickets"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
+import { useGetSupportTickets, useUpdateSupportTicket } from "@/services/hooks/supportTickets"
 import { SUPPORT_TICKET_MOCKS } from "../data/mock-tickets"
 import type { SupportTicket } from "@/types/supportTickets"
+import { toast } from "sonner"
 
 const CURRENT_USER = "Sarah Johnson"
+
+const STATUS_OPTIONS = [
+  { value: "open", label: "Open" },
+  { value: "in-progress", label: "In Progress" },
+  { value: "on-hold", label: "On Hold" },
+  { value: "closed", label: "Closed" },
+  { value: "resolved", label: "Resolved" },
+]
 
 export default function MyTicketsContent() {
   const [activeTab, setActiveTab] = useState("assigned")
   const [searchTerm, setSearchTerm] = useState("")
+  const [statusTicket, setStatusTicket] = useState<SupportTicket | null>(null)
+  const [isStatusOpen, setIsStatusOpen] = useState(false)
 
   const { data } = useGetSupportTickets()
+  const updateTicket = useUpdateSupportTicket()
   const tickets = data?.data?.tickets ?? SUPPORT_TICKET_MOCKS
 
   const assignedToMe = useMemo(
@@ -66,6 +79,11 @@ export default function MyTicketsContent() {
     </Button>
   )
 
+  const handleChangeStatus = (ticket: SupportTicket) => {
+    setStatusTicket(ticket)
+    setIsStatusOpen(true)
+  }
+
   return (
     <SupportTicketsShell
       title="My Tickets"
@@ -96,13 +114,53 @@ export default function MyTicketsContent() {
             {(["all", "assigned", "created"] as const).map((tab) => (
               <TabsContent key={tab} value={tab} className="mt-4">
                 <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
-                  <SupportTicketList tickets={applySearch(baseTabMap[tab])} emptyLabel="No tickets here yet." />
+                  <SupportTicketList
+                    tickets={applySearch(baseTabMap[tab])}
+                    onChangeStatus={handleChangeStatus}
+                    emptyLabel="No tickets here yet."
+                  />
                 </div>
               </TabsContent>
             ))}
           </Tabs>
         </CardContent>
       </Card>
+
+      <StatusChangeDialog
+        isOpen={isStatusOpen}
+        onClose={() => {
+          setIsStatusOpen(false)
+          setStatusTicket(null)
+        }}
+        title="Change Ticket Status"
+        description={`Update the status for ${statusTicket?.subject ?? "this ticket"}.`}
+        currentStatus={statusTicket?.status ?? "open"}
+        options={STATUS_OPTIONS}
+        isLoading={updateTicket.isPending}
+        onConfirm={async (status) => {
+          if (!statusTicket) return
+          try {
+            await updateTicket.mutateAsync({
+              ticketId: String(statusTicket.ticket_id),
+              data: {
+                subject: statusTicket.subject ?? "",
+                department: statusTicket.department ?? "",
+                description: statusTicket.description ?? "",
+                priority: statusTicket.priority ?? "medium",
+                status,
+                assigned_to: statusTicket.assigned_to || undefined,
+                due_date: statusTicket.due_date ?? new Date().toISOString().split("T")[0],
+                progress: Number(statusTicket.progress ?? 0),
+              },
+            })
+            setIsStatusOpen(false)
+            setStatusTicket(null)
+            toast.success("Support ticket status updated")
+          } catch (error: any) {
+            toast.error(error?.message || "Failed to update ticket status")
+          }
+        }}
+      />
     </SupportTicketsShell>
   )
 }

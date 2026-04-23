@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Edit, Trash2 } from "lucide-react"
+import { Eye, Edit, RefreshCw, Trash2 } from "lucide-react"
 import type { SupportTicket } from "@/types/supportTickets"
 
 const statusConfig: Record<string, { color: string }> = {
@@ -43,10 +43,18 @@ interface SupportTicketListProps {
   onEdit?: (ticket: SupportTicket) => void
   onView?: (ticket: SupportTicket) => void
   onDelete?: (ticket: SupportTicket) => void
+  onChangeStatus?: (ticket: SupportTicket) => void
   emptyLabel?: React.ReactNode
 }
 
-export function SupportTicketList({ tickets, onEdit, onView, onDelete, emptyLabel }: SupportTicketListProps) {
+export function SupportTicketList({
+  tickets,
+  onEdit,
+  onView,
+  onDelete,
+  onChangeStatus,
+  emptyLabel,
+}: SupportTicketListProps) {
   if (tickets.length === 0) {
     return (
       <div className="py-12 text-center text-sm text-gray-500">
@@ -118,6 +126,17 @@ export function SupportTicketList({ tickets, onEdit, onView, onDelete, emptyLabe
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
+                  {onChangeStatus && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => onChangeStatus(ticket)}
+                      title="Change Status"
+                      className="text-green-600 hover:bg-green-50"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="icon"

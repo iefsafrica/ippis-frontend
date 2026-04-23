@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { RecordsTableSection } from "@/app/admin/components/records-table-section"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import { useEmployeesList } from "@/services/hooks/employees/useEmployees"
@@ -56,11 +57,20 @@ const statusBadgeClass = (status?: string) => {
   }
 }
 
+const TASK_STATUS_OPTIONS = [
+  { value: "pending", label: "Pending" },
+  { value: "in-progress", label: "In Progress" },
+  { value: "not-started", label: "Not Started" },
+  { value: "delayed", label: "Delayed" },
+  { value: "completed", label: "Completed" },
+]
+
 const columns = (
   handleView: (task: Task) => void,
   handleEdit: (task: Task) => void,
   handleDelete: (task: Task) => void,
   getAssigneeDisplayName: (value?: string) => string,
+  handleChangeStatus: (task: Task) => void,
 ) => [
   {
     key: "task_code",
@@ -139,6 +149,15 @@ const columns = (
           <Button
             variant="outline"
             size="icon"
+            onClick={() => handleChangeStatus(row)}
+            className="text-green-600 hover:text-green-800"
+            title="Change Status"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
             onClick={() => handleDelete(row)}
             disabled={!canModify}
             className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -161,10 +180,11 @@ const searchFields = [
 export default function TasksContent() {
   const [viewTask, setViewTask] = useState<Task | null>(null)
   const [editTask, setEditTask] = useState<Task | null>(null)
+  const [statusTask, setStatusTask] = useState<Task | null>(null)
   const [isViewOpen, setIsViewOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isStatusOpen, setIsStatusOpen] = useState(false)
   const [isAddOpen, setIsAddOpen] = useState(false)
-  const [editStatus, setEditStatus] = useState("in-progress")
   const [editProgress, setEditProgress] = useState("0")
   const [editName, setEditName] = useState("")
   const [editProjectId, setEditProjectId] = useState("")
@@ -274,9 +294,13 @@ export default function TasksContent() {
     setEditAssignedTo(resolveEmployeeIdentifier(task.assigned_to))
     setEditDueDate(formatDateForInput(task.due_date))
     setEditPriority(normalizeTaskPriority(task.priority))
-    setEditStatus(normalizeTaskStatus(task.status))
     setEditProgress(String(task.progress ?? 0))
     setIsEditOpen(true)
+  }
+
+  const handleChangeStatus = (task: Task) => {
+    setStatusTask(task)
+    setIsStatusOpen(true)
   }
 
   useEffect(() => {
@@ -349,15 +373,35 @@ export default function TasksContent() {
         project_id: editProjectId ? Number(editProjectId) : editTask.project_id,
         assigned_to: editAssignedTo || editTask.assigned_to,
         due_date: editDueDate || editTask.due_date,
-      status: editStatus,
-      progress: Number(editProgress || editTask.progress || 0),
-      priority: editPriority,
+        progress: Number(editProgress || editTask.progress || 0),
+        priority: editPriority,
       })
       toast.success("Task updated")
       setIsEditOpen(false)
       setEditTask(null)
     } catch (error: any) {
       toast.error(error?.message || "Failed to update task")
+    }
+  }
+
+  const handleUpdateTaskStatus = async (status: string) => {
+    if (!statusTask) return
+    try {
+      await updateTask.mutateAsync({
+        id: statusTask.id,
+        name: statusTask.name,
+        project_id: statusTask.project_id,
+        assigned_to: statusTask.assigned_to,
+        due_date: statusTask.due_date,
+        status,
+        progress: statusTask.progress,
+        priority: statusTask.priority,
+      })
+      toast.success("Task status updated")
+      setIsStatusOpen(false)
+      setStatusTask(null)
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to update task status")
     }
   }
 
@@ -394,7 +438,7 @@ export default function TasksContent() {
       <RecordsTableSection title="Task Records" description="Monitor each task progress and status.">
         <DataTable
           title="Tasks"
-          columns={columns(handleView, handleEdit, handleDelete, getAssigneeDisplayName)}
+          columns={columns(handleView, handleEdit, handleDelete, getAssigneeDisplayName, handleChangeStatus)}
           data={tasks}
           searchFields={searchFields}
           onAdd={handleOpenAdd}
@@ -651,21 +695,6 @@ export default function TasksContent() {
               </Select>
             </div>
             <div>
-              <Label>Status</Label>
-              <Select value={editStatus} onValueChange={(value) => setEditStatus(value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="not-started">Not Started</SelectItem>
-                  <SelectItem value="delayed">Delayed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
               <Label>Progress (%)</Label>
               <Input
                 type="number"
@@ -686,6 +715,21 @@ export default function TasksContent() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <StatusChangeDialog
+        isOpen={isStatusOpen}
+        onClose={() => {
+          setIsStatusOpen(false)
+          setStatusTask(null)
+        }}
+        title="Change Task Status"
+        description={`Update the status for ${statusTask?.name ?? "this task"}.`}
+        currentStatus={statusTask?.status ?? "pending"}
+        options={TASK_STATUS_OPTIONS}
+        isLoading={updateTask.isPending}
+        onConfirm={handleUpdateTaskStatus}
+      />
+
       <DeleteConfirmationDialog
         isOpen={isDeleteTaskDialogOpen}
         onClose={() => {

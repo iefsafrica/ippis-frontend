@@ -18,13 +18,6 @@ import { toast } from "sonner"
 import { useUpdateLeave } from "@/services/hooks/calendar/leaves"
 import type { Leave } from "@/types/calendar/leaves"
 import { DatePicker } from "@/components/ui/date-picker"
-import {
-  CustomSelect,
-  CustomSelectContent,
-  CustomSelectItem,
-  CustomSelectTrigger,
-  CustomSelectValue,
-} from "@/components/ui/custom-select"
 
 interface LeaveFormData {
   employee_id: string
@@ -33,7 +26,6 @@ interface LeaveFormData {
   end_date: string
   reason: string
   emergency_contact: string
-  status: string
 }
 
 interface EditLeaveDialogProps {
@@ -63,7 +55,6 @@ export function EditLeaveDialog({ isOpen, onClose, leave }: EditLeaveDialogProps
     end_date: "",
     reason: "",
     emergency_contact: "",
-    status: "pending",
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -78,7 +69,6 @@ export function EditLeaveDialog({ isOpen, onClose, leave }: EditLeaveDialogProps
       end_date: toDateInput(leave.end_date),
       reason: leave.reason || "",
       emergency_contact: leave.emergency_contact || "",
-      status: leave.status || "pending",
     })
   }, [leave, isOpen])
 
@@ -99,10 +89,6 @@ export function EditLeaveDialog({ isOpen, onClose, leave }: EditLeaveDialogProps
         return next
       })
     }
-  }
-
-  const handleSelectChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, status: value }))
   }
 
   const validateForm = () => {
@@ -144,7 +130,6 @@ export function EditLeaveDialog({ isOpen, onClose, leave }: EditLeaveDialogProps
         end_date: formData.end_date,
         reason: formData.reason,
         emergency_contact: formData.emergency_contact,
-        status: formData.status,
       })
 
       toast.success("Leave request updated successfully!", {
@@ -295,19 +280,6 @@ export function EditLeaveDialog({ isOpen, onClose, leave }: EditLeaveDialogProps
                     )}
                   </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700 mb-2 block">Status</Label>
-                      <CustomSelect value={formData.status} onValueChange={handleSelectChange} disabled={isLoading}>
-                        <CustomSelectTrigger className="h-11 border-gray-300 text-gray-900">
-                          <CustomSelectValue placeholder="Select status" />
-                        </CustomSelectTrigger>
-                        <CustomSelectContent>
-                          <CustomSelectItem value="pending">Pending</CustomSelectItem>
-                          <CustomSelectItem value="approved">Approved</CustomSelectItem>
-                          <CustomSelectItem value="rejected">Rejected</CustomSelectItem>
-                        </CustomSelectContent>
-                      </CustomSelect>
-                    </div>
                 </div>
               </div>
             </div>

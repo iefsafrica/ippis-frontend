@@ -9,6 +9,7 @@ import { FinanceCard } from "../components/finance-card";
 import { FinanceDataTable } from "../components/finance-data-table";
 import { FinanceFormDialog } from "../components/finance-form-dialog";
 import { FinanceDetailsDialog, type FinanceDetailsField } from "../components/finance-details-dialog";
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog";
 import { Wallet, CreditCard, Building, Search, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -164,6 +165,8 @@ export function AccountsListContent() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [statusAccount, setStatusAccount] = useState<FinanceAccountUI | null>(null);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | string>("all");
 
   const accounts = useMemo(() => (data?.data?.accounts ?? []).map(normalizeAccount), [data]);
@@ -250,11 +253,18 @@ export function AccountsListContent() {
     if (!selectedAccount) return accountFields;
 
     return accountFields.filter((field) => {
+      if (field.name === "status") return false;
       const recordKey = accountFieldToRecordKey[field.name];
       const value = selectedAccount[recordKey];
       return value !== null && value !== undefined && value !== ""
     })
   }, [selectedAccount]);
+
+  const handleChangeStatus = (id: string) => {
+    const account = accounts.find((item) => item.id === id) ?? null;
+    setStatusAccount(account);
+    setIsStatusOpen(true);
+  };
 
   const openForm = (account?: FinanceAccountUI) => {
     setSelectedAccount(account ?? null);
@@ -271,7 +281,7 @@ export function AccountsListContent() {
       currency: formData.currency,
       balance: parseFloat(formData.balance),
       opening_date: formData.openingDate || undefined,
-      status: formData.status,
+      status: isEditMode && selectedAccount ? selectedAccount.status ?? "active" : formData.status,
       branch_code: formData.branchCode || undefined,
       swift_code: formData.swiftCode || undefined,
       description: formData.description || undefined,
@@ -373,6 +383,7 @@ export function AccountsListContent() {
                   setSelectedAccount(accounts.find((account) => account.id === id) ?? null);
                   setIsDetailsOpen(true);
                 }}
+                onChangeStatus={handleChangeStatus}
                 onDelete={(id) => handleDelete(accounts.find((account) => account.id === id)?.account_id ?? id)}
                 currencySymbol="NGN"
                 isLoading={isLoading || isFetching}
@@ -424,6 +435,43 @@ export function AccountsListContent() {
           title: "Delete Account",
           description: `Are you sure you want to delete ${selectedAccount?.account_name ?? "this account"}?`,
           itemName: selectedAccount?.account_name ?? "this account",
+        }}
+      />
+
+      <StatusChangeDialog
+        isOpen={isStatusOpen}
+        onClose={() => {
+          setIsStatusOpen(false)
+          setStatusAccount(null)
+        }}
+        title="Change Account Status"
+        description={`Update the status for ${statusAccount?.account_name ?? "this account"}.`}
+        currentStatus={statusAccount?.status ?? "active"}
+        options={statusOptions}
+        isLoading={updateAccount.isPending}
+        onConfirm={async (status) => {
+          if (!statusAccount) return
+          try {
+            await updateAccount.mutateAsync({
+              account_id: statusAccount.account_id,
+              account_name: statusAccount.account_name,
+              account_number: statusAccount.account_number,
+              bank_name: statusAccount.bank_name,
+              account_type: statusAccount.account_type,
+              currency: statusAccount.currency,
+              balance: statusAccount.balance,
+              opening_date: statusAccount.opening_date ?? undefined,
+              status,
+              branch_code: statusAccount.branch_code ?? undefined,
+              swift_code: statusAccount.swift_code ?? undefined,
+              description: statusAccount.description ?? undefined,
+            });
+            toast.success("Account status updated successfully");
+            setIsStatusOpen(false);
+            setStatusAccount(null);
+          } catch (error: any) {
+            toast.error(error?.message || "Failed to update account status");
+          }
         }}
       />
     </div>

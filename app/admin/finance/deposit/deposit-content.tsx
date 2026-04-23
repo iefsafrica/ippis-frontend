@@ -7,6 +7,7 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { FinanceCard } from "../components/finance-card"
 import { FinanceDataTable } from "../components/finance-data-table"
 import { FinanceDetailsDialog, type FinanceDetailsField } from "../components/finance-details-dialog"
@@ -52,9 +53,21 @@ const paymentMethodOptions = [
   { value: "Card", label: "Card" },
 ]
 
+const statusOptions = [
+  { value: "completed", label: "Completed" },
+  { value: "pending", label: "Pending" },
+  { value: "failed", label: "Failed" },
+  { value: "reversed", label: "Reversed" },
+]
+
 const resolveCategory = (value?: string | null) => {
   const normalized = String(value ?? "").trim().toLowerCase()
   return categoryOptions.find((item) => item.value.toLowerCase() === normalized)?.value || categoryOptions[0].value
+}
+
+const resolveStatus = (value?: string | null) => {
+  const normalized = String(value ?? "pending").trim().toLowerCase()
+  return statusOptions.find((item) => item.value.toLowerCase() === normalized)?.value || "pending"
 }
 
 const editFields = [
@@ -117,7 +130,7 @@ const normalizeDeposit = (deposit: any): DepositUI => ({
   category: resolveCategory(deposit.category),
   reference: deposit.reference ?? "",
   description: deposit.description ?? null,
-  status: String(deposit.status ?? "pending").toLowerCase(),
+  status: resolveStatus(deposit.status),
   createdAt: deposit.created_at ?? deposit.createdAt ?? undefined,
   updatedAt: deposit.updated_at ?? deposit.updatedAt ?? undefined,
 })
@@ -133,6 +146,8 @@ export function DepositContent() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [statusDeposit, setStatusDeposit] = useState<DepositUI | null>(null)
+  const [isStatusOpen, setIsStatusOpen] = useState(false)
 
   const deposits = useMemo(() => (data?.data?.deposits ?? []).map(normalizeDeposit), [data])
   const selectedDepositDetailsQuery = useGetFinanceDeposit(selectedDepositId ?? undefined, isDetailsOpen || isEditOpen)
@@ -218,6 +233,14 @@ export function DepositContent() {
     setIsEditOpen(true)
   }
 
+  const handleChangeStatus = (id: string) => {
+    const deposit = deposits.find((item) => item.id === id)
+    if (!deposit) return
+
+    setStatusDeposit(deposit)
+    setIsStatusOpen(true)
+  }
+
   const handleDeleteDeposit = async (depositId: string) => {
     try {
       await deleteDeposit.mutateAsync(depositId)
@@ -262,6 +285,7 @@ export function DepositContent() {
         deposit_id: selectedDeposit.deposit_id,
         amount: Number(formData.amount),
         category: formData.category,
+        status: selectedDeposit.status ?? "pending",
       })
       toast.success("Deposit updated successfully")
       setIsEditOpen(false)
@@ -376,6 +400,7 @@ export function DepositContent() {
             onAdd={handleAddDeposit}
             onEdit={handleEditDeposit}
             onView={handleViewDeposit}
+            onChangeStatus={handleChangeStatus}
             onDelete={(id) => handleDeleteDeposit(deposits.find((item) => item.id === id)?.deposit_id ?? id)}
             currencySymbol="₦"
             isLoading={isLoading || isFetching}
@@ -430,6 +455,34 @@ export function DepositContent() {
         isOpen={isDetailsOpen}
         onOpenChange={handleDetailsOpenChange}
         currencySymbol="₦"
+      />
+      <StatusChangeDialog
+        isOpen={isStatusOpen}
+        onClose={() => {
+          setIsStatusOpen(false)
+          setStatusDeposit(null)
+        }}
+        title="Change Deposit Status"
+        description={`Update the status for ${statusDeposit?.reference ?? "this deposit"}.`}
+        currentStatus={statusDeposit?.status ?? "pending"}
+        options={statusOptions}
+        isLoading={updateDeposit.isPending}
+        onConfirm={async (status) => {
+          if (!statusDeposit) return
+          try {
+            await updateDeposit.mutateAsync({
+              deposit_id: statusDeposit.deposit_id,
+              amount: Number(statusDeposit.amount ?? 0),
+              category: statusDeposit.category,
+              status,
+            })
+            toast.success("Deposit status updated successfully")
+            setIsStatusOpen(false)
+            setStatusDeposit(null)
+          } catch (error: any) {
+            toast.error(error?.message || "Failed to update deposit status")
+          }
+        }}
       />
     </div>
   )

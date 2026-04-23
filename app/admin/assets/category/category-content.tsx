@@ -7,6 +7,7 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { FinanceCard } from "@/app/admin/finance/components/finance-card"
 import { FinanceDataTable } from "@/app/admin/finance/components/finance-data-table"
 import { FinanceDetailsDialog, type FinanceDetailsField } from "@/app/admin/finance/components/finance-details-dialog"
@@ -91,6 +92,8 @@ const editFields = [
   },
 ]
 
+const editCategoryFields = editFields.filter((field) => field.name !== "status")
+
 const detailsFields: FinanceDetailsField[] = [
   { label: "Category ID", key: "category_id", type: "reference" },
   { label: "Category Name", key: "category_name" },
@@ -136,6 +139,8 @@ export function CategoryContent() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [statusCategory, setStatusCategory] = useState<AssetCategoryUI | null>(null)
+  const [isStatusOpen, setIsStatusOpen] = useState(false)
 
   const categories = useMemo(
     () => extractCategories(data?.data).map(normalizeAssetCategory),
@@ -220,6 +225,14 @@ export function CategoryContent() {
     setIsEditOpen(true)
   }
 
+  const handleChangeStatus = (id: string) => {
+    const category = categories.find((item) => item.id === id)
+    if (!category) return
+
+    setStatusCategory(category)
+    setIsStatusOpen(true)
+  }
+
   const handleDeleteCategory = async (categoryId: string) => {
     try {
       await deleteCategory.mutateAsync(categoryId)
@@ -260,7 +273,7 @@ export function CategoryContent() {
         category_id: selectedCategory.category_id,
         category_name: String(formData.category_name ?? "").trim(),
         description: formData.description ? String(formData.description).trim() : null,
-        status: String(formData.status ?? "").trim(),
+        status: selectedCategory.status,
       })
       toast.success("Category updated successfully")
       setIsEditOpen(false)
@@ -373,6 +386,7 @@ export function CategoryContent() {
             onAdd={handleAddCategory}
             onEdit={handleEditCategory}
             onView={handleViewCategory}
+            onChangeStatus={handleChangeStatus}
             onDelete={(id) => handleDeleteCategory(categories.find((item) => item.id === id)?.category_id ?? id)}
             isLoading={isLoading || isFetching}
           />
@@ -395,18 +409,16 @@ export function CategoryContent() {
 
       <FinanceFormDialog
         title="Edit Asset Category"
-        fields={editFields}
+        fields={editCategoryFields}
         initialValues={
           selectedCategory
             ? {
                 category_name: selectedCategory.category_name,
                 description: selectedCategory.description,
-                status: selectedCategory.status,
               }
             : {
                 category_name: "",
                 description: "",
-                status: "pending",
               }
         }
         isOpen={isEditOpen}
@@ -442,6 +454,34 @@ export function CategoryContent() {
           title: "Delete Category",
           description: "This will permanently remove the category record.",
           itemName: selectedCategory?.category_name || "Category",
+        }}
+      />
+      <StatusChangeDialog
+        isOpen={isStatusOpen}
+        onClose={() => {
+          setIsStatusOpen(false)
+          setStatusCategory(null)
+        }}
+        title="Change Category Status"
+        description={`Update the status for ${statusCategory?.category_name ?? "this category"}.`}
+        currentStatus={statusCategory?.status ?? "pending"}
+        options={statusOptions}
+        isLoading={updateCategory.isPending}
+        onConfirm={async (status) => {
+          if (!statusCategory) return
+          try {
+            await updateCategory.mutateAsync({
+              category_id: statusCategory.category_id,
+              category_name: statusCategory.category_name,
+              description: statusCategory.description || null,
+              status,
+            })
+            toast.success("Category status updated successfully")
+            setIsStatusOpen(false)
+            setStatusCategory(null)
+          } catch (error: any) {
+            toast.error(error?.message || "Failed to update category status")
+          }
         }}
       />
     </div>

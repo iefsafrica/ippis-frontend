@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import {
   useCreateClient,
@@ -56,10 +57,17 @@ const statusBadgeClass = (status?: string) => {
   return "bg-gray-100 text-gray-700"
 }
 
+const STATUS_OPTIONS = [
+  { value: "Pending", label: "Pending" },
+  { value: "Active", label: "Active" },
+  { value: "Inactive", label: "Inactive" },
+]
+
 const columns = (
   handleView: (client: Client) => void,
   handleEdit: (client: Client) => void,
   handleDelete: (client: Client) => void,
+  handleChangeStatus: (client: Client) => void,
 ) => [
   {
     key: "client_code",
@@ -111,6 +119,15 @@ const columns = (
         <Button
           variant="outline"
           size="icon"
+          onClick={() => handleChangeStatus(row)}
+          className="text-green-600 hover:text-green-800"
+          title="Change Status"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
           onClick={() => handleDelete(row)}
           className="text-red-600 hover:text-red-800"
           title="Delete Client"
@@ -139,14 +156,15 @@ const formatTimestamp = (value?: string) => {
 export default function ClientsContent() {
   const [viewClient, setViewClient] = useState<Client | null>(null)
   const [editClient, setEditClient] = useState<Client | null>(null)
+  const [statusClient, setStatusClient] = useState<Client | null>(null)
   const [isViewOpen, setIsViewOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isStatusOpen, setIsStatusOpen] = useState(false)
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [editName, setEditName] = useState("")
   const [editContact, setEditContact] = useState("")
   const [editEmail, setEditEmail] = useState("")
   const [editPhone, setEditPhone] = useState("")
-  const [editStatus, setEditStatus] = useState("Pending")
   const [newClient, setNewClient] = useState<CreateClientRequest>({
     name: "",
     contact_person: "",
@@ -190,8 +208,12 @@ export default function ClientsContent() {
     setEditContact(client.contact_person)
     setEditEmail(client.email)
     setEditPhone(client.phone)
-    setEditStatus(client.status ?? "Pending")
     setIsEditOpen(true)
+  }
+
+  const handleChangeStatus = (client: Client) => {
+    setStatusClient(client)
+    setIsStatusOpen(true)
   }
 
   const handleDelete = (client: Client) => {
@@ -234,7 +256,6 @@ export default function ClientsContent() {
           contact_person: editContact || editClient.contact_person,
           email: editEmail || editClient.email,
           phone: editPhone || editClient.phone,
-          status: editStatus,
         },
       })
       toast.success("Client updated")
@@ -312,7 +333,7 @@ export default function ClientsContent() {
         <CardContent>
           <DataTable
             title="Clients"
-            columns={columns(handleView, handleEdit, handleDelete)}
+            columns={columns(handleView, handleEdit, handleDelete, handleChangeStatus)}
             data={clients}
             searchFields={searchFields}
             onAdd={handleOpenAdd}
@@ -325,37 +346,34 @@ export default function ClientsContent() {
         <DialogContent className="max-w-md">
           <form className="space-y-4" onSubmit={handleAddSubmit}>
             <DialogHeader>
-            <DialogTitle>Add Client</DialogTitle>
-            <DialogDescription>Register a new client organization.</DialogDescription>
-          </DialogHeader>
-          <div>
-            <Label>Project</Label>
-            <Select
-              value={selectedProjectId}
-              onValueChange={handleProjectSelect}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select project (optional)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {pendingProjectOptions.map((project) => (
-                  <SelectItem key={project.id} value={String(project.id)}>
-                    {project.name}
-                    {project.project_code ? ` (${project.project_code})` : ""}
-                  </SelectItem>
-                ))}
-                {pendingProjectOptions.length === 0 && (
-                  <SelectItem value="no-projects" disabled>
-                    No pending projects
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Client Name</Label>
-            <Input
+              <DialogTitle>Add Client</DialogTitle>
+              <DialogDescription>Register a new client organization.</DialogDescription>
+            </DialogHeader>
+            <div>
+              <Label>Project</Label>
+              <Select value={selectedProjectId} onValueChange={handleProjectSelect}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select project (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {pendingProjectOptions.map((project) => (
+                    <SelectItem key={project.id} value={String(project.id)}>
+                      {project.name}
+                      {project.project_code ? ` (${project.project_code})` : ""}
+                    </SelectItem>
+                  ))}
+                  {pendingProjectOptions.length === 0 && (
+                    <SelectItem value="no-projects" disabled>
+                      No pending projects
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Client Name</Label>
+              <Input
                 value={newClient.name}
                 onChange={(event) => setNewClient({ ...newClient, name: event.target.value })}
                 required
@@ -470,19 +488,6 @@ export default function ClientsContent() {
               <Label>Phone</Label>
               <Input value={editPhone} onChange={(event) => setEditPhone(event.target.value)} />
             </div>
-            <div>
-              <Label>Status</Label>
-              <Select value={editStatus} onValueChange={(value) => setEditStatus(value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <DialogFooter className="pt-4">
               <Button variant="outline" onClick={() => setIsEditOpen(false)}>
                 Cancel
@@ -494,6 +499,40 @@ export default function ClientsContent() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <StatusChangeDialog
+        isOpen={isStatusOpen}
+        onClose={() => {
+          setIsStatusOpen(false)
+          setStatusClient(null)
+        }}
+        title="Change Client Status"
+        description={`Update the status for ${statusClient?.name ?? "this client"}.`}
+        currentStatus={statusClient?.status ?? "Pending"}
+        options={STATUS_OPTIONS}
+        isLoading={updateClient.isPending}
+        onConfirm={async (status) => {
+          if (!statusClient) return
+          try {
+            await updateClient.mutateAsync({
+              id: statusClient.id,
+              data: {
+                id: statusClient.id,
+                name: statusClient.name,
+                contact_person: statusClient.contact_person,
+                email: statusClient.email,
+                phone: statusClient.phone,
+                status,
+              },
+            })
+            toast.success("Client status updated")
+            setIsStatusOpen(false)
+            setStatusClient(null)
+          } catch (error: any) {
+            toast.error(error?.message || "Failed to update client status")
+          }
+        }}
+      />
 
       <DeleteConfirmationDialog
         isOpen={isDeleteDialogOpen}

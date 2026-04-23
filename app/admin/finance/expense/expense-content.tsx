@@ -7,6 +7,7 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { useGetFinanceAccounts } from "@/services/hooks/finance/accounts"
 import { useGetFinancePayees } from "@/services/hooks/finance/payees"
 import {
@@ -190,6 +191,8 @@ export function ExpenseContent() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [statusExpense, setStatusExpense] = useState<ExpenseUI | null>(null)
+  const [isStatusOpen, setIsStatusOpen] = useState(false)
 
   const expenses = useMemo(() => (data?.data?.expenses ?? []).map(normalizeExpense), [data])
   const selectedExpenseDetailsQuery = useGetFinanceExpense(selectedExpenseId ?? undefined, isDetailsOpen || isEditOpen)
@@ -294,6 +297,14 @@ export function ExpenseContent() {
     setIsEditOpen(true)
   }
 
+  const handleChangeStatus = (id: string) => {
+    const expense = expenses.find((item) => item.id === id)
+    if (!expense) return
+
+    setStatusExpense(expense)
+    setIsStatusOpen(true)
+  }
+
   const handleDeleteExpense = async (expenseId: string) => {
     try {
       await deleteExpense.mutateAsync(expenseId)
@@ -339,6 +350,7 @@ export function ExpenseContent() {
         amount: Number(formData.amount),
         category: String(formData.category ?? "").trim(),
         description: formData.description ? String(formData.description).trim() : null,
+        status: selectedExpense.status ?? "pending",
       })
       toast.success("Expense updated successfully")
       setIsEditOpen(false)
@@ -453,6 +465,7 @@ export function ExpenseContent() {
             onAdd={handleAddExpense}
             onEdit={handleEditExpense}
             onView={handleViewExpense}
+            onChangeStatus={handleChangeStatus}
             onDelete={(id) => handleDeleteExpense(expenses.find((item) => item.id === id)?.expense_id ?? id)}
             currencySymbol="₦"
             isLoading={isLoading || isFetching}
@@ -509,6 +522,39 @@ export function ExpenseContent() {
         isOpen={isDetailsOpen}
         onOpenChange={handleDetailsOpenChange}
         currencySymbol="₦"
+      />
+      <StatusChangeDialog
+        isOpen={isStatusOpen}
+        onClose={() => {
+          setIsStatusOpen(false)
+          setStatusExpense(null)
+        }}
+        title="Change Expense Status"
+        description={`Update the status for ${statusExpense?.reference ?? "this expense"}.`}
+        currentStatus={statusExpense?.status ?? "pending"}
+        options={statusOptions}
+        isLoading={updateExpense.isPending}
+        onConfirm={async (status) => {
+          if (!statusExpense) return
+          try {
+            await updateExpense.mutateAsync({
+              expense_id: statusExpense.expense_id,
+              amount: Number(statusExpense.amount ?? 0),
+              category: statusExpense.category,
+              description: statusExpense.description ?? null,
+              account_id: statusExpense.accountId,
+              payee_id: statusExpense.payeeId,
+              payment_method: statusExpense.paymentMethod,
+              date: statusExpense.date ? String(statusExpense.date).slice(0, 10) : undefined,
+              status,
+            })
+            toast.success("Expense status updated successfully")
+            setIsStatusOpen(false)
+            setStatusExpense(null)
+          } catch (error: any) {
+            toast.error(error?.message || "Failed to update expense status")
+          }
+        }}
       />
     </div>
   )

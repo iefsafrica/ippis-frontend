@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import {
   AlertCircle,
   Banknote,
@@ -148,10 +149,10 @@ export function NewPaymentContent() {
   const [currentPayment, setCurrentPayment] = useState<PaymentResponse | null>(null)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
   const [editAmount, setEditAmount] = useState("")
-  const [editStatus, setEditStatus] = useState<PaymentResponse["status"]>("pending")
   const [editPaymentDate, setEditPaymentDate] = useState("")
   const [editPaymentType, setEditPaymentType] = useState("")
 
@@ -161,7 +162,6 @@ export function NewPaymentContent() {
     }
 
     setEditAmount(currentPayment.amount)
-    setEditStatus(currentPayment.status)
     const normalizedDate = currentPayment.payment_date
       ? currentPayment.payment_date.split("T")[0]
       : ""
@@ -179,6 +179,11 @@ export function NewPaymentContent() {
     setCurrentPayment(null)
   }
 
+  const closeStatusDialog = () => {
+    setIsStatusDialogOpen(false)
+    setCurrentPayment(null)
+  }
+
   const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!currentPayment) {
@@ -193,12 +198,29 @@ export function NewPaymentContent() {
         ? new Date(editPaymentDate).toISOString()
         : currentPayment.payment_date,
       payment_type: editPaymentType || currentPayment.payment_type,
-      status: editStatus || currentPayment.status,
       id: currentPayment.id,
     })
 
     setIsEditDialogOpen(false)
     setCurrentPayment(null)
+  }
+
+  const handleStatusUpdate = async (status: string) => {
+    if (!currentPayment) {
+      return
+    }
+
+    await updatePayment.mutateAsync({
+      id: currentPayment.id,
+      payment_id: currentPayment.payment_id,
+      employee_id: currentPayment.employee_id,
+      amount: parseFloat(currentPayment.amount) || 0,
+      payment_date: currentPayment.payment_date,
+      payment_type: currentPayment.payment_type,
+      status: status as PaymentResponse["status"],
+    })
+
+    closeStatusDialog()
   }
 
   const handleConfirmDelete = async () => {
@@ -495,6 +517,18 @@ export function NewPaymentContent() {
             <Button
               variant="outline"
               size="icon"
+              onClick={() => {
+                setCurrentPayment(row)
+                setIsStatusDialogOpen(true)
+              }}
+              title="Change Status"
+              className="text-emerald-600 hover:text-emerald-800"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
               onClick={() => handleDeletePayment(row)}
               title="Delete"
               disabled={row.status !== "pending"}
@@ -777,21 +811,6 @@ export function NewPaymentContent() {
                 />
               </div>
               <div>
-                <Label>Status</Label>
-                <Select value={editStatus || "pending"} onValueChange={(value) => setEditStatus(value as PaymentResponse["status"])}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PAYMENT_STATUS_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
                 <Label>Payment Type</Label>
                 <Select value={editPaymentType || currentPayment?.payment_type || ""} onValueChange={setEditPaymentType}>
                   <SelectTrigger>
@@ -817,6 +836,17 @@ export function NewPaymentContent() {
             </form>
           </DialogContent>
         </Dialog>
+
+        <StatusChangeDialog
+          isOpen={isStatusDialogOpen}
+          onClose={closeStatusDialog}
+          title="Change Payment Status"
+          description={`Update the status for ${currentPayment?.payment_id ?? "this payment"}.`}
+          currentStatus={currentPayment?.status ?? "pending"}
+          options={PAYMENT_STATUS_OPTIONS}
+          onConfirm={handleStatusUpdate}
+          isLoading={updatePayment.isPending}
+        />
 
         <DeleteConfirmationDialog
           isOpen={isDeleteDialogOpen}

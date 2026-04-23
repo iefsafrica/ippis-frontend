@@ -7,6 +7,7 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { useGetFinanceAccounts } from "@/services/hooks/finance/accounts"
 import {
   useCreateFinanceTransfer,
@@ -158,6 +159,8 @@ export function TransferContent() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [statusTransfer, setStatusTransfer] = useState<TransferUI | null>(null)
+  const [isStatusOpen, setIsStatusOpen] = useState(false)
 
   const transfers = useMemo(() => (data?.data?.transfers ?? []).map(normalizeTransfer), [data])
   const selectedTransferDetailsQuery = useGetFinanceTransfer(selectedTransferId ?? undefined, isDetailsOpen || isEditOpen)
@@ -253,6 +256,14 @@ export function TransferContent() {
     setIsEditOpen(true)
   }
 
+  const handleChangeStatus = (id: string) => {
+    const transfer = transfers.find((item) => item.id === id)
+    if (!transfer) return
+
+    setStatusTransfer(transfer)
+    setIsStatusOpen(true)
+  }
+
   const handleDeleteTransfer = async (transferId: string) => {
     try {
       await deleteTransfer.mutateAsync(transferId)
@@ -298,6 +309,7 @@ export function TransferContent() {
         amount: Number(formData.amount),
         fees: Number(formData.fees),
         description: formData.description ? String(formData.description).trim() : null,
+        status: selectedTransfer.status ?? "Completed",
       })
       toast.success("Transfer updated successfully")
       setIsEditOpen(false)
@@ -414,6 +426,7 @@ export function TransferContent() {
             onAdd={handleAddTransfer}
             onEdit={handleEditTransfer}
             onView={handleViewTransfer}
+            onChangeStatus={handleChangeStatus}
             onDelete={(id) => handleDeleteTransfer(transfers.find((item) => item.id === id)?.transfer_id ?? id)}
             currencySymbol="₦"
             isLoading={isLoading || isFetching}
@@ -470,6 +483,35 @@ export function TransferContent() {
         isOpen={isDetailsOpen}
         onOpenChange={handleDetailsOpenChange}
         currencySymbol="₦"
+      />
+      <StatusChangeDialog
+        isOpen={isStatusOpen}
+        onClose={() => {
+          setIsStatusOpen(false)
+          setStatusTransfer(null)
+        }}
+        title="Change Transfer Status"
+        description={`Update the status for ${statusTransfer?.referenceNo ?? "this transfer"}.`}
+        currentStatus={statusTransfer?.status ?? "Completed"}
+        options={statusOptions}
+        isLoading={updateTransfer.isPending}
+        onConfirm={async (status) => {
+          if (!statusTransfer) return
+          try {
+            await updateTransfer.mutateAsync({
+              transfer_id: statusTransfer.transfer_id,
+              amount: Number(statusTransfer.amount ?? 0),
+              fees: Number(statusTransfer.fees ?? 0),
+              description: statusTransfer.description ?? null,
+              status,
+            })
+            toast.success("Transfer status updated successfully")
+            setIsStatusOpen(false)
+            setStatusTransfer(null)
+          } catch (error: any) {
+            toast.error(error?.message || "Failed to update transfer status")
+          }
+        }}
       />
     </div>
   )

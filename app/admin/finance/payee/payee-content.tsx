@@ -10,6 +10,7 @@ import { FinanceCard } from "../components/finance-card"
 import { FinanceDataTable } from "../components/finance-data-table"
 import { FinanceDetailsDialog, type FinanceDetailsField } from "../components/finance-details-dialog"
 import { FinanceFormDialog } from "../components/finance-form-dialog"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 
@@ -61,6 +62,8 @@ const payeeFields = [
   { name: "status", label: "Status", type: "select" as const, required: true, options: statusOptions, width: "half" as const },
   { name: "notes", label: "Notes", type: "textarea" as const, placeholder: "Enter additional notes", width: "full" as const },
 ]
+
+const editPayeeFields = payeeFields.filter((field) => field.name !== "status")
 
 const detailsFields: FinanceDetailsField[] = [
   { label: "Payee Name", key: "name" },
@@ -141,6 +144,8 @@ export function PayeeContent() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
+  const [statusPayee, setStatusPayee] = useState<PayeeUI | null>(null)
+  const [isStatusOpen, setIsStatusOpen] = useState(false)
 
   const payees = useMemo(() => (data?.data?.payees ?? []).map(normalizePayee), [data])
 
@@ -216,6 +221,12 @@ export function PayeeContent() {
     }
   }
 
+  const handleChangeStatus = (id: string) => {
+    const payee = payees.find((item) => item.id === id)
+    setStatusPayee(payee ?? null)
+    setIsStatusOpen(true)
+  }
+
   const handleDeletePayee = async (payeeId: string) => {
     try {
       await deletePayee.mutateAsync(payeeId)
@@ -236,7 +247,7 @@ export function PayeeContent() {
       bank_name: formData.bankName,
       tax_id: formData.taxId || null,
       category: formData.category,
-      status: formData.status,
+      status: isEditMode && selectedPayee ? selectedPayee.status : formData.status,
       notes: formData.notes || null,
     }
 
@@ -318,6 +329,7 @@ export function PayeeContent() {
             onAdd={handleAddPayee}
             onEdit={handleEditPayee}
             onView={handleViewPayee}
+            onChangeStatus={handleChangeStatus}
             onDelete={(id) => handleDeletePayee(payees.find((item) => item.id === id)?.payee_id ?? id)}
             currencySymbol="₦"
             isLoading={isLoading || isFetching}
@@ -327,7 +339,7 @@ export function PayeeContent() {
 
       <FinanceFormDialog
         title={isEditMode ? "Edit Payee" : "New Payee"}
-        fields={payeeFields}
+        fields={isEditMode ? editPayeeFields : payeeFields}
         initialValues={
           isEditMode && selectedPayee
             ? {
@@ -371,6 +383,43 @@ export function PayeeContent() {
           }
         }}
        
+      />
+
+      <StatusChangeDialog
+        isOpen={isStatusOpen}
+        onClose={() => {
+          setIsStatusOpen(false)
+          setStatusPayee(null)
+        }}
+        title="Change Payee Status"
+        description={`Update the status for ${statusPayee?.name ?? "this payee"}.`}
+        currentStatus={statusPayee?.status ?? "active"}
+        options={statusOptions}
+        isLoading={updatePayee.isPending}
+        onConfirm={async (status) => {
+          if (!statusPayee) return
+          try {
+            await updatePayee.mutateAsync({
+              payee_id: statusPayee.payee_id,
+              payee_name: statusPayee.name,
+              contact_person: statusPayee.contactPerson,
+              email: statusPayee.email,
+              phone: statusPayee.phone,
+              address: statusPayee.address,
+              account_number: statusPayee.accountNumber,
+              bank_name: statusPayee.bankName,
+              tax_id: statusPayee.taxId ?? null,
+              category: statusPayee.category,
+              status,
+              notes: statusPayee.notes ?? null,
+            })
+            toast.success("Payee status updated successfully")
+            setIsStatusOpen(false)
+            setStatusPayee(null)
+          } catch (error: any) {
+            toast.error(error?.message || "Failed to update payee status")
+          }
+        }}
       />
     </div>
   )

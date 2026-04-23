@@ -19,6 +19,7 @@ import {
   Plus,
   MoreHorizontal,
   Edit,
+  RefreshCw,
   Trash2,
   Eye,
   Download,
@@ -64,6 +65,7 @@ interface FinanceDataTableProps {
   onEdit: (id: string) => void
   onDelete: (id: string) => void
   onView: (id: string) => void
+  onChangeStatus?: (id: string) => void
   isLoading?: boolean
   currencySymbol?: string
   showTotals?: boolean
@@ -81,6 +83,7 @@ export function FinanceDataTable({
   onEdit,
   onDelete,
   onView,
+  onChangeStatus,
   isLoading = false,
   currencySymbol = "$",
   showTotals = false,
@@ -686,6 +689,17 @@ export function FinanceDataTable({
                         <Edit className="h-4 w-4" />
                         <span className="sr-only">Edit</span>
                       </Button>
+                      {onChangeStatus && (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => onChangeStatus(row.id)}
+                          className="h-8 w-8 text-green-600 hover:bg-green-50"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                          <span className="sr-only">Change status</span>
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="icon"

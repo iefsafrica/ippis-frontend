@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
-import { useDeleteProject, useGetProjects } from "@/services/hooks/calendar/projects"
+import { useDeleteProject, useGetProjects, useUpdateProject } from "@/services/hooks/calendar/projects"
 import type { Project } from "@/types/calendar/projects"
 import { AddProjectDialog } from "./add-project-dialog"
 import { EditProjectDialog } from "./edit-project-dialog"
@@ -50,6 +51,8 @@ export function ProjectsContent() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
+  const [projectToUpdateStatus, setProjectToUpdateStatus] = useState<Project | null>(null)
 
   const {
     data: projectsResponse,
@@ -59,6 +62,7 @@ export function ProjectsContent() {
     refetch: refetchProjects,
   } = useGetProjects()
 
+  const updateProjectMutation = useUpdateProject()
   const deleteProjectMutation = useDeleteProject()
 
   const projects = projectsResponse?.data || []
@@ -98,6 +102,16 @@ export function ProjectsContent() {
     setIsEditDialogOpen(true)
   }
 
+  const handleOpenStatusDialog = (id: number) => {
+    const project = sortedProjects.find((item) => item.id === id)
+    if (!project) {
+      toast.error("Project not found")
+      return
+    }
+    setProjectToUpdateStatus(project)
+    setIsStatusDialogOpen(true)
+  }
+
   const handleOpenDeleteDialog = (id: number) => {
     const project = sortedProjects.find((item) => item.id === id)
     if (!project) {
@@ -117,6 +131,20 @@ export function ProjectsContent() {
       setCurrentProject(null)
     } catch (error: any) {
       toast.error(error.message || "Failed to delete project")
+    }
+  }
+
+  const handleStatusUpdate = async (status: string) => {
+    if (!projectToUpdateStatus) return
+    try {
+      await updateProjectMutation.mutateAsync({
+        id: projectToUpdateStatus.id,
+        project_status: status,
+      })
+      toast.success("Project status updated successfully")
+      setIsStatusDialogOpen(false)
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update project status")
     }
   }
 
@@ -172,6 +200,9 @@ export function ProjectsContent() {
       label: "Actions",
       render: (_: any, row: Project) => (
         <div className="flex justify-start space-x-2">
+          <Button variant="outline" size="icon" onClick={() => handleOpenStatusDialog(row.id)} title="Change Status">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <Button variant="outline" size="icon" onClick={() => handleViewProject(row.id)} title="View Details">
             <Eye className="h-4 w-4" />
           </Button>
@@ -346,6 +377,7 @@ export function ProjectsContent() {
             data={sortedProjects}
             searchFields={projectSearchFields}
             onAdd={handleAddProject}
+            addButtonLabel="Add Project"
           />
         </CardContent>
       </Card>
@@ -387,6 +419,26 @@ export function ProjectsContent() {
         itemName={currentProject?.project_title || "project"}
         isLoading={deleteProjectMutation.isPending}
       />
+
+      {projectToUpdateStatus && (
+        <StatusChangeDialog
+          isOpen={isStatusDialogOpen}
+          onClose={() => {
+            setIsStatusDialogOpen(false)
+            setProjectToUpdateStatus(null)
+          }}
+          title="Change Project Status"
+          description={`Update the status for ${projectToUpdateStatus.project_title}.`}
+          currentStatus={projectToUpdateStatus.project_status}
+          options={[
+            { value: "active", label: "Active" },
+            { value: "completed", label: "Completed" },
+            { value: "inactive", label: "Inactive" },
+          ]}
+          onConfirm={handleStatusUpdate}
+          isLoading={updateProjectMutation.isPending}
+        />
+      )}
     </div>
   )
 }

@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import {
   useCreateTaxType,
@@ -64,10 +65,16 @@ const statusBadgeClass = (value?: string) => {
   return "bg-gray-100 text-gray-700"
 }
 
+const STATUS_OPTIONS = [
+  { value: "Active", label: "Active" },
+  { value: "Inactive", label: "Inactive" },
+]
+
 const columns = (
   handleView: (taxType: TaxType) => void,
   handleEdit: (taxType: TaxType) => void,
   handleDelete: (taxType: TaxType) => void,
+  handleChangeStatus: (taxType: TaxType) => void,
 ) => [
   {
     key: "tax_code",
@@ -113,6 +120,15 @@ const columns = (
         <Button
           variant="outline"
           size="icon"
+          onClick={() => handleChangeStatus(row)}
+          className="text-green-600 hover:text-green-800"
+          title="Change Status"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
           onClick={() => handleDelete(row)}
           className="text-red-600 hover:text-red-800"
           title="Delete tax type"
@@ -141,8 +157,10 @@ const today = () => new Date().toISOString().split("T")[0]
 export default function TaxTypeContent() {
   const [viewTaxType, setViewTaxType] = useState<TaxType | null>(null)
   const [editTaxType, setEditTaxType] = useState<TaxType | null>(null)
+  const [statusTaxType, setStatusTaxType] = useState<TaxType | null>(null)
   const [isViewOpen, setIsViewOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isStatusOpen, setIsStatusOpen] = useState(false)
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [deleteTaxTypeCandidate, setDeleteTaxTypeCandidate] = useState<TaxType | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -156,7 +174,6 @@ export default function TaxTypeContent() {
   })
 
   const [editRate, setEditRate] = useState("")
-  const [editStatus, setEditStatus] = useState("Active")
   const [editDescription, setEditDescription] = useState("")
 
   const { data: taxTypesResponse, refetch } = useGetTaxTypes()
@@ -181,9 +198,13 @@ export default function TaxTypeContent() {
   const handleEdit = (taxType: TaxType) => {
     setEditTaxType(taxType)
     setEditRate(String(taxType.rate ?? ""))
-    setEditStatus(taxType.status ?? "Active")
     setEditDescription(taxType.description ?? "")
     setIsEditOpen(true)
+  }
+
+  const handleChangeStatus = (taxType: TaxType) => {
+    setStatusTaxType(taxType)
+    setIsStatusOpen(true)
   }
 
   const handleDelete = (taxType: TaxType) => {
@@ -240,7 +261,6 @@ export default function TaxTypeContent() {
           name: editTaxType.name,
           rate: editRate ? Number(editRate) : Number(editTaxType.rate),
           description: editDescription,
-          status: editStatus,
         },
       })
       toast.success("Tax type updated")
@@ -306,12 +326,12 @@ export default function TaxTypeContent() {
           </div>
         </CardHeader>
         <CardContent>
-          <DataTable
-            title="Tax Types"
-            columns={columns(handleView, handleEdit, handleDelete)}
-            data={taxTypes}
-            searchFields={searchFields}
-            onAdd={() => setIsAddOpen(true)}
+        <DataTable
+          title="Tax Types"
+          columns={columns(handleView, handleEdit, handleDelete, handleChangeStatus)}
+          data={taxTypes}
+          searchFields={searchFields}
+          onAdd={() => setIsAddOpen(true)}
             addButtonLoading={createTaxType.isPending}
           />
         </CardContent>
@@ -454,18 +474,6 @@ export default function TaxTypeContent() {
               <Label>Description</Label>
               <Input value={editDescription} onChange={(event) => setEditDescription(event.target.value)} />
             </div>
-            <div>
-              <Label>Status</Label>
-              <Select value={editStatus} onValueChange={(value) => setEditStatus(value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <DialogFooter className="pt-4">
               <Button variant="outline" onClick={() => setIsEditOpen(false)}>
                 Cancel
@@ -477,6 +485,40 @@ export default function TaxTypeContent() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <StatusChangeDialog
+        isOpen={isStatusOpen}
+        onClose={() => {
+          setIsStatusOpen(false)
+          setStatusTaxType(null)
+        }}
+        title="Change Tax Type Status"
+        description={`Update the status for ${statusTaxType?.name ?? "this tax type"}.`}
+        currentStatus={statusTaxType?.status ?? "Active"}
+        options={STATUS_OPTIONS}
+        isLoading={updateTaxType.isPending}
+        onConfirm={async (status) => {
+          if (!statusTaxType) return
+          try {
+            await updateTaxType.mutateAsync({
+              id: statusTaxType.id,
+              data: {
+                id: statusTaxType.id,
+                tax_code: statusTaxType.tax_code,
+                name: statusTaxType.name,
+                rate: statusTaxType.rate,
+                description: statusTaxType.description,
+                status,
+              },
+            })
+            toast.success("Tax type status updated")
+            setIsStatusOpen(false)
+            setStatusTaxType(null)
+          } catch (error: any) {
+            toast.error(error?.message || "Failed to update tax type status")
+          }
+        }}
+      />
 
       <DeleteConfirmationDialog
         isOpen={isDeleteDialogOpen}

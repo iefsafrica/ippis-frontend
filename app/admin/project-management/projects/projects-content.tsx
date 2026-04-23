@@ -13,6 +13,7 @@ import { DatePicker } from "@/components/ui/date-picker"
 import { RefreshCw, Eye, Edit, Trash2, FolderKanban, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import { useEmployeesList } from "@/services/hooks/employees/useEmployees"
 import {
@@ -36,6 +37,8 @@ const PRIORITY_OPTIONS = [
   { value: "medium", label: "Medium" },
   { value: "low", label: "Low" },
 ]
+
+const STATUS_CHANGE_OPTIONS = STATUS_OPTIONS.map((item) => ({ value: item.value, label: item.label }))
 
 const statusBadge = (status?: string) => {
   switch (status?.toLowerCase()) {
@@ -65,7 +68,12 @@ const priorityBadge = (value?: string) => {
   }
 }
 
-const columns = (handleView: (project: Project) => void, openEdit: (project: Project) => void, openDelete: (project: Project) => void) => [
+const columns = (
+  handleView: (project: Project) => void,
+  openEdit: (project: Project) => void,
+  openDelete: (project: Project) => void,
+  handleChangeStatus: (project: Project) => void,
+) => [
   {
     key: "project_code",
     label: "Code",
@@ -151,6 +159,15 @@ const columns = (handleView: (project: Project) => void, openEdit: (project: Pro
           <Button
             variant="outline"
             size="icon"
+            onClick={() => handleChangeStatus(row)}
+            className="text-green-600 hover:text-green-800"
+            title="Change Status"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
             onClick={() => openDelete(row)}
             disabled={!canModify}
             className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -182,6 +199,7 @@ const searchFields = [
 export function ProjectsContent() {
   const [viewProject, setViewProject] = useState<Project | null>(null)
   const [editProject, setEditProject] = useState<Project | null>(null)
+  const [statusProject, setStatusProject] = useState<Project | null>(null)
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [newProject, setNewProject] = useState({
     name: "",
@@ -195,7 +213,7 @@ export function ProjectsContent() {
   })
   const [isViewOpen, setIsViewOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
-  const [editStatus, setEditStatus] = useState("active")
+  const [isStatusOpen, setIsStatusOpen] = useState(false)
   const [editProgress, setEditProgress] = useState("0")
   const [editName, setEditName] = useState("")
   const [editClient, setEditClient] = useState("")
@@ -252,6 +270,11 @@ export function ProjectsContent() {
     setIsViewOpen(true)
   }
 
+  const handleChangeStatus = (project: Project) => {
+    setStatusProject(project)
+    setIsStatusOpen(true)
+  }
+
   const handleStatusSelection = (value: string) =>
     setNewProject((prev) => ({
       ...prev,
@@ -274,7 +297,6 @@ export function ProjectsContent() {
     setEditProjectCode(project.project_code ?? "")
     setEditPriority(normalizeOption(project.priority, PRIORITY_OPTIONS.map((item) => item.value), "medium"))
     setEditBudget(project.budget ?? "")
-    setEditStatus(normalizeOption(project.status, STATUS_OPTIONS.map((item) => item.value), "active"))
     setEditProgress(String(project.progress ?? 0))
     setIsEditOpen(true)
   }
@@ -342,7 +364,6 @@ export function ProjectsContent() {
       project_code: editProjectCode,
       priority: editPriority.toLowerCase(),
       budget: editBudget,
-      status: editStatus.toLowerCase(),
       progress: Number(editProgress || editProject.progress || 0),
     })
     setIsEditOpen(false)
@@ -406,7 +427,7 @@ export function ProjectsContent() {
         <CardContent>
           <DataTable
             title="Projects"
-            columns={columns(handleView, handleEdit, handleDelete)}
+            columns={columns(handleView, handleEdit, handleDelete, handleChangeStatus)}
             data={projects}
             searchFields={searchFields}
             onAdd={() => setIsAddOpen(true)}
@@ -648,25 +669,6 @@ export function ProjectsContent() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Status</Label>
-                <Select
-                  value={editStatus}
-                  onValueChange={(value) =>
-                    setEditStatus(normalizeOption(value, STATUS_OPTIONS.map((item) => item.value), "active"))
-                  }
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
                 <Label>Priority</Label>
                 <Select
                   value={editPriority}
@@ -685,20 +687,20 @@ export function ProjectsContent() {
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label>Progress (%)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={editProgress}
+                  onChange={(event) => setEditProgress(event.target.value)}
+                />
+              </div>
             </div>
             <div>
               <Label>Budget</Label>
               <Input value={editBudget} onChange={(event) => setEditBudget(event.target.value)} placeholder="₦" />
-            </div>
-            <div>
-              <Label>Progress (%)</Label>
-              <Input
-                type="number"
-                min={0}
-                max={100}
-                value={editProgress}
-                onChange={(event) => setEditProgress(event.target.value)}
-              />
             </div>
             <DialogFooter className="pt-4">
               <Button variant="outline" onClick={() => setIsEditOpen(false)}>
@@ -711,6 +713,43 @@ export function ProjectsContent() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <StatusChangeDialog
+        isOpen={isStatusOpen}
+        onClose={() => {
+          setIsStatusOpen(false)
+          setStatusProject(null)
+        }}
+        title="Change Project Status"
+        description={`Update the status for ${statusProject?.name ?? "this project"}.`}
+        currentStatus={statusProject?.status ?? "pending"}
+        options={STATUS_CHANGE_OPTIONS}
+        isLoading={updateProject.isPending}
+        onConfirm={async (status) => {
+          if (!statusProject) return
+          try {
+            await updateProject.mutateAsync({
+              id: statusProject.id,
+              name: statusProject.name,
+              client: statusProject.client,
+              start_date: statusProject.start_date,
+              end_date: statusProject.end_date,
+              manager_id: statusProject.manager_id,
+              project_code: statusProject.project_code,
+              priority: statusProject.priority,
+              budget: statusProject.budget,
+              status,
+              progress: statusProject.progress,
+            })
+            toast.success("Project status updated")
+            setIsStatusOpen(false)
+            setStatusProject(null)
+          } catch (error: any) {
+            toast.error(error?.message || "Failed to update project status")
+          }
+        }}
+      />
+
       <DeleteConfirmationDialog
         isOpen={isDeleteProjectDialogOpen}
         onClose={() => {

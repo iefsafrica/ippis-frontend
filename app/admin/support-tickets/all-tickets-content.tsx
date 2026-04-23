@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { AdvancedSearch } from "@/app/admin/components/advanced-search"
 import { SupportTicketsShell } from "./components/support-tickets-shell"
 import { SupportTicketList } from "./components/support-ticket-list"
@@ -17,6 +18,14 @@ import ExportService from "@/app/admin/services/export-service"
 import { toast } from "sonner"
 import { Download, Plus } from "lucide-react"
 import type { SupportTicket } from "@/types/supportTickets"
+
+const STATUS_OPTIONS = [
+  { value: "open", label: "Open" },
+  { value: "in-progress", label: "In Progress" },
+  { value: "on-hold", label: "On Hold" },
+  { value: "closed", label: "Closed" },
+  { value: "cancelled", label: "Cancelled" },
+]
 
 export default function AllTicketsContent() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -70,10 +79,11 @@ export default function AllTicketsContent() {
   const [editDepartment, setEditDepartment] = useState("")
   const [editDescription, setEditDescription] = useState("")
   const [editPriority, setEditPriority] = useState("medium")
-  const [editStatus, setEditStatus] = useState("open")
   const [editAssignedTo, setEditAssignedTo] = useState("")
   const [editDueDate, setEditDueDate] = useState(new Date().toISOString().split("T")[0])
   const [editProgress, setEditProgress] = useState("0")
+  const [statusTicket, setStatusTicket] = useState<SupportTicket | null>(null)
+  const [isStatusOpen, setIsStatusOpen] = useState(false)
 
   const createTicket = useCreateSupportTicket()
   const updateTicket = useUpdateSupportTicket()
@@ -112,11 +122,15 @@ export default function AllTicketsContent() {
     setEditDepartment(ticket.department ?? "")
     setEditDescription(ticket.description ?? "")
     setEditPriority(ticket.priority ?? "medium")
-    setEditStatus(ticket.status ?? "open")
     setEditAssignedTo(ticket.assigned_to ?? "")
     setEditDueDate(ticket.due_date ?? new Date().toISOString().split("T")[0])
     setEditProgress(String(ticket.progress ?? 0))
     setIsEditOpen(true)
+  }
+
+  const handleChangeStatus = (ticket: SupportTicket) => {
+    setStatusTicket(ticket)
+    setIsStatusOpen(true)
   }
 
   const handleDelete = (ticket: SupportTicket) => {
@@ -146,13 +160,12 @@ export default function AllTicketsContent() {
 
     try {
       await updateTicket.mutateAsync({
-        ticketId: String(editTicket.ticket_id),
+          ticketId: String(editTicket.ticket_id),
         data: {
           subject: editSubject,
           department: editDepartment,
           description: editDescription,
           priority: editPriority,
-          status: editStatus,
           assigned_to: editAssignedTo || undefined,
           due_date: editDueDate,
           progress: Number(editProgress),
@@ -260,6 +273,7 @@ export default function AllTicketsContent() {
                 tickets={filteredTickets}
                 onView={handleView}
                 onEdit={handleEdit}
+                onChangeStatus={handleChangeStatus}
                 onDelete={handleDelete}
                 emptyLabel="No tickets found."
               />
@@ -416,15 +430,6 @@ export default function AllTicketsContent() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="edit-ticket-status">Status</Label>
-                <Input
-                  id="edit-ticket-status"
-                  value={editStatus}
-                  onChange={(event) => setEditStatus(event.target.value)}
-                  required
-                />
-              </div>
-              <div>
                 <Label htmlFor="edit-ticket-priority">Priority</Label>
                 <Input
                   id="edit-ticket-priority"
@@ -456,6 +461,42 @@ export default function AllTicketsContent() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <StatusChangeDialog
+        isOpen={isStatusOpen}
+        onClose={() => {
+          setIsStatusOpen(false)
+          setStatusTicket(null)
+        }}
+        title="Change Ticket Status"
+        description={`Update the status for ${statusTicket?.subject ?? "this ticket"}.`}
+        currentStatus={statusTicket?.status ?? "open"}
+        options={STATUS_OPTIONS}
+        isLoading={updateTicket.isPending}
+        onConfirm={async (status) => {
+          if (!statusTicket) return
+          try {
+            await updateTicket.mutateAsync({
+              ticketId: String(statusTicket.ticket_id),
+              data: {
+                subject: statusTicket.subject ?? "",
+                department: statusTicket.department ?? "",
+                description: statusTicket.description ?? "",
+                priority: statusTicket.priority ?? "medium",
+                status,
+                assigned_to: statusTicket.assigned_to || undefined,
+                due_date: statusTicket.due_date ?? new Date().toISOString().split("T")[0],
+                progress: Number(statusTicket.progress ?? 0),
+              },
+            })
+            toast.success("Support ticket status updated")
+            setIsStatusOpen(false)
+            setStatusTicket(null)
+          } catch (error: any) {
+            toast.error(error?.message || "Failed to update ticket status")
+          }
+        }}
+      />
 
       <DeleteConfirmationDialog
         isOpen={isDeleteDialogOpen}

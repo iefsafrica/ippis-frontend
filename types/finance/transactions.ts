@@ -58,6 +58,7 @@ export interface UpdateFinanceTransactionRequest {
   transaction_date?: string
   transaction_type?: string
   account_id?: string
+  status?: string
 }
 
 export interface UpdateFinanceTransactionResponse {

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -20,6 +21,14 @@ import { useCreateSupportTicket, useDeleteSupportTicket, useGetSupportTickets, u
 import { useEmployeesList } from "@/services/hooks/employees/useEmployees"
 import type { GetSupportTicketsResponse, SupportTicket } from "@/types/supportTickets"
 import type { Employee } from "@/types/employees/employee-management"
+
+const STATUS_OPTIONS = [
+  { value: "open", label: "Open" },
+  { value: "in-progress", label: "In Progress" },
+  { value: "on-hold", label: "On Hold" },
+  { value: "closed", label: "Closed" },
+  { value: "resolved", label: "Resolved" },
+]
 
 const statusBadgeClass = (status?: string) => {
   switch (status?.toLowerCase()) {
@@ -57,6 +66,7 @@ const columns = (
   handleEdit: (ticket: SupportTicket) => void,
   handleDelete: (ticket: SupportTicket) => void,
   getAssigneeDisplayName: (value?: string) => string,
+  handleChangeStatus: (ticket: SupportTicket) => void,
 ) => [
   {
     key: "ticket_id",
@@ -140,6 +150,15 @@ const columns = (
           <Button
             variant="outline"
             size="icon"
+            onClick={() => handleChangeStatus(row)}
+            className="text-green-600 hover:bg-green-50"
+            title="Change Status"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
             onClick={() => handleDelete(row)}
             disabled={!canModify}
             className="text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -184,12 +203,13 @@ export default function AllTicketsContent() {
   const [isViewOpen, setIsViewOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isAddOpen, setIsAddOpen] = useState(false)
+  const [statusTicket, setStatusTicket] = useState<SupportTicket | null>(null)
+  const [isStatusOpen, setIsStatusOpen] = useState(false)
   const [deleteCandidate, setDeleteCandidate] = useState<SupportTicket | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [editSubject, setEditSubject] = useState("")
   const [editDepartment, setEditDepartment] = useState("")
   const [editPriority, setEditPriority] = useState("medium")
-  const [editStatus, setEditStatus] = useState("open")
   const [editAssignedTo, setEditAssignedTo] = useState("")
   const [editDueDate, setEditDueDate] = useState("")
   const [editProgress, setEditProgress] = useState("0")
@@ -265,11 +285,15 @@ export default function AllTicketsContent() {
     setEditSubject(ticket.subject ?? "")
     setEditDepartment(ticket.department ?? "")
     setEditPriority(normalizePriority(ticket.priority))
-    setEditStatus(normalizeStatus(ticket.status))
     setEditAssignedTo(resolveEmployeeIdentifier(ticket.assigned_to))
     setEditDueDate(ticket.due_date ? new Date(ticket.due_date).toISOString().split("T")[0] : "")
     setEditProgress(String(ticket.progress ?? 0))
     setIsEditOpen(true)
+  }
+
+  const handleChangeStatus = (ticket: SupportTicket) => {
+    setStatusTicket(ticket)
+    setIsStatusOpen(true)
   }
 
   useEffect(() => {
@@ -341,7 +365,6 @@ export default function AllTicketsContent() {
           subject: editSubject,
           department: editDepartment,
           priority: editPriority,
-          status: editStatus,
           assigned_to: editAssignedTo || undefined,
           due_date: editDueDate,
           progress: Number(editProgress),
@@ -410,7 +433,7 @@ export default function AllTicketsContent() {
         <CardContent>
           <DataTable
             title="Tickets"
-            columns={columns(handleView, handleEdit, handleDelete, getAssigneeDisplayName)}
+            columns={columns(handleView, handleEdit, handleDelete, getAssigneeDisplayName, handleChangeStatus)}
             data={formattedTickets}
             searchFields={searchFields}
             onAdd={handleOpenAdd}
@@ -634,20 +657,6 @@ export default function AllTicketsContent() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Status</Label>
-                <Select value={editStatus} onValueChange={(value) => setEditStatus(value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="open">Open</SelectItem>
-                    <SelectItem value="in-progress">In Progress</SelectItem>
-                    <SelectItem value="on hold">On Hold</SelectItem>
-                    <SelectItem value="closed">Closed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
                 <Label>Priority</Label>
                 <Select value={editPriority} onValueChange={(value) => setEditPriority(value)}>
                   <SelectTrigger>
@@ -683,6 +692,41 @@ export default function AllTicketsContent() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <StatusChangeDialog
+        isOpen={isStatusOpen}
+        onClose={() => {
+          setIsStatusOpen(false)
+          setStatusTicket(null)
+        }}
+        title="Change Ticket Status"
+        description={`Update the status for ${statusTicket?.subject ?? "this ticket"}.`}
+        currentStatus={statusTicket?.status ?? "open"}
+        options={STATUS_OPTIONS}
+        isLoading={updateTicket.isPending}
+        onConfirm={async (status) => {
+          if (!statusTicket) return
+          try {
+            await updateTicket.mutateAsync({
+              ticketId: String(statusTicket.ticket_id),
+              data: {
+                subject: statusTicket.subject ?? "",
+                department: statusTicket.department ?? "",
+                priority: statusTicket.priority ?? "medium",
+                status,
+                assigned_to: statusTicket.assigned_to || undefined,
+                due_date: statusTicket.due_date ?? new Date().toISOString().split("T")[0],
+                progress: Number(statusTicket.progress ?? 0),
+              },
+            })
+            toast.success("Support ticket status updated")
+            setIsStatusOpen(false)
+            setStatusTicket(null)
+          } catch (error: any) {
+            toast.error(error?.message || "Failed to update ticket status")
+          }
+        }}
+      />
 
       <DeleteConfirmationDialog
         isOpen={isDeleteDialogOpen}

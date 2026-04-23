@@ -1,12 +1,13 @@
- "use client"
+"use client"
 
 import { useState } from "react"
 import { EnhancedDataTable } from "@/app/admin/components/enhanced-data-table"
 import { Button } from "@/components/ui/button"
-import { Eye } from "lucide-react"
+import { Eye, RefreshCw } from "lucide-react"
 import { format } from "date-fns"
-import { useGetPayments, useDeletePayment } from "@/services/hooks/payroll"
+import { useGetPayments, useDeletePayment, useUpdatePayment } from "@/services/hooks/payroll"
 import { PayslipDialog } from "@/app/admin/payroll/payroll-payslip/payslip-dialog"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 //@ts-expect-error - temporary mock data until API integration is complete
 import { formatCurrency } from "@/app/admin/payroll/payroll-payslip/payslip-utils"
 
@@ -78,11 +79,20 @@ const normalizeStatus = (status?: string) => {
   return "gray"
 }
 
+const PAYMENT_STATUS_OPTIONS = [
+  { value: "pending", label: "Pending" },
+  { value: "paid", label: "Paid" },
+  { value: "failed", label: "Failed" },
+] as const
+
 export function PaymentHistoryContent() {
   const [selectedPayment, setSelectedPayment] = useState<any>(null)
   const [showPayslipDialog, setShowPayslipDialog] = useState(false)
+  const [paymentToUpdateStatus, setPaymentToUpdateStatus] = useState<any>(null)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
 
   const { data: paymentsResponse, isLoading } = useGetPayments()
+  const updatePaymentMutation = useUpdatePayment()
   const deletePaymentMutation = useDeletePayment()
 
   const payments = paymentsResponse?.data?.payrolls || paymentHistory
@@ -171,6 +181,32 @@ export function PaymentHistoryContent() {
     setShowPayslipDialog(true)
   }
 
+  const handleChangeStatus = (id: string) => {
+    const payment = resolvePayment(id)
+    if (!payment) return
+    setPaymentToUpdateStatus(payment)
+    setIsStatusDialogOpen(true)
+  }
+
+  const handleStatusUpdate = async (status: string) => {
+    if (!paymentToUpdateStatus) {
+      return
+    }
+
+    await updatePaymentMutation.mutateAsync({
+      id: paymentToUpdateStatus.id,
+      payment_id: paymentToUpdateStatus.payment_id,
+      employee_id: paymentToUpdateStatus.employee_id,
+      amount: parseFloat(paymentToUpdateStatus.amount) || 0,
+      payment_date: paymentToUpdateStatus.payment_date,
+      payment_type: paymentToUpdateStatus.payment_type,
+      status,
+    })
+
+    setIsStatusDialogOpen(false)
+    setPaymentToUpdateStatus(null)
+  }
+
   const handleDeletePayment = async (id: string) => {
     if (confirm("Are you sure you want to delete this payment?")) {
       try {
@@ -225,11 +261,33 @@ export function PaymentHistoryContent() {
             >
               <Eye className="h-4 w-4" />
             </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => handleChangeStatus(String(row.payment_id ?? row.id ?? ""))}
+              title="Change Status"
+              className="ml-2 text-emerald-600 hover:text-emerald-800"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
           </div>
         )}
       />
 
       <PayslipDialog payment={selectedPayment} open={showPayslipDialog} onClose={closePayslipDialog} />
+      <StatusChangeDialog
+        isOpen={isStatusDialogOpen}
+        onClose={() => {
+          setIsStatusDialogOpen(false)
+          setPaymentToUpdateStatus(null)
+        }}
+        title="Change Payment Status"
+        description={`Update the status for ${paymentToUpdateStatus?.payment_id ?? "this payment"}.`}
+        currentStatus={paymentToUpdateStatus?.status ?? "pending"}
+        options={PAYMENT_STATUS_OPTIONS}
+        onConfirm={handleStatusUpdate}
+        isLoading={updatePaymentMutation.isPending}
+      />
     </div>
   )
 }

@@ -13,6 +13,7 @@ import {
   Search,
   Filter,
   MoreVertical,
+  RefreshCw,
   Trash2,
   Edit,
   Eye,
@@ -29,6 +30,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 
 // Mock data for official documents
 const mockDocuments = [
@@ -146,9 +148,12 @@ export function OfficialDocuments() {
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
   const [isNewDocumentDialogOpen, setIsNewDocumentDialogOpen] = useState(false)
+  const [documents, setDocuments] = useState(mockDocuments)
+  const [statusDocument, setStatusDocument] = useState<any>(null)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
 
   // Filter documents based on search term and selected category
-  const filteredDocuments = mockDocuments.filter((doc) => {
+  const filteredDocuments = documents.filter((doc) => {
     const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = selectedCategory === "All" || doc.category === selectedCategory
     return matchesSearch && matchesCategory
@@ -167,6 +172,14 @@ export function OfficialDocuments() {
         return <Badge className="bg-red-100 text-red-800 border-red-200">Expired</Badge>
       default:
         return <Badge variant="outline">{status}</Badge>
+    }
+  }
+
+  const handleChangeStatus = (id: string) => {
+    const document = documents.find((doc) => doc.id === id)
+    if (document) {
+      setStatusDocument(document)
+      setIsStatusDialogOpen(true)
     }
   }
 
@@ -299,6 +312,30 @@ export function OfficialDocuments() {
         </div>
       </div>
 
+      <StatusChangeDialog
+        isOpen={isStatusDialogOpen}
+        onClose={() => {
+          setIsStatusDialogOpen(false)
+          setStatusDocument(null)
+        }}
+        title="Change Document Status"
+        description={`Update the status for ${statusDocument?.name ?? "this document"}.`}
+        currentStatus={statusDocument?.status ?? "Draft"}
+        options={[
+          { value: "Draft", label: "Draft" },
+          { value: "Under Review", label: "Under Review" },
+          { value: "Published", label: "Published" },
+          { value: "Expired", label: "Expired" },
+        ]}
+        onConfirm={async (status) => {
+          if (!statusDocument) return
+          setDocuments((prev) => prev.map((doc) => (doc.id === statusDocument.id ? { ...doc, status } : doc)))
+          setStatusDocument(null)
+          setIsStatusDialogOpen(false)
+          console.log("Document status updated successfully")
+        }}
+      />
+
       {/* Document Browser */}
       <div className="mt-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
@@ -404,6 +441,9 @@ export function OfficialDocuments() {
                     <TableCell>{doc.publishDate}</TableCell>
                     <TableCell>{doc.expiryDate}</TableCell>
                     <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" className="mr-1" onClick={() => handleChangeStatus(doc.id)}>
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon">

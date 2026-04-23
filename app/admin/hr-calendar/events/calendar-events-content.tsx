@@ -1,14 +1,15 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { Calendar as CalendarIcon, Edit, Eye, RefreshCw, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
-import { useDeleteCalendarEvent, useGetCalendarEvents } from "@/services/hooks/calendar/events"
+import { useDeleteCalendarEvent, useGetCalendarEvents, useUpdateCalendarEvent } from "@/services/hooks/calendar/events"
 import type { CalendarEvent } from "@/types/calendar/events"
 import { AddCalendarEventDialog } from "../add-calendar-event-dialog"
 import { EditCalendarEventDialog } from "../edit-calendar-event-dialog"
@@ -61,6 +62,8 @@ export function CalendarEventsContent() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
+  const [eventToUpdateStatus, setEventToUpdateStatus] = useState<CalendarEvent | null>(null)
 
   const {
     data: calendarEventsResponse,
@@ -71,6 +74,7 @@ export function CalendarEventsContent() {
   } = useGetCalendarEvents()
 
   const deleteCalendarEventMutation = useDeleteCalendarEvent()
+  const updateCalendarEventMutation = useUpdateCalendarEvent()
 
   const calendarEvents = calendarEventsResponse?.data || []
   const sortedCalendarEvents = useMemo(() => {
@@ -106,6 +110,19 @@ export function CalendarEventsContent() {
     setIsEditDialogOpen(true)
   }
 
+  const handleOpenStatusDialog = useCallback(
+    (id: number) => {
+      const event = sortedCalendarEvents.find((item) => item.id === id)
+      if (!event) {
+        toast.error("Calendar event not found")
+        return
+      }
+      setEventToUpdateStatus(event)
+      setIsStatusDialogOpen(true)
+    },
+    [sortedCalendarEvents],
+  )
+
   const handleOpenDeleteDialog = (id: number) => {
     const event = sortedCalendarEvents.find((item) => item.id === id)
     if (!event) {
@@ -125,6 +142,20 @@ export function CalendarEventsContent() {
       setCurrentEvent(null)
     } catch (error: any) {
       toast.error(error.message || "Failed to delete calendar event")
+    }
+  }
+
+  const handleStatusUpdate = async (status: string) => {
+    if (!eventToUpdateStatus) return
+    try {
+      await updateCalendarEventMutation.mutateAsync({
+        id: eventToUpdateStatus.id,
+        status,
+      })
+      toast.success("Calendar event status updated successfully")
+      setIsStatusDialogOpen(false)
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update calendar event status")
     }
   }
 
@@ -186,6 +217,9 @@ export function CalendarEventsContent() {
       label: "Actions",
       render: (_: any, row: CalendarEvent) => (
         <div className="flex justify-end space-x-2">
+          <Button variant="outline" size="icon" onClick={() => handleOpenStatusDialog(row.id)} title="Change Status">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <Button variant="outline" size="icon" onClick={() => handleViewEvent(row.id)} title="View Details">
             <Eye className="h-4 w-4" />
           </Button>
@@ -360,6 +394,7 @@ export function CalendarEventsContent() {
             data={sortedCalendarEvents}
             searchFields={calendarSearchFields}
             onAdd={handleAddEvent}
+            addButtonLabel="Add Calendar Event"
           />
         </CardContent>
       </Card>
@@ -401,6 +436,25 @@ export function CalendarEventsContent() {
         itemName={currentEvent?.title || "calendar event"}
         isLoading={deleteCalendarEventMutation.isPending}
       />
+
+      {eventToUpdateStatus && (
+        <StatusChangeDialog
+          isOpen={isStatusDialogOpen}
+          onClose={() => {
+            setIsStatusDialogOpen(false)
+            setEventToUpdateStatus(null)
+          }}
+          title="Change Event Status"
+          description={`Update the status for ${eventToUpdateStatus.title}.`}
+          currentStatus={eventToUpdateStatus.status}
+          options={[
+            { value: "active", label: "Active" },
+            { value: "inactive", label: "Inactive" },
+          ]}
+          onConfirm={handleStatusUpdate}
+          isLoading={updateCalendarEventMutation.isPending}
+        />
+      )}
     </div>
   )
 }

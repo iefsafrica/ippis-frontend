@@ -11,6 +11,7 @@ import { FinanceCard } from "../components/finance-card"
 import { FinanceDataTable } from "../components/finance-data-table"
 import { FinanceDetailsDialog, type FinanceDetailsField } from "../components/finance-details-dialog"
 import { FinanceFormDialog } from "../components/finance-form-dialog"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 
@@ -60,6 +61,8 @@ const payerFields = [
   { name: "status", label: "Status", type: "select" as const, required: true, options: statusOptions, width: "half" as const },
   { name: "notes", label: "Notes", type: "textarea" as const, placeholder: "Enter additional notes", width: "full" as const },
 ]
+
+const editPayerFields = payerFields.filter((field) => field.name !== "status")
 
 const detailsFields: FinanceDetailsField[] = [
   { label: "Payer Name", key: "name" },
@@ -140,6 +143,8 @@ export function PayerContent() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
+  const [statusPayer, setStatusPayer] = useState<PayerUI | null>(null)
+  const [isStatusOpen, setIsStatusOpen] = useState(false)
 
   const payers = useMemo(() => (data?.data?.payers ?? []).map(normalizePayer), [data])
 
@@ -221,6 +226,12 @@ export function PayerContent() {
     }
   }
 
+  const handleChangeStatus = (id: string) => {
+    const payer = payers.find((item) => item.id === id)
+    setStatusPayer(payer ?? null)
+    setIsStatusOpen(true)
+  }
+
   const handleDeletePayer = async (payerId: string) => {
     try {
       await deletePayer.mutateAsync(payerId)
@@ -243,7 +254,7 @@ export function PayerContent() {
       bank_name: formData.bankName,
       tax_id: formData.taxId || null,
       category: formData.category,
-      status: formData.status,
+      status: isEditMode && selectedPayer ? selectedPayer.status : formData.status,
       notes: formData.notes || null,
       created_at: currentDate,
       updated_at: currentDate,
@@ -326,6 +337,7 @@ export function PayerContent() {
             onAdd={handleAddPayer}
             onEdit={handleEditPayer}
             onView={handleViewPayer}
+            onChangeStatus={handleChangeStatus}
             onDelete={(id) => handleDeletePayer(payers.find((item) => item.id === id)?.payer_id ?? id)}
             currencySymbol="₦"
             isLoading={isLoading || isFetching}
@@ -335,7 +347,7 @@ export function PayerContent() {
 
       <FinanceFormDialog
         title={isEditMode ? "Edit Payer" : "New Payer"}
-        fields={payerFields}
+        fields={isEditMode ? editPayerFields : payerFields}
         initialValues={
           isEditMode && selectedPayer
             ? {
@@ -376,6 +388,45 @@ export function PayerContent() {
           setIsDetailsOpen(false)
           if (selectedPayer) {
             handleDeletePayer(selectedPayer.payer_id)
+          }
+        }}
+      />
+
+      <StatusChangeDialog
+        isOpen={isStatusOpen}
+        onClose={() => {
+          setIsStatusOpen(false)
+          setStatusPayer(null)
+        }}
+        title="Change Payer Status"
+        description={`Update the status for ${statusPayer?.name ?? "this payer"}.`}
+        currentStatus={statusPayer?.status ?? "active"}
+        options={statusOptions}
+        isLoading={updatePayer.isPending}
+        onConfirm={async (status) => {
+          if (!statusPayer) return
+          try {
+            await updatePayer.mutateAsync({
+              payer_id: statusPayer.payer_id,
+              payer_name: statusPayer.name,
+              contact_person: statusPayer.contactPerson,
+              email: statusPayer.email,
+              phone: statusPayer.phone,
+              address: statusPayer.address,
+              account_number: statusPayer.accountNumber,
+              bank_name: statusPayer.bankName,
+              tax_id: statusPayer.taxId ?? null,
+              category: statusPayer.category,
+              status,
+              notes: statusPayer.notes ?? null,
+              created_at: statusPayer.created_at,
+              updated_at: new Date().toISOString(),
+            })
+            toast.success("Payer status updated successfully")
+            setIsStatusOpen(false)
+            setStatusPayer(null)
+          } catch (error: any) {
+            toast.error(error?.message || "Failed to update payer status")
           }
         }}
       />

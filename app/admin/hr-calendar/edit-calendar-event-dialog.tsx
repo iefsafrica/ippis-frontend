@@ -46,11 +46,11 @@ interface EditCalendarEventDialogProps {
 }
 
 const eventTypeOptions = [
-  { value: "Meeting", label: "Meeting" },
-  { value: "Training", label: "Training" },
-  { value: "Holiday", label: "Holiday" },
-  { value: "Deadline", label: "Deadline" },
-  { value: "Other", label: "Other" },
+  { value: "meeting", label: "Meeting" },
+  { value: "training", label: "Training" },
+  { value: "holiday", label: "Holiday" },
+  { value: "deadline", label: "Deadline" },
+  { value: "other", label: "Other" },
 ]
 
 const toIsoDateString = (value?: Date) => (value ? value.toISOString().split("T")[0] : "")
@@ -80,14 +80,32 @@ export function EditCalendarEventDialog({ isOpen, onClose, event }: EditCalendar
   useEffect(() => {
     if (!isOpen || !event) return
 
+    const hydratedEvent = event as CalendarEvent & {
+      venue?: string
+      place?: string
+      eventType?: string
+      event_location?: string
+      location_name?: string
+      locationName?: string
+    }
+
+    const normalizedLocation =
+      event.location ||
+      hydratedEvent.event_location ||
+      hydratedEvent.location_name ||
+      hydratedEvent.locationName ||
+      hydratedEvent.venue ||
+      hydratedEvent.place ||
+      ""
+
     setFormData({
       title: event.title || "",
-      event_type: event.event_type || "",
+      event_type: (event.event_type || hydratedEvent.eventType || "other").toLowerCase(),
       department: event.department || "",
       start_date: event.start_date ? toIsoDateString(new Date(event.start_date)) : "",
       end_date: event.end_date ? toIsoDateString(new Date(event.end_date)) : "",
       all_day: !!event.all_day,
-      location: event.location || "",
+      location: normalizedLocation,
       description: event.description || "",
       attendees: Array.isArray(event.attendees) ? event.attendees.join(", ") : "",
     })
@@ -192,6 +210,8 @@ export function EditCalendarEventDialog({ isOpen, onClose, event }: EditCalendar
   }
 
   const isLoading = updateCalendarEventMutation.isPending || isSubmitting
+  const displayEventType = formData.event_type || event?.event_type?.toLowerCase() || "other"
+  const displayLocation = formData.location || event?.location || ""
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -248,7 +268,7 @@ export function EditCalendarEventDialog({ isOpen, onClose, event }: EditCalendar
                         Event Type *
                       </Label>
                       <CustomSelect
-                        value={formData.event_type}
+                        value={displayEventType}
                         onValueChange={(value) => handleSelectChange("event_type", value)}
                         disabled={isLoading}
                       >
@@ -302,7 +322,7 @@ export function EditCalendarEventDialog({ isOpen, onClose, event }: EditCalendar
                         <Input
                           id="location"
                           name="location"
-                          value={formData.location}
+                          value={displayLocation}
                           onChange={handleChange}
                           className="h-11 border-gray-300 rounded-l-none"
                           disabled={isLoading}

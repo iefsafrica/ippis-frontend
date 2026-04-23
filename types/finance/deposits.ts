@@ -51,6 +51,7 @@ export interface UpdateFinanceDepositRequest {
   deposit_id: string
   amount: number
   category: string
+  status?: string
 }
 
 export interface UpdateFinanceDepositResponse {

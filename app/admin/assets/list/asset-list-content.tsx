@@ -7,6 +7,7 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { FinanceCard } from "@/app/admin/finance/components/finance-card"
 import { FinanceDataTable } from "@/app/admin/finance/components/finance-data-table"
 import { FinanceDetailsDialog, type FinanceDetailsField } from "@/app/admin/finance/components/finance-details-dialog"
@@ -123,6 +124,8 @@ export function AssetListContent() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [statusAsset, setStatusAsset] = useState<AssetUI | null>(null)
+  const [isStatusOpen, setIsStatusOpen] = useState(false)
 
   const assets = useMemo(
     () => (assetsData?.data?.assets ?? []).map((asset) => normalizeAsset(asset, categories)),
@@ -234,6 +237,8 @@ export function AssetListContent() {
     { name: "notes", label: "Notes", type: "textarea" as const, placeholder: "Enter notes", width: "full" as const },
   ]
 
+  const editAssetFields = editFields.filter((field) => field.name !== "status")
+
   const handleViewAsset = (id: string) => {
     const asset = assets.find((item) => item.id === id)
     if (!asset) return
@@ -250,6 +255,14 @@ export function AssetListContent() {
     setSelectedAsset(asset)
     setSelectedAssetId(asset.asset_id)
     setIsEditOpen(true)
+  }
+
+  const handleChangeStatus = (id: string) => {
+    const asset = assets.find((item) => item.id === id)
+    if (!asset) return
+
+    setStatusAsset(asset)
+    setIsStatusOpen(true)
   }
 
   const handleDeleteAsset = async (assetId: string) => {
@@ -296,7 +309,7 @@ export function AssetListContent() {
     try {
       await updateAsset.mutateAsync({
         asset_id: selectedAsset.asset_id,
-        status: String(formData.status ?? "").trim(),
+        status: selectedAsset.status,
         location: String(formData.location ?? "").trim(),
         notes: formData.notes ? String(formData.notes).trim() : null,
       })
@@ -423,6 +436,7 @@ export function AssetListContent() {
             onAdd={handleAddAsset}
             onEdit={handleEditAsset}
             onView={handleViewAsset}
+            onChangeStatus={handleChangeStatus}
             onDelete={(id) => handleDeleteAsset(assets.find((item) => item.id === id)?.asset_id ?? id)}
             currencySymbol="₦"
             isLoading={isLoading || isFetching}
@@ -453,16 +467,14 @@ export function AssetListContent() {
 
       <FinanceFormDialog
         title="Edit Asset"
-        fields={editFields}
+        fields={editAssetFields}
         initialValues={
           selectedAsset
             ? {
-                status: selectedAsset.status,
                 location: selectedAsset.location,
                 notes: selectedAsset.notes,
               }
             : {
-                status: statusOptions[0].value,
                 location: "",
                 notes: "",
               }
@@ -503,6 +515,34 @@ export function AssetListContent() {
           itemName: selectedAsset?.asset_name || "Asset",
         }}
         currencySymbol="₦"
+      />
+      <StatusChangeDialog
+        isOpen={isStatusOpen}
+        onClose={() => {
+          setIsStatusOpen(false)
+          setStatusAsset(null)
+        }}
+        title="Change Asset Status"
+        description={`Update the status for ${statusAsset?.asset_name ?? "this asset"}.`}
+        currentStatus={statusAsset?.status ?? statusOptions[0].value}
+        options={statusOptions}
+        isLoading={updateAsset.isPending}
+        onConfirm={async (status) => {
+          if (!statusAsset) return
+          try {
+            await updateAsset.mutateAsync({
+              asset_id: statusAsset.asset_id,
+              status,
+              location: statusAsset.location,
+              notes: statusAsset.notes || null,
+            })
+            toast.success("Asset status updated successfully")
+            setIsStatusOpen(false)
+            setStatusAsset(null)
+          } catch (error: any) {
+            toast.error(error?.message || "Failed to update asset status")
+          }
+        }}
       />
     </div>
   )

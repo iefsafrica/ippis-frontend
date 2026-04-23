@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import { useDeleteLeave, useGetLeaves, useUpdateLeave } from "@/services/hooks/calendar/leaves"
 import type { Leave } from "@/types/calendar/leaves"
@@ -40,6 +41,8 @@ export function LeavesContent() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
+  const [leaveToUpdateStatus, setLeaveToUpdateStatus] = useState<Leave | null>(null)
   const {
     data: leavesResponse,
     isLoading: isLoadingLeaves,
@@ -89,6 +92,16 @@ export function LeavesContent() {
     setIsEditDialogOpen(true)
   }
 
+  const handleOpenStatusDialog = (id: number) => {
+    const leave = sortedLeaves.find((item) => item.id === id)
+    if (!leave) {
+      toast.error("Leave request not found")
+      return
+    }
+    setLeaveToUpdateStatus(leave)
+    setIsStatusDialogOpen(true)
+  }
+
   const handleOpenDeleteDialog = (id: number) => {
     const leave = sortedLeaves.find((item) => item.id === id)
     if (!leave) {
@@ -108,6 +121,20 @@ export function LeavesContent() {
       setCurrentLeave(null)
     } catch (error: any) {
       toast.error(error.message || "Failed to delete leave")
+    }
+  }
+
+  const handleStatusUpdate = async (status: string) => {
+    if (!leaveToUpdateStatus) return
+    try {
+      await updateLeaveMutation.mutateAsync({
+        id: leaveToUpdateStatus.id,
+        status,
+      })
+      toast.success("Leave status updated successfully")
+      setIsStatusDialogOpen(false)
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update leave status")
     }
   }
 
@@ -162,6 +189,9 @@ export function LeavesContent() {
       label: "Actions",
       render: (_: any, row: Leave) => (
         <div className="flex justify-end space-x-2">
+          <Button variant="outline" size="icon" onClick={() => handleOpenStatusDialog(row.id)} title="Change Status">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <Button variant="outline" size="icon" onClick={() => handleViewLeave(row.id)} title="View Details">
             <Eye className="h-4 w-4" />
           </Button>
@@ -332,6 +362,7 @@ export function LeavesContent() {
             data={sortedLeaves}
             searchFields={leaveSearchFields}
             onAdd={handleAddLeave}
+            addButtonLabel="Add Leave Request"
           />
         </CardContent>
       </Card>
@@ -373,6 +404,26 @@ export function LeavesContent() {
         itemName={`${currentLeave?.employee_name || "Employee"}'s leave`}
         isLoading={deleteLeaveMutation.isPending}
       />
+
+      {leaveToUpdateStatus && (
+        <StatusChangeDialog
+          isOpen={isStatusDialogOpen}
+          onClose={() => {
+            setIsStatusDialogOpen(false)
+            setLeaveToUpdateStatus(null)
+          }}
+          title="Change Leave Status"
+          description={`Update the status for ${leaveToUpdateStatus.employee_name || leaveToUpdateStatus.employee_id}.`}
+          currentStatus={leaveToUpdateStatus.status}
+          options={[
+            { value: "pending", label: "Pending" },
+            { value: "approved", label: "Approved" },
+            { value: "rejected", label: "Rejected" },
+          ]}
+          onConfirm={handleStatusUpdate}
+          isLoading={updateLeaveMutation.isPending}
+        />
+      )}
     </div>
   )
 }

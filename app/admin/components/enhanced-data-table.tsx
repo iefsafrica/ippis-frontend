@@ -20,6 +20,7 @@ import {
   Plus,
   MoreHorizontal,
   Edit,
+  RefreshCw,
   Trash2,
   Eye,
   Download,
@@ -65,6 +66,7 @@ interface EnhancedDataTableProps {
   onEdit: (id: string) => void
   onDelete: (id: string) => void
   onView: (id: string) => void
+  onChangeStatus?: (id: string) => void
   isLoading?: boolean
   hideControlBar?: boolean
   hideSummaryCards?: boolean
@@ -84,6 +86,7 @@ export function EnhancedDataTable({
   onEdit,
   onDelete,
   onView,
+  onChangeStatus,
   isLoading = false,
   hideControlBar = false,
   hideSummaryCards = false,
@@ -559,6 +562,17 @@ export function EnhancedDataTable({
                             <Edit className="h-4 w-4" />
                             <span className="sr-only">Edit</span>
                           </Button>
+                          {onChangeStatus && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onChangeStatus(row.id)}
+                              className="h-8 w-8 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                              <span className="sr-only">Change status</span>
+                            </Button>
+                          )}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -575,6 +589,12 @@ export function EnhancedDataTable({
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
+                              {onChangeStatus && (
+                                <DropdownMenuItem onClick={() => onChangeStatus(row.id)} className="cursor-pointer">
+                                  <RefreshCw className="mr-2 h-4 w-4" />
+                                  Change Status
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem
                                 onClick={() => confirmDelete(row.id)}
                                 className="cursor-pointer text-red-600 focus:text-red-600"

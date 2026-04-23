@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus, MoreHorizontal, Edit, Trash2, Eye, Filter, ChevronDown, X, ArrowUpDown } from "lucide-react"
+import { Search, Plus, MoreHorizontal, Edit, RefreshCw, Trash2, Eye, Filter, ChevronDown, X, ArrowUpDown } from "lucide-react"
 
 interface Column {
   key: string
@@ -37,6 +37,7 @@ interface FileManagerDataTableProps {
   onEdit: (id: string) => void
   onDelete: (id: string) => void
   onView: (id: string) => void
+  onChangeStatus?: (id: string) => void
   isLoading?: boolean
   showAddButton?: boolean
   defaultSortColumn?: string
@@ -53,6 +54,7 @@ export function FileManagerDataTable({
   onEdit,
   onDelete,
   onView,
+  onChangeStatus,
   isLoading = false,
   showAddButton = true,
   defaultSortColumn,
@@ -334,6 +336,17 @@ export function FileManagerDataTable({
                         <Edit className="h-4 w-4" />
                         <span className="sr-only">Edit</span>
                       </Button>
+                      {onChangeStatus && (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => onChangeStatus(row.id)}
+                          className="h-8 w-8 text-green-600 hover:bg-green-50"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                          <span className="sr-only">Change status</span>
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="icon"

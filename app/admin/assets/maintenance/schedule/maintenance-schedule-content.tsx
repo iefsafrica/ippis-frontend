@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { EnhancedDataTable } from "@/app/admin/components/enhanced-data-table"
+import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -231,25 +232,14 @@ const mockMaintenanceSchedules = [
   },
 ]
 
-// Calculate maintenance schedule statistics
-const today = new Date()
-const scheduleSummary = {
-  total: mockMaintenanceSchedules.length,
-  upcoming: mockMaintenanceSchedules.filter(
-    (schedule) => schedule.status === "scheduled" && isAfter(new Date(schedule.scheduledDate), today),
-  ).length,
-  overdue: mockMaintenanceSchedules.filter(
-    (schedule) =>
-      (schedule.status === "scheduled" || schedule.status === "overdue") &&
-      isBefore(new Date(schedule.scheduledDate), today),
-  ).length,
-}
-
 export function MaintenanceScheduleContent() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [selectedSchedule, setSelectedSchedule] = useState<any>(null)
+  const [statusSchedule, setStatusSchedule] = useState<any>(null)
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
+  const [maintenanceSchedules, setMaintenanceSchedules] = useState(mockMaintenanceSchedules)
   const [formData, setFormData] = useState({
     assetId: "",
     maintenanceTypeId: "",
@@ -265,6 +255,19 @@ export function MaintenanceScheduleContent() {
     estimatedCost: "",
     notes: "",
   })
+
+  const today = new Date()
+  const scheduleSummary = {
+    total: maintenanceSchedules.length,
+    upcoming: maintenanceSchedules.filter(
+      (schedule) => schedule.status === "scheduled" && isAfter(new Date(schedule.scheduledDate), today),
+    ).length,
+    overdue: maintenanceSchedules.filter(
+      (schedule) =>
+        (schedule.status === "scheduled" || schedule.status === "overdue") &&
+        isBefore(new Date(schedule.scheduledDate), today),
+    ).length,
+  }
 
   const columns = [
     {
@@ -379,13 +382,13 @@ export function MaintenanceScheduleContent() {
       id: "assetId",
       label: "Asset",
       options: mockAssets.map((asset) => ({ value: asset.id, label: asset.name })),
-      type: "select",
+      type: "select" as const,
     },
     {
       id: "maintenanceTypeId",
       label: "Maintenance Type",
       options: mockMaintenanceTypes.map((type) => ({ value: type.id, label: type.name })),
-      type: "select",
+      type: "select" as const,
     },
     {
       id: "priority",
@@ -395,7 +398,7 @@ export function MaintenanceScheduleContent() {
         { value: "medium", label: "Medium" },
         { value: "low", label: "Low" },
       ],
-      type: "select",
+      type: "select" as const,
     },
     {
       id: "status",
@@ -407,7 +410,7 @@ export function MaintenanceScheduleContent() {
         { value: "overdue", label: "Overdue" },
         { value: "cancelled", label: "Cancelled" },
       ],
-      type: "select",
+      type: "select" as const,
     },
     {
       id: "recurrence",
@@ -421,16 +424,18 @@ export function MaintenanceScheduleContent() {
         { value: "semi-annually", label: "Semi-Annually" },
         { value: "annually", label: "Annually" },
       ],
-      type: "select",
+      type: "select" as const,
     },
     {
       id: "scheduledDate",
       label: "Scheduled Date",
-      type: "date",
+      options: [],
+      type: "date" as const,
     },
   ]
 
   const handleAdd = () => {
+    setSelectedSchedule(null)
     setFormData({
       assetId: "",
       maintenanceTypeId: "",
@@ -450,7 +455,7 @@ export function MaintenanceScheduleContent() {
   }
 
   const handleEdit = (id: string) => {
-    const schedule = mockMaintenanceSchedules.find((s) => s.id === id)
+    const schedule = maintenanceSchedules.find((s) => s.id === id)
     if (schedule) {
       setSelectedSchedule(schedule)
       setFormData({
@@ -472,8 +477,16 @@ export function MaintenanceScheduleContent() {
     }
   }
 
+  const handleChangeStatus = (id: string) => {
+    const schedule = maintenanceSchedules.find((s) => s.id === id)
+    if (schedule) {
+      setStatusSchedule(schedule)
+      setIsStatusDialogOpen(true)
+    }
+  }
+
   const handleView = (id: string) => {
-    const schedule = mockMaintenanceSchedules.find((s) => s.id === id)
+    const schedule = maintenanceSchedules.find((s) => s.id === id)
     if (schedule) {
       setSelectedSchedule(schedule)
       setIsViewDialogOpen(true)
@@ -489,6 +502,29 @@ export function MaintenanceScheduleContent() {
     e.preventDefault()
     // In a real application, this would call an API to add or update the maintenance schedule
     console.log("Form submitted:", formData)
+    if (selectedSchedule) {
+      setMaintenanceSchedules((prev) =>
+        prev.map((schedule) =>
+          schedule.id === selectedSchedule.id
+            ? {
+                ...schedule,
+                assetId: formData.assetId,
+                maintenanceTypeId: formData.maintenanceTypeId,
+                title: formData.title,
+                description: formData.description,
+                scheduledDate: formData.scheduledDate ? formData.scheduledDate.toISOString() : schedule.scheduledDate,
+                assignedTo: formData.assignedTo,
+                priority: formData.priority,
+                recurrence: formData.recurrence,
+                notifyBefore: Number(formData.notifyBefore),
+                notifyBeforeUnit: formData.notifyBeforeUnit,
+                estimatedCost: Number(formData.estimatedCost),
+                notes: formData.notes,
+              }
+            : schedule,
+        ),
+      )
+    }
     setIsAddDialogOpen(false)
     setIsEditDialogOpen(false)
   }
@@ -544,12 +580,13 @@ export function MaintenanceScheduleContent() {
       <EnhancedDataTable
         title="Maintenance Schedule"
         columns={columns}
-        data={mockMaintenanceSchedules}
+        data={maintenanceSchedules}
         filterOptions={filterOptions}
         onAdd={handleAdd}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onView={handleView}
+        onChangeStatus={handleChangeStatus}
       />
 
       {/* Add Maintenance Schedule Dialog */}
@@ -642,7 +679,7 @@ export function MaintenanceScheduleContent() {
                       <Calendar
                         mode="single"
                         selected={formData.scheduledDate || undefined}
-                        onSelect={(date) => handleDateChange("scheduledDate", date)}
+                        onSelect={(date) => handleDateChange("scheduledDate", date ?? null)}
                         initialFocus
                       />
                     </PopoverContent>
@@ -864,7 +901,7 @@ export function MaintenanceScheduleContent() {
                       <Calendar
                         mode="single"
                         selected={formData.scheduledDate || undefined}
-                        onSelect={(date) => handleDateChange("scheduledDate", date)}
+                        onSelect={(date) => handleDateChange("scheduledDate", date ?? null)}
                         initialFocus
                       />
                     </PopoverContent>
@@ -958,20 +995,6 @@ export function MaintenanceScheduleContent() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-status">Status</Label>
-                  <Select value={formData.status} onValueChange={(value) => handleSelectChange("status", value)}>
-                    <SelectTrigger id="edit-status">
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="scheduled">Scheduled</SelectItem>
-                      <SelectItem value="in-progress">In Progress</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="edit-notes">Notes</Label>
                   <Textarea
                     id="edit-notes"
@@ -995,6 +1018,31 @@ export function MaintenanceScheduleContent() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <StatusChangeDialog
+        isOpen={isStatusDialogOpen}
+        onClose={() => {
+          setIsStatusDialogOpen(false)
+          setStatusSchedule(null)
+        }}
+        title="Change Maintenance Schedule Status"
+        description={`Update the status for ${statusSchedule?.title ?? "this maintenance schedule"}.`}
+        currentStatus={statusSchedule?.status ?? "scheduled"}
+        options={[
+          { value: "scheduled", label: "Scheduled" },
+          { value: "in-progress", label: "In Progress" },
+          { value: "completed", label: "Completed" },
+          { value: "overdue", label: "Overdue" },
+          { value: "cancelled", label: "Cancelled" },
+        ]}
+        onConfirm={async (status) => {
+          if (!statusSchedule) return
+          setMaintenanceSchedules((prev) => prev.map((schedule) => (schedule.id === statusSchedule.id ? { ...schedule, status } : schedule)))
+          setStatusSchedule(null)
+          setIsStatusDialogOpen(false)
+          console.log("Maintenance schedule status updated successfully")
+        }}
+      />
 
       {/* View Maintenance Schedule Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
