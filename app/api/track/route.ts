@@ -7,8 +7,13 @@ const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   "https://ippis-backend.onrender.com/api"
 
+const normalizeApiBaseUrl = (value: string) => {
+  const trimmed = value.trim().replace(/\/+$/, "")
+  return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`
+}
+
 const buildTargetUrl = (request: NextRequest) => {
-  const url = new URL(API_BASE_URL)
+  const url = new URL(normalizeApiBaseUrl(API_BASE_URL))
   url.pathname = `${url.pathname.replace(/\/$/, "")}/track`
   url.search = request.nextUrl.search
   return url.toString()

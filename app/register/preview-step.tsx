@@ -94,12 +94,13 @@ export function PreviewStep({
     <div className="space-y-8">
       <div>
         <h2 className="text-2xl font-bold text-green-700 mb-6">
-          Step 5: Review & Submit
+          Step 5: Review & Complete
         </h2>
         <p className="text-gray-600 mb-4">
-          Please review all the information you have provided. If you need to
-          make any changes, you can go back to the relevant section using the
-          tabs below or the navigation buttons.
+          Please review all the information you have provided. The actual
+          backend submission happens in the earlier verification, personal,
+          employment, and document steps. This final step confirms your
+          declaration and completes the onboarding flow.
         </p>
       </div>
 
@@ -540,14 +541,14 @@ export function PreviewStep({
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">
-          Check the box and click submit to save everything to the database.
+          Check the box and click submit to complete onboarding and continue to tracking.
         </p>
         <Button
           onClick={handleSubmit}
           disabled={!declaration || loading}
           className="text-white"
         >
-          {loading ? "Submitting…" : "Submit Application"}
+          {loading ? "Completing…" : "Complete Onboarding"}
         </Button>
       </div>
     </div>

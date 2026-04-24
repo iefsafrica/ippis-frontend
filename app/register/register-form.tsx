@@ -12,8 +12,6 @@ import EmploymentInfoStep from "@/app/register/employment-info-stepII";
 import DocumentUploadStep from "./document-upload-step";
 import { PreviewStep } from "./preview-step";
 import { VerifyNinData } from "@/types/verify";
-import { useRegisterEmployee } from "@/services/hooks/employees/useEmployees";
-import type { EmployeeRegistrationPayload } from "@/types/employees/employee-management";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { usePersonalInfo } from "@/services/hooks/register/personal-info";
 import { useEmploymentInfo } from "@/services/hooks/register/employment-info";
 import { useRegistrationDocuments } from "@/services/hooks/register/documents";
+import { registerEmployee } from "@/services/endpoints/employees/employees";
 
 let registrationInitPromise: Promise<string | null> | null = null;
 let registrationInitCachedId: string | null = null;
@@ -161,31 +160,9 @@ export default function RegisterForm() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
-  const registerMutation = useRegisterEmployee();
   const [showSuccessCard, setShowSuccessCard] = useState(false);
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
-
-  const refreshRegistrationStatus = async (regId: string) => {
-    if (!regId) return;
-    try {
-      const statusResponse = await registerMutation.mutateAsync({
-        registration_id: regId,
-        registrationId: regId,
-      } as any);
-
-      if (statusResponse && statusResponse.success) {
-        setRegistrationStatus({
-          documents_uploaded: Boolean(statusResponse.documents_uploaded),
-          personal_information_saved: Boolean(statusResponse.personal_information_saved),
-          employment_information_saved: Boolean(statusResponse.employment_information_saved),
-          email_sent: Boolean(statusResponse.email_sent),
-        });
-      }
-    } catch (err) {
-      console.error("Failed to fetch registration status:", err);
-    }
-  };
   const hasLoadedStoredRegistrationIdRef = useRef(false);
   const personalInfoMutation = usePersonalInfo();
   const employmentInfoMutation = useEmploymentInfo();
@@ -273,7 +250,10 @@ export default function RegisterForm() {
 
   useEffect(() => {
     if (registrationIdConfirmed && (registrationId || manualRegistrationIdInput)) {
-      refreshRegistrationStatus(registrationId || manualRegistrationIdInput);
+      setRegistrationStatus((prev) => ({
+        ...prev,
+        email_sent: Boolean(registrationId || manualRegistrationIdInput),
+      }));
     }
   }, [registrationIdConfirmed, registrationId, manualRegistrationIdInput]);
 
@@ -363,9 +343,12 @@ export default function RegisterForm() {
         }));
         console.log("Personal info response", data);
         setSuccess("Personal information saved successfully");
+        setRegistrationStatus((prev) => ({
+          ...prev,
+          personal_information_saved: true,
+        }));
         setMaxVisitedStep((prev) => Math.max(prev, 3));
         setCurrentStep(3);
-        await refreshRegistrationStatus(regId);
       } else {
         setError(data.error || "Failed to save personal information");
       }
@@ -395,9 +378,12 @@ export default function RegisterForm() {
         }));
         console.log("Employment info response", data);
         setSuccess("Employment information saved successfully");
+        setRegistrationStatus((prev) => ({
+          ...prev,
+          employment_information_saved: true,
+        }));
         setMaxVisitedStep((prev) => Math.max(prev, 4));
         setCurrentStep(4);
-        await refreshRegistrationStatus(regId);
       } else {
         setError(data.error || "Failed to save employment information");
       }
@@ -489,9 +475,12 @@ export default function RegisterForm() {
         }));
         console.log("Document upload response", data);
         setSuccess("Documents uploaded successfully");
+        setRegistrationStatus((prev) => ({
+          ...prev,
+          documents_uploaded: true,
+        }));
         setMaxVisitedStep((prev) => Math.max(prev, 5));
         setCurrentStep(5);
-        await refreshRegistrationStatus(regId);
       } else {
         setError(data.message || data.error || "Failed to upload documents");
       }
@@ -530,18 +519,6 @@ export default function RegisterForm() {
     });
   };
 
-  const buildRegistrationPayload = (
-    declaration: boolean,
-    id: string,
-  ): EmployeeRegistrationPayload => ({
-    registration_id: id,
-    registrationId: id,
-    declaration,
-    email: formData.email || undefined,
-    firstName: formData.firstName,
-    surname: formData.surname,
-  });
-
   const handleFinalSubmit = async (finalData: { declaration: boolean }) => {
     try {
       setLoading(true);
@@ -561,75 +538,77 @@ export default function RegisterForm() {
         throw new Error("Please complete your first name, surname, and email in the personal info step");
       }
 
+      if (!finalData.declaration) {
+        throw new Error("Please accept the declaration before submitting.");
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        declaration: finalData.declaration,
+      }));
+
       const payload = {
         registration_id: canonicalId,
         registrationId: canonicalId,
-        declaration: finalData.declaration === true,
-        nin: formData.nin || undefined,
-        email: emailValue,
-        firstName: firstNameValue,
-        firstname: firstNameValue,
-        first_name: firstNameValue,
-        surname: surnameValue,
-        middlename: formData.otherNames || undefined,
-        middle_name: formData.otherNames || undefined,
-        gender: formData.sex || undefined,
-        telephoneno: formData.phoneNumber || undefined,
-        birthdate: formData.dateOfBirth || undefined,
-        state_of_origin: formData.stateOfOrigin || undefined,
-        residence_address: formData.addressStateOfResidence || undefined,
-        residence_state: formData.stateOfResidence || undefined,
-        residence_lga: formData.lga || undefined,
-        profession: formData.rankPosition || undefined,
-        maritalstatus: formData.maritalStatus || undefined,
-        employment_id: formData.employmentIdNo || undefined,
-        service_number: formData.serviceNo || undefined,
-        file_number: formData.fileNo || undefined,
-        rank_position: formData.rankPosition || undefined,
-        department: formData.department || undefined,
-        organization: formData.organization || undefined,
-        employment_type: formData.employmentType || undefined,
-        probation_period: formData.probationPeriod || undefined,
-        work_location: formData.workLocation || undefined,
-        date_of_first_appointment: formData.dateOfFirstAppointment || undefined,
-        grade_level: formData.gl || undefined,
-        salary_structure: formData.salaryStructure || undefined,
-        cadre: formData.cadre || undefined,
-        bank_name: formData.nameOfBank || undefined,
-        account_number: formData.accountNumber || undefined,
-        pfa_name: formData.pfaName || undefined,
-        rsapin: formData.rsapin || undefined,
-        educational_background: formData.educationalBackground || undefined,
-        certifications: formData.certifications || undefined,
-        next_of_kin_name: formData.nextOfKinName || undefined,
-        next_of_kin_relationship: formData.nextOfKinRelationship || undefined,
-        next_of_kin_phone_number: formData.nextOfKinPhoneNumber || undefined,
-        next_of_kin_address: formData.nextOfKinAddress || undefined,
-      };
-
-      console.log("Final registration payload", payload);
-      const response = await registerMutation.mutateAsync(payload);
-      console.log("Final registration response", response);
-
-      if (response.success) {
-        setFormData((prev) => ({
-          ...prev,
-          declaration: finalData.declaration,
-        }));
-
-        // Refresh flags after final registration post
-        await refreshRegistrationStatus(canonicalId);
-
-        const successMessage = "Registration submitted successfully";
-        setSuccess(successMessage);
-        toast.success(successMessage, { icon: "🎉" });
-        setShowSuccessCard(true);
-        successTimeoutRef.current = window.setTimeout(() => {
-          router.push(`/track?id=${canonicalId}`);
-        }, 1200);
-      } else {
-        setError(response.message || "Failed to submit registration");
+        declaration: finalData.declaration,
+        nin: formData.nin,
+        bvn: formData.bvn,
+        firstName: formData.firstName,
+        firstname: formData.firstName || formData.firstname,
+        first_name: formData.firstName || formData.first_name,
+        surname: formData.surname,
+        email: formData.email,
+        gender: formData.sex,
+        telephoneno: formData.phoneNumber,
+        birthdate: formData.dateOfBirth,
+        state_of_origin: formData.stateOfOrigin,
+        residence_address: formData.addressStateOfResidence,
+        residence_state: formData.stateOfResidence,
+        residence_lga: formData.lga,
+        profession: formData.rankPosition,
+        maritalstatus: formData.maritalStatus,
+        employment_id: formData.employmentIdNo,
+        service_number: formData.serviceNo,
+        file_number: formData.fileNo,
+        rank_position: formData.rankPosition,
+        department: formData.department,
+        organization: formData.organization,
+        employment_type: formData.employmentType,
+        probation_period: formData.probationPeriod,
+        work_location: formData.workLocation,
+        date_of_first_appointment: formData.dateOfFirstAppointment,
+        grade_level: formData.gl,
+        salary_structure: formData.salaryStructure,
+        cadre: formData.cadre,
+        bank_name: formData.nameOfBank,
+        account_number: formData.accountNumber,
+        pfa_name: formData.pfaName,
+        rsapin: formData.rsapin,
+        educational_background: formData.educationalBackground,
+        certifications: formData.certifications,
+        next_of_kin_name: formData.nextOfKinName,
+        next_of_kin_relationship: formData.nextOfKinRelationship,
+        next_of_kin_phone_number: formData.nextOfKinPhoneNumber,
+        next_of_kin_address: formData.nextOfKinAddress,
       }
+
+      const registrationResponse = await registerEmployee(payload)
+      if (!registrationResponse.success) {
+        throw new Error(registrationResponse.message || "Final registration failed")
+      }
+
+      setRegistrationStatus((prev) => ({
+        ...prev,
+        email_sent: true,
+      }));
+
+      const successMessage = "Registration submitted successfully";
+      setSuccess(successMessage);
+      toast.success(successMessage, { icon: "🎉" });
+      setShowSuccessCard(true);
+      successTimeoutRef.current = window.setTimeout(() => {
+        router.push(`/track?id=${canonicalId}`);
+      }, 1200);
     } catch (err) {
       console.error("Registration submission failed:", err);
       setShowSuccessCard(false);
@@ -871,10 +850,10 @@ export default function RegisterForm() {
             <CheckCircle2 className="h-6 w-6 text-emerald-600" />
             <div>
               <p className="text-sm font-semibold text-slate-900">
-                Application submitted
+                Onboarding completed
               </p>
               <p className="text-sm text-slate-600">
-                {success || "Your registration has been submitted successfully."}
+                {success || "Your onboarding has been completed successfully. You can now track your application."}
               </p>
             </div>
           </div>
@@ -886,7 +865,7 @@ export default function RegisterForm() {
       ) : null}
 
       <div className="mb-4 rounded-lg border p-4 bg-slate-50">
-        <h3 className="text-sm font-semibold text-slate-700 mb-2">Registration Progress</h3>
+        <h3 className="text-sm font-semibold text-slate-700 mb-2">Onboarding Progress</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-medium">
           <div className="flex justify-between"><span>Personal Info</span><span>{registrationStatus.personal_information_saved ? "✅" : "⏳"}</span></div>
           <div className="flex justify-between"><span>Employment Info</span><span>{registrationStatus.employment_information_saved ? "✅" : "⏳"}</span></div>
