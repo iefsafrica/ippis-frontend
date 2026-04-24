@@ -4,7 +4,9 @@ import {
   PendingEmployeeResponse,
   AllDocumentsResponse,
   DocumentsResponse,
-  RejectPendingEmployeeResponse
+  RejectPendingEmployeeResponse,
+  BulkApprovePendingEmployeesPayload,
+  BulkApprovePendingEmployeesResponse
 } from "@/types/employees/pending-employees";
 
 export const getPendingEmployees = async (
@@ -36,6 +38,19 @@ export const approvePendingEmployee = async (
   });
   // @ts-expect-error axios response mismatch
   return data;
+};
+
+export const bulkApprovePendingEmployees = async (
+  payload: BulkApprovePendingEmployeesPayload
+): Promise<BulkApprovePendingEmployeesResponse> => {
+  const registrationIds = payload.registration_ids
+    .map((registrationId) => registrationId.replace(/%20/g, " "))
+    .filter(Boolean);
+
+  return post<BulkApprovePendingEmployeesResponse>(
+    "/admin/employees/bulk-approve",
+    { registration_ids: registrationIds }
+  );
 };
 
 export const deletePendingEmployee = async (

@@ -79,6 +79,26 @@ export interface RejectPendingEmployeeResponse {
   };
 }
 
+export interface BulkApprovePendingEmployeesPayload {
+  registration_ids: string[];
+}
+
+export interface BulkApprovePendingEmployeesResponse {
+  success: boolean;
+  message: string;
+  results: {
+    success: Array<{
+      id: string;
+      [key: string]: unknown;
+    }>;
+    failed: Array<{
+      id: string;
+      error: string;
+      [key: string]: unknown;
+    }>;
+  };
+}
+
 // New type for the detailed employee data from your API
 export interface Employee3 {
   id: string;

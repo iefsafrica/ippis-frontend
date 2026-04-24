@@ -1,9 +1,10 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   getPendingEmployees, 
   updateEmployeeStatus,
   getAllDocuments,
   approvePendingEmployee,
+  bulkApprovePendingEmployees,
   deletePendingEmployee,
   getDocuments,
   disapprovePendingEmployee 
@@ -11,6 +12,7 @@ import {
 import { 
   PENDING_DOCUMENTS, 
   PENDING_EMPLOYEES,
+  QUERY_KEYS,
   DOCUMENTS
 } from "@/services/constants/employees";
 import { 
@@ -18,7 +20,9 @@ import {
   PendingEmployeeResponse,
   AllDocumentsResponse,
   DocumentsResponse,
-  RejectPendingEmployeeResponse // Import the new type
+  RejectPendingEmployeeResponse,
+  BulkApprovePendingEmployeesResponse,
+  BulkApprovePendingEmployeesPayload
 } from "@/types/employees/pending-employees";
 
 export const usePendingEmployees = (page: number = 1, limit: number = 10) => {
@@ -42,6 +46,23 @@ export const useApprovePendingEmployee = () => {
   >({
     mutationFn: ({ registrationId }) =>
       approvePendingEmployee(registrationId),
+  });
+};
+
+export const useBulkApprovePendingEmployees = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    BulkApprovePendingEmployeesResponse,
+    Error,
+    BulkApprovePendingEmployeesPayload
+  >({
+    mutationFn: bulkApprovePendingEmployees,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [PENDING_EMPLOYEES] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.EMPLOYEES_LIST] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.RECENT_EMPLOYEES] });
+    },
   });
 };
 

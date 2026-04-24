@@ -2541,13 +2541,15 @@ import {
   Ban,
   RotateCcw,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from "lucide-react"
 import { toast } from "sonner"
 import { 
   usePendingEmployees, 
   useUpdateEmployeeStatus,
   useApprovePendingEmployee,
+  useBulkApprovePendingEmployees,
   useDeletePendingEmployee,
   useDisapprovePendingEmployee 
 } from "@/services/hooks/employees/usePendingEmployees"
@@ -2598,6 +2600,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
   const { data, isLoading, error, refetch } = usePendingEmployees(currentPage, 1000)
   const updateEmployeeStatusMutation = useUpdateEmployeeStatus()
   const approvePendingEmployeeMutation = useApprovePendingEmployee()
+  const bulkApprovePendingEmployeesMutation = useBulkApprovePendingEmployees()
   const deletePendingEmployeeMutation = useDeletePendingEmployee()
   const disapprovePendingEmployeeMutation = useDisapprovePendingEmployee()
  
@@ -2636,6 +2639,41 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
   const handleRefresh = () => {
     refetch()
     onRefresh?.()
+  }
+
+  const handleBulkApprove = async () => {
+    const registrationIds = pendingEmployees
+      .map((employee) => employee.registration_id)
+      .filter(Boolean)
+
+    if (registrationIds.length === 0) {
+      toast.info("No pending employees to approve.")
+      return
+    }
+
+    const loadingToast = toast.loading(
+      `Approving ${registrationIds.length} employee${registrationIds.length === 1 ? "" : "s"}...`
+    )
+
+    try {
+      const response = await bulkApprovePendingEmployeesMutation.mutateAsync({
+        registration_ids: registrationIds,
+      })
+
+      toast.dismiss(loadingToast)
+      toast.success("Employees Approved", {
+        description: response.message || "Bulk approval completed successfully.",
+      })
+      handleRefresh()
+    } catch (error) {
+      toast.dismiss(loadingToast)
+      toast.error("Error", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to approve all pending employees. Please try again.",
+      })
+    }
   }
 
   // Function to get status badge
@@ -3162,10 +3200,25 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
               <Button type="submit" className="w-full sm:w-auto">Search</Button>
             </form>
 
-            <div className="flex w-full items-center gap-2 sm:w-auto">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
               <Button variant="outline" size="sm" className="w-full sm:w-auto">
                 <Filter className="mr-2 h-4 w-4" />
                 Filter
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleBulkApprove}
+                disabled={
+                  bulkApprovePendingEmployeesMutation.isPending ||
+                  pendingEmployees.length === 0
+                }
+                className="w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto"
+              >
+                {bulkApprovePendingEmployeesMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Approve All Employees
               </Button>
             </div>
           </div>
