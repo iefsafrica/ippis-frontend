@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   CREATE_FOLDER,
   DELETE_FOLDER,
+  GET_FILE_MANAGER_DASHBOARD,
   GET_FOLDER,
   GET_FOLDERS,
   UPDATE_FOLDER,
@@ -50,6 +51,7 @@ export const useCreateFolder = () => {
     mutationFn: createFolder,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [GET_FOLDERS] })
+      queryClient.invalidateQueries({ queryKey: [GET_FILE_MANAGER_DASHBOARD] })
     },
   })
 }
@@ -62,6 +64,7 @@ export const useUpdateFolder = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [GET_FOLDERS] })
       queryClient.invalidateQueries({ queryKey: [GET_FOLDER, variables.folder_id] })
+      queryClient.invalidateQueries({ queryKey: [GET_FILE_MANAGER_DASHBOARD] })
     },
   })
 }
@@ -74,6 +77,7 @@ export const useDeleteFolder = () => {
     onSuccess: (_, folderId) => {
       queryClient.invalidateQueries({ queryKey: [GET_FOLDERS] })
       queryClient.invalidateQueries({ queryKey: [GET_FOLDER, folderId] })
+      queryClient.invalidateQueries({ queryKey: [GET_FILE_MANAGER_DASHBOARD] })
     },
   })
 }

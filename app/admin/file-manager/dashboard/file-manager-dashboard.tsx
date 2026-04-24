@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { RefreshCw, Sparkles } from "lucide-react"
+import { Activity, FolderOpen, RefreshCw, Sparkles, UploadCloud } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import { FileManagerDataTable } from "@/app/admin/file-manager/components/file-manager-data-table"
+import { FileManagerFilesPanel } from "@/app/admin/file-manager/components/file-manager-files-panel"
+import { useGetFileManagerDashboard } from "@/services/hooks/file-manager/dashboard"
 import {
   useCreateFolder,
   useDeleteFolder,
@@ -18,8 +20,17 @@ import {
   useGetFolders,
   useUpdateFolder,
 } from "@/services/hooks/file-manager/folders"
+import type { FileManagerRecentActivityItem } from "@/types/file-manager/dashboard"
 
 export function FileManagerDashboard() {
+  const {
+    data: dashboardResponse,
+    isLoading: isDashboardLoading,
+    isFetching: isDashboardFetching,
+    isError: isDashboardError,
+    refetch: refetchDashboard,
+  } = useGetFileManagerDashboard()
+
   const {
     data: foldersResponse,
     isLoading: isFoldersLoading,
@@ -28,6 +39,9 @@ export function FileManagerDashboard() {
     refetch: refetchFolders,
   } = useGetFolders()
   const folders = foldersResponse?.data ?? []
+  const dashboard = dashboardResponse?.data
+  const dashboardHighlights = dashboard?.highlights
+  const recentActivity = dashboard?.recent_activity ?? []
 
   const createFolderMutation = useCreateFolder()
   const updateFolderMutation = useUpdateFolder()
@@ -69,6 +83,28 @@ export function FileManagerDashboard() {
   const latestFolder = [...folders].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   )[0]
+
+  const formatBytes = (value: number | string) => {
+    const bytes = Number(value)
+    if (!Number.isFinite(bytes)) {
+      return "-"
+    }
+
+    if (bytes < 1024) {
+      return `${bytes} B`
+    }
+
+    const units = ["KB", "MB", "GB", "TB"]
+    let size = bytes / 1024
+    let unitIndex = 0
+
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024
+      unitIndex += 1
+    }
+
+    return `${size.toFixed(size >= 10 ? 0 : 1)} ${units[unitIndex]}`
+  }
 
   const formatDate = (value: string) =>
     new Date(value).toLocaleString("en-NG", {
@@ -212,14 +248,17 @@ export function FileManagerDashboard() {
             <div>
               <h1 className="text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">Folder Management</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                Manage live folders from the file-manager endpoints with create, rename, view, and delete flows.
+                Manage live folders and files from the file-manager endpoints with create, upload, view, and delete flows.
               </p>
             </div>
           </div>
 
           <Button
             variant="outline"
-            onClick={() => refetchFolders()}
+            onClick={() => {
+              refetchFolders()
+              refetchDashboard()
+            }}
             className="w-full gap-2 rounded-2xl border-slate-200 bg-white text-slate-700 shadow-sm xl:w-auto"
           >
             <RefreshCw className="h-4 w-4" />
@@ -227,16 +266,52 @@ export function FileManagerDashboard() {
           </Button>
         </div>
 
-        <div className="mt-6 grid gap-3 md:grid-cols-3">
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <Card className="border-slate-200 shadow-none">
+            <CardHeader className="pb-2">
+              <CardDescription>Dashboard</CardDescription>
+              <CardTitle className="text-3xl">
+                {isDashboardLoading || isDashboardFetching ? "..." : "Live"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                {isDashboardError ? "Unable to load dashboard summary." : "Metrics from the file-manager dashboard."}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border-slate-200 shadow-none">
+            <CardHeader className="pb-2">
+              <CardDescription>Total Files</CardDescription>
+              <CardTitle className="text-3xl">{dashboardHighlights?.total_files ?? 0}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">All files returned by the API.</p>
+            </CardContent>
+          </Card>
           <Card className="border-slate-200 shadow-none">
             <CardHeader className="pb-2">
               <CardDescription>Total Folders</CardDescription>
-              <CardTitle className="text-3xl">{folders.length}</CardTitle>
+              <CardTitle className="text-3xl">{dashboardHighlights?.total_folders ?? folders.length}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">All folders returned by the API.</p>
+              <p className="text-sm text-muted-foreground">Folders returned by the dashboard endpoint.</p>
             </CardContent>
           </Card>
+          <Card className="border-slate-200 shadow-none">
+            <CardHeader className="pb-2">
+              <CardDescription>Storage Used</CardDescription>
+              <CardTitle className="text-3xl">
+                {dashboardHighlights ? formatBytes(dashboardHighlights.total_storage_used) : "-"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Storage consumed by uploaded files.</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mt-6 grid gap-3 md:grid-cols-2">
           <Card className="border-slate-200 shadow-none">
             <CardHeader className="pb-2">
               <CardDescription>Root Folders</CardDescription>
@@ -259,6 +334,57 @@ export function FileManagerDashboard() {
           </Card>
         </div>
       </div>
+
+      <Card className="overflow-hidden rounded-[28px] border border-slate-200 bg-white/95 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.26)]">
+        <div className="border-b border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-6 py-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-950">Recent activity</h2>
+              <p className="text-sm text-slate-500">Latest files from the dashboard endpoint.</p>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <Activity className="h-4 w-4" />
+              {recentActivity.length} item{recentActivity.length === 1 ? "" : "s"}
+            </div>
+          </div>
+        </div>
+        <div className="px-6 py-5">
+          {recentActivity.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
+              No recent activity available.
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              {recentActivity.map((item: FileManagerRecentActivityItem) => (
+                <div
+                  key={item.id}
+                  className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="rounded-2xl bg-emerald-50 p-2 text-emerald-600">
+                      <UploadCloud className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-slate-950">{item.name}</p>
+                      <p className="truncate text-sm text-slate-500">{item.file_type}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
+                    <span className="rounded-full bg-slate-100 px-3 py-1 font-mono text-xs text-slate-700">
+                      {item.file_id}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <FolderOpen className="h-4 w-4" />
+                      {item.folder_id ?? "Root"}
+                    </span>
+                    <span>{formatBytes(item.file_size)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
 
       <Dialog
         open={isCreateDialogOpen}
@@ -365,6 +491,8 @@ export function FileManagerDashboard() {
           />
         </div>
       </Card>
+
+      <FileManagerFilesPanel folders={folders} />
 
       <Dialog
         open={isRenameDialogOpen}

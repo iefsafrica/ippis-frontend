@@ -1,15 +1,25 @@
 import axios, { AxiosRequestConfig } from "axios";
 import Cookies from "js-cookie";
 
+const normalizeBaseUrl = (value?: string | null) => {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const withoutTrailingSlash = trimmed.replace(/\/+$/, "");
+  return withoutTrailingSlash.endsWith("/api") ? withoutTrailingSlash : `${withoutTrailingSlash}/api`;
+};
+
 const resolveBaseUrl = () => {
   // Prefer the public API base URL when explicitly configured.
-  const envUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  const envUrl = normalizeBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
   if (envUrl) {
     return envUrl;
   }
 
   // Fallback to the internal backend service URL (e.g., set on Vercel).
-  const fallbackUrl = process.env.BACKEND_SERVICE_URL?.trim();
+  const fallbackUrl = normalizeBaseUrl(process.env.BACKEND_SERVICE_URL);
   if (fallbackUrl) {
     return fallbackUrl;
   }

@@ -322,7 +322,7 @@ export function FileManagerDataTable({
                         variant="outline"
                         size="icon"
                         onClick={() => onView(row.id)}
-                        className="h-8 w-8 text-gray-600 hover:bg-gray-50"
+                        className="h-8 w-8 border-slate-200 text-gray-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
                       >
                         <Eye className="h-4 w-4" />
                         <span className="sr-only">View</span>
@@ -331,7 +331,7 @@ export function FileManagerDataTable({
                         variant="outline"
                         size="icon"
                         onClick={() => onEdit(row.id)}
-                        className="h-8 w-8 text-blue-600 hover:bg-blue-50"
+                        className="h-8 w-8 border-slate-200 text-blue-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                       >
                         <Edit className="h-4 w-4" />
                         <span className="sr-only">Edit</span>
@@ -341,7 +341,7 @@ export function FileManagerDataTable({
                           variant="outline"
                           size="icon"
                           onClick={() => onChangeStatus(row.id)}
-                          className="h-8 w-8 text-green-600 hover:bg-green-50"
+                          className="h-8 w-8 border-slate-200 text-green-600 transition hover:border-green-200 hover:bg-green-50 hover:text-green-700"
                         >
                           <RefreshCw className="h-4 w-4" />
                           <span className="sr-only">Change status</span>
@@ -351,7 +351,7 @@ export function FileManagerDataTable({
                         variant="outline"
                         size="icon"
                         onClick={() => onDelete(row.id)}
-                        className="h-8 w-8 text-red-600 hover:bg-red-50"
+                        className="h-8 w-8 border-slate-200 text-red-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
                       >
                         <Trash2 className="h-4 w-4" />
                         <span className="sr-only">Delete</span>

@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Save, Plus, Trash2, Edit, MoreVertical, FileCheck, FolderPlus, FolderOpen, Eye } from "lucide-react"
+import { Save, Plus, Trash2, Edit, MoreVertical, FileCheck, FolderPlus, FolderOpen, Eye, Sparkles, RefreshCw } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
@@ -18,20 +18,11 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "sonner"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import { useCreateFolder, useDeleteFolder, useGetFolder, useGetFolders, useUpdateFolder } from "@/services/hooks/file-manager/folders"
+import { useGetFileManagerDashboard } from "@/services/hooks/file-manager/dashboard"
+import { useGetFiles } from "@/services/hooks/file-manager/files"
 
-// Mock data for file types
-const fileTypes = [
-  { id: "1", extension: ".pdf", name: "PDF Document", maxSize: "10 MB", allowed: true },
-  { id: "2", extension: ".docx", name: "Word Document", maxSize: "10 MB", allowed: true },
-  { id: "3", extension: ".xlsx", name: "Excel Spreadsheet", maxSize: "10 MB", allowed: true },
-  { id: "4", extension: ".pptx", name: "PowerPoint Presentation", maxSize: "20 MB", allowed: true },
-  { id: "5", extension: ".jpg", name: "JPEG Image", maxSize: "5 MB", allowed: true },
-  { id: "6", extension: ".png", name: "PNG Image", maxSize: "5 MB", allowed: true },
-  { id: "7", extension: ".zip", name: "ZIP Archive", maxSize: "50 MB", allowed: true },
-  { id: "8", extension: ".mp4", name: "MP4 Video", maxSize: "100 MB", allowed: false },
-  { id: "9", extension: ".exe", name: "Executable File", maxSize: "0", allowed: false },
-  { id: "10", extension: ".js", name: "JavaScript File", maxSize: "1 MB", allowed: false },
-]
+const fileManagerTabTriggerClasses =
+  "rounded-full border border-emerald-200 bg-white px-5 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-white/80 data-[state=active]:border-emerald-600 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg"
 
 export function FileConfiguration() {
   const [isAddFileTypeDialogOpen, setIsAddFileTypeDialogOpen] = useState(false)
@@ -44,8 +35,20 @@ export function FileConfiguration() {
   const [auditLoggingEnabled, setAuditLoggingEnabled] = useState(true)
   const [retentionPeriod, setRetentionPeriod] = useState(365) // days
 
-  const { data: foldersResponse, isLoading: isFoldersLoading } = useGetFolders()
+  const {
+    data: dashboardResponse,
+    isLoading: isDashboardLoading,
+    isFetching: isDashboardFetching,
+    refetch: refetchDashboard,
+  } = useGetFileManagerDashboard()
+  const {
+    data: foldersResponse,
+    isLoading: isFoldersLoading,
+    refetch: refetchFolders,
+  } = useGetFolders()
   const folders = foldersResponse?.data ?? []
+  const { data: filesResponse, isLoading: isFilesLoading, refetch: refetchFiles } = useGetFiles()
+  const files = filesResponse?.data ?? []
   const createFolderMutation = useCreateFolder()
   const updateFolderMutation = useUpdateFolder()
   const deleteFolderMutation = useDeleteFolder()
@@ -63,6 +66,57 @@ export function FileConfiguration() {
 
   const { data: viewedFolderResponse } = useGetFolder(viewFolderId ?? undefined, Boolean(viewFolderId))
   const viewedFolder = viewedFolderResponse?.data
+  const dashboard = dashboardResponse?.data
+
+  const liveFileTypes = useMemo(() => {
+    const groups = new Map<
+      string,
+      { extension: string; name: string; mimeType: string; count: number; latestUpload: string; allowed: boolean }
+    >()
+
+    files.forEach((file) => {
+      const extension = file.name.includes(".") ? `.${file.name.split(".").pop()?.toLowerCase() ?? ""}` : "—"
+      const mimeType = file.file_type || "application/octet-stream"
+      const key = `${extension}:${mimeType}`
+      const existing = groups.get(key)
+
+      const name =
+        mimeType.startsWith("image/")
+          ? "Image"
+          : mimeType === "application/pdf"
+            ? "PDF Document"
+            : mimeType.includes("sheet") || mimeType.includes("excel")
+              ? "Spreadsheet"
+              : mimeType.includes("word") || mimeType.includes("document")
+                ? "Document"
+                : extension === "—"
+                  ? "File"
+                  : `${extension.slice(1).toUpperCase()} File`
+
+      const allowed = ![".exe", ".js", ".mp4"].includes(extension)
+
+      groups.set(key, {
+        extension,
+        name,
+        mimeType,
+        count: (existing?.count ?? 0) + 1,
+        latestUpload:
+          !existing || new Date(file.created_at).getTime() > new Date(existing.latestUpload).getTime()
+            ? file.created_at
+            : existing.latestUpload,
+        allowed,
+      })
+    })
+
+    return Array.from(groups.values()).sort((a, b) => b.count - a.count)
+  }, [files])
+
+  const liveSummary = {
+    totalFiles: dashboard?.highlights.total_files ?? files.length,
+    totalFolders: dashboard?.highlights.total_folders ?? folders.length,
+    storageUsed: dashboard?.highlights.total_storage_used ?? 0,
+    rootFolders: folders.filter((folder) => folder.parent_id === null).length,
+  }
 
   useEffect(() => {
     if (!renameFolderId) {
@@ -105,6 +159,23 @@ export function FileConfiguration() {
       hour: "2-digit",
       minute: "2-digit",
     })
+
+  const formatBytes = (value: number | string) => {
+    const bytes = Number(value)
+    if (!Number.isFinite(bytes)) return "-"
+    if (bytes < 1024) return `${bytes} B`
+
+    const units = ["KB", "MB", "GB", "TB"]
+    let size = bytes / 1024
+    let unitIndex = 0
+
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024
+      unitIndex += 1
+    }
+
+    return `${size.toFixed(size >= 10 ? 0 : 1)} ${units[unitIndex]}`
+  }
 
   const handleCreateFolder = async () => {
     const trimmedName = folderName.trim()
@@ -173,31 +244,97 @@ export function FileConfiguration() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">File Configuration</h1>
-          <p className="text-muted-foreground">Configure file storage, permissions, and other settings</p>
+    <div className="space-y-6 p-6">
+      <div className="rounded-[28px] border border-slate-200 bg-white/90 p-6 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.28)] backdrop-blur">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500">
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              File configuration module
+            </div>
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">File Configuration</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                Configure file storage, folder structure, and live file categories using the data already in your file-manager API.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => {
+                refetchDashboard()
+                refetchFolders()
+                refetchFiles()
+              }}
+              className="gap-2 rounded-full border border-gray-300 bg-white text-slate-700 shadow-sm transition-colors duration-150 ease-in-out hover:bg-[#f3fcf5] hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </Button>
+            <Button className="rounded-full bg-[#008751] px-5 text-white hover:bg-[#00724a]">
+              <Save className="mr-2 h-4 w-4" />
+              Save Changes
+            </Button>
+          </div>
         </div>
-        <Button className="bg-[#008751] hover:bg-[#00724a]">
-          <Save className="mr-2 h-4 w-4" />
-          Save Changes
-        </Button>
+
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <Card className="border-slate-200 shadow-none">
+            <CardHeader className="pb-2">
+              <CardDescription>Total Files</CardDescription>
+              <CardTitle className="text-3xl">{liveSummary.totalFiles}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                {isDashboardLoading || isDashboardFetching || isFilesLoading ? "Loading live file count..." : "Live files from the API."}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border-slate-200 shadow-none">
+            <CardHeader className="pb-2">
+              <CardDescription>Total Folders</CardDescription>
+              <CardTitle className="text-3xl">{liveSummary.totalFolders}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Folders currently stored in the file manager.</p>
+            </CardContent>
+          </Card>
+          <Card className="border-slate-200 shadow-none">
+            <CardHeader className="pb-2">
+              <CardDescription>Storage Used</CardDescription>
+              <CardTitle className="text-3xl">{formatBytes(liveSummary.storageUsed)}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Reported by the dashboard endpoint.</p>
+            </CardContent>
+          </Card>
+          <Card className="border-slate-200 shadow-none">
+            <CardHeader className="pb-2">
+              <CardDescription>Root Folders</CardDescription>
+              <CardTitle className="text-3xl">{liveSummary.rootFolders}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Folders without parents.</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <Tabs defaultValue="general">
-        <TabsList className="mb-4">
-          <TabsTrigger value="general">General Settings</TabsTrigger>
-          <TabsTrigger value="storage">Storage</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="file-types">File Types</TabsTrigger>
-          <TabsTrigger value="folders">Folder Structure</TabsTrigger>
+        <TabsList className="mx-auto mb-4 flex h-auto w-full flex-wrap justify-center gap-1 rounded-full border border-emerald-200 bg-white/80 p-1 shadow-sm">
+          <TabsTrigger className={fileManagerTabTriggerClasses} value="general">General Settings</TabsTrigger>
+          <TabsTrigger className={fileManagerTabTriggerClasses} value="storage">Storage</TabsTrigger>
+          <TabsTrigger className={fileManagerTabTriggerClasses} value="security">Security</TabsTrigger>
+          <TabsTrigger className={fileManagerTabTriggerClasses} value="file-types">File Types</TabsTrigger>
+          <TabsTrigger className={fileManagerTabTriggerClasses} value="folders">Folder Structure</TabsTrigger>
         </TabsList>
 
         {/* General Settings Tab */}
         <TabsContent value="general">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
+            <Card className="border-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg">Document Versioning</CardTitle>
                 <CardDescription>Configure version control for documents</CardDescription>
@@ -229,7 +366,7 @@ export function FileConfiguration() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg">Retention Policy</CardTitle>
                 <CardDescription>Configure document retention settings</CardDescription>
@@ -261,7 +398,7 @@ export function FileConfiguration() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg">Audit Logging</CardTitle>
                 <CardDescription>Configure file activity tracking</CardDescription>
@@ -320,7 +457,7 @@ export function FileConfiguration() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg">Default Settings</CardTitle>
                 <CardDescription>Configure default behavior for new files</CardDescription>
@@ -362,7 +499,7 @@ export function FileConfiguration() {
         {/* Storage Tab */}
         <TabsContent value="storage">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
+            <Card className="border-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg">Storage Limits</CardTitle>
                 <CardDescription>Configure storage space allocation</CardDescription>
@@ -416,7 +553,7 @@ export function FileConfiguration() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg">Compression Settings</CardTitle>
                 <CardDescription>Configure file compression to save space</CardDescription>
@@ -477,7 +614,7 @@ export function FileConfiguration() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg">Backup Configuration</CardTitle>
                 <CardDescription>Configure automatic backup settings</CardDescription>
@@ -522,7 +659,7 @@ export function FileConfiguration() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg">Storage Location</CardTitle>
                 <CardDescription>Configure where files are stored</CardDescription>
@@ -578,7 +715,7 @@ export function FileConfiguration() {
         {/* Security Tab */}
         <TabsContent value="security">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
+            <Card className="border-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg">Encryption Settings</CardTitle>
                 <CardDescription>Configure file encryption for security</CardDescription>
@@ -621,7 +758,7 @@ export function FileConfiguration() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg">Access Control</CardTitle>
                 <CardDescription>Configure file access permissions</CardDescription>
@@ -664,7 +801,7 @@ export function FileConfiguration() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg">Virus Scanning</CardTitle>
                 <CardDescription>Configure virus scanning for uploaded files</CardDescription>
@@ -701,7 +838,7 @@ export function FileConfiguration() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg">Security Compliance</CardTitle>
                 <CardDescription>Configure compliance settings</CardDescription>
@@ -742,131 +879,155 @@ export function FileConfiguration() {
 
         {/* File Types Tab */}
         <TabsContent value="file-types">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Allowed File Types</h2>
-            <Dialog open={isAddFileTypeDialogOpen} onOpenChange={setIsAddFileTypeDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add File Type
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add File Type</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div>
-                    <Label htmlFor="file-extension">File Extension</Label>
-                    <Input id="file-extension" placeholder="e.g. .pdf" />
-                  </div>
-                  <div>
-                    <Label htmlFor="file-type-name">Display Name</Label>
-                    <Input id="file-type-name" placeholder="e.g. PDF Document" />
-                  </div>
-                  <div>
-                    <Label htmlFor="max-file-size">Maximum Size</Label>
-                    <Select defaultValue="10">
-                      <SelectTrigger id="max-file-size">
-                        <SelectValue placeholder="Select maximum size" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">1 MB</SelectItem>
-                        <SelectItem value="5">5 MB</SelectItem>
-                        <SelectItem value="10">10 MB</SelectItem>
-                        <SelectItem value="20">20 MB</SelectItem>
-                        <SelectItem value="50">50 MB</SelectItem>
-                        <SelectItem value="100">100 MB</SelectItem>
-                        <SelectItem value="unlimited">Unlimited</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="allow-file-type" defaultChecked />
-                    <label htmlFor="allow-file-type" className="text-sm font-medium leading-none">
-                      Allow this file type
-                    </label>
-                  </div>
+          <div className="space-y-6">
+            <Card className="border-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50 shadow-sm">
+              <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <CardTitle className="text-2xl">Live File Types</CardTitle>
+                  <CardDescription>
+                    This table is derived from files already uploaded to the file-manager API.
+                  </CardDescription>
                 </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setIsAddFileTypeDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button className="bg-[#008751] hover:bg-[#00724a]">Add</Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
+                <Dialog open={isAddFileTypeDialogOpen} onOpenChange={setIsAddFileTypeDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-[#008751] hover:bg-[#00724a]">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add File Type
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[560px]">
+                    <DialogHeader>
+                      <DialogTitle>Request New File Type</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                        File type rules are driven by the data already in the system. If you want to allow a new format, upload a file of that type or extend the backend validation rules.
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="allow-file-type" defaultChecked />
+                        <label htmlFor="allow-file-type" className="text-sm font-medium leading-none">
+                          Mark as allowed in this workspace
+                        </label>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setIsAddFileTypeDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button className="bg-[#008751] hover:bg-[#00724a]">Close</Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </CardHeader>
+            </Card>
 
-          <div className="border rounded-md">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Extension</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Maximum Size</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {fileTypes.map((fileType) => (
-                  <TableRow key={fileType.id}>
-                    <TableCell className="font-mono">{fileType.extension}</TableCell>
-                    <TableCell>{fileType.name}</TableCell>
-                    <TableCell>{fileType.maxSize}</TableCell>
-                    <TableCell>
-                      {fileType.allowed ? (
-                        <Badge className="bg-green-100 text-green-800 border-green-200">Allowed</Badge>
+            <div className="grid gap-3 md:grid-cols-3">
+              <Card className="border-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50 shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardDescription>Detected Types</CardDescription>
+                  <CardTitle className="text-3xl">{liveFileTypes.length}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">Unique types detected from uploaded files.</p>
+                </CardContent>
+              </Card>
+              <Card className="border-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50 shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardDescription>Uploaded Files</CardDescription>
+                  <CardTitle className="text-3xl">{files.length}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">All files currently returned by the API.</p>
+                </CardContent>
+              </Card>
+              <Card className="border-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50 shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardDescription>Live Sync</CardDescription>
+                  <CardTitle className="text-3xl">{isFilesLoading ? "..." : "On"}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">Updates as soon as the file list changes.</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="overflow-hidden border-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50 shadow-sm">
+              <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <CardTitle className="text-lg">File Type Registry</CardTitle>
+                  <CardDescription>
+                    {isFilesLoading ? "Loading files..." : `Showing ${liveFileTypes.length} detected file types.`}
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-2xl border-slate-200 bg-white text-slate-700"
+                    onClick={() => {
+                      refetchFiles()
+                      refetchDashboard()
+                    }}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Refresh
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-2xl border bg-white overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Extension</TableHead>
+                        <TableHead>Type Name</TableHead>
+                        <TableHead>MIME Type</TableHead>
+                        <TableHead>Files</TableHead>
+                        <TableHead>Latest Upload</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {liveFileTypes.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                            No file types detected yet. Upload a file to populate this table.
+                          </TableCell>
+                        </TableRow>
                       ) : (
-                        <Badge className="bg-red-100 text-red-800 border-red-200">Blocked</Badge>
+                        liveFileTypes.map((fileType) => (
+                          <TableRow key={`${fileType.extension}-${fileType.mimeType}`}>
+                            <TableCell className="font-mono text-sm">{fileType.extension}</TableCell>
+                            <TableCell>{fileType.name}</TableCell>
+                            <TableCell className="max-w-[240px] truncate text-sm text-slate-600">{fileType.mimeType}</TableCell>
+                            <TableCell>{fileType.count}</TableCell>
+                            <TableCell>{formatFolderDate(fileType.latestUpload)}</TableCell>
+                            <TableCell>
+                              {fileType.allowed ? (
+                                <Badge className="border-emerald-200 bg-emerald-100 text-emerald-800">Allowed</Badge>
+                              ) : (
+                                <Badge className="border-amber-200 bg-amber-100 text-amber-800">Review</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
                       )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          {fileType.allowed ? (
-                            <DropdownMenuItem>
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Block
-                            </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem>
-                              <FileCheck className="mr-2 h-4 w-4" />
-                              Allow
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem>
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 
         {/* Folders Tab */}
         <TabsContent value="folders">
           <div className="space-y-6">
-            <Card className="border-0 shadow-sm bg-gradient-to-br from-emerald-50 via-white to-amber-50">
+            <Card className="border-0 bg-gradient-to-br from-slate-50 via-white to-emerald-50 shadow-sm">
               <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <CardTitle className="text-2xl">Folder Structure</CardTitle>
-                  <CardDescription>Manage live folders from the file-manager API.</CardDescription>
+                  <CardDescription>Manage live folders from the file-manager API with the same visual language as the rest of the file manager.</CardDescription>
                 </div>
                 <Dialog
                   open={isFolderDialogOpen}
@@ -879,7 +1040,7 @@ export function FileConfiguration() {
                   }}
                 >
                   <DialogTrigger asChild>
-                    <Button className="bg-[#008751] hover:bg-[#00724a]">
+                    <Button className="gap-2 rounded-full bg-[#008751] px-5 hover:bg-[#00724a]">
                       <FolderPlus className="mr-2 h-4 w-4" />
                       Add Folder
                     </Button>
@@ -896,12 +1057,13 @@ export function FileConfiguration() {
                           placeholder="e.g. Invoices"
                           value={folderName}
                           onChange={(e) => setFolderName(e.target.value)}
+                          className="rounded-2xl border-slate-200 bg-white transition hover:border-slate-300 focus-visible:ring-[#008751]"
                         />
                       </div>
                       <div>
                         <Label htmlFor="folder-parent">Parent Folder</Label>
                         <Select value={folderParentId} onValueChange={setFolderParentId}>
-                          <SelectTrigger id="folder-parent">
+                          <SelectTrigger id="folder-parent" className="rounded-2xl border-slate-200 bg-white transition hover:border-slate-300">
                             <SelectValue placeholder="Select parent folder" />
                           </SelectTrigger>
                           <SelectContent>
@@ -916,11 +1078,11 @@ export function FileConfiguration() {
                       </div>
                     </div>
                     <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setIsFolderDialogOpen(false)}>
+                      <Button variant="outline" onClick={() => setIsFolderDialogOpen(false)} className="rounded-2xl border-slate-200 bg-white">
                         Cancel
                       </Button>
                       <Button
-                        className="bg-[#008751] hover:bg-[#00724a]"
+                        className="rounded-2xl bg-[#008751] hover:bg-[#00724a]"
                         onClick={handleCreateFolder}
                         disabled={createFolderMutation.isPending}
                       >
@@ -932,8 +1094,8 @@ export function FileConfiguration() {
               </CardHeader>
             </Card>
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <Card>
+            <div className="grid gap-3 md:grid-cols-3">
+              <Card className="border-slate-200 shadow-none">
                 <CardHeader className="pb-2">
                   <CardDescription>Total Folders</CardDescription>
                   <CardTitle className="text-3xl">{folders.length}</CardTitle>
@@ -942,7 +1104,7 @@ export function FileConfiguration() {
                   <p className="text-sm text-muted-foreground">Live folders from the backend.</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border-slate-200 shadow-none">
                 <CardHeader className="pb-2">
                   <CardDescription>Root Folders</CardDescription>
                   <CardTitle className="text-3xl">{rootFolders.length}</CardTitle>
@@ -951,7 +1113,7 @@ export function FileConfiguration() {
                   <p className="text-sm text-muted-foreground">Folders with no parent folder.</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border-slate-200 shadow-none">
                 <CardHeader className="pb-2">
                   <CardDescription>Nested Folders</CardDescription>
                   <CardTitle className="text-3xl">{subFolders.length}</CardTitle>
@@ -964,7 +1126,7 @@ export function FileConfiguration() {
               </Card>
             </div>
 
-            <Card className="border shadow-sm">
+            <Card className="overflow-hidden rounded-[28px] border border-slate-200 bg-white/95 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.22)]">
               <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <CardTitle className="text-lg">Live Folder Registry</CardTitle>
@@ -979,11 +1141,12 @@ export function FileConfiguration() {
                     placeholder="Search folders..."
                     value={folderSearchTerm}
                     onChange={(e) => setFolderSearchTerm(e.target.value)}
+                    className="rounded-2xl border-slate-200 bg-white transition hover:border-slate-300 focus-visible:ring-[#008751]"
                   />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="rounded-xl border bg-white overflow-hidden">
+                <div className="overflow-hidden rounded-2xl border bg-white">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -1013,16 +1176,17 @@ export function FileConfiguration() {
                             <TableCell className="font-mono text-sm">{folder.folder_id}</TableCell>
                             <TableCell>{resolveParentName(folder.parent_id)}</TableCell>
                             <TableCell>{formatFolderDate(folder.created_at)}</TableCell>
-                            <TableCell className="text-right">
+                          <TableCell className="text-right">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
+                                  <Button variant="ghost" size="icon" className="rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900">
                                     <MoreVertical className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem
                                     onClick={() => setViewFolderId(folder.folder_id)}
+                                    className="cursor-pointer"
                                   >
                                     <Eye className="mr-2 h-4 w-4" />
                                     View
@@ -1032,6 +1196,7 @@ export function FileConfiguration() {
                                       setRenameFolderId(folder.folder_id)
                                       setIsRenameDialogOpen(true)
                                     }}
+                                    className="cursor-pointer"
                                   >
                                     <Edit className="mr-2 h-4 w-4" />
                                     Rename
@@ -1041,6 +1206,7 @@ export function FileConfiguration() {
                                       setDeleteFolderId(folder.folder_id)
                                       setIsDeleteDialogOpen(true)
                                     }}
+                                    className="cursor-pointer text-red-600 focus:text-red-600"
                                   >
                                     <Trash2 className="mr-2 h-4 w-4" />
                                     Delete
