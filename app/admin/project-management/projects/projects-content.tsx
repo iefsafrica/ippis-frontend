@@ -1,8 +1,9 @@
 "use client"
 
 import type React from "react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { ApproveConfirmationDialog } from "@/components/ui/approve-confirmation-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -10,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DatePicker } from "@/components/ui/date-picker"
-import { RefreshCw, Eye, Edit, Trash2, FolderKanban, Plus } from "lucide-react"
+import { RefreshCw, Eye, Edit, Trash2, FolderKanban, Plus, CheckCircle2 } from "lucide-react"
 import { toast } from "sonner"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
@@ -18,6 +19,7 @@ import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-di
 import { useEmployeesList } from "@/services/hooks/employees/useEmployees"
 import {
   useCreateProject,
+  useApproveProjects,
   useDeleteProject,
   useGetProjects,
   useUpdateProject,
@@ -48,6 +50,8 @@ const statusBadge = (status?: string) => {
       return "bg-emerald-100 text-emerald-700"
     case "completed":
       return "bg-blue-100 text-blue-700"
+    case "approved":
+      return "bg-green-100 text-green-700"
     case "inactive":
       return "bg-gray-100 text-gray-600"
     default:
@@ -73,6 +77,7 @@ const columns = (
   openEdit: (project: Project) => void,
   openDelete: (project: Project) => void,
   handleChangeStatus: (project: Project) => void,
+  handleApprove: (project: Project) => void,
 ) => [
   {
     key: "project_code",
@@ -134,8 +139,9 @@ const columns = (
     label: "Actions",
     render: (_: any, row: Project) => {
       const normalizedStatus = row.status?.toLowerCase()
+      const isApproved = normalizedStatus === "approved"
       const canModify =
-        normalizedStatus?.includes("progress") || normalizedStatus === "in progress"
+        !isApproved && (normalizedStatus?.includes("progress") || normalizedStatus === "in progress")
       return (
         <div className="flex justify-end space-x-2">
           <Button
@@ -146,6 +152,17 @@ const columns = (
           >
             <Eye className="h-4 w-4" />
           </Button>
+          {row.status?.toLowerCase() === "pending" && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => handleApprove(row)}
+              className="text-emerald-600 hover:text-emerald-800"
+              title="Approve Project"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             variant="outline"
             size="icon"
@@ -160,6 +177,7 @@ const columns = (
             variant="outline"
             size="icon"
             onClick={() => handleChangeStatus(row)}
+            disabled={isApproved}
             className="text-green-600 hover:text-green-800"
             title="Change Status"
           >
@@ -227,6 +245,10 @@ export function ProjectsContent() {
   const [editBudget, setEditBudget] = useState("")
   const [deleteProjectCandidate, setDeleteProjectCandidate] = useState<Project | null>(null)
   const [isDeleteProjectDialogOpen, setIsDeleteProjectDialogOpen] = useState(false)
+  const [approveProjectCandidate, setApproveProjectCandidate] = useState<Project | null>(null)
+  const [isApproveProjectDialogOpen, setIsApproveProjectDialogOpen] = useState(false)
+  const [isBulkApproveProjectsDialogOpen, setIsBulkApproveProjectsDialogOpen] = useState(false)
+  const [projectRows, setProjectRows] = useState<Project[]>([])
 
   const {
     data: projectsResponse,
@@ -237,6 +259,7 @@ export function ProjectsContent() {
   const deleteProject = useDeleteProject()
   const createProject = useCreateProject()
   const updateProject = useUpdateProject()
+  const approveProjects = useApproveProjects()
 
   const {
     data: employeesData,
@@ -259,7 +282,16 @@ export function ProjectsContent() {
     return options.includes(normalized) ? normalized : fallback
   }
 
-  const projects = projectsResponse?.data?.projects ?? []
+  useEffect(() => {
+    setProjectRows(projectsResponse?.data?.projects ?? [])
+  }, [projectsResponse])
+
+  const projects = projectRows
+  const pendingProjectIds = useMemo(
+    () => projects.filter((project) => project.status?.toLowerCase() === "pending").map((project) => project.id),
+    [projects],
+  )
+  const pendingProjectCount = pendingProjectIds.length
 
   const total = projects.length
   const active = projects.filter((project) => project.status?.toLowerCase() === "active").length
@@ -304,6 +336,61 @@ export function ProjectsContent() {
   const handleDelete = (project: Project) => {
     setDeleteProjectCandidate(project)
     setIsDeleteProjectDialogOpen(true)
+  }
+
+  const handleApproveProject = async (project: Project) => {
+    setApproveProjectCandidate(project)
+    setIsApproveProjectDialogOpen(true)
+  }
+
+  const handleConfirmApproveProject = async () => {
+    if (!approveProjectCandidate) return
+
+    try {
+      const response = await approveProjects.mutateAsync({ project_ids: [approveProjectCandidate.id] })
+      const approvedCount = response.approvedIds?.length ?? 1
+      toast.success(
+        response.message || `${approvedCount} project${approvedCount === 1 ? "" : "s"} approved successfully`,
+      )
+      setProjectRows((currentRows) =>
+        currentRows.map((project) =>
+          project.id === approveProjectCandidate.id ? { ...project, status: "approved" } : project,
+        ),
+      )
+      setIsApproveProjectDialogOpen(false)
+      setApproveProjectCandidate(null)
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to approve project")
+    }
+  }
+
+  const handleBulkApproveProjects = () => {
+    if (!pendingProjectCount) {
+      toast.info("No pending projects to approve")
+      return
+    }
+
+    setIsBulkApproveProjectsDialogOpen(true)
+  }
+
+  const handleConfirmBulkApproveProjects = async () => {
+    if (!pendingProjectIds.length) return
+
+    try {
+      const response = await approveProjects.mutateAsync({ project_ids: pendingProjectIds })
+      const approvedCount = response.approvedIds?.length ?? pendingProjectIds.length
+      toast.success(
+        response.message || `${approvedCount} project${approvedCount === 1 ? "" : "s"} approved successfully`,
+      )
+      setProjectRows((currentRows) =>
+        currentRows.map((project) =>
+          pendingProjectIds.includes(project.id) ? { ...project, status: "approved" } : project,
+        ),
+      )
+      setIsBulkApproveProjectsDialogOpen(false)
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to approve projects")
+    }
   }
 
   const handleConfirmDeleteProject = async () => {
@@ -427,10 +514,22 @@ export function ProjectsContent() {
         <CardContent>
           <DataTable
             title="Projects"
-            columns={columns(handleView, handleEdit, handleDelete, handleChangeStatus)}
+            columns={columns(handleView, handleEdit, handleDelete, handleChangeStatus, handleApproveProject)}
             data={projects}
             searchFields={searchFields}
             onAdd={() => setIsAddOpen(true)}
+            addButtonExtra={
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleBulkApproveProjects}
+                disabled={!pendingProjectCount || approveProjects.isPending}
+                className="gap-1 border-emerald-200 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Approve Pending ({pendingProjectCount})
+              </Button>
+            }
           />
         </CardContent>
       </Card>
@@ -761,6 +860,27 @@ export function ProjectsContent() {
         description={`Delete project "${deleteProjectCandidate?.name ?? "this project"}"?`}
         itemName={deleteProjectCandidate ? `Project ${deleteProjectCandidate.name}` : "Project"}
         isLoading={deleteProject.isPending}
+      />
+      <ApproveConfirmationDialog
+        isOpen={isApproveProjectDialogOpen}
+        onClose={() => {
+          setIsApproveProjectDialogOpen(false)
+          setApproveProjectCandidate(null)
+        }}
+        onConfirm={handleConfirmApproveProject}
+        title="Approve Project"
+        description={`Approve ${approveProjectCandidate?.name ?? "this project"}?`}
+        itemName={approveProjectCandidate?.name || "this project"}
+        isLoading={approveProjects.isPending}
+      />
+      <ApproveConfirmationDialog
+        isOpen={isBulkApproveProjectsDialogOpen}
+        onClose={() => setIsBulkApproveProjectsDialogOpen(false)}
+        onConfirm={handleConfirmBulkApproveProjects}
+        title="Approve Pending Projects"
+        description={`Approve all ${pendingProjectCount} pending project${pendingProjectCount === 1 ? "" : "s"}?`}
+        itemName={`${pendingProjectCount} pending project${pendingProjectCount === 1 ? "" : "s"}`}
+        isLoading={approveProjects.isPending}
       />
     </div>
   )

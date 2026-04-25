@@ -20,6 +20,7 @@ import {
   MoreHorizontal,
   Edit,
   RefreshCw,
+  CheckCircle2,
   Trash2,
   Eye,
   Download,
@@ -66,11 +67,13 @@ interface FinanceDataTableProps {
   onDelete: (id: string) => void
   onView: (id: string) => void
   onChangeStatus?: (id: string) => void
+  onApprove?: (id: string) => void
   isLoading?: boolean
   currencySymbol?: string
   showTotals?: boolean
   totalFields?: string[]
   showAddButton?: boolean
+  addButtonExtra?: React.ReactNode
 }
 
 export function FinanceDataTable({
@@ -84,11 +87,13 @@ export function FinanceDataTable({
   onDelete,
   onView,
   onChangeStatus,
+  onApprove,
   isLoading = false,
   currencySymbol = "$",
   showTotals = false,
   totalFields = [],
   showAddButton = true,
+  addButtonExtra,
   // currentRows,
   // handlePrev,
   // handleNext,
@@ -302,8 +307,8 @@ export function FinanceDataTable({
       } else if (filterOption.type === "date") {
         displayValue = format(new Date(value), "PPP");
       } else if (filterOption.type === "checkbox" && Array.isArray(value)) {
-        displayValue = value
-          .map((v) => {
+          displayValue = value
+          .map((v: any) => {
             const option = filterOption.options.find((opt) => opt.value === v);
             return option?.label || v;
           })
@@ -458,7 +463,7 @@ export function FinanceDataTable({
                                         handleFilterChange(
                                           filter.id,
                                           currentValues.filter(
-                                            (v) => v !== option.value
+                                            (v: any) => v !== option.value
                                           )
                                         );
                                       }
@@ -578,6 +583,7 @@ export function FinanceDataTable({
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {addButtonExtra}
             {showAddButton ? (
               <Button
                 onClick={onAdd}
@@ -660,59 +666,77 @@ export function FinanceDataTable({
                 </TableCell>
               </TableRow>
             ) : (
-              currentItems.map((row) => (
-                <TableRow key={row.id} className="group">
-                  {columns.map((column) => (
-                    <TableCell key={`${row.id}-${column.key}`}>
-                      {column.render
-                        ? column.render(row[column.key], row)
-                        : row[column.key]}
-                    </TableCell>
-                  ))}
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => onView(row.id)}
-                        className="h-8 w-8 text-gray-600 hover:bg-gray-50"
-                      >
-                        <Eye className="h-4 w-4" />
-                        <span className="sr-only">View</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => onEdit(row.id)}
-                        className="h-8 w-8 text-blue-600 hover:bg-blue-50"
-                      >
-                        <Edit className="h-4 w-4" />
-                        <span className="sr-only">Edit</span>
-                      </Button>
-                      {onChangeStatus && (
+              currentItems.map((row) => {
+                const isApproved = String(row?.status ?? "").toLowerCase() === "approved"
+
+                return (
+                  <TableRow key={row.id} className="group">
+                    {columns.map((column) => (
+                      <TableCell key={`${row.id}-${column.key}`}>
+                        {column.render
+                          ? column.render(row[column.key], row)
+                          : row[column.key]}
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
                         <Button
                           variant="outline"
                           size="icon"
-                          onClick={() => onChangeStatus(row.id)}
-                          className="h-8 w-8 text-green-600 hover:bg-green-50"
+                          onClick={() => onView(row.id)}
+                          className="h-8 w-8 text-gray-600 hover:bg-gray-50"
                         >
-                          <RefreshCw className="h-4 w-4" />
-                          <span className="sr-only">Change status</span>
+                          <Eye className="h-4 w-4" />
+                          <span className="sr-only">View</span>
                         </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => confirmDelete(row.id)}
-                        className="h-8 w-8 text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Delete</span>
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => onEdit(row.id)}
+                          disabled={isApproved}
+                          className="h-8 w-8 text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Edit className="h-4 w-4" />
+                          <span className="sr-only">Edit</span>
+                        </Button>
+                        {onChangeStatus && (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => onChangeStatus(row.id)}
+                            disabled={isApproved}
+                            className="h-8 w-8 text-green-600 hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                            <span className="sr-only">Change status</span>
+                          </Button>
+                        )}
+                        {onApprove && !isApproved && (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => onApprove(row.id)}
+                            className="h-8 w-8 text-emerald-600 hover:bg-emerald-50"
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span className="sr-only">Approve</span>
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => confirmDelete(row.id)}
+                          disabled={isApproved}
+                          className="h-8 w-8 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Delete</span>
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
             )}
 
             {/* Totals row */}

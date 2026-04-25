@@ -260,6 +260,7 @@ interface DataTableProps {
   exportLabel?: string
   addButtonLabel?: string
   tableClassName?: string
+  addButtonExtra?: React.ReactNode
 }
 
 export function DataTable({
@@ -278,6 +279,7 @@ export function DataTable({
   exportLabel,
   addButtonLabel,
   tableClassName,
+  addButtonExtra,
 }: DataTableProps) {
   const normalizedTitle = title?.trim() || "Records"
   const normalizedTitleLower = normalizedTitle.toLowerCase()
@@ -467,18 +469,21 @@ export function DataTable({
                 const buttonDisabled = (addButtonDisabled ?? false) || addButtonLoading
 
                 return (
-                  <Button
-                    onClick={onAdd}
-                    className={cn("gap-1 bg-green-600 hover:bg-green-700", addButtonClassName)}
-                    {...restAddButtonProps}
-                    disabled={buttonDisabled}
-                  >
-                    {addButtonLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-                    <Plus className="h-4 w-4" />
-                    {addButtonLoading
-                      ? "Processing..."
-                      : addButtonLabel ?? "Add New"}
-                  </Button>
+                  <>
+                    {addButtonExtra}
+                    <Button
+                      onClick={onAdd}
+                      className={cn("gap-1 bg-green-600 hover:bg-green-700", addButtonClassName)}
+                      {...restAddButtonProps}
+                      disabled={buttonDisabled}
+                    >
+                      {addButtonLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                      <Plus className="h-4 w-4" />
+                      {addButtonLoading
+                        ? "Processing..."
+                        : addButtonLabel ?? "Add New"}
+                    </Button>
+                  </>
                 )
               })()}
             </>

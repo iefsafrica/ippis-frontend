@@ -8,6 +8,7 @@ import type {
   UpdateFinanceExpenseRequest,
   UpdateFinanceExpenseResponse,
 } from "@/types/finance/expenses"
+import { ApprovalPayload, ApprovalResponse } from "@/types/approval"
 
 const FINANCE_EXPENSES_ENDPOINT = "/finance/expenses"
 
@@ -41,4 +42,10 @@ export const deleteFinanceExpense = async (
   return del<DeleteFinanceExpenseResponse>(FINANCE_EXPENSES_ENDPOINT, {
     expense_id: expenseId,
   })
+}
+
+export const approveFinanceExpenses = async (
+  payload: ApprovalPayload<string | number>,
+): Promise<ApprovalResponse> => {
+  return post<ApprovalResponse>("/finance/expenses/approve", payload)
 }

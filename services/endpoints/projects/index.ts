@@ -6,6 +6,7 @@ import {
   ProjectUpdateRequest,
 } from "@/types/projects"
 import { PROJECT_ENDPOINTS } from "@/services/constants/projects"
+import { ApprovalPayload, ApprovalResponse } from "@/types/approval"
 
 export const getProjects = async (): Promise<ProjectListResponse> => {
   const response = await get<ProjectListResponse>(PROJECT_ENDPOINTS.BASE)
@@ -34,4 +35,10 @@ export const updateProject = async (
 export const deleteProject = async (projectId: number): Promise<{ success: boolean }> => {
   const response = await del<{ success: boolean }>(`${PROJECT_ENDPOINTS.DELETE}?id=${projectId}`)
   return response
+}
+
+export const approveProjects = async (
+  payload: ApprovalPayload<string | number>,
+): Promise<ApprovalResponse> => {
+  return post<ApprovalResponse>(PROJECT_ENDPOINTS.APPROVE, payload)
 }

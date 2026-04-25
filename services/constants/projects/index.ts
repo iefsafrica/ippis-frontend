@@ -3,6 +3,7 @@ export const PROJECT_ENDPOINTS = {
   CREATE: "/projects",
   UPDATE: "/projects",
   DELETE: "/projects",
+  APPROVE: "/projects/approve",
 } as const
 
 export const PROJECT_QUERY_KEYS = {

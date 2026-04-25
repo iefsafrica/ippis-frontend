@@ -10,6 +10,7 @@ import {
 } from "@/services/constants/assets"
 import {
   createAsset,
+  approveAssets,
   deleteAsset,
   getAsset,
   getAssets,
@@ -26,6 +27,7 @@ import type {
   UpdateAssetRequest,
   UpdateAssetResponse,
 } from "@/types/assets/assets"
+import { ApprovalPayload, ApprovalResponse } from "@/types/approval"
 
 export const useGetAssetsMetrics = () => {
   return useQuery<GetAssetsMetricsResponse>({
@@ -60,8 +62,24 @@ export const useCreateAsset = () => {
   return useMutation<CreateAssetResponse, Error, CreateAssetRequest>({
     mutationKey: [CREATE_ASSET],
     mutationFn: createAsset,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [GET_ASSETS] })
+    onSuccess: (response) => {
+      queryClient.setQueriesData<GetAssetsResponse>({ queryKey: [GET_ASSETS] }, (current) => {
+        const createdAsset = response.data
+        if (!current?.data?.assets) {
+          return current
+        }
+
+        const nextAsset = createdAsset ? { ...createdAsset, status: "pending" } : createdAsset
+        return {
+          ...current,
+          data: {
+            ...current.data,
+            assets: nextAsset
+              ? [...current.data.assets, nextAsset]
+              : current.data.assets,
+          },
+        }
+      })
       queryClient.invalidateQueries({ queryKey: [GET_ASSETS_METRICS] })
     },
   })
@@ -90,5 +108,12 @@ export const useDeleteAsset = () => {
       queryClient.invalidateQueries({ queryKey: [GET_ASSET, assetId] })
       queryClient.invalidateQueries({ queryKey: [GET_ASSETS_METRICS] })
     },
+  })
+}
+
+export const useApproveAssets = () => {
+  return useMutation<ApprovalResponse, Error, ApprovalPayload<string | number>>({
+    mutationKey: [GET_ASSETS, "approve"],
+    mutationFn: approveAssets,
   })
 }

@@ -74,6 +74,7 @@ interface EnhancedDataTableProps {
   footerContent?: React.ReactNode
   hideActions?: boolean
   renderRowActions?: (row: any) => React.ReactNode
+  addButtonExtra?: React.ReactNode
 }
 
 export function EnhancedDataTable({
@@ -94,6 +95,7 @@ export function EnhancedDataTable({
   footerContent,
   hideActions = false,
   renderRowActions,
+  addButtonExtra,
 }: EnhancedDataTableProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
@@ -437,6 +439,7 @@ export function EnhancedDataTable({
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {addButtonExtra}
             <Button onClick={onAdd} className="w-full gap-1 bg-green-600 hover:bg-green-700 sm:w-auto">
               <Plus className="h-4 w-4" />
               Add New

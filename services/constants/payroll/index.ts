@@ -4,6 +4,7 @@ export const PAYROLL_ENDPOINTS = {
   CREATE: '/payroll',
   UPDATE: '/payroll',
   DELETE: '/payroll',
+  APPROVE: '/payroll/approve',
 } as const;
 
 // Query keys for payroll operations

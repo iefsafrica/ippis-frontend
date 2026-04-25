@@ -6,6 +6,7 @@ import {
   PaymentUpdateResponse,
   PaymentDeleteResponse,
 } from '@/types/payroll';
+import { ApprovalPayload, ApprovalResponse } from "@/types/approval";
 import { PAYROLL_ENDPOINTS } from '@/services/constants/payroll';
 
 /**
@@ -52,4 +53,13 @@ export const deletePayment = async (
     `${PAYROLL_ENDPOINTS.DELETE}?id=${paymentId}`
   );
   return response;
+};
+
+/**
+ * Approve one or more payroll payments
+ */
+export const approvePayments = async (
+  payload: ApprovalPayload<string | number>
+): Promise<ApprovalResponse> => {
+  return post<ApprovalResponse>(PAYROLL_ENDPOINTS.APPROVE, payload);
 };

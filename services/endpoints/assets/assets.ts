@@ -9,6 +9,7 @@ import type {
   UpdateAssetRequest,
   UpdateAssetResponse,
 } from "@/types/assets/assets"
+import { ApprovalPayload, ApprovalResponse } from "@/types/approval"
 
 const ASSETS_ENDPOINT = "/assets"
 const ASSETS_METRICS_ENDPOINT = "/assets/metrics"
@@ -37,4 +38,10 @@ export const deleteAsset = async (assetId: string): Promise<DeleteAssetResponse>
   return del<DeleteAssetResponse>(ASSETS_ENDPOINT, {
     asset_id: assetId,
   })
+}
+
+export const approveAssets = async (
+  payload: ApprovalPayload<string | number>,
+): Promise<ApprovalResponse> => {
+  return post<ApprovalResponse>("/assets/approve", payload)
 }

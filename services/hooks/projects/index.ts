@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
+  approveProjects,
   createProject,
   deleteProject,
   getProjectById,
@@ -12,6 +13,7 @@ import {
   ProjectResponse,
   ProjectUpdateRequest,
 } from "@/types/projects"
+import { ApprovalPayload, ApprovalResponse } from "@/types/approval"
 
 export const useGetProjects = () => {
   return useQuery({
@@ -60,5 +62,12 @@ export const useDeleteProject = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PROJECT_QUERY_KEYS.list() })
     },
+  })
+}
+
+export const useApproveProjects = () => {
+  return useMutation<ApprovalResponse, Error, ApprovalPayload<string | number>>({
+    mutationKey: [...PROJECT_QUERY_KEYS.base, "approve"],
+    mutationFn: approveProjects,
   })
 }

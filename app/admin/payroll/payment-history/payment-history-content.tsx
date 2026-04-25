@@ -1,13 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { EnhancedDataTable } from "@/app/admin/components/enhanced-data-table"
 import { Button } from "@/components/ui/button"
-import { Eye, RefreshCw } from "lucide-react"
+import { ApproveConfirmationDialog } from "@/components/ui/approve-confirmation-dialog"
+import { CheckCircle2, Eye, RefreshCw } from "lucide-react"
 import { format } from "date-fns"
-import { useGetPayments, useDeletePayment, useUpdatePayment } from "@/services/hooks/payroll"
+import { useApprovePayments, useGetPayments, useDeletePayment, useUpdatePayment } from "@/services/hooks/payroll"
 import { PayslipDialog } from "@/app/admin/payroll/payroll-payslip/payslip-dialog"
 import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
+import { toast } from "sonner"
+import type { PaymentData } from "@/types/payroll"
 //@ts-expect-error - temporary mock data until API integration is complete
 import { formatCurrency } from "@/app/admin/payroll/payroll-payslip/payslip-utils"
 
@@ -73,29 +76,38 @@ const formatCurrency = (value?: string | number) => {
 
 const normalizeStatus = (status?: string) => {
   const normalized = (status ?? "").toLowerCase()
-  if (normalized === "completed" || normalized === "paid") return "green"
+  if (normalized === "completed" || normalized === "paid" || normalized === "approved") return "green"
   if (normalized === "pending") return "yellow"
   if (normalized === "failed" || normalized === "declined") return "red"
   return "gray"
 }
 
-const PAYMENT_STATUS_OPTIONS = [
+const PAYMENT_STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "pending", label: "Pending" },
   { value: "paid", label: "Paid" },
+  { value: "approved", label: "Approved" },
   { value: "failed", label: "Failed" },
-] as const
+]
 
 export function PaymentHistoryContent() {
   const [selectedPayment, setSelectedPayment] = useState<any>(null)
   const [showPayslipDialog, setShowPayslipDialog] = useState(false)
   const [paymentToUpdateStatus, setPaymentToUpdateStatus] = useState<any>(null)
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
+  const [approvePaymentCandidate, setApprovePaymentCandidate] = useState<any>(null)
+  const [isApproveOpen, setIsApproveOpen] = useState(false)
+  const [paymentRows, setPaymentRows] = useState<any[]>(paymentHistory)
 
   const { data: paymentsResponse, isLoading } = useGetPayments()
+  const approvePaymentsMutation = useApprovePayments()
   const updatePaymentMutation = useUpdatePayment()
   const deletePaymentMutation = useDeletePayment()
 
-  const payments = paymentsResponse?.data?.payrolls || paymentHistory
+  useEffect(() => {
+    setPaymentRows(paymentsResponse?.data?.payrolls ?? paymentHistory)
+  }, [paymentsResponse])
+
+  const payments = paymentRows
 
   const paymentColumns = [
     { key: "payment_id", label: "Payment ID", sortable: true },
@@ -188,6 +200,35 @@ export function PaymentHistoryContent() {
     setIsStatusDialogOpen(true)
   }
 
+  const handleApprovePayment = async (id: string) => {
+    const payment = resolvePayment(id)
+    if (!payment) return
+    setApprovePaymentCandidate(payment)
+    setIsApproveOpen(true)
+  }
+
+  const handleConfirmApprovePayment = async () => {
+    if (!approvePaymentCandidate) return
+
+    try {
+      const response = await approvePaymentsMutation.mutateAsync({
+        payment_ids: [approvePaymentCandidate.payment_id],
+      })
+      toast.success(response.message || "Payment approved successfully")
+      setPaymentRows((currentRows) =>
+        currentRows.map((payment) =>
+          `${payment.payment_id ?? payment.id}` === `${approvePaymentCandidate.payment_id ?? approvePaymentCandidate.id}`
+            ? { ...payment, status: "approved" }
+            : payment,
+        ),
+      )
+      setIsApproveOpen(false)
+      setApprovePaymentCandidate(null)
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to approve payment")
+    }
+  }
+
   const handleStatusUpdate = async (status: string) => {
     if (!paymentToUpdateStatus) {
       return
@@ -200,7 +241,7 @@ export function PaymentHistoryContent() {
       amount: parseFloat(paymentToUpdateStatus.amount) || 0,
       payment_date: paymentToUpdateStatus.payment_date,
       payment_type: paymentToUpdateStatus.payment_type,
-      status,
+      status: status as PaymentData["status"],
     })
 
     setIsStatusDialogOpen(false)
@@ -251,27 +292,43 @@ export function PaymentHistoryContent() {
         onView={handleViewPayslip}
         filterOptions={filterOptions}
         hideControlBar
-        renderRowActions={(row) => (
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleViewPayslip(String(row.payment_id ?? row.id ?? ""))}
-              title="View Payment"
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleChangeStatus(String(row.payment_id ?? row.id ?? ""))}
-              title="Change Status"
-              className="ml-2 text-emerald-600 hover:text-emerald-800"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
+        renderRowActions={(row) => {
+          const isApproved = String(row.status ?? "").toLowerCase() === "approved"
+
+          return (
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleViewPayslip(String(row.payment_id ?? row.id ?? ""))}
+                title="View Payment"
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+              {String(row.status ?? "").toLowerCase() === "pending" && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleApprovePayment(String(row.payment_id ?? row.id ?? ""))}
+                  title="Approve Payment"
+                  className="ml-2 text-emerald-600 hover:text-emerald-800"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleChangeStatus(String(row.payment_id ?? row.id ?? ""))}
+                title="Change Status"
+                disabled={isApproved}
+                className="ml-2 text-emerald-600 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+          )
+        }}
       />
 
       <PayslipDialog payment={selectedPayment} open={showPayslipDialog} onClose={closePayslipDialog} />
@@ -286,7 +343,19 @@ export function PaymentHistoryContent() {
         currentStatus={paymentToUpdateStatus?.status ?? "pending"}
         options={PAYMENT_STATUS_OPTIONS}
         onConfirm={handleStatusUpdate}
-        isLoading={updatePaymentMutation.isPending}
+        isLoading={updatePaymentMutation.isPending || approvePaymentsMutation.isPending}
+      />
+      <ApproveConfirmationDialog
+        isOpen={isApproveOpen}
+        onClose={() => {
+          setIsApproveOpen(false)
+          setApprovePaymentCandidate(null)
+        }}
+        onConfirm={handleConfirmApprovePayment}
+        title="Approve Payment"
+        description={`Approve ${approvePaymentCandidate?.payment_id ?? "this payment"}?`}
+        itemName={approvePaymentCandidate?.payment_id || "this payment"}
+        isLoading={approvePaymentsMutation.isPending}
       />
     </div>
   )

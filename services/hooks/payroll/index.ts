@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSafeMutation } from '@/hooks/useSafeMutation';
 import {
   PaymentData,
@@ -8,12 +8,14 @@ import {
   PaymentDeleteResponse,
 } from '@/types/payroll';
 import {
+  approvePayments,
   getAllPayments,
   createPayment,
   updatePayment,
   deletePayment,
 } from '@/services/endpoints/payroll';
 import { PAYROLL_QUERY_KEYS } from '@/services/constants/payroll';
+import { ApprovalResponse, ApprovalPayload } from "@/types/approval";
 
 /**
  * Hook to fetch all payments
@@ -73,5 +75,15 @@ export const useDeletePayment = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PAYROLL_QUERY_KEYS.lists() });
     },
+  });
+};
+
+/**
+ * Hook to approve one or more payroll payments
+ */
+export const useApprovePayments = () => {
+  return useMutation<ApprovalResponse, Error, ApprovalPayload<string | number>>({
+    mutationKey: [...PAYROLL_QUERY_KEYS.all, "approve"],
+    mutationFn: approvePayments,
   });
 };

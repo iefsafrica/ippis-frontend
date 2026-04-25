@@ -6,6 +6,7 @@ import { Box, Layers3, RefreshCw, Search, Sparkles, Warehouse } from "lucide-rea
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
+import { ApproveConfirmationDialog } from "@/components/ui/approve-confirmation-dialog"
 import { Card } from "@/components/ui/card"
 import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { FinanceCard } from "../finance/components/finance-card"
@@ -14,6 +15,7 @@ import { FinanceDetailsDialog, type FinanceDetailsField } from "../finance/compo
 import { FinanceFormDialog } from "../finance/components/finance-form-dialog"
 import { useGetAssetCategories } from "@/services/hooks/assets/categories"
 import {
+  useApproveAssets,
   useCreateAsset,
   useDeleteAsset,
   useGetAsset,
@@ -44,6 +46,7 @@ const statusOptions = [
   { value: "Assigned", label: "Assigned" },
   { value: "In Use", label: "In Use" },
   { value: "Maintenance", label: "Maintenance" },
+  { value: "Approved", label: "Approved" },
   { value: "Retired", label: "Retired" },
 ]
 
@@ -96,6 +99,7 @@ const detailsFields: FinanceDetailsField[] = [
       Assigned: { label: "Assigned", variant: "secondary" },
       "In Use": { label: "In Use", variant: "secondary" },
       Maintenance: { label: "Maintenance", variant: "outline" },
+      Approved: { label: "Approved", variant: "default" },
       Retired: { label: "Retired", variant: "destructive" },
     },
   },
@@ -112,6 +116,7 @@ export function AssetsContent() {
   const { data: metricsData, isLoading: metricsLoading, isFetching: metricsFetching, isError: metricsError, refetch: refetchMetrics } = useGetAssetsMetrics()
   const { data: assetsData, isLoading, isFetching, isError, refetch } = useGetAssets()
   const { data: categoriesData } = useGetAssetCategories()
+  const approveAssets = useApproveAssets()
   const createAsset = useCreateAsset()
   const updateAsset = useUpdateAsset()
   const deleteAsset = useDeleteAsset()
@@ -126,6 +131,8 @@ export function AssetsContent() {
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [statusAsset, setStatusAsset] = useState<AssetUI | null>(null)
   const [isStatusOpen, setIsStatusOpen] = useState(false)
+  const [approveAssetCandidate, setApproveAssetCandidate] = useState<AssetUI | null>(null)
+  const [isApproveOpen, setIsApproveOpen] = useState(false)
 
   const assets = useMemo(
     () => (assetsData?.data?.assets ?? []).map((asset) => normalizeAsset(asset, categories)),
@@ -269,6 +276,14 @@ export function AssetsContent() {
     setIsStatusOpen(true)
   }
 
+  const handleApproveAsset = (id: string) => {
+    const asset = assets.find((item) => item.id === id)
+    if (!asset) return
+
+    setApproveAssetCandidate(asset)
+    setIsApproveOpen(true)
+  }
+
   const handleDeleteAsset = async (assetId: string) => {
     try {
       await deleteAsset.mutateAsync(assetId)
@@ -323,6 +338,20 @@ export function AssetsContent() {
       setSelectedAssetId(null)
     } catch (error: any) {
       toast.error(error?.message || "Update failed")
+    }
+  }
+
+  const handleConfirmApproveAsset = async () => {
+    if (!approveAssetCandidate) return
+
+    try {
+      const response = await approveAssets.mutateAsync({ asset_ids: [approveAssetCandidate.asset_id] })
+      toast.success(response.message || "Asset approved successfully")
+      setIsApproveOpen(false)
+      setApproveAssetCandidate(null)
+      refetch()
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to approve asset")
     }
   }
 
@@ -441,6 +470,7 @@ export function AssetsContent() {
             onEdit={handleEditAsset}
             onView={handleViewAsset}
             onChangeStatus={handleChangeStatus}
+            onApprove={handleApproveAsset}
             onDelete={(id) => handleDeleteAsset(assets.find((item) => item.id === id)?.asset_id ?? id)}
             currencySymbol="₦"
             isLoading={isLoading || isFetching}
@@ -547,6 +577,18 @@ export function AssetsContent() {
             toast.error(error?.message || "Failed to update asset status")
           }
         }}
+      />
+      <ApproveConfirmationDialog
+        isOpen={isApproveOpen}
+        onClose={() => {
+          setIsApproveOpen(false)
+          setApproveAssetCandidate(null)
+        }}
+        onConfirm={handleConfirmApproveAsset}
+        title="Approve Asset"
+        description={`Approve ${approveAssetCandidate?.asset_name ?? "this asset"}?`}
+        itemName={approveAssetCandidate?.asset_name || "this asset"}
+        isLoading={approveAssets.isPending}
       />
     </div>
   )

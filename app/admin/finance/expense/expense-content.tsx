@@ -2,15 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { format } from "date-fns"
-import { Building2, CreditCard, RefreshCw, Search, Sparkles, Wallet } from "lucide-react"
+import { Building2, CheckCircle2, CreditCard, RefreshCw, Search, Sparkles, Wallet } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
+import { ApproveConfirmationDialog } from "@/components/ui/approve-confirmation-dialog"
 import { Card } from "@/components/ui/card"
 import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { useGetFinanceAccounts } from "@/services/hooks/finance/accounts"
 import { useGetFinancePayees } from "@/services/hooks/finance/payees"
 import {
+  useApproveFinanceExpenses,
   useCreateFinanceExpense,
   useDeleteFinanceExpense,
   useGetFinanceExpense,
@@ -60,6 +62,7 @@ const paymentMethodOptions = [
 ]
 
 const statusOptions = [
+  { value: "approved", label: "Approved" },
   { value: "paid", label: "Paid" },
   { value: "pending", label: "Pending" },
   { value: "failed", label: "Failed" },
@@ -182,6 +185,7 @@ export function ExpenseContent() {
   const { data, isLoading, isFetching, isError, refetch } = useGetFinanceExpenses()
   const { data: accountsData } = useGetFinanceAccounts()
   const { data: payeesData } = useGetFinancePayees()
+  const approveFinanceExpenses = useApproveFinanceExpenses()
   const createExpense = useCreateFinanceExpense()
   const updateExpense = useUpdateFinanceExpense()
   const deleteExpense = useDeleteFinanceExpense()
@@ -193,8 +197,16 @@ export function ExpenseContent() {
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [statusExpense, setStatusExpense] = useState<ExpenseUI | null>(null)
   const [isStatusOpen, setIsStatusOpen] = useState(false)
+  const [approveExpenseCandidate, setApproveExpenseCandidate] = useState<ExpenseUI | null>(null)
+  const [isApproveOpen, setIsApproveOpen] = useState(false)
+  const [isBulkApproveOpen, setIsBulkApproveOpen] = useState(false)
+  const [expenseRows, setExpenseRows] = useState<ExpenseUI[]>([])
 
-  const expenses = useMemo(() => (data?.data?.expenses ?? []).map(normalizeExpense), [data])
+  useEffect(() => {
+    setExpenseRows((data?.data?.expenses ?? []).map(normalizeExpense))
+  }, [data])
+
+  const expenses = expenseRows
   const selectedExpenseDetailsQuery = useGetFinanceExpense(selectedExpenseId ?? undefined, isDetailsOpen || isEditOpen)
   const selectedExpenseDetails = selectedExpenseDetailsQuery.data?.data
     ? normalizeExpense(selectedExpenseDetailsQuery.data.data)
@@ -258,7 +270,7 @@ export function ExpenseContent() {
       render: (value: string) => (
         <span
           className={`rounded-full px-2 py-1 text-xs font-medium ${
-            value === "paid"
+            value === "approved" || value === "paid"
               ? "bg-green-100 text-green-800"
               : value === "pending"
                 ? "bg-amber-100 text-amber-800"
@@ -311,6 +323,70 @@ export function ExpenseContent() {
       toast.success("Expense deleted successfully")
     } catch (error: any) {
       toast.error(error?.message || "Failed to delete expense")
+    }
+  }
+
+  const handleApproveExpense = async (expenseId: string) => {
+    const expense = expenses.find((item) => item.id === expenseId)
+    if (!expense) {
+      toast.error("Expense not found")
+      return
+    }
+    setApproveExpenseCandidate(expense)
+    setIsApproveOpen(true)
+  }
+
+  const pendingExpenseIds = useMemo(
+    () => expenses.filter((expense) => expense.status?.toLowerCase() === "pending").map((expense) => expense.expense_id),
+    [expenses],
+  )
+  const pendingExpenseCount = pendingExpenseIds.length
+
+  const handleBulkApproveExpenses = () => {
+    if (!pendingExpenseCount) {
+      toast.info("No pending expenses to approve")
+      return
+    }
+
+    setIsBulkApproveOpen(true)
+  }
+
+  const handleConfirmApproveExpense = async () => {
+    if (!approveExpenseCandidate) return
+
+    try {
+      const response = await approveFinanceExpenses.mutateAsync({ expense_ids: [approveExpenseCandidate.expense_id] })
+      const approvedCount = response.approvedIds?.length ?? 1
+      toast.success(
+        response.message || `${approvedCount} expense${approvedCount === 1 ? "" : "s"} approved successfully`,
+      )
+      setIsApproveOpen(false)
+      setApproveExpenseCandidate(null)
+      setExpenseRows((prev) =>
+        prev.map((item) =>
+          item.expense_id === approveExpenseCandidate.expense_id ? { ...item, status: "approved" } : item,
+        ),
+      )
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to approve expense")
+    }
+  }
+
+  const handleConfirmBulkApproveExpenses = async () => {
+    if (!pendingExpenseIds.length) return
+
+    try {
+      const response = await approveFinanceExpenses.mutateAsync({ expense_ids: pendingExpenseIds })
+      const approvedCount = response.approvedIds?.length ?? pendingExpenseIds.length
+      toast.success(
+        response.message || `${approvedCount} expense${approvedCount === 1 ? "" : "s"} approved successfully`,
+      )
+      setExpenseRows((prev) =>
+        prev.map((item) => (pendingExpenseIds.includes(item.expense_id) ? { ...item, status: "approved" } : item)),
+      )
+      setIsBulkApproveOpen(false)
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to approve expenses")
     }
   }
 
@@ -466,6 +542,7 @@ export function ExpenseContent() {
             onEdit={handleEditExpense}
             onView={handleViewExpense}
             onChangeStatus={handleChangeStatus}
+            onApprove={handleApproveExpense}
             onDelete={(id) => handleDeleteExpense(expenses.find((item) => item.id === id)?.expense_id ?? id)}
             currencySymbol="₦"
             isLoading={isLoading || isFetching}
@@ -555,6 +632,27 @@ export function ExpenseContent() {
             toast.error(error?.message || "Failed to update expense status")
           }
         }}
+      />
+      <ApproveConfirmationDialog
+        isOpen={isApproveOpen}
+        onClose={() => {
+          setIsApproveOpen(false)
+          setApproveExpenseCandidate(null)
+        }}
+        onConfirm={handleConfirmApproveExpense}
+        title="Approve Expense"
+        description={`Approve ${approveExpenseCandidate?.reference ?? "this expense"}?`}
+        itemName={approveExpenseCandidate?.reference || "this expense"}
+        isLoading={approveFinanceExpenses.isPending}
+      />
+      <ApproveConfirmationDialog
+        isOpen={isBulkApproveOpen}
+        onClose={() => setIsBulkApproveOpen(false)}
+        onConfirm={handleConfirmBulkApproveExpenses}
+        title="Approve Pending Expenses"
+        description={`Approve all ${pendingExpenseCount} pending expense${pendingExpenseCount === 1 ? "" : "s"}?`}
+        itemName={`${pendingExpenseCount} pending expense${pendingExpenseCount === 1 ? "" : "s"}`}
+        isLoading={approveFinanceExpenses.isPending}
       />
     </div>
   )

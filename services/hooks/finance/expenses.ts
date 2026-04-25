@@ -7,6 +7,7 @@ import {
   UPDATE_FINANCE_EXPENSE,
 } from "@/services/constants/finance"
 import {
+  approveFinanceExpenses,
   createFinanceExpense,
   deleteFinanceExpense,
   getFinanceExpense,
@@ -22,6 +23,7 @@ import type {
   UpdateFinanceExpenseRequest,
   UpdateFinanceExpenseResponse,
 } from "@/types/finance/expenses"
+import { ApprovalPayload, ApprovalResponse } from "@/types/approval"
 
 export const useGetFinanceExpenses = (params?: { expense_id?: string }) => {
   return useQuery<GetFinanceExpensesResponse>({
@@ -74,5 +76,12 @@ export const useDeleteFinanceExpense = () => {
       queryClient.invalidateQueries({ queryKey: [GET_FINANCE_EXPENSES] })
       queryClient.invalidateQueries({ queryKey: [GET_FINANCE_EXPENSE, expenseId] })
     },
+  })
+}
+
+export const useApproveFinanceExpenses = () => {
+  return useMutation<ApprovalResponse, Error, ApprovalPayload<string | number>>({
+    mutationKey: [GET_FINANCE_EXPENSES, "approve"],
+    mutationFn: approveFinanceExpenses,
   })
 }

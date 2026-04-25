@@ -6,6 +6,7 @@ import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import { EnhancedForm, type FormField } from "@/app/admin/components/enhanced-form"
 import {
   useCreatePayment,
+  useApprovePayments,
   useGetPayments,
   useUpdatePayment,
   useDeletePayment,
@@ -13,6 +14,7 @@ import {
 import { useEmployeesList } from "@/services/hooks/employees/useEmployees"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { ApproveConfirmationDialog } from "@/components/ui/approve-confirmation-dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -37,6 +39,7 @@ import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change
 import {
   AlertCircle,
   Banknote,
+  CheckCircle2,
   CheckCircle,
   Clock,
   Download,
@@ -75,11 +78,12 @@ const PAYMENT_METHODS = [
   { id: "4", name: "Mobile Money" },
 ]
 
-const PAYMENT_STATUS_OPTIONS = [
+const PAYMENT_STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "pending", label: "Pending" },
   { value: "paid", label: "Paid" },
+  { value: "approved", label: "Approved" },
   { value: "failed", label: "Failed" },
-] as const
+]
 
 const formatStatusLabel = (status?: string) =>
   status ? `${status.charAt(0).toUpperCase()}${status.slice(1)}` : "—"
@@ -107,7 +111,12 @@ export function NewPaymentContent() {
 }
 
   const createPayment = useCreatePayment()
+  const approvePayments = useApprovePayments()
   const { data: paymentsResponse, isLoading: isLoadingPayments, refetch: refetchPayments } = useGetPayments()
+
+  useEffect(() => {
+    setPaymentRows(paymentsResponse?.data?.payrolls ?? [])
+  }, [paymentsResponse])
 
   const {
     data: employeesResponse,
@@ -151,6 +160,9 @@ export function NewPaymentContent() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [approvePaymentCandidate, setApprovePaymentCandidate] = useState<PaymentResponse | null>(null)
+  const [isApproveOpen, setIsApproveOpen] = useState(false)
+  const [paymentRows, setPaymentRows] = useState<PaymentResponse[]>([])
 
   const [editAmount, setEditAmount] = useState("")
   const [editPaymentDate, setEditPaymentDate] = useState("")
@@ -217,7 +229,7 @@ export function NewPaymentContent() {
       amount: parseFloat(currentPayment.amount) || 0,
       payment_date: currentPayment.payment_date,
       payment_type: currentPayment.payment_type,
-      status: status as PaymentResponse["status"],
+      status: status as PaymentData["status"],
     })
 
     closeStatusDialog()
@@ -231,6 +243,34 @@ export function NewPaymentContent() {
     await deletePayment.mutateAsync(currentPayment.id)
     setIsDeleteDialogOpen(false)
     setCurrentPayment(null)
+  }
+
+  const handleApprovePayment = async (payment: PaymentResponse) => {
+    setApprovePaymentCandidate(payment)
+    setIsApproveOpen(true)
+  }
+
+  const handleConfirmApprovePayment = async () => {
+    if (!approvePaymentCandidate) return
+
+    try {
+      const response = await approvePayments.mutateAsync({ payment_ids: [approvePaymentCandidate.payment_id] })
+      const approvedCount = response.approvedIds?.length ?? 1
+      toast.success(
+        response.message || `${approvedCount} payment${approvedCount === 1 ? "" : "s"} approved successfully`,
+      )
+      setPaymentRows((currentRows) =>
+        currentRows.map((payment) =>
+          payment.payment_id === approvePaymentCandidate.payment_id
+            ? { ...payment, status: "approved" }
+            : payment,
+        ),
+      )
+      setIsApproveOpen(false)
+      setApprovePaymentCandidate(null)
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to approve payment")
+    }
   }
 
   const getIndividualPaymentFields = (): FormField[] => [
@@ -393,12 +433,12 @@ export function NewPaymentContent() {
       allowances.reduce((sum, value) => sum + (parseFloat(value || "0") || 0), 0) -
       deductions.reduce((sum, value) => sum + (parseFloat(value || "0") || 0), 0)
 
-    const paymentData = {
+    const paymentData: PaymentData = {
       employee_id: selectedEmployee.employee_id || selectedEmployee.id,
       amount: amount || 0,
       payment_date: new Date(formData.paymentDate).toISOString().split("T")[0],
-      payment_type: paymentTypeMap[formData.paymentType] || "salary",
-      status: "pending",
+      payment_type: (paymentTypeMap[formData.paymentType] || "salary") as PaymentData["payment_type"],
+      status: "pending" as PaymentData["status"],
     }
 
     try {
@@ -431,7 +471,7 @@ export function NewPaymentContent() {
     setIsDeleteDialogOpen(true)
   }
 
-  const payments = paymentsResponse?.data?.payrolls || []
+  const payments = paymentRows
   const totalAmount = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || "0"), 0)
   const pendingCount = payments.filter((p) => p.status === "pending").length
   const paidCount = payments.filter((p) => p.status === "paid").length
@@ -481,6 +521,7 @@ export function NewPaymentContent() {
           const config: Record<string, { bg: string; text: string }> = {
             pending: { bg: "bg-yellow-50", text: "text-yellow-700" },
             paid: { bg: "bg-green-50", text: "text-green-700" },
+            approved: { bg: "bg-green-50", text: "text-green-700" },
             failed: { bg: "bg-red-50", text: "text-red-700" },
           }
           const style = config[value] || { bg: "bg-gray-50", text: "text-gray-700" }
@@ -494,50 +535,66 @@ export function NewPaymentContent() {
       {
         key: "actions",
         label: "Actions",
-        render: (_value: any, row: PaymentResponse) => (
-          <div className="flex justify-end space-x-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleViewPayment(row)}
-              title="View Details"
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleEditPayment(row)}
-              title="Edit"
-              disabled={row.status !== "pending"}
-              className="text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => {
-                setCurrentPayment(row)
-                setIsStatusDialogOpen(true)
-              }}
-              title="Change Status"
-              className="text-emerald-600 hover:text-emerald-800"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleDeletePayment(row)}
-              title="Delete"
-              disabled={row.status !== "pending"}
-              className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        ),
+        render: (_value: any, row: PaymentResponse) => {
+          const isApproved = String(row.status ?? "").toLowerCase() === "approved"
+
+          return (
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleViewPayment(row)}
+                title="View Details"
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+              {row.status === "pending" && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleApprovePayment(row)}
+                  title="Approve"
+                  className="text-emerald-600 hover:text-emerald-800"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleEditPayment(row)}
+                title="Edit"
+                disabled={row.status !== "pending" || isApproved}
+                className="text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  setCurrentPayment(row)
+                  setIsStatusDialogOpen(true)
+                }}
+                title="Change Status"
+                disabled={isApproved}
+                className="text-emerald-600 hover:text-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleDeletePayment(row)}
+                title="Delete"
+                disabled={row.status !== "pending" || isApproved}
+                className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          )
+        },
       },
     ],
     []
@@ -591,7 +648,7 @@ export function NewPaymentContent() {
                 <TooltipTrigger asChild>
                   <Button
                     variant="outline"
-                    onClick={refetchPayments}
+                    onClick={() => refetchPayments()}
                     disabled={isProcessing}
                     className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"
                   >
@@ -859,6 +916,18 @@ export function NewPaymentContent() {
           description={`Delete payment ${currentPayment?.payment_id ?? "this payment"}?`}
           itemName={`Payment ${currentPayment?.payment_id ?? ""}`}
           isLoading={deletePayment.isPending}
+        />
+        <ApproveConfirmationDialog
+          isOpen={isApproveOpen}
+          onClose={() => {
+            setIsApproveOpen(false)
+            setApprovePaymentCandidate(null)
+          }}
+          onConfirm={handleConfirmApprovePayment}
+          title="Approve Payment"
+          description={`Approve ${approvePaymentCandidate?.payment_id ?? "this payment"}?`}
+          itemName={approvePaymentCandidate?.payment_id || "this payment"}
+          isLoading={approvePayments.isPending}
         />
 
         <Dialog open={showEmployeeSelector} onOpenChange={setShowEmployeeSelector}>
