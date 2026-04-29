@@ -601,6 +601,16 @@ export function AdminSidebar() {
     // },
 
     {
+      title: "Permissions",
+      href: "/admin/permissions",
+      icon: Shield,
+    },
+    {
+      title: "Roles",
+      href: "/admin/roles",
+      icon: UserCog,
+    },
+    {
       title: "Settings",
       href: "/admin/settings",
       icon: Settings,
@@ -728,7 +738,7 @@ export function AdminSidebar() {
                       </button>
                     ) : (
                       <Link
-                        href={item.href}
+                        href={item.href!}
                         className={cn(
                           "flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all",
                           isActive

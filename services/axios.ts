@@ -84,8 +84,12 @@ export const put = async <T>(
   return response.data as T;
 };
 
-export const patch = async <T>(url: string, data?: object): Promise<T> => {
-  const response = await api.patch(url, data);
+export const patch = async <T>(
+  url: string,
+  data?: object,
+  config?: AxiosRequestConfig
+): Promise<T> => {
+  const response = await api.patch(url, data, config);
   return response.data as T;
 };
 
