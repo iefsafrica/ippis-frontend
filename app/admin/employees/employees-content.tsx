@@ -2,9 +2,11 @@
 
 import { useMemo, useState, useRef } from "react"
 import { useRouter } from "next/navigation";
+import type { AxiosError } from "axios";
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -60,7 +62,7 @@ import { Employee } from "@/types/employees/employee-management"
 import { useEmployeesList, useAddEmployee } from "@/services/hooks/employees/useEmployees"
 import { AddEmployeePayload } from "@/types/employees/employee-management"
 import { buttonHoverEnhancements } from "./button-hover"
-
+import { nigerianStates, getLgasByState } from "@/app/register/nigeria-data"
 interface PaginationInfo {
   page: number
   limit: number
@@ -126,13 +128,29 @@ export default function EmployeesContent() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
   const [newEmployee, setNewEmployee] = useState<AddEmployeePayload>({
-    surname: "",
     firstname: "",
+    surname: "",
     email: "",
-    department: "Finance",
+    department: "",
     position: "",
-    status: "active",
+    nin: "",
+    middlename: "",
+    gender: "",
+    telephoneno: "",
+    birthdate: "",
+    state_of_origin: "",
+    residence_address: "",
+    residence_state: "",
+    residence_lga: "",
+    profession: "",
+    maritalstatus: "",
+    title: "",
+    next_of_kin_name: "",
+    next_of_kin_relationship: "",
+    next_of_kin_phone_number: "",
+    next_of_kin_address: "",
   });
+  const [addEmployeeErrors, setAddEmployeeErrors] = useState<Record<string, string>>({});
 
   const [advancedSearchParams, setAdvancedSearchParams] = useState<
     Record<string, string>
@@ -152,6 +170,124 @@ export default function EmployeesContent() {
   // Use the add employee mutation
   const addEmployeeMutation = useAddEmployee();
 
+  const updateEmployeeField = <K extends keyof AddEmployeePayload>(
+    field: K,
+    value: AddEmployeePayload[K]
+  ) => {
+    setNewEmployee((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+    if (addEmployeeErrors[String(field)]) {
+      setAddEmployeeErrors((prev) => {
+        const next = { ...prev };
+        delete next[String(field)];
+        return next;
+      });
+    }
+  };
+
+  const requiredLabel = (label: string) => (
+    <>
+      {label} <span className="text-red-500">*</span>
+    </>
+  );
+
+  const addEmployeeFieldClassName = (field: string) =>
+    addEmployeeErrors[field] ? "border-red-500 focus-visible:ring-red-500" : "";
+
+  const renderFieldError = (field: string) =>
+    addEmployeeErrors[field] ? (
+      <p className="text-red-500 text-xs mt-1">{addEmployeeErrors[field]}</p>
+    ) : null;
+
+  const availableResidenceLgas = useMemo(
+    () => getLgasByState(newEmployee.residence_state),
+    [newEmployee.residence_state]
+  );
+
+  const updateResidenceState = (value: string) => {
+    updateEmployeeField("residence_state", value);
+    updateEmployeeField("residence_lga", "");
+  };
+
+  const getAddEmployeeErrorMessage = (error: unknown) => {
+    const axiosError = error as AxiosError<{ error?: string; message?: string }>;
+    return (
+      axiosError.response?.data?.error ||
+      axiosError.response?.data?.message ||
+      (axiosError.message === "Network Error"
+        ? "Unable to reach the server. Please check your connection and try again."
+        : axiosError.message) ||
+      "Failed to add employee. Please try again."
+    );
+  };
+
+  const isAddEmployeeFormComplete = useMemo(() => {
+    const valuesToCheck = [
+      newEmployee.firstname,
+      newEmployee.surname,
+      newEmployee.email,
+      newEmployee.department,
+      newEmployee.position,
+      newEmployee.nin,
+      newEmployee.middlename,
+      newEmployee.gender,
+      newEmployee.telephoneno,
+      newEmployee.birthdate,
+      newEmployee.state_of_origin,
+      newEmployee.residence_address,
+      newEmployee.residence_state,
+      newEmployee.residence_lga,
+      newEmployee.profession,
+      newEmployee.maritalstatus,
+      newEmployee.title,
+      newEmployee.next_of_kin_name,
+      newEmployee.next_of_kin_relationship,
+      newEmployee.next_of_kin_phone_number,
+      newEmployee.next_of_kin_address,
+    ];
+
+    return valuesToCheck.every((value) => Boolean(String(value ?? "").trim()));
+  }, [newEmployee]);
+
+  const validateAddEmployeeForm = () => {
+    const nextErrors: Record<string, string> = {};
+    const requiredFields: Array<[keyof AddEmployeePayload, string]> = [
+      ["firstname", "First name is required."],
+      ["surname", "Surname is required."],
+      ["email", "Email is required."],
+      ["department", "Department is required."],
+      ["position", "Position is required."],
+      ["nin", "NIN is required."],
+      ["middlename", "Middle name is required."],
+      ["gender", "Gender is required."],
+      ["telephoneno", "Telephone number is required."],
+      ["birthdate", "Birth date is required."],
+      ["state_of_origin", "State of origin is required."],
+      ["residence_address", "Residential address is required."],
+      ["residence_state", "State of residence is required."],
+      ["residence_lga", "Local government area is required."],
+      ["profession", "Profession is required."],
+      ["maritalstatus", "Marital status is required."],
+      ["title", "Title is required."],
+      ["next_of_kin_name", "Next of kin name is required."],
+      ["next_of_kin_relationship", "Next of kin relationship is required."],
+      ["next_of_kin_phone_number", "Next of kin phone number is required."],
+      ["next_of_kin_address", "Next of kin address is required."],
+    ];
+
+    requiredFields.forEach(([field, message]) => {
+      const value = newEmployee[field];
+      if (!String(value ?? "").trim()) {
+        nextErrors[field] = message;
+      }
+    });
+
+    setAddEmployeeErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
   // Extract employees and pagination from the data
   const employees = employeesData?.employees || [];
   const paginationInfo = employeesData?.pagination || {
@@ -162,24 +298,70 @@ export default function EmployeesContent() {
   };
 
   const handleAddEmployee = async () => {
-    if (!newEmployee.firstname || !newEmployee.surname || !newEmployee.email || !newEmployee.position) {
+    if (!validateAddEmployeeForm()) {
       toast.error("Validation Error", {
-        description: "Please fill in all required fields.",
+        description: "Please fill in every field in the add employee form.",
       });
       return;
     }
 
+    const trimmedFirstname = newEmployee.firstname.trim();
+    const trimmedSurname = newEmployee.surname.trim();
+    const trimmedEmail = newEmployee.email.trim();
+    const trimmedDepartment = newEmployee.department.trim();
+    const trimmedPosition = newEmployee.position.trim();
+
+    const normalize = (value?: string | null) => value?.trim() || "";
+    const payload: AddEmployeePayload = {
+      firstname: trimmedFirstname,
+      surname: trimmedSurname,
+      email: trimmedEmail,
+      department: trimmedDepartment,
+      position: trimmedPosition,
+      nin: normalize(newEmployee.nin),
+      middlename: normalize(newEmployee.middlename),
+      gender: normalize(newEmployee.gender),
+      telephoneno: normalize(newEmployee.telephoneno),
+      birthdate: normalize(newEmployee.birthdate),
+      state_of_origin: normalize(newEmployee.state_of_origin),
+      residence_address: normalize(newEmployee.residence_address),
+      residence_state: normalize(newEmployee.residence_state),
+      residence_lga: normalize(newEmployee.residence_lga),
+      profession: normalize(newEmployee.profession),
+      maritalstatus: normalize(newEmployee.maritalstatus),
+      title: normalize(newEmployee.title),
+      next_of_kin_name: normalize(newEmployee.next_of_kin_name),
+      next_of_kin_relationship: normalize(newEmployee.next_of_kin_relationship),
+      next_of_kin_phone_number: normalize(newEmployee.next_of_kin_phone_number),
+      next_of_kin_address: normalize(newEmployee.next_of_kin_address),
+    };
+
     try {
-      await addEmployeeMutation.mutateAsync(newEmployee, {
+      await addEmployeeMutation.mutateAsync(payload, {
         onSuccess: (data) => {
           setShowAddDialog(false);
           setNewEmployee({
-            surname: "",
             firstname: "",
+            surname: "",
             email: "",
-            department: "Finance",
+            department: "",
             position: "",
-            status: "active",
+            nin: "",
+            middlename: "",
+            gender: "",
+            telephoneno: "",
+            birthdate: "",
+            state_of_origin: "",
+            residence_address: "",
+            residence_state: "",
+            residence_lga: "",
+            profession: "",
+            maritalstatus: "",
+            title: "",
+            next_of_kin_name: "",
+            next_of_kin_relationship: "",
+            next_of_kin_phone_number: "",
+            next_of_kin_address: "",
           });
 
           // Refetch the employees list to include the new employee
@@ -191,8 +373,15 @@ export default function EmployeesContent() {
         },
         onError: (error: Error) => {
           console.error("Failed to add employee:", error);
+          const errorMessage = getAddEmployeeErrorMessage(error);
+          if (errorMessage.toLowerCase().includes("email") && errorMessage.toLowerCase().includes("exist")) {
+            setAddEmployeeErrors((prev) => ({
+              ...prev,
+              email: errorMessage,
+            }));
+          }
           toast.error("Error", {
-            description: error.message || "Failed to add employee. Please try again.",
+            description: errorMessage,
           });
         }
       });
@@ -1717,134 +1906,237 @@ export default function EmployeesContent() {
 
       {/* Add Employee Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[960px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add New Employee</DialogTitle>
+            <DialogTitle className="text-xl font-semibold">
+              Add New Employee
+            </DialogTitle>
             <DialogDescription>
-              Enter the details of the new employee. Click save when you're done.
+              Fill in the employee details expected by the backend payload.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="firstname" className="text-right">
-                First Name
-              </Label>
-              <Input
-                id="firstname"
-                value={newEmployee.firstname}
-                onChange={(e) =>
-                  setNewEmployee({ ...newEmployee, firstname: e.target.value })
-                }
-                className="col-span-3"
-                placeholder="Enter first name"
-              />
+
+          <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleAddEmployee(); }}>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="firstname">{requiredLabel("First Name")}</Label>
+                <Input id="firstname" placeholder="Enter first name" value={newEmployee.firstname} onChange={(e) => updateEmployeeField("firstname", e.target.value)} className={addEmployeeFieldClassName("firstname")} />
+                {renderFieldError("firstname")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="surname">{requiredLabel("Surname")}</Label>
+                <Input id="surname" placeholder="Enter surname" value={newEmployee.surname} onChange={(e) => updateEmployeeField("surname", e.target.value)} className={addEmployeeFieldClassName("surname")} />
+                {renderFieldError("surname")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="middlename">{requiredLabel("Middle Name")}</Label>
+                <Input id="middlename" placeholder="Enter middle name" value={newEmployee.middlename} onChange={(e) => updateEmployeeField("middlename", e.target.value)} className={addEmployeeFieldClassName("middlename")} />
+                {renderFieldError("middlename")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="title">{requiredLabel("Title")}</Label>
+                <Select value={newEmployee.title} onValueChange={(value) => updateEmployeeField("title", value)}>
+                  <SelectTrigger id="title" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("title")}`}>
+                    <SelectValue placeholder="Select title" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Mr">Mr</SelectItem>
+                    <SelectItem value="Mrs">Mrs</SelectItem>
+                    <SelectItem value="Miss">Miss</SelectItem>
+                    <SelectItem value="Dr">Dr</SelectItem>
+                    <SelectItem value="Prof">Prof</SelectItem>
+                    <SelectItem value="Engr">Engr</SelectItem>
+                  </SelectContent>
+                </Select>
+                {renderFieldError("title")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">{requiredLabel("Email")}</Label>
+                <Input id="email" type="email" placeholder="Enter email address" value={newEmployee.email} onChange={(e) => updateEmployeeField("email", e.target.value)} className={addEmployeeFieldClassName("email")} />
+                {renderFieldError("email")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="telephoneno">{requiredLabel("Telephone Number")}</Label>
+                <Input id="telephoneno" placeholder="Enter phone number" value={newEmployee.telephoneno} onChange={(e) => updateEmployeeField("telephoneno", e.target.value)} className={addEmployeeFieldClassName("telephoneno")} />
+                {renderFieldError("telephoneno")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="birthdate">{requiredLabel("Birthdate")}</Label>
+                <DatePicker
+                  value={newEmployee.birthdate ? new Date(newEmployee.birthdate) : undefined}
+                  onValueChange={(date) =>
+                    updateEmployeeField("birthdate", date ? date.toISOString().split("T")[0] : "")
+                  }
+                  placeholder="Select birthdate"
+                  className={`w-full ${addEmployeeFieldClassName("birthdate")}`}
+                />
+                {renderFieldError("birthdate")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="nin">{requiredLabel("NIN")}</Label>
+                <Input id="nin" placeholder="Enter NIN" value={newEmployee.nin} onChange={(e) => updateEmployeeField("nin", e.target.value)} className={addEmployeeFieldClassName("nin")} />
+                {renderFieldError("nin")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="gender">{requiredLabel("Gender")}</Label>
+                <Select value={newEmployee.gender} onValueChange={(value) => updateEmployeeField("gender", value)}>
+                  <SelectTrigger id="gender" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("gender")}`}>
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Male">Male</SelectItem>
+                    <SelectItem value="Female">Female</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                {renderFieldError("gender")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="maritalstatus">{requiredLabel("Marital Status")}</Label>
+                <Select value={newEmployee.maritalstatus} onValueChange={(value) => updateEmployeeField("maritalstatus", value)}>
+                  <SelectTrigger id="maritalstatus" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("maritalstatus")}`}>
+                    <SelectValue placeholder="Select marital status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Single">Single</SelectItem>
+                    <SelectItem value="Married">Married</SelectItem>
+                    <SelectItem value="Divorced">Divorced</SelectItem>
+                    <SelectItem value="Widowed">Widowed</SelectItem>
+                  </SelectContent>
+                </Select>
+                {renderFieldError("maritalstatus")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="department">{requiredLabel("Department")}</Label>
+                <Select value={newEmployee.department} onValueChange={(value) => updateEmployeeField("department", value)}>
+                  <SelectTrigger id="department" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("department")}`}>
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Finance">Finance</SelectItem>
+                    <SelectItem value="HR">HR</SelectItem>
+                    <SelectItem value="IT">IT</SelectItem>
+                    <SelectItem value="Operations">Operations</SelectItem>
+                    <SelectItem value="Legal">Legal</SelectItem>
+                    <SelectItem value="Marketing">Marketing</SelectItem>
+                  </SelectContent>
+                </Select>
+                {renderFieldError("department")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="position">{requiredLabel("Position")}</Label>
+                <Input id="position" placeholder="Enter position" value={newEmployee.position} onChange={(e) => updateEmployeeField("position", e.target.value)} className={addEmployeeFieldClassName("position")} />
+                {renderFieldError("position")}
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="state_of_origin">{requiredLabel("State of Origin")}</Label>
+                <Select value={newEmployee.state_of_origin} onValueChange={(value) => updateEmployeeField("state_of_origin", value)}>
+                  <SelectTrigger id="state_of_origin" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("state_of_origin")}`}>
+                    <SelectValue placeholder="Select state of origin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {nigerianStates.map((state) => (
+                      <SelectItem key={state} value={state}>
+                        {state}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {renderFieldError("state_of_origin")}
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="residence_address">{requiredLabel("Residential Address")}</Label>
+                <Input id="residence_address" placeholder="Enter residential address" value={newEmployee.residence_address} onChange={(e) => updateEmployeeField("residence_address", e.target.value)} className={addEmployeeFieldClassName("residence_address")} />
+                {renderFieldError("residence_address")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="residence_state">{requiredLabel("State of Residence")}</Label>
+                <Select value={newEmployee.residence_state} onValueChange={updateResidenceState}>
+                  <SelectTrigger id="residence_state" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("residence_state")}`}>
+                    <SelectValue placeholder="Select state" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {nigerianStates.map((state) => (
+                      <SelectItem key={state} value={state}>
+                        {state}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {renderFieldError("residence_state")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="residence_lga">{requiredLabel("LGA")}</Label>
+                <Select
+                  value={newEmployee.residence_lga}
+                  onValueChange={(value) => updateEmployeeField("residence_lga", value)}
+                  disabled={!newEmployee.residence_state}
+                >
+                  <SelectTrigger id="residence_lga" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("residence_lga")}`}>
+                    <SelectValue placeholder={newEmployee.residence_state ? "Select LGA" : "Select state first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableResidenceLgas.map((lga) => (
+                      <SelectItem key={lga} value={lga}>
+                        {lga}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {renderFieldError("residence_lga")}
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="profession">{requiredLabel("Profession")}</Label>
+                <Input id="profession" placeholder="Enter profession" value={newEmployee.profession} onChange={(e) => updateEmployeeField("profession", e.target.value)} className={addEmployeeFieldClassName("profession")} />
+                {renderFieldError("profession")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="next_of_kin_name">{requiredLabel("Next of Kin Name")}</Label>
+                <Input id="next_of_kin_name" placeholder="Enter next of kin name" value={newEmployee.next_of_kin_name} onChange={(e) => updateEmployeeField("next_of_kin_name", e.target.value)} className={addEmployeeFieldClassName("next_of_kin_name")} />
+                {renderFieldError("next_of_kin_name")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="next_of_kin_relationship">{requiredLabel("Next of Kin Relationship")}</Label>
+                <Input id="next_of_kin_relationship" placeholder="Enter relationship" value={newEmployee.next_of_kin_relationship} onChange={(e) => updateEmployeeField("next_of_kin_relationship", e.target.value)} className={addEmployeeFieldClassName("next_of_kin_relationship")} />
+                {renderFieldError("next_of_kin_relationship")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="next_of_kin_phone_number">{requiredLabel("Next of Kin Phone")}</Label>
+                <Input id="next_of_kin_phone_number" placeholder="Enter next of kin phone number" value={newEmployee.next_of_kin_phone_number} onChange={(e) => updateEmployeeField("next_of_kin_phone_number", e.target.value)} className={addEmployeeFieldClassName("next_of_kin_phone_number")} />
+                {renderFieldError("next_of_kin_phone_number")}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="next_of_kin_address">{requiredLabel("Next of Kin Address")}</Label>
+                <Input id="next_of_kin_address" placeholder="Enter next of kin address" value={newEmployee.next_of_kin_address} onChange={(e) => updateEmployeeField("next_of_kin_address", e.target.value)} className={addEmployeeFieldClassName("next_of_kin_address")} />
+                {renderFieldError("next_of_kin_address")}
+              </div>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="surname" className="text-right">
-                Surname
-              </Label>
-              <Input
-                id="surname"
-                value={newEmployee.surname}
-                onChange={(e) =>
-                  setNewEmployee({ ...newEmployee, surname: e.target.value })
-                }
-                className="col-span-3"
-                placeholder="Enter surname"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                value={newEmployee.email}
-                onChange={(e) =>
-                  setNewEmployee({ ...newEmployee, email: e.target.value })
-                }
-                className="col-span-3"
-                placeholder="Enter email address"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="department" className="text-right">
-                Department
-              </Label>
-              <Select
-                value={newEmployee.department}
-                onValueChange={(value) =>
-                  setNewEmployee({ ...newEmployee, department: value })
-                }
+
+            <DialogFooter className="border-t pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowAddDialog(false)}
+                className={buttonHoverEnhancements}
               >
-                <SelectTrigger className={`${buttonHoverEnhancements} col-span-3`}>
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Finance">Finance</SelectItem>
-                  <SelectItem value="HR">HR</SelectItem>
-                  <SelectItem value="IT">IT</SelectItem>
-                  <SelectItem value="Operations">Operations</SelectItem>
-                  <SelectItem value="Legal">Legal</SelectItem>
-                  <SelectItem value="Marketing">Marketing</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="position" className="text-right">
-                Position
-              </Label>
-              <Input
-                id="position"
-                value={newEmployee.position}
-                onChange={(e) =>
-                  setNewEmployee({ ...newEmployee, position: e.target.value })
-                }
-                className="col-span-3"
-                placeholder="Enter position"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="status" className="text-right">
-                Status
-              </Label>
-              <Select
-                value={newEmployee.status}
-                onValueChange={(value: "active" | "inactive" | "pending") =>
-                  setNewEmployee({ ...newEmployee, status: value })
-                }
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={addEmployeeMutation.isPending || !isAddEmployeeFormComplete}
+                className={`${buttonHoverEnhancements} bg-green-700 hover:bg-green-800 hover:!bg-green-800`}
               >
-                <SelectTrigger className={`${buttonHoverEnhancements} col-span-3`}>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowAddDialog(false)}
-              className={buttonHoverEnhancements}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAddEmployee}
-              disabled={addEmployeeMutation.isPending}
-              className={`${buttonHoverEnhancements} bg-green-700 hover:bg-green-800 hover:!bg-green-800`}
-            >
-              {addEmployeeMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              {addEmployeeMutation.isPending ? "Adding..." : "Add Employee"}
-            </Button>
-          </DialogFooter>
+                {addEmployeeMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {addEmployeeMutation.isPending
+                  ? "Adding..."
+                  : isAddEmployeeFormComplete
+                    ? "Add Employee"
+                    : "Complete Required Fields"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

@@ -2536,6 +2536,8 @@ import {
   MapPin,
   Contact,
   Server,
+  Shield,
+  GraduationCap,
   Trash2,
   ShieldAlert,
   Ban,
@@ -2604,9 +2606,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
   const deletePendingEmployeeMutation = useDeletePendingEmployee()
   const disapprovePendingEmployeeMutation = useDisapprovePendingEmployee()
  
-  // @ts-expect-error axios response mismatch
-  const pendingEmployees: Employee3[] = data?.data?.employees || []
-  // @ts-expect-error axios response mismatch
+  const pendingEmployees = (data?.data?.employees || []) as unknown as Employee3[]
   const pagination = data?.data?.pagination || {
     total: 0,
     page: currentPage,
@@ -2617,21 +2617,149 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
   const indexOfFirstItem = totalItems === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1
   const indexOfLastItem = Math.min(pagination.page * pagination.limit, totalItems)
 
+  const readMetadata = (employee: Employee3) => {
+    const rawMetadata = employee.metadata
+
+    if (!rawMetadata) return {}
+
+    if (typeof rawMetadata === "string") {
+      try {
+        const parsed = JSON.parse(rawMetadata)
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          return parsed as Record<string, unknown>
+        }
+      } catch {
+        return {}
+      }
+    }
+
+    if (typeof rawMetadata === "object" && !Array.isArray(rawMetadata)) {
+      return rawMetadata as Record<string, unknown>
+    }
+
+    return {}
+  }
+
+  const readEmployeeValue = (employee: Employee3, keys: string[], fallback = "") => {
+    const metadata = readMetadata(employee)
+    const source = employee as unknown as Record<string, unknown>
+
+    for (const key of keys) {
+      const value = source[key] ?? metadata[key]
+      if (typeof value === "string") {
+        const trimmed = value.trim()
+        if (trimmed) return trimmed
+      } else if (typeof value === "number" || typeof value === "boolean") {
+        return String(value)
+      }
+    }
+
+    return fallback
+  }
+
+  const readEmployeeDate = (employee: Employee3, keys: string[]) => {
+    const value = readEmployeeValue(employee, keys, "")
+    return value ? formatSimpleDate(value) : ""
+  }
+
+  const readEmployeeMoney = (employee: Employee3, keys: string[]) => {
+    const value = readEmployeeValue(employee, keys, "")
+    if (!value) return ""
+
+    const numeric = Number(value.replace(/[^0-9.-]/g, ""))
+    return Number.isFinite(numeric) ? `₦${numeric.toLocaleString()}` : value
+  }
+
   // Helper function to get full name
   const getFullName = (employee: Employee3) => {
-    return `${employee.firstname} ${employee.surname}`.trim()
+    const firstName = readEmployeeValue(employee, ["firstname", "first_name", "firstName", "FirstName"], "")
+    const surname = readEmployeeValue(employee, ["surname", "last_name", "lastName", "Surname"], "")
+
+    if (firstName || surname) {
+      return `${surname} ${firstName}`.trim()
+    }
+
+    const name = readEmployeeValue(employee, ["name"], "")
+    if (name) return name
+
+    return ""
+  }
+
+  type DetailField = {
+    label: string
+    value: React.ReactNode
+    mono?: boolean
+    badge?: boolean
+    span?: "1" | "2"
+  }
+
+  const hasRenderableValue = (value: React.ReactNode) => {
+    if (value === null || value === undefined) return false
+    if (typeof value === "string") return Boolean(value.trim())
+    return true
+  }
+
+  const renderDetailGrid = (fields: DetailField[]) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {fields.map((field) => {
+        if (!hasRenderableValue(field.value)) return null
+
+        const spanClass = field.span === "2" ? "md:col-span-2" : ""
+        return (
+          <div key={field.label} className={`space-y-1 ${spanClass}`}>
+            <label className="text-sm font-medium text-muted-foreground">{field.label}</label>
+            {field.badge ? (
+              <div className="mt-1">{field.value}</div>
+            ) : (
+              <p className={`text-sm ${field.mono ? "font-mono" : ""}`}>{field.value}</p>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+
+  const renderDetailCard = (title: string, icon: React.ReactNode, fields: DetailField[]) => {
+    const visibleFields = fields.filter((field) => hasRenderableValue(field.value))
+    if (visibleFields.length === 0) return null
+
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            {icon}
+            {title}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>{renderDetailGrid(visibleFields)}</CardContent>
+      </Card>
+    )
   }
 
   // Helper function to get initials for avatar
   const getInitials = (employee: Employee3) => {
-    return `${employee.firstname?.[0] || ''}${employee.surname?.[0] || ''}`.toUpperCase()
+    const firstName = readEmployeeValue(employee, ["firstname", "first_name", "firstName", "FirstName"], "")
+    const surname = readEmployeeValue(employee, ["surname", "last_name", "lastName", "Surname"], "")
+    const name = readEmployeeValue(employee, ["name"], "")
+
+    const initials = `${firstName?.[0] || ""}${surname?.[0] || ""}`.toUpperCase()
+    if (initials) return initials
+
+    return name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0] || "")
+      .join("")
+      .toUpperCase()
   }
 
   // Helper function to get full name with other names
   const getFullNameWithOtherNames = (employee: Employee3) => {
-    const baseName = `${employee.firstname} ${employee.surname}`
-    if (employee.metadata?.["Other Names"]) {
-      return `${baseName} ${employee.metadata["Other Names"]}`.trim()
+    const baseName = getFullName(employee)
+    const otherNames = readEmployeeValue(employee, ["Other Names", "other_names", "otherNames"], "")
+    if (otherNames) {
+      return `${baseName} ${otherNames}`.trim()
     }
     return baseName
   }
@@ -2681,6 +2809,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
     switch (status) {
       case "pending_approval":
       case "pending":
+      case "":
         return (
           <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50">
             <Clock className="mr-1 h-3 w-3" />
@@ -2721,11 +2850,11 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
   }
 
   const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return "N/A"
+    if (!dateString) return ""
     try {
       const date = new Date(dateString)
       if (isNaN(date.getTime())) {
-        return "Invalid Date"
+        return ""
       }
       return new Intl.DateTimeFormat("en-GB", {
         day: "2-digit",
@@ -2736,16 +2865,16 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
       }).format(date)
     } catch (error) {
       console.error("Error formatting date:", dateString, error)
-      return "Invalid Date"
+      return ""
     }
   }
 
   const formatSimpleDate = (dateString: string | null | undefined) => {
-    if (!dateString) return "N/A"
+    if (!dateString) return ""
     try {
       const date = new Date(dateString)
       if (isNaN(date.getTime())) {
-        return "Invalid Date"
+        return ""
       }
       return new Intl.DateTimeFormat("en-GB", {
         day: "2-digit",
@@ -2754,7 +2883,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
       }).format(date)
     } catch (error) {
       console.error("Error formatting date:", dateString, error)
-      return "Invalid Date"
+      return ""
     }
   }
 
@@ -3032,9 +3161,11 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
       label: "Contact",
       render: (_value: string, employee: Employee3) => (
         <div className="flex flex-col">
-          <span className="text-sm">{employee.email}</span>
-          {employee.metadata?.["Phone Number"] && (
-            <span className="text-xs text-muted-foreground">{employee.metadata["Phone Number"]}</span>
+          <span className="text-sm">{readEmployeeValue(employee, ["email", "Email"], employee.email)}</span>
+          {readEmployeeValue(employee, ["Phone Number", "phone_number", "phoneNumber"], "") && (
+            <span className="text-xs text-muted-foreground">
+              {readEmployeeValue(employee, ["Phone Number", "phone_number", "phoneNumber"], "")}
+            </span>
           )}
         </div>
       ),
@@ -3057,7 +3188,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
     {
       key: "status",
       label: "Status",
-      render: (_value: string, employee: Employee3) => getStatusBadge(employee.status),
+      render: (_value: string, employee: Employee3) => getStatusBadge(employee.status || "pending"),
     },
   ]
 
@@ -3391,7 +3522,7 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
                     Pending Employee Details
                   </DialogTitle>
                   <DialogDescription className="text-gray-600 mt-1">
-                    {selectedEmployee ? `View submission for ${getFullName(selectedEmployee)}` : "View employee submission"}
+                    {selectedEmployee ? `View submission for ${getFullName(selectedEmployee) || "this employee"}` : "View employee submission"}
                   </DialogDescription>
                 </div>
               </div>
@@ -3406,299 +3537,92 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
               </Button>
             </div>
           </DialogHeader>
-          
+
           <ScrollArea className="max-h-[70vh] px-8 py-6">
             <div className="space-y-6">
               {selectedEmployee && (
                 <>
-                  {/* Basic Information Section */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <User className="h-5 w-5 text-primary" />
-                        Basic Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">First Name</label>
-                          <p className="text-sm">{selectedEmployee.firstname}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Surname</label>
-                          <p className="text-sm">{selectedEmployee.surname}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Other Names</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["Other Names"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Title</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.Title || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Gender</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.Gender || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Date of Birth</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["Date of Birth"] ? formatSimpleDate(selectedEmployee.metadata["Date of Birth"]) : "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Marital Status</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["Marital Status"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Phone Number</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["Phone Number"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Email</label>
-                          <p className="text-sm break-all">{selectedEmployee.email}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {renderDetailCard("Basic Information", <User className="h-5 w-5 text-primary" />, [
+                    { label: "First Name", value: readEmployeeValue(selectedEmployee, ["firstname", "first_name", "firstName", "FirstName"], selectedEmployee.firstname) },
+                    { label: "Surname", value: readEmployeeValue(selectedEmployee, ["surname", "last_name", "lastName", "Surname"], selectedEmployee.surname) },
+                    { label: "Other Names", value: readEmployeeValue(selectedEmployee, ["Other Names", "other_names", "otherNames", "other_name"]) },
+                    { label: "Title", value: readEmployeeValue(selectedEmployee, ["Title", "title"]) },
+                    { label: "Gender", value: readEmployeeValue(selectedEmployee, ["Gender", "gender"]) },
+                    { label: "Date of Birth", value: readEmployeeDate(selectedEmployee, ["Date of Birth", "date_of_birth", "dateOfBirth", "birthdate"]) },
+                    { label: "Marital Status", value: readEmployeeValue(selectedEmployee, ["Marital Status", "marital_status", "maritalStatus"]) },
+                    { label: "Phone Number", value: readEmployeeValue(selectedEmployee, ["Phone Number", "phone_number", "phoneNumber", "telephoneno"]) },
+                    { label: "Email", value: readEmployeeValue(selectedEmployee, ["email", "Email"], selectedEmployee.email) },
+                  ])}
 
-                  {/* Employment Information Section */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <Building className="h-5 w-5 text-primary" />
-                        Employment Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Employee ID</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["Employee ID"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Registration ID</label>
-                          <p className="text-sm font-mono">{selectedEmployee.registration_id}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Department</label>
-                          <p className="text-sm">{selectedEmployee.department || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Position</label>
-                          <p className="text-sm">{selectedEmployee.position || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Cadre</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.Cadre || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Employment Type</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["Employment Type"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Date of First Appointment</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["Date of First Appointment"] ? formatSimpleDate(selectedEmployee.metadata["Date of First Appointment"]) : "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Probation Period</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["Probation Period"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Work Location</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["Work Location"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Organization</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.Organization || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Service No</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["Service No"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">File No</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["File No"] || "N/A"}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {renderDetailCard("Verification Information", <Shield className="h-5 w-5 text-primary" />, [
+                    { label: "BVN", value: readEmployeeValue(selectedEmployee, ["BVN", "bvn", "bvn_number"]) },
+                    { label: "NIN", value: readEmployeeValue(selectedEmployee, ["NIN", "nin", "national_identity_number"]) },
+                    { label: "Status", value: selectedEmployee.status ? getStatusBadge(selectedEmployee.status) : null, badge: true },
+                  ])}
 
-                  {/* Salary and Grade Information */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <DollarSign className="h-5 w-5 text-primary" />
-                        Salary & Grade Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Salary</label>
-                          <p className="text-sm font-semibold">
-                            {selectedEmployee.metadata?.Salary ? `₦${parseInt(selectedEmployee.metadata.Salary).toLocaleString()}` : "N/A"}
-                          </p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Salary Structure</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["Salary Structure"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">GL</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.GL || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Step</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.Step || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Payment Method</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["Payment Method"] || "N/A"}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {renderDetailCard("Employment Information", <Building className="h-5 w-5 text-primary" />, [
+                    { label: "Employee ID", value: readEmployeeValue(selectedEmployee, ["Employee ID", "employee_id", "employeeId"]) },
+                    { label: "Registration ID", value: readEmployeeValue(selectedEmployee, ["registration_id", "registrationId"], selectedEmployee.registration_id), mono: true },
+                    { label: "Department", value: readEmployeeValue(selectedEmployee, ["department", "Department"], selectedEmployee.department) },
+                    { label: "Position", value: readEmployeeValue(selectedEmployee, ["position", "Position", "rank_position", "rankPosition", "grade_level"], selectedEmployee.position) },
+                    { label: "Cadre", value: readEmployeeValue(selectedEmployee, ["Cadre", "cadre"]) },
+                    { label: "Employment Type", value: readEmployeeValue(selectedEmployee, ["Employment Type", "employment_type", "employmentType"]) },
+                    { label: "Date of First Appointment", value: readEmployeeDate(selectedEmployee, ["Date of First Appointment", "date_of_first_appointment", "dateOfFirstAppointment"]) },
+                    { label: "Probation Period", value: readEmployeeValue(selectedEmployee, ["Probation Period", "probation_period", "probationPeriod"]) },
+                    { label: "Work Location", value: readEmployeeValue(selectedEmployee, ["Work Location", "work_location", "workLocation"]) },
+                    { label: "Organization", value: readEmployeeValue(selectedEmployee, ["Organization", "organization"]) },
+                    { label: "Service No", value: readEmployeeValue(selectedEmployee, ["Service No", "service_no", "serviceNo"]) },
+                    { label: "File No", value: readEmployeeValue(selectedEmployee, ["File No", "file_no", "fileNo"]) },
+                  ])}
 
-                  {/* Bank and Pension Information */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <Building className="h-5 w-5 text-primary" />
-                        Bank & Pension Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Bank Name</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["Bank Name"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Account Number</label>
-                          <p className="text-sm font-mono">{selectedEmployee.metadata?.["Account Number"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">PFA Name</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["PFA Name"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">RSA PIN</label>
-                          <p className="text-sm font-mono">{selectedEmployee.metadata?.["RSA PIN"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">BVN Verified</label>
-                          <Badge variant={selectedEmployee.metadata?.["BVN Verified"] === "YES" ? "default" : "secondary"}>
-                            {selectedEmployee.metadata?.["BVN Verified"] || "N/A"}
-                          </Badge>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">NIN Verified</label>
-                          <Badge variant={selectedEmployee.metadata?.["NIN Verified"] === "YES" ? "default" : "secondary"}>
-                            {selectedEmployee.metadata?.["NIN Verified"] || "N/A"}
-                          </Badge>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {renderDetailCard("Salary & Grade Information", <DollarSign className="h-5 w-5 text-primary" />, [
+                    { label: "Salary", value: readEmployeeMoney(selectedEmployee, ["Salary", "salary", "basic_salary", "salary_amount"]) },
+                    { label: "Salary Structure", value: readEmployeeValue(selectedEmployee, ["Salary Structure", "salary_structure", "salaryStructure"]) },
+                    { label: "GL", value: readEmployeeValue(selectedEmployee, ["GL", "gl", "grade_level"]) },
+                    { label: "Step", value: readEmployeeValue(selectedEmployee, ["Step", "step"]) },
+                    { label: "Payment Method", value: readEmployeeValue(selectedEmployee, ["Payment Method", "payment_method", "paymentMethod"]) },
+                  ])}
 
-                  {/* Address Information */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <MapPin className="h-5 w-5 text-primary" />
-                        Address Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div className="space-y-1 md:col-span-2">
-                          <label className="text-sm font-medium text-muted-foreground">Residential Address</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["Residential Address"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">State of Residence</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["State of Residence"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">State of Origin</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["State of Origin"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">LGA</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.LGA || "N/A"}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {renderDetailCard("Bank & Pension Information", <Building className="h-5 w-5 text-primary" />, [
+                    { label: "Bank Name", value: readEmployeeValue(selectedEmployee, ["Bank Name", "nameOfBank", "name_of_bank", "bank_name", "bankName"]) },
+                    { label: "Account Number", value: readEmployeeValue(selectedEmployee, ["Account Number", "account_number", "accountNumber"]), mono: true },
+                    { label: "PFA Name", value: readEmployeeValue(selectedEmployee, ["PFA Name", "pfa_name", "pfaName"]) },
+                    { label: "RSA PIN", value: readEmployeeValue(selectedEmployee, ["RSA PIN", "rsa_pin", "rsapin"]), mono: true },
+                    { label: "BVN Verified", value: readEmployeeValue(selectedEmployee, ["BVN Verified", "bvn_verified"]) ? <Badge variant={readEmployeeValue(selectedEmployee, ["BVN Verified", "bvn_verified"], "") === "YES" ? "default" : "secondary"}>{readEmployeeValue(selectedEmployee, ["BVN Verified", "bvn_verified"])}</Badge> : null, badge: true },
+                    { label: "NIN Verified", value: readEmployeeValue(selectedEmployee, ["NIN Verified", "nin_verified"]) ? <Badge variant={readEmployeeValue(selectedEmployee, ["NIN Verified", "nin_verified"], "") === "YES" ? "default" : "secondary"}>{readEmployeeValue(selectedEmployee, ["NIN Verified", "nin_verified"])}</Badge> : null, badge: true },
+                  ])}
 
-                  {/* Next of Kin Information */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <Contact className="h-5 w-5 text-primary" />
-                        Next of Kin Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Next of Kin Name</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["Next of Kin Name"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Next of Kin Relationship</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["Next of Kin Relationship"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Next of Kin Phone</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["Next of Kin Phone"] || "N/A"}</p>
-                        </div>
-                        <div className="space-y-1 md:col-span-2">
-                          <label className="text-sm font-medium text-muted-foreground">Next of Kin Address</label>
-                          <p className="text-sm">{selectedEmployee.metadata?.["Next of Kin Address"] || "N/A"}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {renderDetailCard("Educational Background & Certifications", <GraduationCap className="h-5 w-5 text-primary" />, [
+                    { label: "Educational Background", value: readEmployeeValue(selectedEmployee, ["Educational Background", "educational_background", "educationalBackground"]) },
+                    { label: "Certifications", value: readEmployeeValue(selectedEmployee, ["Certifications", "certifications"]) },
+                  ])}
 
-                  {/* System Information */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <Server className="h-5 w-5 text-primary" />
-                        System Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Status</label>
-                          <div className="mt-1">{getStatusBadge(selectedEmployee.status)}</div>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Source</label>
-                          <Badge variant="outline">{selectedEmployee.source || "N/A"}</Badge>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Submission Date</label>
-                          <p className="text-sm">{formatDate(selectedEmployee.submission_date)}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Created At</label>
-                          <p className="text-sm">{formatDate(selectedEmployee.created_at)}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-muted-foreground">Updated At</label>
-                          <p className="text-sm">{formatDate(selectedEmployee.updated_at)}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {renderDetailCard("Address Information", <MapPin className="h-5 w-5 text-primary" />, [
+                    { label: "Residential Address", value: readEmployeeValue(selectedEmployee, ["Residential Address", "residential_address", "address", "addressStateOfResidence"]), span: "2" },
+                    { label: "State of Residence", value: readEmployeeValue(selectedEmployee, ["State of Residence", "state_of_residence", "residence_state", "stateOfResidence"]) },
+                    { label: "State of Origin", value: readEmployeeValue(selectedEmployee, ["State of Origin", "state_of_origin", "stateOfOrigin"]) },
+                    { label: "LGA", value: readEmployeeValue(selectedEmployee, ["LGA", "lga", "local_government_area"]) },
+                  ])}
+
+                  {renderDetailCard("Next of Kin Information", <Contact className="h-5 w-5 text-primary" />, [
+                    { label: "Next of Kin Name", value: readEmployeeValue(selectedEmployee, ["Next of Kin Name", "next_of_kin_name", "nextOfKinName"]) },
+                    { label: "Next of Kin Relationship", value: readEmployeeValue(selectedEmployee, ["Next of Kin Relationship", "next_of_kin_relationship", "nextOfKinRelationship"]) },
+                    { label: "Next of Kin Phone", value: readEmployeeValue(selectedEmployee, ["Next of Kin Phone", "next_of_kin_phone", "next_of_kin_phone_number", "nextOfKinPhoneNumber"]) },
+                    { label: "Next of Kin Address", value: readEmployeeValue(selectedEmployee, ["Next of Kin Address", "next_of_kin_address", "nextOfKinAddress"]), span: "2" },
+                  ])}
+
+                  {renderDetailCard("System Information", <Server className="h-5 w-5 text-primary" />, [
+                    { label: "Status", value: selectedEmployee.status ? getStatusBadge(selectedEmployee.status) : null, badge: true },
+                    { label: "Source", value: selectedEmployee.source || "" },
+                    { label: "Submission Date", value: formatDate(selectedEmployee.submission_date) },
+                    { label: "Created At", value: formatDate(selectedEmployee.created_at) },
+                    { label: "Updated At", value: formatDate(selectedEmployee.updated_at) },
+                  ])}
                 </>
               )}
             </div>
           </ScrollArea>
-          
+
           <DialogFooter className="px-8 py-5 border-t border-gray-200 bg-gray-50">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4">
               <Button

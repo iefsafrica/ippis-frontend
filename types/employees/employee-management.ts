@@ -61,12 +61,27 @@ export interface RecentEmployeesData {
 
 // Add Employee Types
 export interface AddEmployeePayload {
-  surname: string;
   firstname: string;
+  surname: string;
   email: string;
   department: string;
   position: string;
-  status: 'pending' | 'active' | 'inactive';
+  nin: string;
+  middlename: string;
+  gender: string;
+  telephoneno: string;
+  birthdate: string;
+  state_of_origin: string;
+  residence_address: string;
+  residence_state: string;
+  residence_lga: string;
+  profession: string;
+  maritalstatus: string;
+  title: string;
+  next_of_kin_name: string;
+  next_of_kin_relationship: string;
+  next_of_kin_phone_number: string;
+  next_of_kin_address: string;
 }
 
 export interface AddEmployeeResponse {

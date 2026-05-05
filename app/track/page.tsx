@@ -19,6 +19,9 @@ interface TrackRecord {
   registration_id: string
   surname: string
   firstname: string
+  first_name?: string | null
+  firstName?: string | null
+  name?: string | null
   email: string
   department?: string | null
   position?: string | null
@@ -102,6 +105,9 @@ interface PendingEmployeeRecord {
   registration_id?: string | null
   surname?: string | null
   firstname?: string | null
+  first_name?: string | null
+  firstName?: string | null
+  name?: string | null
   email?: string | null
   department?: string | null
   position?: string | null
@@ -110,7 +116,7 @@ interface PendingEmployeeRecord {
   submission_date?: string | null
   created_at?: string | null
   updated_at?: string | null
-  name?: string | null
+  metadata?: Record<string, unknown> | string | null
 }
 
 interface SearchResult {
@@ -125,6 +131,50 @@ interface SearchResult {
   createdAt: string
   updatedAt: string
   recordType: string
+}
+
+const readRecordMetadata = (record: PendingEmployeeRecord | TrackRecord) => {
+  const rawMetadata = (record as PendingEmployeeRecord).metadata
+
+  if (!rawMetadata) return {}
+
+  if (typeof rawMetadata === "string") {
+    try {
+      const parsed = JSON.parse(rawMetadata)
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>
+      }
+    } catch {
+      return {}
+    }
+  }
+
+  if (typeof rawMetadata === "object" && !Array.isArray(rawMetadata)) {
+    return rawMetadata
+  }
+
+  return {}
+}
+
+const getRecordValue = (
+  record: PendingEmployeeRecord | TrackRecord,
+  keys: string[],
+  fallback = "N/A",
+) => {
+  const metadata = readRecordMetadata(record)
+  const source = record as Record<string, unknown>
+
+  for (const key of keys) {
+    const value = source[key] ?? metadata[key]
+    if (typeof value === "string") {
+      const trimmed = value.trim()
+      if (trimmed) return trimmed
+    } else if (typeof value === "number" || typeof value === "boolean") {
+      return String(value)
+    }
+  }
+
+  return fallback
 }
 
 const statusBadgeClasses: Record<string, string> = {
@@ -338,6 +388,8 @@ const buildSearchResultFromRecord = (
     registration_id?: string | null
     surname?: string | null
     firstname?: string | null
+    first_name?: string | null
+    firstName?: string | null
     email?: string | null
     department?: string | null
     position?: string | null
@@ -347,6 +399,7 @@ const buildSearchResultFromRecord = (
     created_at?: string | null
     updated_at?: string | null
     name?: string | null
+    metadata?: Record<string, unknown> | string | null
   },
   recordType: string,
 ): SearchResult | null => {
@@ -355,25 +408,37 @@ const buildSearchResultFromRecord = (
     return null
   }
 
-  const nameParts = (record.name || "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
+  const nameParts = (record.name || "").trim().split(/\s+/).filter(Boolean)
   const fallbackFirstName = nameParts.slice(1).join(" ") || nameParts[0] || "Applicant"
   const fallbackSurname = nameParts[0] || ""
-  const fullName = `${record.surname || fallbackSurname} ${record.firstname || fallbackFirstName}`.trim() || "Applicant"
+  const firstName = record.first_name || record.firstName || record.firstname || fallbackFirstName
+  const surname = record.surname || fallbackSurname
+  const fullName = `${surname} ${firstName}`.trim() || "Applicant"
+  const metadata = readRecordMetadata(record)
+  const valueFromRecord = (keys: string[]) => {
+    for (const key of keys) {
+      const value = (record as Record<string, unknown>)[key] ?? metadata[key]
+      if (typeof value === "string") {
+        const trimmed = value.trim()
+        if (trimmed) return trimmed
+      } else if (typeof value === "number" || typeof value === "boolean") {
+        return String(value)
+      }
+    }
+    return undefined
+  }
 
   return {
     fullName,
     registrationId,
-    email: record.email || "N/A",
-    department: record.department || "N/A",
-    position: record.position || "N/A",
-    status: record.status || "pending_approval",
-    source: record.source || "N/A",
-    submittedDate: record.submission_date || record.created_at || "N/A",
-    createdAt: record.created_at || "N/A",
-    updatedAt: record.updated_at || "N/A",
+    email: valueFromRecord(["email", "Email"]) || "N/A",
+    department: valueFromRecord(["department", "Department"]) || "N/A",
+    position: valueFromRecord(["position", "Position", "rank_position", "grade_level"]) || "N/A",
+    status: valueFromRecord(["status"]) || "pending_approval",
+    source: valueFromRecord(["source"]) || "N/A",
+    submittedDate: valueFromRecord(["submission_date", "submissionDate", "submitted_at", "created_at"]) || "N/A",
+    createdAt: valueFromRecord(["created_at", "createdAt"]) || "N/A",
+    updatedAt: valueFromRecord(["updated_at", "updatedAt"]) || "N/A",
     recordType,
   }
 }
