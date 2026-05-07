@@ -6,6 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { DateSelect } from "@/components/ui/date-select";
+import {
+  getCadreOptions,
+  getCadreForGradeLevel,
+  getGradeLevelOptions,
+  getStepOptions,
+  salaryStructureOptions,
+} from "@/lib/register-salary-structure";
 import {
   Select,
   SelectContent,
@@ -55,10 +63,42 @@ export default function EmploymentInfoStep({
   });
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const gradeLevelOptions = getGradeLevelOptions(formState.salaryStructure);
+  const stepOptions = getStepOptions(formState.salaryStructure, formState.gl);
+  const cadreOptions = getCadreOptions(formState.salaryStructure);
+  const derivedCadre = getCadreForGradeLevel(
+    formState.salaryStructure,
+    formState.gl
+  );
+  const isSalaryStructureSelected = Boolean(formState.salaryStructure);
+  const isGradeLevelSelected = Boolean(formState.gl);
 
   const handleChange = (field: string, value: string) => {
-    setFormState((prev) => ({ ...prev, [field]: value }));
+    setFormState((prev) => {
+      if (field === "salaryStructure") {
+        return {
+          ...prev,
+          salaryStructure: value,
+          gl: "",
+          step: "",
+          cadre: "",
+        };
+      }
+
+      if (field === "gl") {
+        return {
+          ...prev,
+          gl: value,
+          step: "",
+        };
+      }
+
+      return { ...prev, [field]: value };
+    });
   };
+
+  const showError = (field: string) => hasAttemptedSubmit && Boolean(errors[field]);
 
   useEffect(() => {
     const requiredFields = [
@@ -72,10 +112,7 @@ export default function EmploymentInfoStep({
       "probationPeriod",
       "workLocation",
       "dateOfFirstAppointment",
-      "gl",
-      "step",
       "salaryStructure",
-      "cadre",
       "nameOfBank",
       "accountNumber",
       "pfaName",
@@ -89,9 +126,21 @@ export default function EmploymentInfoStep({
       }
     });
 
+    if (isSalaryStructureSelected && !formState.gl) {
+      newErrors.gl = "This field is required.";
+    }
+
+    if (isSalaryStructureSelected && isGradeLevelSelected && !formState.step) {
+      newErrors.step = "This field is required.";
+    }
+
+    if (isSalaryStructureSelected && !(derivedCadre || formState.cadre)) {
+      newErrors.cadre = "This field is required.";
+    }
+
     setErrors(newErrors);
     // validateStep(3, Object.keys(newErrors).length === 0);
-  }, [formState]);
+  }, [formState, isGradeLevelSelected, isSalaryStructureSelected]);
 
   useEffect(() => {
     setFormState({
@@ -147,7 +196,7 @@ export default function EmploymentInfoStep({
     step: values.step,
     salaryStructure: values.salaryStructure,
     salary_structure: values.salaryStructure,
-    cadre: values.cadre,
+    cadre: derivedCadre || values.cadre,
     nameOfBank: values.nameOfBank,
     bank_name: values.nameOfBank,
     bankName: values.nameOfBank,
@@ -165,6 +214,7 @@ export default function EmploymentInfoStep({
 
   const handleLocalSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setHasAttemptedSubmit(true);
     if (Object.keys(errors).length === 0) {
       handleEmploymentInfoSubmit(normalizeEmploymentPayload(formState));
     } else {
@@ -214,9 +264,10 @@ export default function EmploymentInfoStep({
                 id="employmentIdNo"
                 value={formState.employmentIdNo}
                 onChange={(e) => handleChange("employmentIdNo", e.target.value)}
-                className={errors.employmentIdNo ? "border-red-500" : ""}
+                className={showError("employmentIdNo") ? "border-red-500" : ""}
+                placeholder="Enter employment ID number"
               />
-              {errors.employmentIdNo && (
+              {hasAttemptedSubmit && errors.employmentIdNo && (
                 <p className="text-red-500 text-xs mt-1">
                   {errors.employmentIdNo}
                 </p>
@@ -229,9 +280,10 @@ export default function EmploymentInfoStep({
                 id="serviceNo"
                 value={formState.serviceNo}
                 onChange={(e) => handleChange("serviceNo", e.target.value)}
-                className={errors.serviceNo ? "border-red-500" : ""}
+                className={showError("serviceNo") ? "border-red-500" : ""}
+                placeholder="Enter service number"
               />
-              {errors.serviceNo && (
+              {hasAttemptedSubmit && errors.serviceNo && (
                 <p className="text-red-500 text-xs mt-1">{errors.serviceNo}</p>
               )}
             </div>
@@ -242,9 +294,10 @@ export default function EmploymentInfoStep({
                 id="fileNo"
                 value={formState.fileNo}
                 onChange={(e) => handleChange("fileNo", e.target.value)}
-                className={errors.fileNo ? "border-red-500" : ""}
+                className={showError("fileNo") ? "border-red-500" : ""}
+                placeholder="Enter file number"
               />
-              {errors.fileNo && (
+              {hasAttemptedSubmit && errors.fileNo && (
                 <p className="text-red-500 text-xs mt-1">{errors.fileNo}</p>
               )}
             </div>
@@ -257,7 +310,7 @@ export default function EmploymentInfoStep({
               >
                 <SelectTrigger
                   id="rankPosition"
-                  className={errors.rankPosition ? "border-red-500" : ""}
+                  className={showError("rankPosition") ? "border-red-500" : ""}
                 >
                   <SelectValue placeholder="Select rank/position" />
                 </SelectTrigger>
@@ -273,7 +326,7 @@ export default function EmploymentInfoStep({
                   <SelectItem value="Executive">Executive</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.rankPosition && (
+              {hasAttemptedSubmit && errors.rankPosition && (
                 <p className="text-red-500 text-xs mt-1">
                   {errors.rankPosition}
                 </p>
@@ -288,7 +341,7 @@ export default function EmploymentInfoStep({
               >
                 <SelectTrigger
                   id="department"
-                  className={errors.department ? "border-red-500" : ""}
+                  className={showError("department") ? "border-red-500" : ""}
                 >
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
@@ -313,7 +366,7 @@ export default function EmploymentInfoStep({
                   <SelectItem value="Sales">Sales</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.department && (
+              {hasAttemptedSubmit && errors.department && (
                 <p className="text-red-500 text-xs mt-1">{errors.department}</p>
               )}
             </div>
@@ -324,9 +377,10 @@ export default function EmploymentInfoStep({
                 id="organization"
                 value={formState.organization}
                 onChange={(e) => handleChange("organization", e.target.value)}
-                className={errors.organization ? "border-red-500" : ""}
+                className={showError("organization") ? "border-red-500" : ""}
+                placeholder="Enter organization"
               />
-              {errors.organization && (
+              {hasAttemptedSubmit && errors.organization && (
                 <p className="text-red-500 text-xs mt-1">
                   {errors.organization}
                 </p>
@@ -341,7 +395,7 @@ export default function EmploymentInfoStep({
               >
                 <SelectTrigger
                   id="employmentType"
-                  className={errors.employmentType ? "border-red-500" : ""}
+                  className={showError("employmentType") ? "border-red-500" : ""}
                 >
                   <SelectValue placeholder="Select employment type" />
                 </SelectTrigger>
@@ -352,7 +406,7 @@ export default function EmploymentInfoStep({
                   <SelectItem value="Probationary">Probationary</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.employmentType && (
+              {hasAttemptedSubmit && errors.employmentType && (
                 <p className="text-red-500 text-xs mt-1">
                   {errors.employmentType}
                 </p>
@@ -369,7 +423,7 @@ export default function EmploymentInfoStep({
               >
                 <SelectTrigger
                   id="probationPeriod"
-                  className={errors.probationPeriod ? "border-red-500" : ""}
+                  className={showError("probationPeriod") ? "border-red-500" : ""}
                 >
                   <SelectValue placeholder="Select probation period" />
                 </SelectTrigger>
@@ -380,7 +434,7 @@ export default function EmploymentInfoStep({
                   <SelectItem value="1 Year">1 Year</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.probationPeriod && (
+              {hasAttemptedSubmit && errors.probationPeriod && (
                 <p className="text-red-500 text-xs mt-1">
                   {errors.probationPeriod}
                 </p>
@@ -393,9 +447,10 @@ export default function EmploymentInfoStep({
                 id="workLocation"
                 value={formState.workLocation}
                 onChange={(e) => handleChange("workLocation", e.target.value)}
-                className={errors.workLocation ? "border-red-500" : ""}
+                className={showError("workLocation") ? "border-red-500" : ""}
+                placeholder="Enter work location"
               />
-              {errors.workLocation && (
+              {hasAttemptedSubmit && errors.workLocation && (
                 <p className="text-red-500 text-xs mt-1">
                   {errors.workLocation}
                 </p>
@@ -403,22 +458,17 @@ export default function EmploymentInfoStep({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="dateOfFirstAppointment">
-                Date of 1st Appointment*
-              </Label>
-              <Input
-                id="dateOfFirstAppointment"
-                type="date"
+              <Label>Date of 1st Appointment*</Label>
+              <DateSelect
                 value={formState.dateOfFirstAppointment}
-                onChange={(e) =>
-                  handleChange("dateOfFirstAppointment", e.target.value)
+                onValueChange={(value) =>
+                  handleChange("dateOfFirstAppointment", value)
                 }
-                className={
-                  errors.dateOfFirstAppointment ? "border-red-500" : ""
-                }
-                max={new Date().toISOString().split("T")[0]}
+                maxDate={new Date()}
+                triggerClassName="h-10"
+                error={showError("dateOfFirstAppointment")}
               />
-              {errors.dateOfFirstAppointment && (
+              {hasAttemptedSubmit && errors.dateOfFirstAppointment && (
                 <p className="text-red-500 text-xs mt-1">
                   {errors.dateOfFirstAppointment}
                 </p>
@@ -426,28 +476,63 @@ export default function EmploymentInfoStep({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="gl">Grade Level (GL)*</Label>
+              <Label htmlFor="salaryStructure">Salary Structure*</Label>
               <Select
-                value={formState.gl}
-                onValueChange={(value) => handleChange("gl", value)}
+                value={formState.salaryStructure}
+                onValueChange={(value) => handleChange("salaryStructure", value)}
               >
                 <SelectTrigger
-                  id="gl"
-                  className={errors.gl ? "border-red-500" : ""}
+                  id="salaryStructure"
+                  className={showError("salaryStructure") ? "border-red-500" : ""}
                 >
-                  <SelectValue placeholder="Select grade level" />
+                  <SelectValue placeholder="Select salary structure" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from({ length: 17 }, (_, i) => i + 1).map((level) => (
-                    <SelectItem key={level} value={level.toString()}>
-                      GL {level}
+                  {salaryStructureOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.gl && (
-                <p className="text-red-500 text-xs mt-1">{errors.gl}</p>
+              {hasAttemptedSubmit && errors.salaryStructure && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.salaryStructure}
+                </p>
               )}
+              <p className="text-xs text-gray-500">
+                Choose a salary structure to unlock grade level, step, and cadre.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="gl">Grade Level (GL)*</Label>
+              <Select
+                value={formState.gl}
+                onValueChange={(value) => handleChange("gl", value)}
+                disabled={!isSalaryStructureSelected}
+              >
+                <SelectTrigger
+                  id="gl"
+                  className={showError("gl") ? "border-red-500" : ""}
+                >
+                  <SelectValue
+                    placeholder={
+                      isSalaryStructureSelected
+                        ? "Select grade level"
+                        : "Select salary structure first"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {gradeLevelOptions.map((level) => (
+                    <SelectItem key={level.value} value={level.value}>
+                      {level.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {hasAttemptedSubmit && errors.gl && <p className="text-red-500 text-xs mt-1">{errors.gl}</p>}
             </div>
 
             <div className="space-y-2">
@@ -455,78 +540,69 @@ export default function EmploymentInfoStep({
               <Select
                 value={formState.step}
                 onValueChange={(value) => handleChange("step", value)}
+                disabled={!isSalaryStructureSelected || !isGradeLevelSelected}
               >
                 <SelectTrigger
                   id="step"
-                  className={errors.step ? "border-red-500" : ""}
+                  className={showError("step") ? "border-red-500" : ""}
                 >
-                  <SelectValue placeholder="Select step" />
+                  <SelectValue
+                    placeholder={
+                      isSalaryStructureSelected
+                        ? isGradeLevelSelected
+                          ? "Select step"
+                          : "Select grade level first"
+                        : "Select salary structure first"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from({ length: 15 }, (_, i) => i + 1).map((step) => (
-                    <SelectItem key={step} value={step.toString()}>
-                      Step {step}
+                  {stepOptions.map((step) => (
+                    <SelectItem key={step.value} value={step.value}>
+                      {step.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.step && (
-                <p className="text-red-500 text-xs mt-1">{errors.step}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="salaryStructure">Salary Structure*</Label>
-              <Select
-                value={formState.salaryStructure}
-                onValueChange={(value) =>
-                  handleChange("salaryStructure", value)
-                }
-              >
-                <SelectTrigger
-                  id="salaryStructure"
-                  className={errors.salaryStructure ? "border-red-500" : ""}
-                >
-                  <SelectValue placeholder="Select salary structure" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CONPSS">CONPSS</SelectItem>
-                  <SelectItem value="CONMESS">CONMESS</SelectItem>
-                  <SelectItem value="CONHESS">CONHESS</SelectItem>
-                  <SelectItem value="CONTISS">CONTISS</SelectItem>
-                  <SelectItem value="CONAFSS">CONAFSS</SelectItem>
-                  <SelectItem value="CONPASS">CONPASS</SelectItem>
-                  <SelectItem value="CONPCASS">CONPCASS</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.salaryStructure && (
-                <p className="text-red-500 text-xs mt-1">
-                  {errors.salaryStructure}
-                </p>
-              )}
+              {hasAttemptedSubmit && errors.step && <p className="text-red-500 text-xs mt-1">{errors.step}</p>}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="cadre">Cadre*</Label>
               <Select
-                value={formState.cadre}
+                value={derivedCadre || formState.cadre}
                 onValueChange={(value) => handleChange("cadre", value)}
+                disabled={!isSalaryStructureSelected || Boolean(derivedCadre)}
               >
                 <SelectTrigger
                   id="cadre"
-                  className={errors.cadre ? "border-red-500" : ""}
+                  className={showError("cadre") ? "border-red-500" : ""}
                 >
-                  <SelectValue placeholder="Select cadre" />
+                  <SelectValue
+                    placeholder={
+                      !isSalaryStructureSelected
+                        ? "Select salary structure first"
+                        : derivedCadre
+                          ? "Auto-filled from grade level"
+                          : "Select cadre"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Junior">Junior</SelectItem>
-                  <SelectItem value="Senior">Senior</SelectItem>
-                  <SelectItem value="Management">Management</SelectItem>
-                  <SelectItem value="Executive">Executive</SelectItem>
+                  {cadreOptions.map((cadre) => (
+                    <SelectItem key={cadre.value} value={cadre.value}>
+                      {cadre.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              {errors.cadre && (
+              {hasAttemptedSubmit && errors.cadre && (
                 <p className="text-red-500 text-xs mt-1">{errors.cadre}</p>
+              )}
+              {derivedCadre && (
+                <p className="text-xs text-gray-500">
+                  Cadre is derived from the selected grade level for this salary structure.
+                </p>
               )}
             </div>
           </div>
@@ -547,9 +623,9 @@ export default function EmploymentInfoStep({
               >
                 <SelectTrigger
                   id="nameOfBank"
-                  className={errors.nameOfBank ? "border-red-500" : ""}
+                  className={showError("nameOfBank") ? "border-red-500" : ""}
                 >
-                  <SelectValue placeholder="Select bank" />
+                  <SelectValue placeholder="Select bank name" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Access Bank">Access Bank</SelectItem>
@@ -564,7 +640,7 @@ export default function EmploymentInfoStep({
                   <SelectItem value="Sterling Bank">Sterling Bank</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.nameOfBank && (
+              {hasAttemptedSubmit && errors.nameOfBank && (
                 <p className="text-red-500 text-xs mt-1">{errors.nameOfBank}</p>
               )}
             </div>
@@ -576,9 +652,10 @@ export default function EmploymentInfoStep({
                 value={formState.accountNumber}
                 onChange={(e) => handleChange("accountNumber", e.target.value)}
                 maxLength={10}
-                className={errors.accountNumber ? "border-red-500" : ""}
+                className={showError("accountNumber") ? "border-red-500" : ""}
+                placeholder="Enter 10-digit account number"
               />
-              {errors.accountNumber && (
+              {hasAttemptedSubmit && errors.accountNumber && (
                 <p className="text-red-500 text-xs mt-1">
                   {errors.accountNumber}
                 </p>
@@ -593,9 +670,9 @@ export default function EmploymentInfoStep({
               >
                 <SelectTrigger
                   id="pfaName"
-                  className={errors.pfaName ? "border-red-500" : ""}
+                  className={showError("pfaName") ? "border-red-500" : ""}
                 >
-                  <SelectValue placeholder="Select PFA" />
+                  <SelectValue placeholder="Select pension fund administrator" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ARM Pension">ARM Pension</SelectItem>
@@ -620,7 +697,7 @@ export default function EmploymentInfoStep({
                   <SelectItem value="NLPC Pension">NLPC Pension</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.pfaName && (
+              {hasAttemptedSubmit && errors.pfaName && (
                 <p className="text-red-500 text-xs mt-1">{errors.pfaName}</p>
               )}
             </div>
@@ -632,9 +709,9 @@ export default function EmploymentInfoStep({
                 value={formState.rsapin}
                 onChange={(e) => handleChange("rsapin", e.target.value)}
                 placeholder="PEN followed by 12 digits"
-                className={errors.rsapin ? "border-red-500" : ""}
+                className={showError("rsapin") ? "border-red-500" : ""}
               />
-              {errors.rsapin && (
+              {hasAttemptedSubmit && errors.rsapin && (
                 <p className="text-red-500 text-xs mt-1">{errors.rsapin}</p>
               )}
             </div>

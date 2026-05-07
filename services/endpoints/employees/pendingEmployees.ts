@@ -85,7 +85,7 @@ export const getAllDocuments = async (): Promise<AllDocumentsResponse> => {
 };
 
 export const getDocuments = async (): Promise<DocumentsResponse> => {
-  const { data } = await get<DocumentsResponse>(`/admin/documents`);
+  const { data } = await get<DocumentsResponse>(`/admin/documents/all`);
   // @ts-expect-error axios response mismatch
   return data;
 };

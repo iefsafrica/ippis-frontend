@@ -3,19 +3,23 @@
 import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { DateSelect } from "@/components/ui/date-select"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
+import {
+  getCadreOptions,
+  getCadreForGradeLevel,
+  getGradeLevelOptions,
+  getStepOptions,
+  salaryStructureOptions,
+} from "@/lib/register-salary-structure"
 
 interface EmploymentInfoStepProps {
   formData: any
   updateFormData: (data: any) => void
   validateStep: (step: number, isValid: boolean) => void
 }
-
-const validateStep = (step: number, isValid: boolean) => {
-  console.log(`Step ${step} is valid? ${isValid}`);
-};
 
 export function EmploymentInfoStep({ formData, updateFormData, validateStep }: EmploymentInfoStepProps) {
   const [formState, setFormState] = useState({
@@ -29,10 +33,10 @@ export function EmploymentInfoStep({ formData, updateFormData, validateStep }: E
     probationPeriod: formData.probationPeriod || "6 Months",
     workLocation: formData.workLocation || "Abuja",
     dateOfFirstAppointment: formData.dateOfFirstAppointment || "2020-01-01",
-    gl: formData.gl || "10",
-    step: formData.step || "5",
-    salaryStructure: formData.salaryStructure || "CONPSS",
-    cadre: formData.cadre || "Senior",
+    gl: formData.gl || "",
+    step: formData.step || "",
+    salaryStructure: formData.salaryStructure || "",
+    cadre: formData.cadre || "",
     nameOfBank: formData.nameOfBank || "Access Bank",
     accountNumber: formData.accountNumber || "0123456789",
     pfaName: formData.pfaName || "ARM Pension",
@@ -42,6 +46,15 @@ export function EmploymentInfoStep({ formData, updateFormData, validateStep }: E
   })
 
   const [errors, setErrors] = useState({})
+  const gradeLevelOptions = getGradeLevelOptions(formState.salaryStructure)
+  const stepOptions = getStepOptions(formState.salaryStructure, formState.gl)
+  const cadreOptions = getCadreOptions(formState.salaryStructure)
+  const derivedCadre = getCadreForGradeLevel(
+    formState.salaryStructure,
+    formState.gl
+  )
+  const isSalaryStructureSelected = Boolean(formState.salaryStructure)
+  const isGradeLevelSelected = Boolean(formState.gl)
 
   // Validate the form when fields change
   useEffect(() => {
@@ -55,10 +68,7 @@ export function EmploymentInfoStep({ formData, updateFormData, validateStep }: E
       "employmentType",
       "workLocation",
       "dateOfFirstAppointment",
-      "gl",
-      "step",
       "salaryStructure",
-      "cadre",
       "nameOfBank",
       "accountNumber",
       "pfaName",
@@ -70,14 +80,38 @@ export function EmploymentInfoStep({ formData, updateFormData, validateStep }: E
     // Validate account number (simple check for now)
     const isAccountValid = formState.accountNumber.length === 10
 
-    validateStep(3, isValid && isAccountValid)
+    const hasGradeLevel = isSalaryStructureSelected && Boolean(formState.gl)
+    const hasStep = isSalaryStructureSelected && isGradeLevelSelected && Boolean(formState.step)
+    const hasCadre = isSalaryStructureSelected && Boolean(derivedCadre || formState.cadre)
+
+    validateStep(3, isValid && isAccountValid && hasGradeLevel && hasStep && hasCadre)
 
     // Update parent form data
-    updateFormData(formState)
-  }, [formState, validateStep, updateFormData])
+    updateFormData({ ...formState, cadre: derivedCadre || formState.cadre })
+  }, [formState, derivedCadre, validateStep, updateFormData, isGradeLevelSelected, isSalaryStructureSelected])
 
   const handleChange = (field, value) => {
-    setFormState((prev) => ({ ...prev, [field]: value }))
+    setFormState((prev) => {
+      if (field === "salaryStructure") {
+        return {
+          ...prev,
+          salaryStructure: value,
+          gl: "",
+          step: "",
+          cadre: "",
+        }
+      }
+
+      if (field === "gl") {
+        return {
+          ...prev,
+          gl: value,
+          step: "",
+        }
+      }
+
+      return { ...prev, [field]: value }
+    })
   }
 
   return (
@@ -224,52 +258,17 @@ export function EmploymentInfoStep({ formData, updateFormData, validateStep }: E
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="dateOfFirstAppointment">Date of 1st Appointment*</Label>
-              <Input
-                id="dateOfFirstAppointment"
-                type="date"
+              <Label>Date of 1st Appointment*</Label>
+              <DateSelect
                 value={formState.dateOfFirstAppointment}
-                onChange={(e) => handleChange("dateOfFirstAppointment", e.target.value)}
-                className={errors.dateOfFirstAppointment ? "border-red-500" : ""}
-                max={new Date().toISOString().split("T")[0]}
+                onValueChange={(value) => handleChange("dateOfFirstAppointment", value)}
+                maxDate={new Date()}
+                triggerClassName="h-10"
+                error={!!errors.dateOfFirstAppointment}
               />
               {errors.dateOfFirstAppointment && (
                 <p className="text-red-500 text-xs mt-1">{errors.dateOfFirstAppointment}</p>
               )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="gl">Grade Level (GL)*</Label>
-              <Select value={formState.gl} onValueChange={(value) => handleChange("gl", value)}>
-                <SelectTrigger id="gl" className={errors.gl ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select grade level" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: 17 }, (_, i) => i + 1).map((level) => (
-                    <SelectItem key={level} value={level.toString()}>
-                      GL {level}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.gl && <p className="text-red-500 text-xs mt-1">{errors.gl}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="step">Step*</Label>
-              <Select value={formState.step} onValueChange={(value) => handleChange("step", value)}>
-                <SelectTrigger id="step" className={errors.step ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select step" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: 15 }, (_, i) => i + 1).map((step) => (
-                    <SelectItem key={step} value={step.toString()}>
-                      Step {step}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.step && <p className="text-red-500 text-xs mt-1">{errors.step}</p>}
             </div>
 
             <div className="space-y-2">
@@ -282,32 +281,105 @@ export function EmploymentInfoStep({ formData, updateFormData, validateStep }: E
                   <SelectValue placeholder="Select salary structure" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="CONPSS">CONPSS</SelectItem>
-                  <SelectItem value="CONMESS">CONMESS</SelectItem>
-                  <SelectItem value="CONHESS">CONHESS</SelectItem>
-                  <SelectItem value="CONTISS">CONTISS</SelectItem>
-                  <SelectItem value="CONAFSS">CONAFSS</SelectItem>
-                  <SelectItem value="CONPASS">CONPASS</SelectItem>
-                  <SelectItem value="CONPCASS">CONPCASS</SelectItem>
+                  {salaryStructureOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {errors.salaryStructure && <p className="text-red-500 text-xs mt-1">{errors.salaryStructure}</p>}
+              <p className="text-xs text-gray-500">
+                Choose a salary structure to unlock grade level, step, and cadre.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="gl">Grade Level (GL)*</Label>
+              <Select
+                value={formState.gl}
+                onValueChange={(value) => handleChange("gl", value)}
+                disabled={!isSalaryStructureSelected}
+              >
+                <SelectTrigger id="gl" className={errors.gl ? "border-red-500" : ""}>
+                  <SelectValue
+                    placeholder={
+                      isSalaryStructureSelected ? "Select grade level" : "Select salary structure first"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {gradeLevelOptions.map((level) => (
+                    <SelectItem key={level.value} value={level.value}>
+                      {level.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.gl && <p className="text-red-500 text-xs mt-1">{errors.gl}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="step">Step*</Label>
+              <Select
+                value={formState.step}
+                onValueChange={(value) => handleChange("step", value)}
+                disabled={!isSalaryStructureSelected || !isGradeLevelSelected}
+              >
+                <SelectTrigger id="step" className={errors.step ? "border-red-500" : ""}>
+                  <SelectValue
+                    placeholder={
+                      isSalaryStructureSelected
+                        ? isGradeLevelSelected
+                          ? "Select step"
+                          : "Select grade level first"
+                        : "Select salary structure first"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {stepOptions.map((step) => (
+                    <SelectItem key={step.value} value={step.value}>
+                      {step.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.step && <p className="text-red-500 text-xs mt-1">{errors.step}</p>}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="cadre">Cadre*</Label>
-              <Select value={formState.cadre} onValueChange={(value) => handleChange("cadre", value)}>
+              <Select
+                value={derivedCadre || formState.cadre}
+                onValueChange={(value) => handleChange("cadre", value)}
+                disabled={!isSalaryStructureSelected || Boolean(derivedCadre)}
+              >
                 <SelectTrigger id="cadre" className={errors.cadre ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select cadre" />
+                  <SelectValue
+                    placeholder={
+                      !isSalaryStructureSelected
+                        ? "Select salary structure first"
+                        : derivedCadre
+                          ? "Auto-filled from grade level"
+                          : "Select cadre"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Junior">Junior</SelectItem>
-                  <SelectItem value="Senior">Senior</SelectItem>
-                  <SelectItem value="Management">Management</SelectItem>
-                  <SelectItem value="Executive">Executive</SelectItem>
+                  {cadreOptions.map((cadre) => (
+                    <SelectItem key={cadre.value} value={cadre.value}>
+                      {cadre.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {errors.cadre && <p className="text-red-500 text-xs mt-1">{errors.cadre}</p>}
+              {derivedCadre && (
+                <p className="text-xs text-gray-500">
+                  Cadre is derived from the selected grade level for this salary structure.
+                </p>
+              )}
             </div>
           </div>
         </CardContent>

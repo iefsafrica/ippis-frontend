@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DateSelect } from "@/components/ui/date-select";
 import { useState, useEffect, useRef } from "react";
 import { nigerianStates, getLgasByState } from "./nigeria-data";
 import { VerifyNinData } from "@/types/verify";
@@ -98,7 +99,7 @@ export default function ProfileForm({
    reset,
    watch,
    trigger,
-   formState: { errors, isValid, isDirty },
+   formState: { errors, isValid, isDirty, touchedFields, isSubmitted },
  } = useForm<FormValues>({
    resolver: zodResolver(formSchema),
    mode: "onChange", // Validate on every change
@@ -266,6 +267,8 @@ const transformToFormData = (values: FormValues) => ({
   next_of_kin_address: values.nok_address,
 });
 
+  const showFieldError = (field: keyof FormValues) => Boolean(errors[field] && (touchedFields[field] || isSubmitted));
+
 const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
   try {
     localStorage.setItem("personalInfoData", JSON.stringify(data));
@@ -353,7 +356,7 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                 </Select>
               )}
             />
-            {errors.title && (
+            {showFieldError("title") && errors.title && (
               <p className="text-red-500 text-sm">{errors.title.message}</p>
             )}
           </div>
@@ -368,7 +371,7 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
               })}
               placeholder="Enter your surname"
             />
-            {errors.surname && (
+            {showFieldError("surname") && errors.surname && (
               <p className="text-red-500 text-sm">{errors.surname.message}</p>
             )}
           </div>
@@ -383,7 +386,7 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
               })}
               placeholder="Enter your first name"
             />
-            {errors.firstname && (
+            {showFieldError("firstname") && errors.firstname && (
               <p className="text-red-500 text-sm">{errors.firstname.message}</p>
             )}
           </div>
@@ -410,7 +413,7 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
               })}
               placeholder="Enter phone number"
             />
-            {errors.contact && (
+            {showFieldError("contact") && errors.contact && (
               <p className="text-red-500 text-sm">{errors.contact.message}</p>
             )}
           </div>
@@ -426,23 +429,31 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
               })}
               placeholder="Enter email address"
             />
-            {errors.email && (
+            {showFieldError("email") && errors.email && (
               <p className="text-red-500 text-sm">{errors.email.message}</p>
             )}
           </div>
 
           {/* Date of Birth */}
           <div>
-            <Label htmlFor="dob">Date of Birth*</Label>
-            <Input
-              id="dob"
-              type="date"
-              {...register("dob", {
-                onChange: () => trigger("dob"),
-              })}
-              max={new Date().toISOString().split("T")[0]}
+            <Label>Date of Birth*</Label>
+            <Controller
+              name="dob"
+              control={control}
+              render={({ field }) => (
+                <DateSelect
+                  value={field.value}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    trigger("dob");
+                  }}
+                  maxDate={new Date()}
+                  triggerClassName="h-10"
+                  error={!!errors.dob}
+                />
+              )}
             />
-            {errors.dob && (
+            {showFieldError("dob") && errors.dob && (
               <p className="text-red-500 text-sm">{errors.dob.message}</p>
             )}
           </div>
@@ -471,7 +482,7 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                 </Select>
               )}
             />
-            {errors.sex && (
+            {showFieldError("sex") && errors.sex && (
               <p className="text-red-500 text-sm">{errors.sex.message}</p>
             )}
           </div>
@@ -502,7 +513,7 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                 </Select>
               )}
             />
-            {errors.maritalStatus && (
+            {showFieldError("maritalStatus") && errors.maritalStatus && (
               <p className="text-red-500 text-sm">
                 {errors.maritalStatus.message}
               </p>
@@ -536,7 +547,7 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                 </Select>
               )}
             />
-            {errors.stateorigin && (
+            {showFieldError("stateorigin") && errors.stateorigin && (
               <p className="text-red-500 text-sm">
                 {errors.stateorigin.message}
               </p>
@@ -579,7 +590,7 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                 </Select>
               )}
             />
-            {errors.lga && (
+            {showFieldError("lga") && errors.lga && (
               <p className="text-red-500 text-sm">{errors.lga.message}</p>
             )}
           </div>
@@ -611,7 +622,7 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                 </Select>
               )}
             />
-            {errors.stateres && (
+            {showFieldError("stateres") && errors.stateres && (
               <p className="text-red-500 text-sm">{errors.stateres.message}</p>
             )}
           </div>
@@ -627,7 +638,7 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
               placeholder="Enter your full address"
               className="min-h-[100px]"
             />
-            {errors.address && (
+            {showFieldError("address") && errors.address && (
               <p className="text-red-500 text-sm">{errors.address.message}</p>
             )}
           </div>
@@ -647,7 +658,7 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                 })}
                 placeholder="Enter next of kin's full name"
               />
-              {errors.nok_name && (
+              {showFieldError("nok_name") && errors.nok_name && (
                 <p className="text-red-500 text-sm">
                   {errors.nok_name.message}
                 </p>
@@ -682,7 +693,7 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                   </Select>
                 )}
               />
-              {errors.nok_relationship && (
+              {showFieldError("nok_relationship") && errors.nok_relationship && (
                 <p className="text-red-500 text-sm">
                   {errors.nok_relationship.message}
                 </p>
@@ -699,7 +710,7 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                 })}
                 placeholder="Enter next of kin's phone number"
               />
-              {errors.nok_phone && (
+              {showFieldError("nok_phone") && errors.nok_phone && (
                 <p className="text-red-500 text-sm">
                   {errors.nok_phone.message}
                 </p>
@@ -717,7 +728,7 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                 placeholder="Enter next of kin's address"
                 className="min-h-[80px]"
               />
-              {errors.nok_address && (
+              {showFieldError("nok_address") && errors.nok_address && (
                 <p className="text-red-500 text-sm">
                   {errors.nok_address.message}
                 </p>
