@@ -3,7 +3,9 @@
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
 import { format } from "date-fns"
+import { Download } from "lucide-react"
 import { formatCurrency as formatPayslipCurrency } from "@/app/admin/payroll/payroll-payslip/payslip-utils"
+import { downloadPayslipPdf } from "./payslip-pdf"
 
 export type PayslipPayment = {
   payment_id?: string
@@ -136,6 +138,16 @@ export function PayslipDialog({ payment, open, onClose }: PayslipDialogProps) {
   const handlePrint = () => {
     if (typeof window !== "undefined") {
       window.print()
+    }
+  }
+
+  const handleDownloadPdf = async () => {
+    if (!payment) return
+
+    try {
+      await downloadPayslipPdf(payment)
+    } catch (error) {
+      console.error("Error downloading payslip PDF:", error)
     }
   }
 
@@ -310,6 +322,10 @@ export function PayslipDialog({ payment, open, onClose }: PayslipDialogProps) {
                 Close
               </Button>
               <Button onClick={handlePrint}>Print payslip</Button>
+              <Button onClick={handleDownloadPdf}>
+                <Download className="mr-2 h-4 w-4" />
+                Download PDF
+              </Button>
             </DialogFooter>
           </div>
         </div>

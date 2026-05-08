@@ -12,6 +12,7 @@ import {
   useDeletePayment,
 } from "@/services/hooks/payroll"
 import { useEmployeesList } from "@/services/hooks/employees/useEmployees"
+import { getEmployeesList } from "@/services/endpoints/employees/employees"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { ApproveConfirmationDialog } from "@/components/ui/approve-confirmation-dialog"
@@ -55,6 +56,7 @@ import { buttonHoverEnhancements } from "@/app/admin/employees/button-hover"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import type { PaymentData, PaymentResponse } from "@/types/payroll"
 import { PayslipDialog } from "@/app/admin/payroll/payroll-payslip/payslip-dialog"
+import type { Employee } from "@/types/employees/employee-management"
 
 type PaymentTab = "individual" | "bulk"
 
@@ -90,8 +92,10 @@ const formatStatusLabel = (status?: string) =>
 
 
 export function NewPaymentContent() {
-  const [selectedEmployee, setSelectedEmployee] = useState<any>(null)
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
   const [showEmployeeSelector, setShowEmployeeSelector] = useState(false)
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([])
+  const [isHydratingEmployees, setIsHydratingEmployees] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -124,9 +128,54 @@ export function NewPaymentContent() {
     refetch: refetchEmployees,
   } = useEmployeesList(1)
 
+  useEffect(() => {
+    const hydrateEmployees = async () => {
+      const pageOneEmployees = employeesResponse?.employees ?? []
+      const totalPages = employeesResponse?.pagination?.totalPages ?? 1
+
+      if (!pageOneEmployees.length) {
+        setAllEmployees([])
+        return
+      }
+
+      if (totalPages <= 1) {
+        setAllEmployees(pageOneEmployees)
+        return
+      }
+
+      setIsHydratingEmployees(true)
+
+      try {
+        const remainingPages = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, idx) => getEmployeesList(idx + 2)),
+        )
+
+        const merged = [...pageOneEmployees, ...remainingPages.flatMap((page) => page.employees ?? [])]
+        const deduplicated = Array.from(new Map(merged.map((employee) => [employee.id, employee])).values())
+
+        setAllEmployees(deduplicated)
+      } catch {
+        setAllEmployees(pageOneEmployees)
+      } finally {
+        setIsHydratingEmployees(false)
+      }
+    }
+
+    hydrateEmployees()
+  }, [employeesResponse])
+
   const employees = useMemo(
-    () => employeesResponse?.employees ?? [],
-    [employeesResponse],
+    () => {
+      const source = allEmployees.length ? allEmployees : employeesResponse?.employees ?? []
+
+      return [...source].sort((left, right) => {
+        const leftDate = new Date(left.created_at ?? left.createdAt ?? left.join_date ?? 0).getTime()
+        const rightDate = new Date(right.created_at ?? right.createdAt ?? right.join_date ?? 0).getTime()
+
+        return rightDate - leftDate
+      })
+    },
+    [allEmployees, employeesResponse],
   )
 
   const paymentSearchFields = useMemo(
@@ -401,6 +450,140 @@ export function NewPaymentContent() {
     ],
     [handleSelectEmployee],
   )
+
+  const isEmployeePickerLoading = isFetchingEmployees || isHydratingEmployees
+
+  const normalizeEmployeeMetadata = (
+    metadata: Employee["metadata"] | string | null | undefined,
+  ): Record<string, string> => {
+    if (!metadata) return {}
+
+    if (typeof metadata === "string") {
+      try {
+        const parsed = JSON.parse(metadata)
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          return Object.entries(parsed).reduce<Record<string, string>>((acc, [key, value]) => {
+            if (value === null || value === undefined) return acc
+            acc[key] = String(value)
+            return acc
+          }, {})
+        }
+      } catch {
+        return {}
+      }
+
+      return {}
+    }
+
+    return Object.entries(metadata).reduce<Record<string, string>>((acc, [key, value]) => {
+      if (value === null || value === undefined) return acc
+      acc[key] = String(value)
+      return acc
+    }, {})
+  }
+
+  const getEmployeeSnapshotValue = (
+    employee: Employee | null,
+    keys: string[],
+    fallback = "N/A",
+  ) => {
+    if (!employee) return fallback
+
+    const metadata = normalizeEmployeeMetadata(employee.metadata)
+
+    for (const key of keys) {
+      const direct = (employee as unknown as Record<string, unknown>)[key]
+      if (direct !== null && direct !== undefined && String(direct).trim() !== "") {
+        return String(direct)
+      }
+
+      const nested = metadata[key]
+      if (nested !== null && nested !== undefined && String(nested).trim() !== "") {
+        return String(nested)
+      }
+    }
+
+    return fallback
+  }
+
+  const buildEmployeeSnapshot = (employee: Employee) => {
+    const metadata = normalizeEmployeeMetadata(employee.metadata)
+    return {
+      ...employee,
+      metadata,
+      employee_name: employee.name,
+      name: employee.name,
+      department: employee.department,
+      position: employee.position,
+      organization: getEmployeeSnapshotValue(employee, ["Organization", "organization"]),
+      command: getEmployeeSnapshotValue(employee, ["Command", "command"]),
+      grade: getEmployeeSnapshotValue(employee, ["Grade Level", "grade_level"]),
+      step: getEmployeeSnapshotValue(employee, ["step", "Step"]),
+      gender: getEmployeeSnapshotValue(employee, ["Gender", "gender"]),
+      tax_state: getEmployeeSnapshotValue(employee, ["State of Origin", "state_of_origin"]),
+      location: getEmployeeSnapshotValue(employee, ["Work Location", "work_location"]),
+      appointment: getEmployeeSnapshotValue(employee, ["Date of First Appointment", "date_of_first_appointment"]),
+      appointment_date: getEmployeeSnapshotValue(employee, ["Date of First Appointment", "date_of_first_appointment"]),
+      dob: getEmployeeSnapshotValue(employee, ["Birthdate", "birthdate"]),
+      bank_name: getEmployeeSnapshotValue(employee, ["Bank Name", "bank_name"]),
+      account: getEmployeeSnapshotValue(employee, ["Account Number", "account_number"]),
+      pfa: getEmployeeSnapshotValue(employee, ["PFA Name", "pfa_name"]),
+      pension: getEmployeeSnapshotValue(employee, ["RSA PIN", "rsa_pin", "rsapin"]),
+      legacy_id: getEmployeeSnapshotValue(employee, ["Employment ID No", "employment_id_no"]),
+    }
+  }
+
+  const enrichPaymentWithEmployee = useCallback(
+    (payment: PaymentResponse) => {
+      const paymentEmployeeId = String(payment.employee_id ?? "").trim()
+      const paymentEmployeeName = String(payment.employee_name ?? payment.name ?? "")
+        .trim()
+        .toLowerCase()
+
+      const employee = employees.find((candidate) => {
+        const candidateIds = [candidate.employee_id, candidate.id]
+          .map((value) => String(value ?? "").trim())
+          .filter(Boolean)
+
+        if (paymentEmployeeId && candidateIds.includes(paymentEmployeeId)) {
+          return true
+        }
+
+        const candidateName = String(candidate.name ?? "").trim().toLowerCase()
+        return Boolean(paymentEmployeeName && candidateName && candidateName === paymentEmployeeName)
+      })
+
+      if (!employee) return payment
+
+      const snapshot = buildEmployeeSnapshot(employee)
+
+      return {
+        ...payment,
+        employee_name: payment.employee_name ?? snapshot.employee_name,
+        name: payment.name ?? snapshot.name,
+        department: payment.department ?? snapshot.department,
+        position: payment.position ?? snapshot.position,
+        organization: payment.organization ?? snapshot.organization,
+        command: payment.command ?? snapshot.command,
+        grade: payment.grade ?? snapshot.grade,
+        step: payment.step ?? snapshot.step,
+        gender: payment.gender ?? snapshot.gender,
+        tax_state: payment.tax_state ?? snapshot.tax_state,
+        location: payment.location ?? snapshot.location,
+        appointment: payment.appointment ?? snapshot.appointment,
+        appointment_date: payment.appointment_date ?? snapshot.appointment_date,
+        dob: payment.dob ?? snapshot.dob,
+        bank_name: payment.bank_name ?? snapshot.bank_name,
+        account: payment.account ?? snapshot.account,
+        pfa: payment.pfa ?? snapshot.pfa,
+        pension: payment.pension ?? snapshot.pension,
+        legacy_id: payment.legacy_id ?? snapshot.legacy_id,
+        metadata: payment.metadata ?? snapshot.metadata,
+        employee_snapshot: payment.employee_snapshot ?? snapshot,
+      }
+    },
+    [employees],
+  )
   
 
   const handleSubmitIndividualPayment = async (formData: Record<string, any>) => {
@@ -433,8 +616,31 @@ export function NewPaymentContent() {
       allowances.reduce((sum, value) => sum + (parseFloat(value || "0") || 0), 0) -
       deductions.reduce((sum, value) => sum + (parseFloat(value || "0") || 0), 0)
 
+    const employeeSnapshot = buildEmployeeSnapshot(selectedEmployee)
+
     const paymentData: PaymentData = {
       employee_id: selectedEmployee.employee_id || selectedEmployee.id,
+      employee_name: employeeSnapshot.employee_name,
+      name: employeeSnapshot.name,
+      department: employeeSnapshot.department,
+      position: employeeSnapshot.position,
+      organization: employeeSnapshot.organization,
+      command: employeeSnapshot.command,
+      grade: employeeSnapshot.grade,
+      step: employeeSnapshot.step,
+      gender: employeeSnapshot.gender,
+      tax_state: employeeSnapshot.tax_state,
+      location: employeeSnapshot.location,
+      appointment: employeeSnapshot.appointment,
+      appointment_date: employeeSnapshot.appointment_date,
+      dob: employeeSnapshot.dob,
+      bank_name: employeeSnapshot.bank_name,
+      account: employeeSnapshot.account,
+      pfa: employeeSnapshot.pfa,
+      pension: employeeSnapshot.pension,
+      legacy_id: employeeSnapshot.legacy_id,
+      metadata: employeeSnapshot.metadata,
+      employee_snapshot: employeeSnapshot,
       amount: amount || 0,
       payment_date: new Date(formData.paymentDate).toISOString().split("T")[0],
       payment_type: (paymentTypeMap[formData.paymentType] || "salary") as PaymentData["payment_type"],
@@ -457,21 +663,24 @@ export function NewPaymentContent() {
   }
 
   const handleViewPayment = (payment: PaymentResponse) => {
-    setCurrentPayment(payment)
+    setCurrentPayment(enrichPaymentWithEmployee(payment))
     setIsViewDialogOpen(true)
   }
 
   const handleEditPayment = (payment: PaymentResponse) => {
-    setCurrentPayment(payment)
+    setCurrentPayment(enrichPaymentWithEmployee(payment))
     setIsEditDialogOpen(true)
   }
 
   const handleDeletePayment = (payment: PaymentResponse) => {
-    setCurrentPayment(payment)
+    setCurrentPayment(enrichPaymentWithEmployee(payment))
     setIsDeleteDialogOpen(true)
   }
 
-  const payments = paymentRows
+  const payments = useMemo(
+    () => paymentRows.map((payment) => enrichPaymentWithEmployee(payment)),
+    [paymentRows, enrichPaymentWithEmployee],
+  )
   const totalAmount = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || "0"), 0)
   const pendingCount = payments.filter((p) => p.status === "pending").length
   const paidCount = payments.filter((p) => p.status === "paid").length
@@ -942,16 +1151,15 @@ export function NewPaymentContent() {
                 data={employees}
                 searchFields={employeeModalSearchFields}
                 itemsPerPage={Math.max(employees.length, 10)}
-                defaultSortColumn="name"
                 extraSearchControls={
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => refetchEmployees()}
-                    disabled={isFetchingEmployees}
+                    disabled={isEmployeePickerLoading}
                     className="gap-1"
                   >
-                    {isFetchingEmployees ? (
+                    {isEmployeePickerLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <Download className="h-4 w-4" />

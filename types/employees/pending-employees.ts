@@ -1,11 +1,22 @@
 export interface PendingEmployee {
-  id: string;
-  name: string;
+  id: string | number;
+  registration_id?: string;
+  firstname?: string;
+  surname?: string;
+  name?: string;
   email: string;
   department: string;
   position: string;
-  status: string; 
-  join_date: string; 
+  status: string;
+  source?: string;
+  submission_date?: string;
+  join_date?: string;
+  created_at?: string;
+  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  missing_fields?: unknown;
+  metadata: Record<string, string> | null;
 }
 
 export interface PendingEmployeesPagination {
@@ -101,7 +112,7 @@ export interface BulkApprovePendingEmployeesResponse {
 
 // New type for the detailed employee data from your API
 export interface Employee3 {
-  id: string;
+  id: string | number;
   registration_id: string;
   surname: string;
   firstname: string;
@@ -110,6 +121,7 @@ export interface Employee3 {
   firstName?: string;
   last_name?: string;
   lastName?: string;
+  middlename?: string;
   email: string;
   department: string;
   position: string;
@@ -118,10 +130,25 @@ export interface Employee3 {
   submission_date: string;
   created_at: string;
   updated_at: string;
-  missing_fields: any;
-  metadata: Record<string, unknown> | string | null;
   createdAt: string;
   updatedAt: string;
+  missing_fields: unknown;
+  metadata: Record<string, string> | null;
+  title?: string;
+  gender?: string;
+  telephoneno?: string;
+  birthdate?: string;
+  state_of_origin?: string;
+  residence_address?: string;
+  residence_state?: string;
+  residence_lga?: string;
+  profession?: string;
+  maritalstatus?: string;
+  next_of_kin_name?: string;
+  next_of_kin_relationship?: string;
+  next_of_kin_phone_number?: string;
+  next_of_kin_address?: string;
+  join_date?: string;
 }
 
 export interface Employee3Response {

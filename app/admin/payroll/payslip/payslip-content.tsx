@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { downloadPayslipPdf } from "../payroll-payslip/payslip-pdf"
 
 // Mock data for employees
 const employees = [
@@ -137,6 +138,22 @@ export function PayslipContent() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [showPayslipPreview, setShowPayslipPreview] = useState(false)
   const [showGenerateConfirmation, setShowGenerateConfirmation] = useState(false)
+  const payslipPreviewRef = useRef<HTMLDivElement>(null)
+
+  const payslipPdfPayload = {
+    payment_id: payslipDetails.id,
+    employee_id: payslipDetails.employeeId,
+    employee_name: payslipDetails.employeeName,
+    department: payslipDetails.department,
+    position: payslipDetails.position,
+    month: payslipDetails.month,
+    created_at: payslipDetails.generatedDate,
+    payment_date: payslipDetails.generatedDate,
+    amount: payslipDetails.totalEarnings,
+    deduction_amount: payslipDetails.totalDeductions,
+    bank_name: payslipDetails.bankName,
+    account: payslipDetails.accountNumber,
+  }
 
   // Columns for payslip table
   const payslipColumns = [
@@ -194,6 +211,17 @@ export function PayslipContent() {
 
   const handleViewPayslip = (id: string) => {
     setShowPayslipPreview(true)
+  }
+
+  const handleDownloadPayslipPdf = () => {
+    if (typeof window === "undefined") return
+    void downloadPayslipPdf(payslipPdfPayload, payslipPreviewRef.current)
+  }
+
+  const handlePrintPayslip = () => {
+    if (typeof window !== "undefined") {
+      window.print()
+    }
   }
 
   return (
@@ -309,7 +337,7 @@ export function PayslipContent() {
             <DialogTitle>Payslip Preview</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <div className="border rounded-lg p-6 bg-white">
+            <div ref={payslipPreviewRef} className="border rounded-lg p-6 bg-white">
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h3 className="text-xl font-bold">IPPIS Payroll System</h3>
@@ -415,11 +443,11 @@ export function PayslipContent() {
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" className="gap-1">
+            <Button variant="outline" className="gap-1" onClick={handlePrintPayslip}>
               <Printer className="h-4 w-4" />
               Print
             </Button>
-            <Button variant="outline" className="gap-1">
+            <Button variant="outline" className="gap-1" onClick={handleDownloadPayslipPdf}>
               <Download className="h-4 w-4" />
               Download PDF
             </Button>

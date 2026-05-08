@@ -2,19 +2,43 @@
 export interface Employee {
   id: string;
   employee_id?: string;
+  registration_id?: string;
+  firstname?: string;
+  surname?: string;
+  middlename?: string;
   name: string;
+  first_name?: string;
+  firstName?: string;
+  last_name?: string;
+  lastName?: string;
   email: string;
   department: string;
-  metadata: any;
+  metadata: Record<string, string> | null;
   position: string;
-  status: 'active' | 'inactive' | 'pending'; 
-  join_date: string;
-  created_at: string;
-  updated_at: string;
-  registration_id: string | null;
-  createdAt: string;
-  updatedAt: string;
-  uploaded_documents?: string; 
+  status: "active" | "inactive" | "pending" | string;
+  source?: string;
+  join_date?: string;
+  submission_date?: string;
+  created_at?: string;
+  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  missing_fields?: unknown;
+  uploaded_documents?: string;
+  title?: string;
+  gender?: string;
+  telephoneno?: string;
+  birthdate?: string;
+  state_of_origin?: string;
+  residence_address?: string;
+  residence_state?: string;
+  residence_lga?: string;
+  profession?: string;
+  maritalstatus?: string;
+  next_of_kin_name?: string;
+  next_of_kin_relationship?: string;
+  next_of_kin_phone_number?: string;
+  next_of_kin_address?: string;
 }
 
 export interface EmployeesResponse {
@@ -63,6 +87,11 @@ export interface RecentEmployeesData {
 export interface AddEmployeePayload {
   firstname: string;
   surname: string;
+  name?: string;
+  first_name?: string;
+  firstName?: string;
+  last_name?: string;
+  lastName?: string;
   email: string;
   department: string;
   position: string;
@@ -82,6 +111,34 @@ export interface AddEmployeePayload {
   next_of_kin_relationship: string;
   next_of_kin_phone_number: string;
   next_of_kin_address: string;
+  employment_id_no?: string;
+  employmentIdNo?: string;
+  service_no?: string;
+  serviceNo?: string;
+  file_no?: string;
+  fileNo?: string;
+  rank_position?: string;
+  rankPosition?: string;
+  organization?: string;
+  employment_type?: string;
+  employmentType?: string;
+  probation_period?: string;
+  probationPeriod?: string;
+  work_location?: string;
+  date_of_first_appointment?: string;
+  grade_level?: string;
+  salary_structure?: string;
+  step?: string;
+  cadre?: string;
+  bank_name?: string;
+  account_number?: string;
+  pfa_name?: string;
+  rsapin?: string;
+  rsa_pin?: string;
+  educational_background?: string;
+  certifications?: string;
+  nuban_account_number?: string;
+  metadata?: Record<string, string>;
 }
 
 export interface AddEmployeeResponse {
@@ -101,7 +158,7 @@ export interface AddEmployeeResponse {
     created_at: string;
     updated_at: string;
     missing_fields: any;
-    metadata: any;
+    metadata: Record<string, string> | null;
   };
 }
 

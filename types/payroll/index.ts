@@ -7,6 +7,27 @@ export interface PaymentData {
   status?: 'pending' | 'paid' | 'failed';
   payment_id?: string;
   id?: number;
+  employee_name?: string;
+  name?: string;
+  department?: string;
+  position?: string;
+  organization?: string;
+  command?: string;
+  grade?: string;
+  step?: string | number;
+  gender?: string;
+  tax_state?: string;
+  location?: string;
+  appointment?: string;
+  appointment_date?: string;
+  dob?: string;
+  bank_name?: string;
+  account?: string;
+  pfa?: string;
+  pension?: string;
+  legacy_id?: string;
+  metadata?: Record<string, unknown> | null;
+  employee_snapshot?: Record<string, unknown> | null;
 }
 
 export interface PaymentResponse {
@@ -24,6 +45,25 @@ export interface PaymentResponse {
   paymentDate?: string;
   createdAt?: string;
   updatedAt?: string;
+  name?: string;
+  position?: string;
+  organization?: string;
+  command?: string;
+  grade?: string;
+  step?: string | number;
+  gender?: string;
+  tax_state?: string;
+  location?: string;
+  appointment?: string;
+  appointment_date?: string;
+  dob?: string;
+  bank_name?: string;
+  account?: string;
+  pfa?: string;
+  pension?: string;
+  legacy_id?: string;
+  metadata?: Record<string, unknown> | null;
+  employee_snapshot?: Record<string, unknown> | null;
 }
 
 // API Response types

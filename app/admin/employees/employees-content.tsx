@@ -6,6 +6,7 @@ import type { AxiosError } from "axios";
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { DatePicker } from "@/components/ui/date-picker"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -62,7 +63,15 @@ import { Employee } from "@/types/employees/employee-management"
 import { useEmployeesList, useAddEmployee } from "@/services/hooks/employees/useEmployees"
 import { AddEmployeePayload } from "@/types/employees/employee-management"
 import { buttonHoverEnhancements } from "./button-hover"
+import { downloadPayslipPdf } from "../payroll/payroll-payslip/payslip-pdf"
 import { nigerianStates, getLgasByState } from "@/app/register/nigeria-data"
+import {
+  getCadreOptions,
+  getCadreForGradeLevel,
+  getGradeLevelOptions,
+  getStepOptions,
+  salaryStructureOptions,
+} from "@/lib/register-salary-structure"
 interface PaginationInfo {
   page: number
   limit: number
@@ -149,6 +158,27 @@ export default function EmployeesContent() {
     next_of_kin_relationship: "",
     next_of_kin_phone_number: "",
     next_of_kin_address: "",
+    employment_id_no: "",
+    service_no: "",
+    file_no: "",
+    rank_position: "",
+    organization: "",
+    employment_type: "",
+    probation_period: "",
+    work_location: "",
+    date_of_first_appointment: "",
+    grade_level: "",
+    salary_structure: "",
+    step: "",
+    cadre: "",
+    bank_name: "",
+    account_number: "",
+    pfa_name: "",
+    rsapin: "",
+    rsa_pin: "",
+    educational_background: "",
+    certifications: "",
+    nuban_account_number: "",
   });
   const [addEmployeeErrors, setAddEmployeeErrors] = useState<Record<string, string>>({});
 
@@ -206,9 +236,83 @@ export default function EmployeesContent() {
     [newEmployee.residence_state]
   );
 
+  const availableGradeLevels = useMemo(
+    () => getGradeLevelOptions(newEmployee.salary_structure || ""),
+    [newEmployee.salary_structure]
+  );
+
+  const availableStepOptions = useMemo(
+    () => getStepOptions(newEmployee.salary_structure || "", newEmployee.grade_level || ""),
+    [newEmployee.salary_structure, newEmployee.grade_level]
+  );
+
+  const availableCadreOptions = useMemo(
+    () => getCadreOptions(newEmployee.salary_structure || ""),
+    [newEmployee.salary_structure]
+  );
+
+  const derivedCadre = useMemo(
+    () => getCadreForGradeLevel(newEmployee.salary_structure || "", newEmployee.grade_level || ""),
+    [newEmployee.salary_structure, newEmployee.grade_level]
+  );
+
   const updateResidenceState = (value: string) => {
     updateEmployeeField("residence_state", value);
     updateEmployeeField("residence_lga", "");
+  };
+
+  const updateEmploymentField = (
+    field:
+      | "employment_id_no"
+      | "service_no"
+      | "file_no"
+      | "rank_position"
+      | "organization"
+      | "employment_type"
+      | "probation_period"
+      | "work_location"
+      | "date_of_first_appointment"
+      | "grade_level"
+      | "salary_structure"
+      | "step"
+      | "cadre"
+      | "bank_name"
+      | "account_number"
+      | "pfa_name"
+      | "rsapin"
+      | "rsa_pin"
+      | "educational_background"
+      | "certifications"
+      | "nuban_account_number",
+    value: string
+  ) => {
+    if (field === "salary_structure") {
+      updateEmployeeField("salary_structure", value);
+      updateEmployeeField("grade_level", "");
+      updateEmployeeField("step", "");
+      updateEmployeeField("cadre", "");
+      return;
+    }
+
+    if (field === "grade_level") {
+      updateEmployeeField("grade_level", value);
+      updateEmployeeField("step", "");
+      if (newEmployee.salary_structure) {
+        updateEmployeeField("cadre", "");
+      }
+      return;
+    }
+
+    updateEmployeeField(field, value);
+    if (field === "account_number") {
+      updateEmployeeField("nuban_account_number", value);
+    }
+    if (field === "nuban_account_number") {
+      updateEmployeeField("account_number", value);
+    }
+    if (field === "rsapin") {
+      updateEmployeeField("rsa_pin", value);
+    }
   };
 
   const getAddEmployeeErrorMessage = (error: unknown) => {
@@ -223,69 +327,61 @@ export default function EmployeesContent() {
     );
   };
 
-  const isAddEmployeeFormComplete = useMemo(() => {
-    const valuesToCheck = [
-      newEmployee.firstname,
-      newEmployee.surname,
-      newEmployee.email,
-      newEmployee.department,
-      newEmployee.position,
-      newEmployee.nin,
-      newEmployee.middlename,
-      newEmployee.gender,
-      newEmployee.telephoneno,
-      newEmployee.birthdate,
-      newEmployee.state_of_origin,
-      newEmployee.residence_address,
-      newEmployee.residence_state,
-      newEmployee.residence_lga,
-      newEmployee.profession,
-      newEmployee.maritalstatus,
-      newEmployee.title,
-      newEmployee.next_of_kin_name,
-      newEmployee.next_of_kin_relationship,
-      newEmployee.next_of_kin_phone_number,
-      newEmployee.next_of_kin_address,
-    ];
-
-    return valuesToCheck.every((value) => Boolean(String(value ?? "").trim()));
-  }, [newEmployee]);
-
   const validateAddEmployeeForm = () => {
     const nextErrors: Record<string, string> = {};
-    const requiredFields: Array<[keyof AddEmployeePayload, string]> = [
-      ["firstname", "First name is required."],
-      ["surname", "Surname is required."],
-      ["email", "Email is required."],
-      ["department", "Department is required."],
-      ["position", "Position is required."],
-      ["nin", "NIN is required."],
-      ["middlename", "Middle name is required."],
-      ["gender", "Gender is required."],
-      ["telephoneno", "Telephone number is required."],
-      ["birthdate", "Birth date is required."],
-      ["state_of_origin", "State of origin is required."],
-      ["residence_address", "Residential address is required."],
-      ["residence_state", "State of residence is required."],
-      ["residence_lga", "Local government area is required."],
-      ["profession", "Profession is required."],
-      ["maritalstatus", "Marital status is required."],
-      ["title", "Title is required."],
-      ["next_of_kin_name", "Next of kin name is required."],
-      ["next_of_kin_relationship", "Next of kin relationship is required."],
-      ["next_of_kin_phone_number", "Next of kin phone number is required."],
-      ["next_of_kin_address", "Next of kin address is required."],
+    const requiredFields: Array<[keyof AddEmployeePayload, string, () => string]> = [
+      ["firstname", "First name is required.", () => newEmployee.firstname ?? ""],
+      ["surname", "Surname is required.", () => newEmployee.surname ?? ""],
+      ["email", "Email is required.", () => newEmployee.email ?? ""],
+      ["department", "Department is required.", () => newEmployee.department ?? ""],
+      ["position", "Position is required.", () => newEmployee.position ?? ""],
+      ["nin", "NIN is required.", () => newEmployee.nin ?? ""],
+      ["middlename", "Middle name is required.", () => newEmployee.middlename ?? ""],
+      ["gender", "Gender is required.", () => newEmployee.gender ?? ""],
+      ["telephoneno", "Telephone number is required.", () => newEmployee.telephoneno ?? ""],
+      ["birthdate", "Birth date is required.", () => newEmployee.birthdate ?? ""],
+      ["state_of_origin", "State of origin is required.", () => newEmployee.state_of_origin ?? ""],
+      ["residence_address", "Residential address is required.", () => newEmployee.residence_address ?? ""],
+      ["residence_state", "State of residence is required.", () => newEmployee.residence_state ?? ""],
+      ["residence_lga", "Local government area is required.", () => newEmployee.residence_lga ?? ""],
+      ["profession", "Profession is required.", () => newEmployee.profession ?? ""],
+      ["maritalstatus", "Marital status is required.", () => newEmployee.maritalstatus ?? ""],
+      ["title", "Title is required.", () => newEmployee.title ?? ""],
+      ["next_of_kin_name", "Next of kin name is required.", () => newEmployee.next_of_kin_name ?? ""],
+      ["next_of_kin_relationship", "Next of kin relationship is required.", () => newEmployee.next_of_kin_relationship ?? ""],
+      ["next_of_kin_phone_number", "Next of kin phone number is required.", () => newEmployee.next_of_kin_phone_number ?? ""],
+      ["next_of_kin_address", "Next of kin address is required.", () => newEmployee.next_of_kin_address ?? ""],
+      ["employment_id_no", "Employment ID No is required.", () => newEmployee.employment_id_no ?? ""],
+      ["service_no", "Service No is required.", () => newEmployee.service_no ?? ""],
+      ["file_no", "File No is required.", () => newEmployee.file_no ?? ""],
+      ["rank_position", "Rank/Position is required.", () => newEmployee.rank_position ?? ""],
+      ["organization", "Organization is required.", () => newEmployee.organization ?? ""],
+      ["employment_type", "Employment Type is required.", () => newEmployee.employment_type ?? ""],
+      ["probation_period", "Probation period is required.", () => newEmployee.probation_period ?? ""],
+      ["work_location", "Work location is required.", () => newEmployee.work_location ?? ""],
+      ["date_of_first_appointment", "Date of first appointment is required.", () => newEmployee.date_of_first_appointment ?? ""],
+      ["grade_level", "Grade level is required.", () => newEmployee.grade_level ?? ""],
+      ["salary_structure", "Salary structure is required.", () => newEmployee.salary_structure ?? ""],
+      ["step", "Step is required.", () => newEmployee.step ?? ""],
+      ["cadre", "Cadre is required.", () => newEmployee.cadre || derivedCadre || ""],
+      ["bank_name", "Bank name is required.", () => newEmployee.bank_name ?? ""],
+      ["account_number", "Account number is required.", () => newEmployee.account_number ?? ""],
+      ["nuban_account_number", "NUBAN account number is required.", () => newEmployee.nuban_account_number ?? ""],
+      ["pfa_name", "PFA name is required.", () => newEmployee.pfa_name ?? ""],
+      ["rsapin", "RSA PIN is required.", () => newEmployee.rsapin ?? ""],
+      ["educational_background", "Educational background is required.", () => newEmployee.educational_background ?? ""],
+      ["certifications", "Certifications are required.", () => newEmployee.certifications ?? ""],
     ];
 
-    requiredFields.forEach(([field, message]) => {
-      const value = newEmployee[field];
+    requiredFields.forEach(([field, message, getValue]) => {
+      const value = getValue ? getValue() : newEmployee[field];
       if (!String(value ?? "").trim()) {
         nextErrors[field] = message;
       }
     });
 
     setAddEmployeeErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
+    return nextErrors;
   };
 
   // Extract employees and pagination from the data
@@ -298,9 +394,13 @@ export default function EmployeesContent() {
   };
 
   const handleAddEmployee = async () => {
-    if (!validateAddEmployeeForm()) {
+    const validationErrors = validateAddEmployeeForm();
+    if (Object.keys(validationErrors).length > 0) {
+      const missingFields = Object.values(validationErrors);
       toast.error("Validation Error", {
-        description: "Please fill in every field in the add employee form.",
+        description: missingFields.length
+          ? `Please fill in: ${missingFields.join(", ")}`
+          : "Please fill in every field in the add employee form.",
       });
       return;
     }
@@ -312,9 +412,76 @@ export default function EmployeesContent() {
     const trimmedPosition = newEmployee.position.trim();
 
     const normalize = (value?: string | null) => value?.trim() || "";
+    const trimmedMiddleName = normalize(newEmployee.middlename);
+    const trimmedFullName = [trimmedFirstname, trimmedMiddleName, trimmedSurname].filter(Boolean).join(" ").trim();
+    const employmentIdNo = normalize(newEmployee.employment_id_no);
+    const serviceNo = normalize(newEmployee.service_no);
+    const fileNo = normalize(newEmployee.file_no);
+    const rankPosition = normalize(newEmployee.rank_position);
+    const organization = normalize(newEmployee.organization);
+    const employmentType = normalize(newEmployee.employment_type);
+    const probationPeriod = normalize(newEmployee.probation_period);
+    const workLocation = normalize(newEmployee.work_location);
+    const dateOfFirstAppointment = normalize(newEmployee.date_of_first_appointment);
+    const gradeLevel = normalize(newEmployee.grade_level);
+    const salaryStructure = normalize(newEmployee.salary_structure);
+    const step = normalize(newEmployee.step);
+    const cadre = normalize(newEmployee.cadre) || derivedCadre || "";
+    const bankName = normalize(newEmployee.bank_name);
+    const accountNumber = normalize(newEmployee.account_number);
+    const pfaName = normalize(newEmployee.pfa_name);
+    const rsaPin = normalize(newEmployee.rsapin || newEmployee.rsa_pin);
+    const educationalBackground = normalize(newEmployee.educational_background);
+    const certifications = normalize(newEmployee.certifications);
+    const nubanAccountNumber = normalize(newEmployee.nuban_account_number) || accountNumber;
+    const metadata = {
+      "FirstName": trimmedFirstname,
+      "Surname": trimmedSurname,
+      "MiddleName": trimmedMiddleName,
+      "Title": normalize(newEmployee.title),
+      "Gender": normalize(newEmployee.gender),
+      "Phone Number": normalize(newEmployee.telephoneno),
+      "Birthdate": normalize(newEmployee.birthdate),
+      "NIN": normalize(newEmployee.nin),
+      "State of Origin": normalize(newEmployee.state_of_origin),
+      "Residential Address": normalize(newEmployee.residence_address),
+      "State of Residence": normalize(newEmployee.residence_state),
+      "LGA": normalize(newEmployee.residence_lga),
+      "Profession": normalize(newEmployee.profession),
+      "Marital Status": normalize(newEmployee.maritalstatus),
+      "Next of Kin Name": normalize(newEmployee.next_of_kin_name),
+      "Next of Kin Relationship": normalize(newEmployee.next_of_kin_relationship),
+      "Next of Kin Phone Number": normalize(newEmployee.next_of_kin_phone_number),
+      "Next of Kin Address": normalize(newEmployee.next_of_kin_address),
+      "Employment ID No": employmentIdNo,
+      "Service No": serviceNo,
+      "File No": fileNo,
+      "Rank/Position": rankPosition,
+      "Organization": organization,
+      "Employment Type": employmentType,
+      "Probation Period": probationPeriod,
+      "Work Location": workLocation,
+      "Bank Name": bankName,
+      "Account Number": accountNumber,
+      "PFA Name": pfaName,
+      "RSA PIN": rsaPin,
+      "Grade Level": gradeLevel,
+      "Salary Structure": salaryStructure,
+      "Cadre": cadre,
+      "step": step,
+      "Date of First Appointment": dateOfFirstAppointment,
+      "Educational Background": educationalBackground,
+      "Certifications": certifications,
+    };
+
     const payload: AddEmployeePayload = {
       firstname: trimmedFirstname,
       surname: trimmedSurname,
+      name: trimmedFullName,
+      first_name: trimmedFirstname,
+      firstName: trimmedFirstname,
+      last_name: trimmedSurname,
+      lastName: trimmedSurname,
       email: trimmedEmail,
       department: trimmedDepartment,
       position: trimmedPosition,
@@ -334,6 +501,34 @@ export default function EmployeesContent() {
       next_of_kin_relationship: normalize(newEmployee.next_of_kin_relationship),
       next_of_kin_phone_number: normalize(newEmployee.next_of_kin_phone_number),
       next_of_kin_address: normalize(newEmployee.next_of_kin_address),
+      employment_id_no: employmentIdNo,
+      employmentIdNo,
+      service_no: serviceNo,
+      serviceNo,
+      file_no: fileNo,
+      fileNo,
+      rank_position: rankPosition,
+      rankPosition,
+      organization,
+      employment_type: employmentType,
+      employmentType,
+      probation_period: probationPeriod,
+      probationPeriod,
+      work_location: workLocation,
+      date_of_first_appointment: dateOfFirstAppointment,
+      grade_level: gradeLevel,
+      salary_structure: salaryStructure,
+      step,
+      cadre: cadre,
+      bank_name: bankName,
+      account_number: accountNumber,
+      pfa_name: pfaName,
+      rsapin: rsaPin,
+      rsa_pin: rsaPin,
+      educational_background: educationalBackground,
+      certifications: certifications,
+      nuban_account_number: nubanAccountNumber,
+      metadata,
     };
 
     try {
@@ -358,10 +553,31 @@ export default function EmployeesContent() {
             profession: "",
             maritalstatus: "",
             title: "",
-            next_of_kin_name: "",
-            next_of_kin_relationship: "",
-            next_of_kin_phone_number: "",
-            next_of_kin_address: "",
+    next_of_kin_name: "",
+    next_of_kin_relationship: "",
+    next_of_kin_phone_number: "",
+    next_of_kin_address: "",
+    employment_id_no: "",
+    service_no: "",
+    file_no: "",
+    rank_position: "",
+    organization: "",
+    employment_type: "",
+    probation_period: "",
+    work_location: "",
+    date_of_first_appointment: "",
+    grade_level: "",
+            salary_structure: "",
+            step: "",
+            cadre: "",
+            bank_name: "",
+            account_number: "",
+            pfa_name: "",
+            rsapin: "",
+            rsa_pin: "",
+            educational_background: "",
+            certifications: "",
+            nuban_account_number: "",
           });
 
           // Refetch the employees list to include the new employee
@@ -590,7 +806,7 @@ export default function EmployeesContent() {
         dateOfBirth: metadata["Date of Birth"] || "21-JUL-1983",
         tradeUnion: metadata["Trade Union"] || "ASSOCIATION OF SENIOR CIVIL SERVANT OF NIGERIA",
         grade: metadata["Grade"] || "SL10_CONPSS",
-        step: metadata["Step"] || "7",
+        step: metadata["step"] || metadata["Step"] || "7",
         gender: metadata["Gender"] || "Male",
         taxState: metadata["Tax State"] || "FCT (ABUJA)"
       },
@@ -646,6 +862,7 @@ export default function EmployeesContent() {
         month: 'short', 
         year: 'numeric' 
       }).toUpperCase();
+      const logoUrl = `${window.location.origin}/images/ippis-logo.jpeg`;
 
       const printWindow = window.open('', '_blank');
       if (printWindow) {
@@ -661,65 +878,128 @@ export default function EmployeesContent() {
                   padding: 0; 
                   box-sizing: border-box; 
                 }
+                @page {
+                  size: A4;
+                  margin: 12mm;
+                }
                 body { 
                   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                  margin: 20px;
-                  color: #333;
-                  background: white;
+                  margin: 0;
+                  padding: 18px;
+                  color: #0f172a;
+                  background: #eef2f7;
                   line-height: 1.4;
                   font-size: 12px;
+                }
+                .page {
+                  max-width: 940px;
+                  margin: 0 auto;
+                  background: #ffffff;
+                  border: 1px solid #d6deea;
+                  border-radius: 20px;
+                  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.10);
+                  overflow: hidden;
                 }
                 
                 /* Header section */
                 .payslip-header { 
-                  text-align: center;
-                  border-bottom: 3px double #2c5aa0;
-                  padding-bottom: 15px;
-                  margin-bottom: 20px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  gap: 16px;
+                  border-bottom: 1px solid #dbe3ef;
+                  padding: 24px 28px 18px;
+                  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+                }
+                .brand-lockup {
+                  display: flex;
+                  align-items: center;
+                  gap: 16px;
+                  min-width: 0;
+                }
+                .brand-logo {
+                  width: 64px;
+                  height: 64px;
+                  object-fit: contain;
+                  border-radius: 16px;
+                  background: #f8fafc;
+                  border: 1px solid #dbe3ef;
+                  padding: 8px;
                 }
                 .government-title { 
-                  font-size: 16px;
+                  font-size: 17px;
                   font-weight: bold;
-                  color: #2c5aa0;
-                  margin-bottom: 5px;
-                  text-transform: uppercase;
+                  color: #0f172a;
+                  letter-spacing: 0.02em;
                 }
                 .payslip-title { 
-                  font-size: 14px;
+                  display: inline-flex;
+                  align-items: center;
+                  font-size: 12px;
                   font-weight: bold;
-                  color: #d40000;
-                  margin-bottom: 5px;
+                  color: #0f766e;
+                  margin-top: 4px;
+                  padding: 4px 10px;
+                  border: 1px solid #99f6e4;
+                  background: #f0fdfa;
+                  border-radius: 9999px;
                   text-transform: uppercase;
+                  letter-spacing: 0.18em;
                 }
                 .period { 
+                  margin-top: 6px;
                   font-size: 13px;
                   font-weight: bold;
-                  color: #2c5aa0;
+                  color: #334155;
+                  letter-spacing: 0.08em;
+                }
+                .header-meta {
+                  min-width: 220px;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: flex-end;
+                  gap: 8px;
+                }
+                .meta-pill {
+                  display: inline-flex;
+                  align-items: center;
+                  justify-content: center;
+                  min-width: 180px;
+                  padding: 8px 12px;
+                  border-radius: 9999px;
+                  background: #f8fafc;
+                  border: 1px solid #dbe3ef;
+                  color: #334155;
+                  font-size: 11px;
+                  font-weight: 600;
                 }
                 
                 /* Employee info sections */
                 .section { 
-                  margin-bottom: 15px;
-                  border: 1px solid #ddd;
-                  border-radius: 4px;
+                  margin: 18px 28px;
+                  border: 1px solid #dbe3ef;
+                  border-radius: 18px;
                   overflow: hidden;
+                  background: #ffffff;
                 }
                 .section-header { 
-                  background: #2c5aa0;
+                  background: linear-gradient(90deg, #0f172a 0%, #1d4ed8 100%);
                   color: white;
-                  padding: 6px 10px;
+                  padding: 10px 14px;
                   font-weight: bold;
                   font-size: 11px;
+                  letter-spacing: 0.12em;
+                  text-transform: uppercase;
                 }
                 .section-content { 
-                  padding: 8px 10px;
+                  padding: 14px;
                 }
                 
                 /* Grid layouts */
                 .grid-2 { 
                   display: grid; 
                   grid-template-columns: 1fr 1fr; 
-                  gap: 15px;
+                  gap: 14px;
                 }
                 .grid-3 { 
                   display: grid; 
@@ -729,24 +1009,33 @@ export default function EmployeesContent() {
                 
                 /* Info rows */
                 .info-row {
-                  display: flex;
-                  margin-bottom: 4px;
+                  display: grid;
+                  grid-template-columns: minmax(0, 1fr);
+                  gap: 4px;
+                  margin-bottom: 10px;
+                  padding-bottom: 10px;
+                  border-bottom: 1px solid #eef2f7;
                 }
                 .info-label {
                   font-weight: bold;
-                  min-width: 140px;
-                  color: #555;
+                  min-width: 0;
+                  color: #64748b;
+                  font-size: 10px;
+                  text-transform: uppercase;
+                  letter-spacing: 0.12em;
                 }
                 .info-value {
-                  flex: 1;
-                  color: #333;
+                  min-width: 0;
+                  color: #0f172a;
+                  font-weight: 600;
+                  word-break: break-word;
                 }
                 
                 /* Tables */
                 .earnings-table {
                   width: 100%;
                   border-collapse: collapse;
-                  margin: 10px 0;
+                  margin: 10px 0 0;
                 }
                 .earnings-table th {
                   background: #f0f0f0;
@@ -770,46 +1059,49 @@ export default function EmployeesContent() {
                 .summary-grid {
                   display: grid;
                   grid-template-columns: 1fr 1fr;
-                  gap: 15px;
+                  gap: 14px;
                   margin-top: 10px;
                 }
                 .summary-box {
-                  border: 1px solid #ddd;
-                  border-radius: 4px;
+                  border: 1px solid #dbe3ef;
+                  border-radius: 16px;
                   padding: 8px;
+                  background: #f8fafc;
                 }
                 .summary-box h4 {
-                  background: #2c5aa0;
+                  background: #0f172a;
                   color: white;
-                  padding: 4px 8px;
+                  padding: 6px 8px;
                   margin: -8px -8px 8px -8px;
                   font-size: 11px;
                   text-align: center;
+                  letter-spacing: 0.12em;
                 }
                 
                 /* Totals */
                 .total-amount {
                   font-weight: bold;
-                  color: #2c5aa0;
+                  color: #1d4ed8;
                   font-size: 11px;
                 }
                 
                 /* Footer */
                 .footer {
                   text-align: center;
-                  margin-top: 20px;
-                  padding-top: 10px;
-                  border-top: 2px solid #2c5aa0;
-                  font-style: italic;
-                  color: #666;
+                  margin: 18px 28px 0;
+                  padding: 14px 0 18px;
+                  border-top: 1px solid #dbe3ef;
+                  color: #64748b;
                   font-size: 10px;
                 }
                 
                 /* Print-specific styles */
                 @media print {
                   body { 
-                    margin: 0.3in;
+                    margin: 0;
+                    padding: 0;
                     font-size: 10pt;
+                    background: white;
                   }
                   .no-print { 
                     display: none !important; 
@@ -817,8 +1109,10 @@ export default function EmployeesContent() {
                   .section {
                     page-break-inside: avoid;
                   }
-                  .payslip-header {
-                    border-bottom: 3px double #2c5aa0 !important;
+                  .page {
+                    border: none;
+                    border-radius: 0;
+                    box-shadow: none;
                   }
                 }
                 
@@ -831,19 +1125,29 @@ export default function EmployeesContent() {
               </style>
             </head>
             <body>
-              <div class="no-print" style="margin-bottom: 15px; text-align: center; color: #666; font-size: 10px;">
-                Generated from Employee Management System - ${new Date().toLocaleDateString()}
-              </div>
-              
-              <!-- Payslip Header -->
-              <div class="payslip-header">
-                <div class="government-title">FEDERAL GOVERNMENT OF NIGERIA</div>
-                <div class="payslip-title">EMPLOYEE PAYSLIP</div>
-                <div class="period">${monthYear}</div>
-              </div>
+              <div class="page">
+                <div class="no-print" style="padding: 16px 28px 0; text-align: center; color: #64748b; font-size: 10px;">
+                  Generated from Employee Management System - ${new Date().toLocaleDateString()}
+                </div>
 
-              <!-- Employee Personal Information -->
-              <div class="section">
+                <!-- Payslip Header -->
+                <div class="payslip-header">
+                  <div class="brand-lockup">
+                    <img src="${logoUrl}" alt="IPPIS logo" class="brand-logo" />
+                    <div>
+                      <div class="government-title">FEDERAL MINISTRY OF FINANCE</div>
+                      <div class="payslip-title">EMPLOYEE PAYSLIP</div>
+                      <div class="period">${monthYear}</div>
+                    </div>
+                  </div>
+                  <div class="header-meta">
+                    <div class="meta-pill">Payslip ID: ${payslipData.employee.ippisNumber || selectedEmployee.id}</div>
+                    <div class="meta-pill">Status: ${selectedEmployee.status || "Active"}</div>
+                  </div>
+                </div>
+
+                <!-- Employee Personal Information -->
+                <div class="section">
                 <div class="section-header">EMPLOYEE INFORMATION</div>
                 <div class="section-content">
                   <div class="grid-2">
@@ -1032,20 +1336,47 @@ export default function EmployeesContent() {
 
               <!-- Footer -->
               <div class="footer">
-                *Generated By : Powered by WALPBERRY is okay don't put consultant*
+                Generated by IPPIS Payroll System
               </div>
 
-              <div class="no-print" style="margin-top: 20px; text-align: center; color: #666; font-size: 10px;">
+              <div class="no-print" style="margin: 18px 28px 24px; text-align: center; color: #64748b; font-size: 10px;">
                 Confidential Employee Document - Generated on ${new Date().toLocaleDateString()}
               </div>
 
+              </div>
+
               <script>
-                window.onload = function() {
+                function waitForImages() {
+                  const images = Array.from(document.images || []);
+                  return Promise.all(
+                    images.map((image) => {
+                      if (image.complete) {
+                        return Promise.resolve();
+                      }
+
+                      return new Promise((resolve) => {
+                        image.onload = image.onerror = () => resolve();
+                      });
+                    }),
+                  );
+                }
+
+                async function prepareAndPrint() {
+                  if (document.fonts && document.fonts.ready) {
+                    await document.fonts.ready;
+                  }
+
+                  await waitForImages();
+                  await new Promise((resolve) => setTimeout(resolve, 250));
                   window.print();
                   setTimeout(function() {
                     window.close();
-                  }, 500);
+                  }, 750);
                 }
+
+                window.addEventListener('load', function() {
+                  prepareAndPrint();
+                });
                 
                 function formatCurrency(amount) {
                   return new Intl.NumberFormat('en-NG', {
@@ -1072,15 +1403,416 @@ export default function EmployeesContent() {
   const handleDownloadPDF = async () => {
     if (!selectedEmployee) return;
 
+    let preview: HTMLDivElement | null = null;
+
     try {
-   toast.info("Feature Coming Soon", {
-        description: "PDF download functionality will be available soon.",
-      });
+      let payslipData = await getPayslipData(selectedEmployee.id);
+
+      if (!payslipData) {
+        payslipData = generatePayslipData(selectedEmployee);
+      }
+
+      const currentDate = new Date();
+      const monthYear = currentDate
+        .toLocaleDateString("en-US", { month: "short", year: "numeric" })
+        .toUpperCase();
+      const logoUrl = `${window.location.origin}/images/ippis-logo.jpeg`;
+      const organizationTitle =
+        payslipData.employee.ministry || selectedEmployee.metadata?.Organization || "Federal Ministry of Finance";
+      const payslipStatus = selectedEmployee.status || "Active";
+      const paymentPayload = {
+        payment_id: payslipData.employee.ippisNumber || selectedEmployee.id,
+        employee_id: payslipData.employee.ippisNumber || selectedEmployee.id,
+        employee_name: payslipData.employee.name,
+        department: payslipData.employee.department || selectedEmployee.department,
+        position: payslipData.employee.designation || selectedEmployee.position || "",
+        month: monthYear,
+        created_at: currentDate.toISOString(),
+        payment_date: currentDate.toISOString(),
+        amount: payslipData.summary.grossEarnings,
+        deduction_amount: payslipData.summary.totalDeductions,
+        bank_name: payslipData.bank.name,
+        account: payslipData.bank.accountNumber,
+        pfa: payslipData.pension.pfaName,
+        pension: payslipData.pension.pin,
+        status: payslipStatus,
+        organization: organizationTitle,
+        metadata: selectedEmployee.metadata,
+      }
+
+      const escapeHtml = (value: unknown) =>
+        String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;")
+
+      const renderField = (label: string, value: unknown) => `
+        <div class="field">
+          <div class="label">${escapeHtml(label)}</div>
+          <div class="value">${escapeHtml(value || "N/A")}</div>
+        </div>
+      `
+
+      const renderMoney = (label: string, value: number) => `
+        <div class="money-row">
+          <span>${escapeHtml(label)}</span>
+          <strong>${formatCurrency(value)}</strong>
+        </div>
+      `
+
+      preview = document.createElement("div")
+      preview.setAttribute("aria-hidden", "true")
+      preview.style.position = "fixed"
+      preview.style.left = "-100000px"
+      preview.style.top = "0"
+      preview.style.width = "980px"
+      preview.style.pointerEvents = "none"
+      preview.style.opacity = "0"
+      preview.innerHTML = `
+        <style>
+          * { box-sizing: border-box; }
+          .sheet {
+            width: 980px;
+            background: linear-gradient(180deg, #eef4ff 0%, #ffffff 14%, #ffffff 100%);
+            padding: 22px;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            color: #0f172a;
+          }
+          .card {
+            background: #fff;
+            border: 1px solid #d9e2f0;
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 26px 28px 20px;
+            border-bottom: 1px solid #d9e2f0;
+            background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+          }
+          .brand {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            min-width: 0;
+          }
+          .logo {
+            width: 68px;
+            height: 68px;
+            object-fit: contain;
+            border-radius: 18px;
+            border: 1px solid #d9e2f0;
+            background: #f8fafc;
+            padding: 8px;
+            flex-shrink: 0;
+          }
+          .org {
+            font-size: 18px;
+            font-weight: 800;
+            line-height: 1.2;
+            color: #0f172a;
+          }
+          .title {
+            display: inline-flex;
+            margin-top: 6px;
+            padding: 5px 12px;
+            border-radius: 999px;
+            background: #f0fdfa;
+            border: 1px solid #99f6e4;
+            color: #0f766e;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+          }
+          .period {
+            margin-top: 8px;
+            color: #475569;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+          }
+          .meta {
+            min-width: 220px;
+            display: grid;
+            align-content: start;
+            gap: 10px;
+          }
+          .pill {
+            border: 1px solid #d9e2f0;
+            background: #f8fafc;
+            border-radius: 999px;
+            padding: 9px 14px;
+            color: #334155;
+            font-size: 11px;
+            font-weight: 700;
+            text-align: center;
+          }
+          .stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            padding: 18px 28px 0;
+          }
+          .stat {
+            border-radius: 20px;
+            padding: 16px;
+            border: 1px solid #d9e2f0;
+            background: #f8fafc;
+          }
+          .stat-label {
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            color: #64748b;
+          }
+          .stat-value {
+            margin-top: 10px;
+            font-size: 24px;
+            font-weight: 800;
+            color: #0f172a;
+          }
+          .stat-sub {
+            margin-top: 8px;
+            color: #64748b;
+            font-size: 12px;
+          }
+          .section {
+            margin: 18px 28px 0;
+            border: 1px solid #d9e2f0;
+            border-radius: 20px;
+            overflow: hidden;
+          }
+          .section-head {
+            background: linear-gradient(90deg, #0f172a 0%, #1d4ed8 100%);
+            color: #fff;
+            padding: 11px 14px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+          }
+          .section-body {
+            padding: 16px;
+            background: #fff;
+          }
+          .field-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+          }
+          .field {
+            padding: 12px 14px;
+            border: 1px solid #e5ebf4;
+            border-radius: 16px;
+            background: #f8fafc;
+            min-width: 0;
+          }
+          .label {
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+          }
+          .value {
+            color: #0f172a;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.45;
+            word-break: break-word;
+          }
+          .table-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+          }
+          .table-box {
+            border: 1px solid #e5ebf4;
+            border-radius: 16px;
+            overflow: hidden;
+          }
+          .table-title {
+            background: #0f172a;
+            color: #fff;
+            padding: 10px 12px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+          }
+          .money-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 14px;
+            border-top: 1px solid #eef2f7;
+            font-size: 13px;
+          }
+          .summary {
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 14px;
+            align-items: start;
+          }
+          .summary-box {
+            border: 1px solid #d9e2f0;
+            border-radius: 18px;
+            background: #f8fafc;
+            padding: 14px;
+          }
+          .summary-box .money-row:first-of-type {
+            border-top: 0;
+          }
+          .footer {
+            margin: 18px 28px 0;
+            padding: 14px 0 20px;
+            border-top: 1px solid #d9e2f0;
+            color: #64748b;
+            text-align: center;
+            font-size: 10px;
+          }
+        </style>
+        <div class="sheet">
+          <div class="card">
+            <div class="header">
+              <div class="brand">
+                <img src="${logoUrl}" alt="IPPIS logo" class="logo" />
+                <div>
+                  <div class="org">${escapeHtml(organizationTitle)}</div>
+                  <div class="title">EMPLOYEE PAYSLIP</div>
+                  <div class="period">${escapeHtml(monthYear)}</div>
+                </div>
+              </div>
+              <div class="meta">
+                <div class="pill">Payslip ID: ${escapeHtml(paymentPayload.payment_id)}</div>
+                <div class="pill">Status: ${escapeHtml(payslipStatus)}</div>
+              </div>
+            </div>
+
+            <div class="stats">
+              <div class="stat">
+                <div class="stat-label">Gross Earnings</div>
+                <div class="stat-value">${formatCurrency(payslipData.summary.grossEarnings)}</div>
+                <div class="stat-sub">Total earnings before deductions</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">Total Deductions</div>
+                <div class="stat-value">${formatCurrency(payslipData.summary.totalDeductions)}</div>
+                <div class="stat-sub">Tax, pension, and other deductions</div>
+              </div>
+              <div class="stat" style="background:#0f172a;border-color:#0f172a;">
+                <div class="stat-label" style="color:#cbd5e1;">Net Pay</div>
+                <div class="stat-value" style="color:#fff;">${formatCurrency(payslipData.summary.netSalary)}</div>
+                <div class="stat-sub" style="color:#cbd5e1;">Final amount payable</div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-head">Employee Profile</div>
+              <div class="section-body">
+                <div class="field-grid">
+                  ${renderField("Employee Name", payslipData.employee.name)}
+                  ${renderField("IPPIS Number", payslipData.employee.ippisNumber)}
+                  ${renderField("Ministry", payslipData.employee.ministry)}
+                  ${renderField("Designation", payslipData.employee.designation)}
+                  ${renderField("Department", payslipData.employee.department)}
+                  ${renderField("Date of First Appointment", payslipData.employee.dateOfFirstAppointment)}
+                  ${renderField("Date of Birth", payslipData.employee.dateOfBirth)}
+                  ${renderField("Trade Union", payslipData.employee.tradeUnion)}
+                  ${renderField("Grade / Step", `${payslipData.employee.grade} / ${payslipData.employee.step}`)}
+                  ${renderField("Gender", payslipData.employee.gender)}
+                  ${renderField("Tax State", payslipData.employee.taxState)}
+                  ${renderField("Work Location", selectedEmployee.metadata?.["Work Location"])}
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-head">Bank & Pension</div>
+              <div class="section-body">
+                <div class="field-grid">
+                  ${renderField("Bank Name", payslipData.bank.name)}
+                  ${renderField("Bank Branch", payslipData.bank.branch)}
+                  ${renderField("Account Number", payslipData.bank.accountNumber)}
+                  ${renderField("PFA Name", payslipData.pension.pfaName)}
+                  ${renderField("Pension PIN", payslipData.pension.pin)}
+                  ${renderField("Employment Type", selectedEmployee.metadata?.["Employment Type"])}
+                  ${renderField("Probation Period", selectedEmployee.metadata?.["Probation Period"])}
+                  ${renderField("Salary Structure", selectedEmployee.metadata?.["Salary Structure"])}
+                  ${renderField("Cadre", selectedEmployee.metadata?.["Cadre"])}
+                  ${renderField("Educational Background", selectedEmployee.metadata?.["Educational Background"])}
+                  ${renderField("Certifications", selectedEmployee.metadata?.["Certifications"])}
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-head">Earnings & Deductions</div>
+              <div class="section-body">
+                <div class="table-grid">
+                  <div class="table-box">
+                    <div class="table-title">Gross Earnings</div>
+                    ${renderMoney("Basic Salary", payslipData.earnings[0]?.amount ?? 0)}
+                    ${renderMoney("Housing Allowance", payslipData.earnings[1]?.amount ?? 0)}
+                    ${renderMoney("Transport Allowance", payslipData.earnings[2]?.amount ?? 0)}
+                    ${renderMoney("Other Allowance", payslipData.earnings[3]?.amount ?? 0)}
+                  </div>
+                  <div class="table-box">
+                    <div class="table-title">Deductions</div>
+                    ${renderMoney("Pension", payslipData.deductions[0]?.amount ?? 0)}
+                    ${renderMoney("NHIS", payslipData.deductions[1]?.amount ?? 0)}
+                    ${renderMoney("PAYE / Tax", payslipData.deductions[2]?.amount ?? 0)}
+                    ${renderMoney("Other Deductions", payslipData.deductions[3]?.amount ?? 0)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-head">Summary of Payments</div>
+              <div class="section-body">
+                <div class="summary">
+                  <div class="summary-box">
+                    ${renderMoney("Total Gross Earnings", payslipData.summary.grossEarnings)}
+                    ${renderMoney("Total Gross Deductions", payslipData.summary.totalDeductions)}
+                    ${renderMoney("Net Salary", payslipData.summary.netSalary)}
+                  </div>
+                  <div class="summary-box">
+                    ${renderMoney("Cumulative Tax", payslipData.cumulative.tax)}
+                    ${renderMoney("Cumulative Income", payslipData.cumulative.income)}
+                    ${renderMoney("Cumulative Pension", payslipData.cumulative.pension)}
+                    ${renderMoney("Cumulative NHF", payslipData.cumulative.nhf)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="footer">Generated by IPPIS Payroll System</div>
+          </div>
+        </div>
+      `
+
+      document.body.appendChild(preview)
+      await downloadPayslipPdf(paymentPayload as any, preview)
+
+      toast.success("PDF downloaded successfully", {
+        description: `${selectedEmployee.name || "Employee"} payslip has been downloaded as a PDF.`,
+      })
     } catch (error) {
       console.error('Error downloading PDF:', error);
       toast.error("Error", {
         description: "Failed to download PDF. Please try again.",
       });
+    } finally {
+      preview?.remove()
     }
   };
 
@@ -1155,7 +1887,7 @@ export default function EmployeesContent() {
   };
 
   // Format date for display
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -1167,9 +1899,180 @@ export default function EmployeesContent() {
   };
 
   // Format simple date (without time)
-  const formatSimpleDate = (dateString: string) => {
+  const formatSimpleDate = (dateString?: string) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString('en-US');
+  };
+
+  const formatEmployeeDate = (dateString: string) => {
+    if (!dateString || dateString === "N/A") return "N/A";
+    return formatDate(dateString);
+  };
+
+  const formatEmployeeSimpleDate = (dateString: string) => {
+    if (!dateString || dateString === "N/A") return "N/A";
+    return formatSimpleDate(dateString);
+  };
+
+  const normalizeEmployeeMetadata = (
+    metadata: Employee["metadata"] | string | null | undefined
+  ): Record<string, string> => {
+    if (!metadata) return {};
+
+    if (typeof metadata === "string") {
+      try {
+        const parsed = JSON.parse(metadata);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          return Object.entries(parsed).reduce<Record<string, string>>((acc, [key, value]) => {
+            if (value === null || value === undefined) return acc;
+            acc[key] = String(value);
+            return acc;
+          }, {});
+        }
+      } catch {
+        return {};
+      }
+
+      return {};
+    }
+
+    return Object.entries(metadata).reduce<Record<string, string>>((acc, [key, value]) => {
+      if (value === null || value === undefined) return acc;
+      acc[key] = String(value);
+      return acc;
+    }, {});
+  };
+
+  const getEmployeeValue = (
+    employee: Employee | null,
+    keys: string[],
+    fallback = "N/A"
+  ) => {
+    if (!employee) return fallback;
+
+    for (const key of keys) {
+      const value = (employee as unknown as Record<string, unknown>)[key];
+      if (value !== null && value !== undefined && String(value).trim() !== "") {
+        return String(value);
+      }
+    }
+
+    return fallback;
+  };
+
+  const getEmployeeMetadataValue = (
+    employee: Employee | null,
+    keys: string[],
+    fallback = "N/A"
+  ) => {
+    if (!employee) return fallback;
+
+    const metadata = normalizeEmployeeMetadata(employee.metadata);
+    for (const key of keys) {
+      const value = metadata[key];
+      if (value !== null && value !== undefined && String(value).trim() !== "") {
+        return String(value);
+      }
+    }
+
+    return fallback;
+  };
+
+  const buildEmployeeDetailRows = (employee: Employee) => {
+    const rows: Array<{
+      section: string;
+      field: string;
+      value: string;
+    }> = [];
+
+    const pushSection = (
+      section: string,
+      fields: Array<{
+        field: string;
+        value: string;
+      }>
+    ) => {
+      fields.forEach((item) => {
+        rows.push({
+          section,
+          field: item.field,
+          value: item.value || "N/A",
+        });
+      });
+    };
+
+    pushSection("Employee Information", [
+      { field: "Employee ID", value: getEmployeeValue(employee, ["id", "employee_id"]) },
+      { field: "Name", value: getEmployeeValue(employee, ["name", "firstname", "firstName", "first_name"]) },
+      { field: "Email", value: getEmployeeValue(employee, ["email"]) },
+      { field: "Department", value: getEmployeeValue(employee, ["department"]) },
+      { field: "Position", value: getEmployeeValue(employee, ["position"]) },
+      { field: "Status", value: getEmployeeValue(employee, ["status"]) },
+      { field: "Registration ID", value: getEmployeeValue(employee, ["registration_id"]) },
+      { field: "Join Date", value: formatEmployeeSimpleDate(getEmployeeValue(employee, ["join_date", "submission_date"])) },
+      { field: "Created At", value: formatEmployeeDate(getEmployeeValue(employee, ["created_at", "createdAt"])) },
+      { field: "Updated At", value: formatEmployeeDate(getEmployeeValue(employee, ["updated_at", "updatedAt"])) },
+    ]);
+
+    pushSection("Personal Information", [
+      { field: "First Name", value: getEmployeeMetadataValue(employee, ["FirstName", "firstName", "firstname"]) },
+      { field: "Surname", value: getEmployeeMetadataValue(employee, ["Surname", "lastName", "last_name"]) },
+      { field: "Middle Name", value: getEmployeeMetadataValue(employee, ["MiddleName", "middleName", "middlename"]) },
+      { field: "Title", value: getEmployeeMetadataValue(employee, ["Title", "title"]) },
+      { field: "Gender", value: getEmployeeMetadataValue(employee, ["Gender", "gender"]) },
+      { field: "Phone Number", value: getEmployeeMetadataValue(employee, ["Phone Number", "telephoneno", "phone_number"]) },
+      { field: "Birthdate", value: getEmployeeMetadataValue(employee, ["Birthdate", "birthdate"]) },
+      { field: "Marital Status", value: getEmployeeMetadataValue(employee, ["Marital Status", "maritalstatus"]) },
+      { field: "State of Origin", value: getEmployeeMetadataValue(employee, ["State of Origin", "state_of_origin"]) },
+      { field: "State of Residence", value: getEmployeeMetadataValue(employee, ["State of Residence", "residence_state"]) },
+      { field: "Residential Address", value: getEmployeeMetadataValue(employee, ["Residential Address", "residence_address"]) },
+      { field: "LGA", value: getEmployeeMetadataValue(employee, ["LGA", "residence_lga"]) },
+      { field: "Profession", value: getEmployeeMetadataValue(employee, ["Profession", "profession"]) },
+      { field: "Next of Kin Name", value: getEmployeeMetadataValue(employee, ["Next of Kin Name", "next_of_kin_name"]) },
+      { field: "Next of Kin Relationship", value: getEmployeeMetadataValue(employee, ["Next of Kin Relationship", "next_of_kin_relationship"]) },
+      { field: "Next of Kin Phone Number", value: getEmployeeMetadataValue(employee, ["Next of Kin Phone Number", "next_of_kin_phone_number"]) },
+      { field: "Next of Kin Address", value: getEmployeeMetadataValue(employee, ["Next of Kin Address", "next_of_kin_address"]) },
+    ]);
+
+    pushSection("Employment Information", [
+      { field: "Employment ID No", value: getEmployeeMetadataValue(employee, ["Employment ID No", "employment_id_no", "employmentIdNo"]) },
+      { field: "Service No", value: getEmployeeMetadataValue(employee, ["Service No", "service_no", "serviceNo"]) },
+      { field: "File No", value: getEmployeeMetadataValue(employee, ["File No", "file_no", "fileNo"]) },
+      { field: "Rank/Position", value: getEmployeeMetadataValue(employee, ["Rank/Position", "rank_position", "rankPosition"]) },
+      { field: "Organization", value: getEmployeeMetadataValue(employee, ["Organization", "organization"]) },
+      { field: "Employment Type", value: getEmployeeMetadataValue(employee, ["Employment Type", "employment_type", "employmentType"]) },
+      { field: "Probation Period", value: getEmployeeMetadataValue(employee, ["Probation Period", "probation_period", "probationPeriod"]) },
+      { field: "Work Location", value: getEmployeeMetadataValue(employee, ["Work Location", "work_location"]) },
+      { field: "Grade Level", value: getEmployeeMetadataValue(employee, ["Grade Level", "grade_level"]) },
+      { field: "Step", value: getEmployeeMetadataValue(employee, ["step", "Step"]) },
+      { field: "Salary Structure", value: getEmployeeMetadataValue(employee, ["Salary Structure", "salary_structure"]) },
+      { field: "Cadre", value: getEmployeeMetadataValue(employee, ["Cadre", "cadre"]) },
+      { field: "Date of First Appointment", value: getEmployeeMetadataValue(employee, ["Date of First Appointment", "date_of_first_appointment"]) },
+    ]);
+
+    pushSection("Bank & Pension Information", [
+      { field: "Bank Name", value: getEmployeeMetadataValue(employee, ["Bank Name", "bank_name"]) },
+      { field: "Account Number", value: getEmployeeMetadataValue(employee, ["Account Number", "account_number"]) },
+      { field: "NUBAN Account Number", value: getEmployeeMetadataValue(employee, ["nuban_account_number", "NUBAN Account Number"]) },
+      { field: "PFA Name", value: getEmployeeMetadataValue(employee, ["PFA Name", "pfa_name"]) },
+      { field: "RSA PIN", value: getEmployeeMetadataValue(employee, ["RSA PIN", "rsa_pin", "rsapin"]) },
+    ]);
+
+    pushSection("Education", [
+      { field: "Educational Background", value: getEmployeeMetadataValue(employee, ["Educational Background", "educational_background"]) },
+      { field: "Certifications", value: getEmployeeMetadataValue(employee, ["Certifications", "certifications"]) },
+    ]);
+
+    pushSection("Audit Trail", [
+      { field: "Registration ID", value: getEmployeeValue(employee, ["registration_id"]) },
+      { field: "Status", value: getEmployeeValue(employee, ["status"]) },
+      { field: "Source", value: getEmployeeValue(employee, ["source"]) },
+      { field: "Submission Date", value: formatEmployeeDate(getEmployeeValue(employee, ["submission_date"])) },
+      { field: "Created At", value: formatEmployeeDate(getEmployeeValue(employee, ["created_at", "createdAt"])) },
+      { field: "Updated At", value: formatEmployeeDate(getEmployeeValue(employee, ["updated_at", "updatedAt"])) },
+    ]);
+
+    return rows;
   };
 
   const employeeColumns = [
@@ -1636,6 +2539,7 @@ export default function EmployeesContent() {
                           <span className="text-xs text-gray-500 font-medium">Contact</span>
                         </div>
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
+                          <p className="text-sm text-gray-700"><span className="font-medium">Full Name:</span> {selectedEmployee.name || "N/A"}</p>
                           <p className="text-sm text-gray-700"><span className="font-medium">Email:</span> {selectedEmployee.email || "N/A"}</p>
                           <p className="text-sm text-gray-700"><span className="font-medium">Phone:</span> {selectedEmployee.metadata?.["Phone Number"] || "N/A"}</p>
                           <p className="text-sm text-gray-700"><span className="font-medium">Address:</span> {selectedEmployee.metadata?.["Residential Address"] || "N/A"}</p>
@@ -1650,6 +2554,7 @@ export default function EmployeesContent() {
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
                           <p className="text-sm text-gray-700"><span className="font-medium">Registration ID:</span> {selectedEmployee.registration_id || "Not assigned"}</p>
                           <p className="text-sm text-gray-700"><span className="font-medium">Join Date:</span> {formatDate(selectedEmployee.join_date)}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Status:</span> {selectedEmployee.status || "N/A"}</p>
                           <p className="text-sm text-gray-700"><span className="font-medium">Work Location:</span> {selectedEmployee.metadata?.["Work Location"] || "N/A"}</p>
                         </div>
                       </div>
@@ -1662,12 +2567,28 @@ export default function EmployeesContent() {
                       </div>
                       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <p className="text-sm text-gray-700"><span className="font-medium">Employment ID No:</span> {selectedEmployee.metadata?.["Employment ID No"] || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Service No:</span> {selectedEmployee.metadata?.["Service No"] || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">File No:</span> {selectedEmployee.metadata?.["File No"] || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Rank/Position:</span> {selectedEmployee.metadata?.["Rank/Position"] || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Organization:</span> {selectedEmployee.metadata?.Organization || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Employment Type:</span> {selectedEmployee.metadata?.["Employment Type"] || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Probation Period:</span> {selectedEmployee.metadata?.["Probation Period"] || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Grade Level:</span> {selectedEmployee.metadata?.["Grade Level"] || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Step:</span> {selectedEmployee.metadata?.step || selectedEmployee.metadata?.Step || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Salary Structure:</span> {selectedEmployee.metadata?.["Salary Structure"] || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Cadre:</span> {selectedEmployee.metadata?.Cadre || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">PFA Name:</span> {selectedEmployee.metadata?.["PFA Name"] || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">RSA PIN:</span> {selectedEmployee.metadata?.["RSA PIN"] || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Bank Name:</span> {selectedEmployee.metadata?.["Bank Name"] || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Account Number:</span> {selectedEmployee.metadata?.["Account Number"] || "N/A"}</p>
                           <p className="text-sm text-gray-700"><span className="font-medium">Gender:</span> {selectedEmployee.metadata?.Gender || "N/A"}</p>
                           <p className="text-sm text-gray-700"><span className="font-medium">Marital Status:</span> {selectedEmployee.metadata?.["Marital Status"] || "N/A"}</p>
                           <p className="text-sm text-gray-700"><span className="font-medium">State of Origin:</span> {selectedEmployee.metadata?.["State of Origin"] || "N/A"}</p>
                           <p className="text-sm text-gray-700"><span className="font-medium">State of Residence:</span> {selectedEmployee.metadata?.["State of Residence"] || "N/A"}</p>
-                          <p className="text-sm text-gray-700"><span className="font-medium">Bank Name:</span> {selectedEmployee.metadata?.["Bank Name"] || "N/A"}</p>
-                          <p className="text-sm text-gray-700"><span className="font-medium">Account Number:</span> {selectedEmployee.metadata?.["Account Number"] || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Educational Background:</span> {selectedEmployee.metadata?.["Educational Background"] || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Certifications:</span> {selectedEmployee.metadata?.Certifications || "N/A"}</p>
+                          <p className="text-sm text-gray-700"><span className="font-medium">Date of First Appointment:</span> {selectedEmployee.metadata?.["Date of First Appointment"] || "N/A"}</p>
                         </div>
                       </div>
                     </div>
@@ -1675,12 +2596,20 @@ export default function EmployeesContent() {
                     <div className="pt-2 border-t border-gray-200">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
+                          <p className="text-xs text-gray-500 font-medium mb-1">Registration ID</p>
+                          <p className="text-sm text-gray-600">{selectedEmployee.registration_id || "N/A"}</p>
+                        </div>
+                        <div>
                           <p className="text-xs text-gray-500 font-medium mb-1">Created At</p>
                           <p className="text-sm text-gray-600">{formatDate(selectedEmployee.created_at)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500 font-medium mb-1">Last Updated</p>
+                          <p className="text-xs text-gray-500 font-medium mb-1">Updated At</p>
                           <p className="text-sm text-gray-600">{formatSimpleDate(selectedEmployee.updated_at)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 font-medium mb-1">Join Date</p>
+                          <p className="text-sm text-gray-600">{formatDate(selectedEmployee.join_date)}</p>
                         </div>
                       </div>
                     </div>
@@ -1714,7 +2643,7 @@ export default function EmployeesContent() {
                   className={`${buttonHoverEnhancements} border-green-600 text-green-600 hover:bg-green-50`}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Download PDF
+                  Download Payslip PDF
                 </Button>
               </div>
             </div>
@@ -2112,6 +3041,387 @@ export default function EmployeesContent() {
               </div>
             </div>
 
+            <Card className="border-green-200">
+              <CardContent className="pt-6">
+                <h3 className="text-lg font-semibold mb-4">Employment Record</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="employment_id_no">{requiredLabel("Employment ID No")}</Label>
+                    <Input
+                      id="employment_id_no"
+                      placeholder="Enter employment ID number"
+                      value={newEmployee.employment_id_no ?? ""}
+                      onChange={(e) => updateEmployeeField("employment_id_no", e.target.value)}
+                      className={addEmployeeFieldClassName("employment_id_no")}
+                    />
+                    {renderFieldError("employment_id_no")}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="service_no">{requiredLabel("Service No")}</Label>
+                    <Input
+                      id="service_no"
+                      placeholder="Enter service number"
+                      value={newEmployee.service_no ?? ""}
+                      onChange={(e) => updateEmployeeField("service_no", e.target.value)}
+                      className={addEmployeeFieldClassName("service_no")}
+                    />
+                    {renderFieldError("service_no")}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="file_no">{requiredLabel("File No")}</Label>
+                    <Input
+                      id="file_no"
+                      placeholder="Enter file number"
+                      value={newEmployee.file_no ?? ""}
+                      onChange={(e) => updateEmployeeField("file_no", e.target.value)}
+                      className={addEmployeeFieldClassName("file_no")}
+                    />
+                    {renderFieldError("file_no")}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="rank_position">{requiredLabel("Rank/Position")}</Label>
+                    <Select value={newEmployee.rank_position ?? ""} onValueChange={(value) => updateEmployeeField("rank_position", value)}>
+                      <SelectTrigger id="rank_position" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("rank_position")}`}>
+                        <SelectValue placeholder="Select rank/position" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Junior Officer">Junior Officer</SelectItem>
+                        <SelectItem value="Senior Officer">Senior Officer</SelectItem>
+                        <SelectItem value="Assistant Manager">Assistant Manager</SelectItem>
+                        <SelectItem value="Manager">Manager</SelectItem>
+                        <SelectItem value="Senior Manager">Senior Manager</SelectItem>
+                        <SelectItem value="Director">Director</SelectItem>
+                        <SelectItem value="Executive">Executive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {renderFieldError("rank_position")}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="organization">{requiredLabel("Organization")}</Label>
+                    <Input
+                      id="organization"
+                      placeholder="Enter organization"
+                      value={newEmployee.organization ?? ""}
+                      onChange={(e) => updateEmployeeField("organization", e.target.value)}
+                      className={addEmployeeFieldClassName("organization")}
+                    />
+                    {renderFieldError("organization")}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="employment_type">{requiredLabel("Employment Type")}</Label>
+                    <Select value={newEmployee.employment_type ?? ""} onValueChange={(value) => updateEmployeeField("employment_type", value)}>
+                      <SelectTrigger id="employment_type" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("employment_type")}`}>
+                        <SelectValue placeholder="Select employment type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Permanent">Permanent</SelectItem>
+                        <SelectItem value="Contract">Contract</SelectItem>
+                        <SelectItem value="Temporary">Temporary</SelectItem>
+                        <SelectItem value="Probation">Probation</SelectItem>
+                        <SelectItem value="Intern">Intern</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {renderFieldError("employment_type")}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="probation_period">{requiredLabel("Probation Period")}</Label>
+                    <Select value={newEmployee.probation_period ?? ""} onValueChange={(value) => updateEmployeeField("probation_period", value)}>
+                      <SelectTrigger id="probation_period" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("probation_period")}`}>
+                        <SelectValue placeholder="Select probation period" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="None">None</SelectItem>
+                        <SelectItem value="3 Months">3 Months</SelectItem>
+                        <SelectItem value="6 Months">6 Months</SelectItem>
+                        <SelectItem value="1 Year">1 Year</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {renderFieldError("probation_period")}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-green-200">
+              <CardContent className="pt-6">
+                <h3 className="text-lg font-semibold mb-4">Employment Details</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="work_location">{requiredLabel("Work Location")}</Label>
+                    <Input
+                      id="work_location"
+                      placeholder="Enter work location"
+                      value={newEmployee.work_location ?? ""}
+                      onChange={(e) => updateEmploymentField("work_location", e.target.value)}
+                      className={addEmployeeFieldClassName("work_location")}
+                    />
+                    {renderFieldError("work_location")}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>{requiredLabel("Date of First Appointment")}</Label>
+                    <DatePicker
+                      value={newEmployee.date_of_first_appointment ? new Date(newEmployee.date_of_first_appointment) : undefined}
+                      onValueChange={(date) =>
+                        updateEmploymentField(
+                          "date_of_first_appointment",
+                          date ? date.toISOString().split("T")[0] : ""
+                        )
+                      }
+                      placeholder="Select appointment date"
+                      className={`w-full ${addEmployeeFieldClassName("date_of_first_appointment")}`}
+                    />
+                    {renderFieldError("date_of_first_appointment")}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="salary_structure">{requiredLabel("Salary Structure")}</Label>
+                    <Select
+                      value={newEmployee.salary_structure ?? ""}
+                      onValueChange={(value) => updateEmploymentField("salary_structure", value)}
+                    >
+                      <SelectTrigger id="salary_structure" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("salary_structure")}`}>
+                        <SelectValue placeholder="Select salary structure" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {salaryStructureOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {renderFieldError("salary_structure")}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="grade_level">{requiredLabel("Grade Level")}</Label>
+                    <Select
+                      value={newEmployee.grade_level ?? ""}
+                      onValueChange={(value) => updateEmploymentField("grade_level", value)}
+                      disabled={!newEmployee.salary_structure}
+                    >
+                      <SelectTrigger id="grade_level" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("grade_level")}`}>
+                        <SelectValue placeholder={newEmployee.salary_structure ? "Select grade level" : "Select salary structure first"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableGradeLevels.map((level) => (
+                          <SelectItem key={level.value} value={level.value}>
+                            {level.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {renderFieldError("grade_level")}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="step">{requiredLabel("Step")}</Label>
+                    <Select
+                      value={newEmployee.step ?? ""}
+                      onValueChange={(value) => updateEmploymentField("step", value)}
+                      disabled={!newEmployee.salary_structure || !newEmployee.grade_level}
+                    >
+                      <SelectTrigger id="step" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("step")}`}>
+                        <SelectValue
+                          placeholder={
+                            newEmployee.salary_structure
+                              ? newEmployee.grade_level
+                                ? "Select step"
+                                : "Select grade level first"
+                              : "Select salary structure first"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableStepOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {renderFieldError("step")}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="cadre">{requiredLabel("Cadre")}</Label>
+                    <Select
+                      value={derivedCadre || newEmployee.cadre || ""}
+                      onValueChange={(value) => updateEmploymentField("cadre", value)}
+                      disabled={!newEmployee.salary_structure || Boolean(derivedCadre)}
+                    >
+                      <SelectTrigger id="cadre" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("cadre")}`}>
+                        <SelectValue
+                          placeholder={
+                            !newEmployee.salary_structure
+                              ? "Select salary structure first"
+                              : derivedCadre
+                                ? "Auto-filled from grade level"
+                                : "Select cadre"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableCadreOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {renderFieldError("cadre")}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-green-200">
+              <CardContent className="pt-6">
+                <h3 className="text-lg font-semibold mb-4">Banking and Pension Information</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="bank_name">{requiredLabel("Bank Name")}</Label>
+                    <Select
+                      value={newEmployee.bank_name ?? ""}
+                      onValueChange={(value) => updateEmploymentField("bank_name", value)}
+                    >
+                      <SelectTrigger id="bank_name" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("bank_name")}`}>
+                        <SelectValue placeholder="Select bank" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[
+                          "Access Bank",
+                          "Zenith Bank",
+                          "First Bank",
+                          "UBA",
+                          "GTBank",
+                          "Fidelity Bank",
+                          "Union Bank",
+                          "Ecobank",
+                          "FCMB",
+                          "Sterling Bank",
+                        ].map((bank) => (
+                          <SelectItem key={bank} value={bank}>
+                            {bank}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {renderFieldError("bank_name")}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="account_number">{requiredLabel("Account Number")}</Label>
+                    <Input
+                      id="account_number"
+                      placeholder="Enter account number"
+                      value={newEmployee.account_number ?? ""}
+                      onChange={(e) => updateEmploymentField("account_number", e.target.value)}
+                      maxLength={10}
+                      className={addEmployeeFieldClassName("account_number")}
+                    />
+                    {renderFieldError("account_number")}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="nuban_account_number">{requiredLabel("NUBAN Account Number")}</Label>
+                    <Input
+                      id="nuban_account_number"
+                      placeholder="Enter NUBAN account number"
+                      value={newEmployee.nuban_account_number ?? ""}
+                      onChange={(e) => updateEmploymentField("nuban_account_number", e.target.value)}
+                      maxLength={10}
+                      className={addEmployeeFieldClassName("nuban_account_number")}
+                    />
+                    {renderFieldError("nuban_account_number")}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="pfa_name">{requiredLabel("PFA Name")}</Label>
+                    <Select
+                      value={newEmployee.pfa_name ?? ""}
+                      onValueChange={(value) => updateEmploymentField("pfa_name", value)}
+                    >
+                      <SelectTrigger id="pfa_name" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("pfa_name")}`}>
+                        <SelectValue placeholder="Select PFA" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[
+                          "ARM Pension",
+                          "Stanbic IBTC Pension",
+                          "Premium Pension",
+                          "Leadway Pensure",
+                          "FCMB Pensions",
+                          "Trustfund Pensions",
+                          "Sigma Pensions",
+                          "Crusader Sterling Pensions",
+                          "AIICO Pension",
+                          "NLPC Pension",
+                        ].map((pfa) => (
+                          <SelectItem key={pfa} value={pfa}>
+                            {pfa}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {renderFieldError("pfa_name")}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="rsapin">{requiredLabel("RSA PIN")}</Label>
+                    <Input
+                      id="rsapin"
+                      placeholder="Enter RSA PIN"
+                      value={newEmployee.rsapin ?? ""}
+                      onChange={(e) => updateEmploymentField("rsapin", e.target.value)}
+                      className={addEmployeeFieldClassName("rsapin")}
+                    />
+                    {renderFieldError("rsapin")}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-green-200">
+              <CardContent className="pt-6">
+                <h3 className="text-lg font-semibold mb-4">Educational Background and Certifications</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="educational_background">{requiredLabel("Educational Background")}</Label>
+                    <Textarea
+                      id="educational_background"
+                      placeholder="Enter educational background"
+                      value={newEmployee.educational_background ?? ""}
+                      onChange={(e) => updateEmploymentField("educational_background", e.target.value)}
+                      rows={4}
+                      className={addEmployeeFieldClassName("educational_background")}
+                    />
+                    {renderFieldError("educational_background")}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="certifications">{requiredLabel("Certifications")}</Label>
+                    <Textarea
+                      id="certifications"
+                      placeholder="Enter certifications"
+                      value={newEmployee.certifications ?? ""}
+                      onChange={(e) => updateEmploymentField("certifications", e.target.value)}
+                      rows={4}
+                      className={addEmployeeFieldClassName("certifications")}
+                    />
+                    {renderFieldError("certifications")}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <DialogFooter className="border-t pt-4">
               <Button
                 type="button"
@@ -2123,17 +3433,13 @@ export default function EmployeesContent() {
               </Button>
               <Button
                 type="submit"
-                disabled={addEmployeeMutation.isPending || !isAddEmployeeFormComplete}
+                disabled={addEmployeeMutation.isPending}
                 className={`${buttonHoverEnhancements} bg-green-700 hover:bg-green-800 hover:!bg-green-800`}
               >
                 {addEmployeeMutation.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                {addEmployeeMutation.isPending
-                  ? "Adding..."
-                  : isAddEmployeeFormComplete
-                    ? "Add Employee"
-                    : "Complete Required Fields"}
+                {addEmployeeMutation.isPending ? "Adding..." : "Add Employee"}
               </Button>
             </DialogFooter>
           </form>

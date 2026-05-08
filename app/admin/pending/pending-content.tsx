@@ -2662,6 +2662,32 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
     return value ? formatSimpleDate(value) : ""
   }
 
+  const readEmployeeFlexibleValue = (employee: Employee3, keys: string[], fallback = "N/A") => {
+    const metadata = readMetadata(employee)
+    const source = employee as unknown as Record<string, unknown>
+
+    for (const key of keys) {
+      const value = source[key] ?? metadata[key]
+      if (value === null || value === undefined) continue
+
+      if (typeof value === "string") {
+        const trimmed = value.trim()
+        if (trimmed) return trimmed
+      } else if (typeof value === "number" || typeof value === "boolean") {
+        return String(value)
+      } else if (Array.isArray(value)) {
+        const items = value
+          .map((item) => (typeof item === "string" ? item.trim() : String(item)))
+          .filter(Boolean)
+        if (items.length) return items.join(", ")
+      } else if (typeof value === "object") {
+        return JSON.stringify(value)
+      }
+    }
+
+    return fallback
+  }
+
   const readEmployeeMoney = (employee: Employee3, keys: string[]) => {
     const value = readEmployeeValue(employee, keys, "")
     if (!value) return ""
@@ -3543,8 +3569,10 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
               {selectedEmployee && (
                 <>
                   {renderDetailCard("Basic Information", <User className="h-5 w-5 text-primary" />, [
+                    { label: "Record ID", value: readEmployeeValue(selectedEmployee, ["id", "ID"], String(selectedEmployee.id ?? "")) },
                     { label: "First Name", value: readEmployeeValue(selectedEmployee, ["firstname", "first_name", "firstName", "FirstName"], selectedEmployee.firstname) },
                     { label: "Surname", value: readEmployeeValue(selectedEmployee, ["surname", "last_name", "lastName", "Surname"], selectedEmployee.surname) },
+                    { label: "Middle Name", value: readEmployeeValue(selectedEmployee, ["Middle Name", "middle_name", "middleName", "middlename", "MiddleName"]) },
                     { label: "Other Names", value: readEmployeeValue(selectedEmployee, ["Other Names", "other_names", "otherNames", "other_name"]) },
                     { label: "Title", value: readEmployeeValue(selectedEmployee, ["Title", "title"]) },
                     { label: "Gender", value: readEmployeeValue(selectedEmployee, ["Gender", "gender"]) },
@@ -3578,8 +3606,8 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
                   {renderDetailCard("Salary & Grade Information", <DollarSign className="h-5 w-5 text-primary" />, [
                     { label: "Salary", value: readEmployeeMoney(selectedEmployee, ["Salary", "salary", "basic_salary", "salary_amount"]) },
                     { label: "Salary Structure", value: readEmployeeValue(selectedEmployee, ["Salary Structure", "salary_structure", "salaryStructure"]) },
-                    { label: "GL", value: readEmployeeValue(selectedEmployee, ["GL", "gl", "grade_level"]) },
-                    { label: "Step", value: readEmployeeValue(selectedEmployee, ["Step", "step"]) },
+                    { label: "Grade Level", value: readEmployeeValue(selectedEmployee, ["Grade Level", "grade_level", "GradeLevel", "GL", "gl"]) },
+                    { label: "Step", value: readEmployeeValue(selectedEmployee, ["step", "Step"]) },
                     { label: "Payment Method", value: readEmployeeValue(selectedEmployee, ["Payment Method", "payment_method", "paymentMethod"]) },
                   ])}
 
@@ -3613,10 +3641,11 @@ export function PendingContent({ onRefresh }: PendingContentProps) {
 
                   {renderDetailCard("System Information", <Server className="h-5 w-5 text-primary" />, [
                     { label: "Status", value: selectedEmployee.status ? getStatusBadge(selectedEmployee.status) : null, badge: true },
-                    { label: "Source", value: selectedEmployee.source || "" },
-                    { label: "Submission Date", value: formatDate(selectedEmployee.submission_date) },
-                    { label: "Created At", value: formatDate(selectedEmployee.created_at) },
-                    { label: "Updated At", value: formatDate(selectedEmployee.updated_at) },
+                    { label: "Source", value: readEmployeeFlexibleValue(selectedEmployee, ["source", "Source"]) },
+                    { label: "Submission Date", value: formatDate(readEmployeeFlexibleValue(selectedEmployee, ["submission_date", "submissionDate"], "")) || "N/A" },
+                    { label: "Created At", value: formatDate(readEmployeeFlexibleValue(selectedEmployee, ["created_at", "createdAt"], "")) || "N/A" },
+                    { label: "Updated At", value: formatDate(readEmployeeFlexibleValue(selectedEmployee, ["updated_at", "updatedAt"], "")) || "N/A" },
+                    { label: "Missing Fields", value: readEmployeeFlexibleValue(selectedEmployee, ["missing_fields", "missingFields"], "N/A") },
                   ])}
                 </>
               )}
