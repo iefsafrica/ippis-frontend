@@ -3,7 +3,48 @@ import type { PayslipPayment } from "./payslip-dialog"
 const PAGE_WIDTH = 595.28
 const PAGE_HEIGHT = 841.89
 const MARGIN = 36
-const NA = "N/A"
+const EMPTY_VALUE = ""
+
+type PdfImageResource = {
+  bytes: Uint8Array
+  width: number
+  height: number
+}
+
+const bytesToHex = (bytes: Uint8Array) => {
+  let output = ""
+  for (let index = 0; index < bytes.length; index += 1) {
+    output += bytes[index].toString(16).padStart(2, "0")
+  }
+  return output
+}
+
+const loadPdfImageResource = async (source: string) => {
+  if (typeof window === "undefined") return null
+
+  try {
+    const response = await fetch(source, { credentials: "same-origin" })
+    if (!response.ok) return null
+
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    const blobUrl = URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }))
+
+    try {
+      const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+        const image = new Image()
+        image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight })
+        image.onerror = () => reject(new Error(`Failed to load image: ${source}`))
+        image.src = blobUrl
+      })
+
+      return { bytes, width: dimensions.width, height: dimensions.height }
+    } finally {
+      URL.revokeObjectURL(blobUrl)
+    }
+  } catch {
+    return null
+  }
+}
 
 const escapePdfText = (text: string) =>
   String(text)
@@ -15,7 +56,7 @@ const escapePdfText = (text: string) =>
 
 const formatPdfCurrency = (value?: string | number) => {
   const amount = typeof value === "string" ? Number.parseFloat(value) : value
-  if (amount == null || Number.isNaN(amount)) return NA
+  if (amount == null || Number.isNaN(amount)) return EMPTY_VALUE
 
   return `NGN ${new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 2,
@@ -24,9 +65,9 @@ const formatPdfCurrency = (value?: string | number) => {
 }
 
 const formatPdfDate = (value?: string | Date | null) => {
-  if (!value) return NA
+  if (!value) return EMPTY_VALUE
   const date = value instanceof Date ? value : new Date(value)
-  if (Number.isNaN(date.getTime())) return NA
+  if (Number.isNaN(date.getTime())) return EMPTY_VALUE
 
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
@@ -38,9 +79,9 @@ const formatPdfDate = (value?: string | Date | null) => {
 }
 
 const formatPdfMonth = (value?: string | Date | null) => {
-  if (!value) return NA
+  if (!value) return EMPTY_VALUE
   const date = value instanceof Date ? value : new Date(value)
-  if (Number.isNaN(date.getTime())) return NA
+  if (Number.isNaN(date.getTime())) return EMPTY_VALUE
 
   return new Intl.DateTimeFormat("en-GB", {
     month: "long",
@@ -58,15 +99,7 @@ const sanitizeFilename = (value: string) =>
     .replace(/^_|_$/g, "")
 
 const safeValue = (value?: string | number | null) =>
-  value != null && `${value}`.trim() !== "" ? `${value}` : NA
-
-const bytesToHex = (bytes: Uint8Array) => {
-  let output = ""
-  for (let i = 0; i < bytes.length; i += 1) {
-    output += bytes[i].toString(16).padStart(2, "0")
-  }
-  return output
-}
+  value != null && `${value}`.trim() !== "" ? `${value}` : EMPTY_VALUE
 
 const normalizeRecord = (value: Record<string, unknown> | string | null | undefined) => {
   if (!value) return {}
@@ -110,7 +143,7 @@ const getValue = (payment: PayslipPayment, keys: string[]) => {
     if (metadataValue != null && `${metadataValue}`.trim() !== "") return `${metadataValue}`
   }
 
-  return NA
+  return EMPTY_VALUE
 }
 
 const calculateEarnings = (grossAmount: number) => {
@@ -163,62 +196,41 @@ const buildPdfDocumentFromObjects = (sourceObjects: string[]) => {
   return new TextEncoder().encode(pdf)
 }
 
-const buildPdfDocument = (content: string) =>
-  buildPdfDocumentFromObjects([
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
-    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
-    `<< /Type /Page /Parent 5 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 3 0 R >>`,
-    `<< /Type /Pages /Kids [4 0 R] /Count 1 >>`,
-    `<< /Type /Catalog /Pages 5 0 R >>`,
-  ])
+const buildPdfDocument = (content: string, coatOfArms: PdfImageResource | null) => {
+  const objects: string[] = []
 
-type PdfImageResource = {
-  bytes: Uint8Array
-  width: number
-  height: number
-}
-
-const loadPdfImageResource = async (source: string): Promise<PdfImageResource | null> => {
-  if (typeof window === "undefined") return null
-
-  try {
-    const response = await fetch(source, { credentials: "same-origin" })
-    if (!response.ok) return null
-
-    const bytes = new Uint8Array(await response.arrayBuffer())
-    const blobUrl = URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }))
-    try {
-      const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
-        const image = new Image()
-        image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight })
-        image.onerror = () => reject(new Error(`Failed to load PDF image: ${source}`))
-        image.src = blobUrl
-      })
-
-      return { bytes, width: dimensions.width, height: dimensions.height }
-    } finally {
-      URL.revokeObjectURL(blobUrl)
-    }
-  } catch {
-    return null
+  const pushObject = (body: string) => {
+    objects.push(body)
+    return objects.length
   }
-}
 
-const buildBrandedPdfDocument = (content: string, logo: PdfImageResource | null) => {
-  if (!logo) return buildPdfDocument(content)
+  const fontRegular = pushObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
+  const fontBold = pushObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>")
 
-  return buildPdfDocumentFromObjects([
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
-    `<< /Type /XObject /Subtype /Image /Width ${logo.width} /Height ${logo.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter [ /ASCIIHexDecode /DCTDecode ] /Length ${
-      logo.bytes.length * 2 + 1
-    } >>\nstream\n${bytesToHex(logo.bytes)}>\nendstream`,
-    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
-    `<< /Type /Page /Parent 6 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> /XObject << /Im0 3 0 R >> >> /Contents 4 0 R >>`,
-    `<< /Type /Pages /Kids [5 0 R] /Count 1 >>`,
-    `<< /Type /Catalog /Pages 6 0 R >>`,
-  ])
+  const imageObject = coatOfArms
+    ? pushObject(
+        (() => {
+          const imageHex = bytesToHex(coatOfArms.bytes)
+          return `<< /Type /XObject /Subtype /Image /Width ${coatOfArms.width} /Height ${coatOfArms.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter [ /ASCIIHexDecode /DCTDecode ] /Length ${
+            imageHex.length + 1
+          } >>\nstream\n${imageHex}>\nendstream`
+        })(),
+      )
+    : null
+
+  const contentObject = pushObject(`<< /Length ${new TextEncoder().encode(`${content}\n`).length} >>\nstream\n${content}\nendstream`)
+  const pageObject = pushObject("<< /Type /Page /Parent 0 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 0 0 R /F2 0 0 R >> >> /Contents 0 0 R >>")
+  const pagesObject = pushObject("<< /Type /Pages /Kids [] /Count 0 >>")
+  pushObject(`<< /Type /Catalog /Pages ${pagesObject} 0 R >>`)
+
+  const resources = imageObject
+    ? `<< /Font << /F1 ${fontRegular} 0 R /F2 ${fontBold} 0 R >> /XObject << /Im0 ${imageObject} 0 R >> >>`
+    : `<< /Font << /F1 ${fontRegular} 0 R /F2 ${fontBold} 0 R >> >>`
+
+  objects[pageObject - 1] = `<< /Type /Page /Parent ${pagesObject} 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Resources ${resources} /Contents ${contentObject} 0 R >>`
+  objects[pagesObject - 1] = `<< /Type /Pages /Kids [${pageObject} 0 R] /Count 1 >>`
+
+  return buildPdfDocumentFromObjects(objects)
 }
 
 const drawText = (
@@ -241,6 +253,37 @@ const drawText = (
   }
 
   commands.push(`BT /${font} ${size} Tf 1 0 0 1 ${drawX.toFixed(2)} ${y.toFixed(2)} Tm (${safeText}) Tj ET`)
+}
+
+const drawImage = (
+  commands: string[],
+  _image: PdfImageResource,
+  centerX: number,
+  centerY: number,
+  width: number,
+  height: number,
+) => {
+  const leftX = centerX - width / 2
+  const bottomY = centerY - height / 2
+  const radius = Math.min(width, height) / 2
+  const kappa = 0.5522847498
+  const offset = radius * kappa
+  const top = centerY + radius
+  const right = centerX + radius
+  const bottom = centerY - radius
+  const left = centerX - radius
+  const circlePath = [
+    `${left.toFixed(2)} ${centerY.toFixed(2)} m`,
+    `${left.toFixed(2)} ${(centerY + offset).toFixed(2)} ${(centerX - offset).toFixed(2)} ${top.toFixed(2)} ${centerX.toFixed(2)} ${top.toFixed(2)} c`,
+    `${(centerX + offset).toFixed(2)} ${top.toFixed(2)} ${right.toFixed(2)} ${(centerY + offset).toFixed(2)} ${right.toFixed(2)} ${centerY.toFixed(2)} c`,
+    `${right.toFixed(2)} ${(centerY - offset).toFixed(2)} ${(centerX + offset).toFixed(2)} ${bottom.toFixed(2)} ${centerX.toFixed(2)} ${bottom.toFixed(2)} c`,
+    `${(centerX - offset).toFixed(2)} ${bottom.toFixed(2)} ${left.toFixed(2)} ${(centerY - offset).toFixed(2)} ${left.toFixed(2)} ${centerY.toFixed(2)} c`,
+  ]
+
+  commands.push("q")
+  commands.push(`${circlePath.join("\n")} W n`)
+  commands.push(`${width.toFixed(2)} 0 0 ${height.toFixed(2)} ${leftX.toFixed(2)} ${bottomY.toFixed(2)} cm /Im0 Do`)
+  commands.push("Q")
 }
 
 const drawLine = (commands: string[], x1: number, y1: number, x2: number, y2: number) => {
@@ -271,7 +314,7 @@ const drawRect = (
 
 const wrapText = (text: string, maxChars: number) => {
   const value = String(text ?? "").trim()
-  if (!value) return [NA]
+  if (!value) return [EMPTY_VALUE]
 
   const words = value.split(/\s+/)
   const lines: string[] = []
@@ -362,43 +405,42 @@ export const downloadPayslipPdf = async (payment: PayslipPayment, _previewElemen
   const payslipDateValue = payment?.created_at ?? payment?.createdAt ?? paymentDateValue ?? payment?.month
   const payPeriod = payment?.month ? payment.month.toString().toUpperCase() : formatPdfMonth(paymentDateValue)
   const organization = safeValue(getValue(payment, ["organization", "Organization", "department", "command"]))
-  const logo = await loadPdfImageResource("/images/ippis-logo.jpeg")
+  const coatOfArms = await loadPdfImageResource("/images/coat-of-arms.jpg")
 
   const commands: string[] = ["0 0 0 RG", "0 0 0 rg"]
   let y = PAGE_HEIGHT - MARGIN
 
-  drawRect(commands, MARGIN, y, PAGE_WIDTH - MARGIN * 2, 72, [10, 68, 52])
+  drawRect(commands, MARGIN, y, PAGE_WIDTH - MARGIN * 2, 92, [10, 68, 52])
 
-  if (logo) {
-    const logoWidth = 34
-    const logoHeight = 34
-    commands.push(
-      `q ${logoWidth.toFixed(2)} 0 0 ${logoHeight.toFixed(2)} ${(MARGIN + 14).toFixed(2)} ${(y - 50).toFixed(2)} cm /Im0 Do Q`,
-    )
+  if (coatOfArms) {
+    drawImage(commands, coatOfArms, PAGE_WIDTH / 2, y - 18, 52, 52)
   }
 
   commands.push("1 1 1 rg", "1 1 1 RG")
-  drawText(commands, organization, MARGIN + 58, y - 20, { size: 14, bold: true })
-  drawText(commands, "EMPLOYEE PAYSLIP", MARGIN + 58, y - 36, { size: 11, bold: true })
-  drawText(commands, `Payslip Month: ${payPeriod}`, PAGE_WIDTH - MARGIN - 12, y - 18, {
-    size: 9,
+  const headerTitleY = y - 60
+  const headerSubtitleY = y - 80
+  drawText(commands, organization, PAGE_WIDTH / 2, headerTitleY, { size: 13, bold: true, align: "center" })
+  drawText(commands, "EMPLOYEE PAYSLIP", PAGE_WIDTH / 2, headerSubtitleY, { size: 11, bold: true, align: "center" })
+  drawText(commands, `Payslip Month: ${payPeriod}`, PAGE_WIDTH - MARGIN - 12, y - 34, {
+    size: 8,
     bold: true,
     align: "right",
   })
-  drawText(commands, `Payslip ID: ${safeValue(payment?.payment_id ?? payment?.id)}`, PAGE_WIDTH - MARGIN - 12, y - 32, {
-    size: 9,
+  drawText(commands, `Payslip ID: ${safeValue(payment?.payment_id ?? payment?.id)}`, PAGE_WIDTH - MARGIN - 12, y - 48, {
+    size: 8,
     bold: true,
     align: "right",
   })
-  drawText(commands, `Status: ${paymentStatus}`, PAGE_WIDTH - MARGIN - 12, y - 46, {
+  drawText(commands, `Status: ${paymentStatus}`, PAGE_WIDTH - MARGIN - 12, y - 62, {
     size: 8,
     bold: true,
     align: "right",
   })
   commands.push("0 0 0 rg", "0 0 0 RG")
-  y -= 92
+  y -= 112
 
   y = drawSectionTitle(commands, "Employee Details", y)
+
   const details = [
     ["Employee Name", getValue(payment, ["employee_name", "name", "FirstName"]), "Grade", getValue(payment, ["grade", "Grade Level", "grade_level"])],
     ["Employee ID", getValue(payment, ["employee_id", "Employment ID No", "employment_id_no"]), "Step", getValue(payment, ["step", "Step"])],
@@ -443,7 +485,7 @@ export const downloadPayslipPdf = async (payment: PayslipPayment, _previewElemen
   drawText(commands, `Payment Date: ${formatPdfDate(paymentDateValue)}`, PAGE_WIDTH / 2, y, { size: 7, align: "center" })
   drawText(commands, `Payslip Date: ${formatPdfDate(payslipDateValue)}`, PAGE_WIDTH - MARGIN, y, { size: 7, align: "right" })
 
-  const pdfBytes = buildPdfDocument(commands.join("\n"))
+  const pdfBytes = buildPdfDocument(commands.join("\n"), coatOfArms)
   const blob = new Blob([pdfBytes], { type: "application/pdf" })
   const url = URL.createObjectURL(blob)
 

@@ -194,23 +194,39 @@ export function PayslipDialog({ payment, open, onClose }: PayslipDialogProps) {
             </header>
 
             <section className="grid gap-3 border-b border-slate-200 pb-6 text-sm text-slate-700">
-              {detailRows(payment).map((row) => (
-                <div
-                  key={`${row.leftLabel}-${row.rightLabel}`}
-                  className="grid grid-cols-[190px_minmax(0,1fr)_140px_minmax(0,1fr)] items-center gap-8"
-                >
-                  <span className="payslip-normal text-[0.65rem] uppercase tracking-[0.35em] text-slate-500">
-                    {row.leftLabel}
-                  </span>
-                  <span className="payslip-normal text-sm font-semibold text-slate-900">{row.leftValue}</span>
-                  <span className="payslip-normal text-[0.65rem] uppercase tracking-[0.35em] text-slate-500 text-right">
-                    {row.rightLabel}
-                  </span>
-                  <span className="payslip-normal text-sm font-semibold text-slate-900 text-right">
-                    {row.rightValue}
-                  </span>
-                </div>
-              ))}
+              <div className="grid grid-cols-[190px_minmax(0,1fr)_140px_minmax(0,1fr)] items-center gap-8">
+                <span className="payslip-normal text-[0.65rem] uppercase tracking-[0.35em] text-slate-500">
+                  Status
+                </span>
+                <span className="payslip-normal text-sm font-semibold text-slate-900">
+                  {payment.status ?? payment.payment_status ?? "Pending"}
+                </span>
+                <span className="payslip-normal text-[0.65rem] uppercase tracking-[0.35em] text-slate-500 text-right">
+                  Tax State
+                </span>
+                <span className="payslip-normal text-sm font-semibold text-slate-900 text-right">
+                  {payment.tax_state ?? "ONDO"}
+                </span>
+              </div>
+              {detailRows(payment)
+                .filter((row) => row.leftLabel !== "MD/School/Command")
+                .map((row) => (
+                  <div
+                    key={`${row.leftLabel}-${row.rightLabel}`}
+                    className="grid grid-cols-[190px_minmax(0,1fr)_140px_minmax(0,1fr)] items-center gap-8"
+                  >
+                    <span className="payslip-normal text-[0.65rem] uppercase tracking-[0.35em] text-slate-500">
+                      {row.leftLabel}
+                    </span>
+                    <span className="payslip-normal text-sm font-semibold text-slate-900">{row.leftValue}</span>
+                    <span className="payslip-normal text-[0.65rem] uppercase tracking-[0.35em] text-slate-500 text-right">
+                      {row.rightLabel}
+                    </span>
+                    <span className="payslip-normal text-sm font-semibold text-slate-900 text-right">
+                      {row.rightValue}
+                    </span>
+                  </div>
+                ))}
             </section>
 
             <section className="grid gap-3 border-b border-slate-200 pb-6 text-sm text-slate-700">
