@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyNIN } from "@/lib/verification-service";
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const nin = typeof body?.nin === "string" ? body.nin : "";
-  const isVerified = nin.length === 11 && !Number.isNaN(Number(nin));
+  const result = await verifyNIN(nin);
 
   return NextResponse.json({
-    success: true,
-    message: isVerified
-      ? "NIN validated successfully."
-      : "NIN cannot be validated right now.",
+    success: result.verified,
+    message: result.message,
+    status: result.status,
+    error: result.error,
+    verified: result.verified,
     data: {
       nin,
-      verified: isVerified,
+      verified: result.verified,
+      ...(result.data ?? {}),
     },
   });
 }

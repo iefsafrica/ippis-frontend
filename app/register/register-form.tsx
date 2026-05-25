@@ -257,6 +257,73 @@ export default function RegisterForm() {
     }
   }, [registrationIdConfirmed, registrationId, manualRegistrationIdInput]);
 
+  const normalizeVerifiedNinData = useCallback(
+    (data: VerifyNinData | null, fallbackNin: string) => {
+      if (!data) {
+        return {};
+      }
+
+      const splitName = (value?: string) => {
+        if (!value) return { firstName: "", surname: "", otherNames: "" };
+        const parts = value.trim().split(/\s+/);
+        return {
+          firstName: parts[0] || "",
+          surname: parts.length > 1 ? parts[parts.length - 1] : "",
+          otherNames: parts.length > 2 ? parts.slice(1, -1).join(" ") : "",
+        };
+      };
+
+      const nameParts = splitName(data.firstname);
+
+      return {
+        nin: data.nin || fallbackNin,
+        ninVerified: Boolean(data.verified),
+        title: data.title || "",
+        firstName: data.firstname || nameParts.firstName || "",
+        surname: data.surname || nameParts.surname || "",
+        otherNames: data.othername || nameParts.otherNames || "",
+        phoneNumber: data.telephoneno || "",
+        email: data.email || "",
+        dateOfBirth: data.birthdate || "",
+        sex:
+          data.gender === "m"
+            ? "male"
+            : data.gender === "f"
+              ? "female"
+              : "",
+        maritalStatus: data.maritalstatus || "",
+        stateOfOrigin: data.state_of_origin || "",
+        lga: data.birthlga || "",
+        stateOfResidence: data.residence_state || "",
+        addressStateOfResidence: data.address || "",
+        nextOfKinName:
+          data.nok_firstname && data.nok_surname
+            ? `${data.nok_firstname} ${data.nok_surname}`.trim()
+            : "",
+        nextOfKinRelationship: data.nok_relationship || "",
+        nextOfKinAddress: data.nok_address1 || "",
+      };
+    },
+    []
+  );
+
+  const applyVerifiedNinData = useCallback(
+    (data: VerifyNinData | null, fallbackNin: string) => {
+      if (!data) return;
+
+      setFormData((prev) => {
+        const normalized = normalizeVerifiedNinData(data, fallbackNin);
+        return {
+          ...prev,
+          ...Object.fromEntries(
+            Object.entries(normalized).filter(([, value]) => value !== "" && value !== null && value !== undefined)
+          ),
+        };
+      });
+    },
+    [normalizeVerifiedNinData]
+  );
+
   const handleVerificationSubmit = async (verificationData: any) => {
     setError("");
     setFormData((prev) => ({
@@ -281,6 +348,13 @@ export default function RegisterForm() {
     } else {
       console.warn("Verification response did not provide a registration_id", verificationData);
     }
+
+    const verifiedPayload =
+      verificationData.verifiedNIN ||
+      verificationData.verifiedNin ||
+      verificationData.data ||
+      null;
+    applyVerifiedNinData(verifiedPayload, verificationData.nin || formData.nin);
 
     if (!verificationData.manualVerification) {
       setSuccess("Verification successful.");

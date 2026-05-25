@@ -1,99 +1,148 @@
 "use client"
 
 import { useState } from "react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
+import { Switch } from "@/components/ui/switch"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Save, CheckCircle, AlertCircle, RefreshCw } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-// Import the HelpCleanupButton component
+import { useUpdateAdvancedSettings, useUpdateAppearanceSettings, useUpdateEmailSettings, useUpdateSettings } from "@/services/hooks/settings"
+import type { SettingsFormState } from "@/types/settings"
+import { DEFAULT_SETTINGS_FORM_STATE } from "@/types/settings"
+import { AlertCircle, CheckCircle, Loader2, RefreshCw, Save } from "lucide-react"
 import { HelpCleanupButton } from "./help-cleanup-button"
 import { MigratePendingTableButton } from "./migrate-pending-table-button"
-import { RemoveNameColumnButton } from "./remove-name-column-button"
 import { RearrangeColumnsButton } from "./rearrange-columns-button"
-import { Separator } from "@/components/ui/separator"
+import { RemoveNameColumnButton } from "./remove-name-column-button"
 
 interface SettingsProps {
-  initialSettings?: any
+  initialSettings?: Partial<SettingsFormState>
 }
 
-export function SettingsContent({ initialSettings = {} }: SettingsProps) {
-  const [settings, setSettings] = useState({
-    emailNotifications: initialSettings.emailNotifications ?? true,
-    systemNotifications: initialSettings.systemNotifications ?? true,
-    documentVerificationMode: initialSettings.documentVerificationMode ?? "manual",
-    systemName: initialSettings.systemName ?? "IPPIS Admin Portal",
-    systemLogo: initialSettings.systemLogo ?? "",
-    systemTheme: initialSettings.systemTheme ?? "light",
-    systemLanguage: initialSettings.systemLanguage ?? "en",
-    systemTimezone: initialSettings.systemTimezone ?? "Africa/Lagos",
-    systemDateFormat: initialSettings.systemDateFormat ?? "DD/MM/YYYY",
-    systemTimeFormat: initialSettings.systemTimeFormat ?? "HH:mm",
-    systemCurrency: initialSettings.systemCurrency ?? "NGN",
-    systemDecimalSeparator: initialSettings.systemDecimalSeparator ?? ".",
-    systemThousandSeparator: initialSettings.systemThousandSeparator ?? ",",
-  })
+type SaveSection = "general" | "notifications" | "email" | "appearance" | "advanced"
 
+const mergeSettings = (settings?: Partial<SettingsFormState>): SettingsFormState => ({
+  ...DEFAULT_SETTINGS_FORM_STATE,
+  ...(settings ?? {}),
+})
+
+export function SettingsContent({ initialSettings }: SettingsProps) {
+  const [settings, setSettings] = useState<SettingsFormState>(() => mergeSettings(initialSettings))
   const [testEmailAddress, setTestEmailAddress] = useState("")
-  const [saving, setSaving] = useState(false)
+  const [savingSection, setSavingSection] = useState<SaveSection | null>(null)
   const [testingEmail, setTestingEmail] = useState(false)
   const [emailTestResult, setEmailTestResult] = useState<{
     success?: boolean
     message?: string
     error?: string
-    details?: any
+    details?: { to?: string; from?: string; subject?: string }
   } | null>(null)
   const { toast } = useToast()
 
-  const handleChange = (field: string, value: any) => {
+  const updateSettingsMutation = useUpdateSettings()
+  const updateAdvancedMutation = useUpdateAdvancedSettings()
+  const updateAppearanceMutation = useUpdateAppearanceSettings()
+  const updateEmailMutation = useUpdateEmailSettings()
+
+  const handleChange = <K extends keyof SettingsFormState>(field: K, value: SettingsFormState[K]) => {
     setSettings((prev) => ({
       ...prev,
       [field]: value,
     }))
   }
 
-  const handleSave = async () => {
-    setSaving(true)
+  const handleSaveGeneral = async () => {
+    setSavingSection("general")
     try {
-      const response = await fetch("/api/admin/settings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...settings,
-          updatedBy: "admin", // Add the updatedBy field required by the API
-        }),
+      await updateSettingsMutation.mutateAsync({
+        systemName: settings.systemName,
+        systemLogo: settings.systemLogo,
+        systemLanguage: settings.systemLanguage,
+        systemTimezone: settings.systemTimezone,
+        updatedBy: "admin",
       })
-
-      if (!response.ok) {
-        throw new Error(`Failed to save settings: ${response.status}`)
-      }
-
-      const data = await response.json()
-
-      if (data.success) {
-        toast({
-          title: "Settings saved",
-          description: "Your settings have been saved successfully.",
-        })
-      } else {
-        throw new Error(data.error || "Failed to save settings")
-      }
-    } catch (error) {
-      console.error("Error saving settings:", error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save settings",
-        variant: "destructive",
-      })
+    } catch {
+      // Error toast is handled by the mutation hook.
     } finally {
-      setSaving(false)
+      setSavingSection(null)
+    }
+  }
+
+  const handleSaveNotifications = async () => {
+    setSavingSection("notifications")
+    try {
+      await updateSettingsMutation.mutateAsync({
+        emailNotifications: settings.emailNotifications,
+        systemNotifications: settings.systemNotifications,
+        updatedBy: "admin",
+      })
+    } catch {
+      // Error toast is handled by the mutation hook.
+    } finally {
+      setSavingSection(null)
+    }
+  }
+
+  const handleSaveAdvanced = async () => {
+    setSavingSection("advanced")
+    try {
+      await updateAdvancedMutation.mutateAsync({
+        documentVerificationMode: settings.documentVerificationMode,
+        systemDateFormat: settings.systemDateFormat,
+        systemTimeFormat: settings.systemTimeFormat,
+        systemCurrency: settings.systemCurrency,
+        systemDecimalSeparator: settings.systemDecimalSeparator,
+        systemThousandSeparator: settings.systemThousandSeparator,
+        debugMode: settings.debugMode,
+        maintenanceMode: settings.maintenanceMode,
+        updatedBy: "admin",
+      })
+    } catch {
+      // Error toast is handled by the mutation hook.
+    } finally {
+      setSavingSection(null)
+    }
+  }
+
+  const handleSaveAppearance = async () => {
+    setSavingSection("appearance")
+    try {
+      await updateAppearanceMutation.mutateAsync({
+        systemTheme: settings.systemTheme,
+        primaryColor: settings.primaryColor,
+        secondaryColor: settings.secondaryColor,
+        fontFamily: settings.fontFamily,
+        updatedBy: "admin",
+      })
+    } catch {
+      // Error toast is handled by the mutation hook.
+    } finally {
+      setSavingSection(null)
+    }
+  }
+
+  const handleSaveEmail = async () => {
+    setSavingSection("email")
+    try {
+      await updateEmailMutation.mutateAsync({
+        emailServer: settings.emailServer,
+        emailPort: settings.emailPort,
+        emailUsername: settings.emailUsername,
+        emailPassword: settings.emailPassword,
+        emailFrom: settings.emailFrom,
+        emailReplyTo: settings.emailReplyTo,
+        emailTemplate: settings.emailTemplate,
+        updatedBy: "admin",
+      })
+    } catch {
+      // Error toast is handled by the mutation hook.
+    } finally {
+      setSavingSection(null)
     }
   }
 
@@ -157,6 +206,8 @@ export function SettingsContent({ initialSettings = {} }: SettingsProps) {
     setEmailTestResult(null)
   }
 
+  const isSaving = (section: SaveSection) => savingSection === section
+
   return (
     <div className="space-y-6">
       <div>
@@ -165,7 +216,7 @@ export function SettingsContent({ initialSettings = {} }: SettingsProps) {
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList>
+        <TabsList className="flex flex-wrap gap-2">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="email">Email</TabsTrigger>
@@ -177,9 +228,9 @@ export function SettingsContent({ initialSettings = {} }: SettingsProps) {
           <Card>
             <CardHeader>
               <CardTitle>General Settings</CardTitle>
-              <CardDescription>Configure general system settings.</CardDescription>
+              <CardDescription>Configure the basic identity and locale settings for the system.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="systemName">System Name</Label>
                 <Input
@@ -232,8 +283,8 @@ export function SettingsContent({ initialSettings = {} }: SettingsProps) {
               </div>
             </CardContent>
             <CardFooter>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              <Button onClick={handleSaveGeneral} disabled={isSaving("general")}>
+                {isSaving("general") ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Save Changes
               </Button>
             </CardFooter>
@@ -244,10 +295,10 @@ export function SettingsContent({ initialSettings = {} }: SettingsProps) {
           <Card>
             <CardHeader>
               <CardTitle>Notification Settings</CardTitle>
-              <CardDescription>Configure how you receive notifications.</CardDescription>
+              <CardDescription>Configure how the platform notifies users and administrators.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-6 rounded-lg border p-4">
                 <div>
                   <Label htmlFor="emailNotifications">Email Notifications</Label>
                   <p className="text-sm text-muted-foreground">Receive notifications via email.</p>
@@ -258,7 +309,7 @@ export function SettingsContent({ initialSettings = {} }: SettingsProps) {
                   onCheckedChange={(checked) => handleChange("emailNotifications", checked)}
                 />
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-6 rounded-lg border p-4">
                 <div>
                   <Label htmlFor="systemNotifications">System Notifications</Label>
                   <p className="text-sm text-muted-foreground">Receive notifications within the system.</p>
@@ -271,8 +322,12 @@ export function SettingsContent({ initialSettings = {} }: SettingsProps) {
               </div>
             </CardContent>
             <CardFooter>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              <Button onClick={handleSaveNotifications} disabled={isSaving("notifications")}>
+                {isSaving("notifications") ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
                 Save Changes
               </Button>
             </CardFooter>
@@ -283,12 +338,99 @@ export function SettingsContent({ initialSettings = {} }: SettingsProps) {
           <Card>
             <CardHeader>
               <CardTitle>Email Settings</CardTitle>
-              <CardDescription>Configure email server settings.</CardDescription>
+              <CardDescription>Configure the SMTP connection used for outgoing email.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="emailServer">Email Server</Label>
+                <Input
+                  id="emailServer"
+                  value={settings.emailServer}
+                  onChange={(e) => handleChange("emailServer", e.target.value)}
+                  placeholder="smtp.company.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="emailPort">Email Port</Label>
+                <Input
+                  id="emailPort"
+                  value={settings.emailPort}
+                  onChange={(e) => handleChange("emailPort", e.target.value)}
+                  placeholder="587"
+                  inputMode="numeric"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="emailUsername">Email Username</Label>
+                <Input
+                  id="emailUsername"
+                  value={settings.emailUsername}
+                  onChange={(e) => handleChange("emailUsername", e.target.value)}
+                  placeholder="admin@company.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="emailPassword">Email Password</Label>
+                <Input
+                  id="emailPassword"
+                  type="password"
+                  value={settings.emailPassword}
+                  onChange={(e) => handleChange("emailPassword", e.target.value)}
+                  placeholder="••••••••"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="emailFrom">Email From</Label>
+                <Input
+                  id="emailFrom"
+                  value={settings.emailFrom}
+                  onChange={(e) => handleChange("emailFrom", e.target.value)}
+                  placeholder="noreply@company.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="emailReplyTo">Reply-To Email</Label>
+                <Input
+                  id="emailReplyTo"
+                  value={settings.emailReplyTo}
+                  onChange={(e) => handleChange("emailReplyTo", e.target.value)}
+                  placeholder="support@company.com"
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="emailTemplate">Email Template</Label>
+                <Select
+                  value={settings.emailTemplate}
+                  onValueChange={(value) => handleChange("emailTemplate", value)}
+                >
+                  <SelectTrigger id="emailTemplate">
+                    <SelectValue placeholder="Select template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">Default</SelectItem>
+                    <SelectItem value="modern">Modern</SelectItem>
+                    <SelectItem value="compact">Compact</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-wrap gap-3">
+              <Button onClick={handleSaveEmail} disabled={isSaving("email")}>
+                {isSaving("email") ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save Email Settings
+              </Button>
+            </CardFooter>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Test Email Configuration</CardTitle>
+              <CardDescription>Send a test email to verify the SMTP settings above.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="testEmail">Test Email Configuration</Label>
-                <div className="flex space-x-2">
+                <Label htmlFor="testEmail">Test Email Address</Label>
+                <div className="flex flex-col gap-2 md:flex-row">
                   <Input
                     id="testEmail"
                     type="email"
@@ -301,17 +443,15 @@ export function SettingsContent({ initialSettings = {} }: SettingsProps) {
                     {testingEmail ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Send Test"}
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Send a test email to verify your email configuration.
-                </p>
+                <p className="text-xs text-muted-foreground">Send a test email to verify the configuration.</p>
               </div>
 
               {emailTestResult && (
                 <div className="mt-4">
                   {emailTestResult.success ? (
-                    <Alert className="bg-green-50 border-green-200">
+                    <Alert className="border-green-200 bg-green-50">
                       <CheckCircle className="h-4 w-4 text-green-600" />
-                      <AlertTitle className="text-green-800">Success!</AlertTitle>
+                      <AlertTitle className="text-green-800">Success</AlertTitle>
                       <AlertDescription className="text-green-700">
                         {emailTestResult.message}
                         {emailTestResult.details && (
@@ -325,7 +465,7 @@ export function SettingsContent({ initialSettings = {} }: SettingsProps) {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="mt-2 text-green-700 border-green-300 hover:bg-green-100"
+                        className="mt-3 text-green-700 border-green-300 hover:bg-green-100"
                         onClick={resetEmailTest}
                       >
                         <RefreshCw className="mr-2 h-3 w-3" />
@@ -333,14 +473,14 @@ export function SettingsContent({ initialSettings = {} }: SettingsProps) {
                       </Button>
                     </Alert>
                   ) : (
-                    <Alert className="bg-red-50 border-red-200">
+                    <Alert className="border-red-200 bg-red-50">
                       <AlertCircle className="h-4 w-4 text-red-600" />
                       <AlertTitle className="text-red-800">Error</AlertTitle>
                       <AlertDescription className="text-red-700">{emailTestResult.error}</AlertDescription>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="mt-2 text-red-700 border-red-300 hover:bg-red-100"
+                        className="mt-3 text-red-700 border-red-300 hover:bg-red-100"
                         onClick={resetEmailTest}
                       >
                         <RefreshCw className="mr-2 h-3 w-3" />
@@ -350,22 +490,6 @@ export function SettingsContent({ initialSettings = {} }: SettingsProps) {
                   )}
                 </div>
               )}
-
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-md">
-                <h3 className="text-sm font-medium text-blue-800 mb-2">Email Configuration</h3>
-                <p className="text-xs text-blue-700">
-                  Email settings are configured using environment variables. If you need to change these settings,
-                  please update the environment variables in your Vercel project settings.
-                </p>
-                <ul className="mt-2 text-xs text-blue-700 list-disc list-inside">
-                  <li>EMAIL_SERVER: SMTP server address</li>
-                  <li>EMAIL_PORT: SMTP server port</li>
-                  <li>EMAIL_USER: SMTP username</li>
-                  <li>EMAIL_PASS: SMTP password</li>
-                  <li>EMAIL_FROM: Default sender email address</li>
-                  <li>EMAIL_REPLY_TO: Reply-to email address (optional)</li>
-                </ul>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -376,7 +500,7 @@ export function SettingsContent({ initialSettings = {} }: SettingsProps) {
               <CardTitle>Appearance Settings</CardTitle>
               <CardDescription>Customize the look and feel of the system.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="systemTheme">Theme</Label>
                 <Select value={settings.systemTheme} onValueChange={(value) => handleChange("systemTheme", value)}>
@@ -390,10 +514,48 @@ export function SettingsContent({ initialSettings = {} }: SettingsProps) {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="fontFamily">Font Family</Label>
+                <Select value={settings.fontFamily} onValueChange={(value) => handleChange("fontFamily", value)}>
+                  <SelectTrigger id="fontFamily">
+                    <SelectValue placeholder="Select font" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Inter">Inter</SelectItem>
+                    <SelectItem value="Poppins">Poppins</SelectItem>
+                    <SelectItem value="Roboto">Roboto</SelectItem>
+                    <SelectItem value="Montserrat">Montserrat</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="primaryColor">Primary Color</Label>
+                <Input
+                  id="primaryColor"
+                  type="color"
+                  value={settings.primaryColor}
+                  onChange={(e) => handleChange("primaryColor", e.target.value)}
+                  className="h-10 w-24 p-1"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="secondaryColor">Secondary Color</Label>
+                <Input
+                  id="secondaryColor"
+                  type="color"
+                  value={settings.secondaryColor}
+                  onChange={(e) => handleChange("secondaryColor", e.target.value)}
+                  className="h-10 w-24 p-1"
+                />
+              </div>
             </CardContent>
             <CardFooter>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              <Button onClick={handleSaveAppearance} disabled={isSaving("appearance")}>
+                {isSaving("appearance") ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
                 Save Changes
               </Button>
             </CardFooter>
@@ -404,9 +566,9 @@ export function SettingsContent({ initialSettings = {} }: SettingsProps) {
           <Card>
             <CardHeader>
               <CardTitle>Advanced Settings</CardTitle>
-              <CardDescription>Configure advanced system settings.</CardDescription>
+              <CardDescription>Configure advanced system behavior and formatting.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="documentVerificationMode">Document Verification Mode</Label>
                 <Select
@@ -454,7 +616,51 @@ export function SettingsContent({ initialSettings = {} }: SettingsProps) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="border-t pt-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="systemCurrency">Currency</Label>
+                <Input
+                  id="systemCurrency"
+                  value={settings.systemCurrency}
+                  onChange={(e) => handleChange("systemCurrency", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="systemDecimalSeparator">Decimal Separator</Label>
+                <Input
+                  id="systemDecimalSeparator"
+                  value={settings.systemDecimalSeparator}
+                  onChange={(e) => handleChange("systemDecimalSeparator", e.target.value)}
+                  maxLength={1}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="systemThousandSeparator">Thousand Separator</Label>
+                <Input
+                  id="systemThousandSeparator"
+                  value={settings.systemThousandSeparator}
+                  onChange={(e) => handleChange("systemThousandSeparator", e.target.value)}
+                  maxLength={1}
+                />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div>
+                  <Label htmlFor="debugMode">Debug Mode</Label>
+                  <p className="text-sm text-muted-foreground">Enable verbose diagnostics and logging.</p>
+                </div>
+                <Switch id="debugMode" checked={settings.debugMode} onCheckedChange={(checked) => handleChange("debugMode", checked)} />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div>
+                  <Label htmlFor="maintenanceMode">Maintenance Mode</Label>
+                  <p className="text-sm text-muted-foreground">Temporarily restrict access while system work is in progress.</p>
+                </div>
+                <Switch
+                  id="maintenanceMode"
+                  checked={settings.maintenanceMode}
+                  onCheckedChange={(checked) => handleChange("maintenanceMode", checked)}
+                />
+              </div>
+              <div className="md:col-span-2 border-t pt-4 mt-2">
                 <h3 className="text-lg font-medium mb-2">Database Migrations</h3>
                 <p className="text-sm text-muted-foreground mb-4">Update database tables to support new features.</p>
                 <MigratePendingTableButton />
@@ -462,15 +668,15 @@ export function SettingsContent({ initialSettings = {} }: SettingsProps) {
                 <div className="mt-4 pt-4 border-t">
                   <RemoveNameColumnButton />
 
-                  <Separator />
+                  <Separator className="my-4" />
 
                   <RearrangeColumnsButton />
 
-                  <Separator />
+                  <Separator className="my-4" />
                 </div>
               </div>
 
-              <div className="border-t pt-4 mt-4">
+              <div className="md:col-span-2 border-t pt-4 mt-2">
                 <h3 className="text-lg font-medium mb-2">Database Cleanup</h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   Remove deprecated or unused database tables from the system.
@@ -479,8 +685,12 @@ export function SettingsContent({ initialSettings = {} }: SettingsProps) {
               </div>
             </CardContent>
             <CardFooter>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              <Button onClick={handleSaveAdvanced} disabled={isSaving("advanced")}>
+                {isSaving("advanced") ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
                 Save Changes
               </Button>
             </CardFooter>

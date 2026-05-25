@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,7 @@ interface VerificationStepProps {
     registrationId?: string;
     registration_id?: string;
     manualVerification?: boolean;
+    verifiedNIN?: VerifyNinData | null;
   }) => void;
   loading: boolean;
   ninVerified: boolean;
@@ -95,6 +97,9 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
         success: response.success,
         verified: isVerified,
         registrationId: registrationIdFromResponse,
+        verifiedNIN: verifiedData,
+        error: response.error || response.message,
+        status: response.status,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : "NIN verification failed";
@@ -120,18 +125,23 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
       return;
     }
 
-    const { success, error, verified, registrationId: registrationIdFromVerify } =
+    const { success, error, status, verified, registrationId: registrationIdFromVerify, verifiedNIN } =
       await verifyNIN(nin, initialRegistrationId);
     if (!success) {
+      const toastMessage = status ? `${status}: ${error || "NIN verification failed."}` : (error || "NIN verification failed.");
+      toast.error(toastMessage);
       setErrors((prev) => ({
         ...prev,
         nin: error || "NIN verification failed; please continue manually.",
       }));
+      setButtonLoading(false);
+      return;
     }
 
     setNinVerified?.(verified);
     setBvnVerified(true);
     if (verified) {
+      toast.success("NIN verified successfully.");
       setShowModal(true);
     }
     onSubmit({
@@ -140,6 +150,7 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
       manualVerification: !verified,
       registrationId: registrationIdFromVerify,
       registration_id: registrationIdFromVerify,
+      verifiedNIN,
     });
     advanceToPersonalInfo?.();
     setButtonLoading(false);
