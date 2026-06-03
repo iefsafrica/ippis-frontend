@@ -138,16 +138,27 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
       return;
     }
 
+    if (!verified) {
+      const message = error || "NIN verification failed.";
+      toast.error(message);
+      setErrors((prev) => ({
+        ...prev,
+        nin: message,
+      }));
+      setNinVerified?.(false);
+      setBvnVerified(false);
+      setButtonLoading(false);
+      return;
+    }
+
     setNinVerified?.(verified);
     setBvnVerified(true);
-    if (verified) {
-      toast.success("NIN verified successfully.");
-      setShowModal(true);
-    }
+    toast.success("NIN verified successfully.");
+    setShowModal(true);
     onSubmit({
       bvn,
       nin,
-      manualVerification: !verified,
+      manualVerification: false,
       registrationId: registrationIdFromVerify,
       registration_id: registrationIdFromVerify,
       verifiedNIN,

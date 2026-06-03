@@ -125,58 +125,41 @@ export default function ProfileForm({
    },
  });
 
-  // Set form values when NIN data is available
+  // Build a single source of truth so NIN values are not overwritten by the
+  // later formData hydration effect.
   const verificationInitializedRef = useRef(false);
 
   useEffect(() => {
-    if (!verifiedNIN || verificationInitializedRef.current) {
-      setIsLoading(false);
-      return;
-    }
+    const verifiedValues = verifiedNIN
+      ? {
+          title: verifiedNIN.title || "",
+          surname: verifiedNIN.surname || "",
+          firstname: verifiedNIN.firstname || "",
+          othername: verifiedNIN.othername || "",
+          contact: verifiedNIN.telephoneno || "",
+          email: verifiedNIN.email || "",
+          dob: formatDate(verifiedNIN.birthdate) || "",
+          sex:
+            verifiedNIN.gender === "m"
+              ? "male"
+              : verifiedNIN.gender === "f"
+                ? "female"
+                : "",
+          maritalStatus: verifiedNIN.maritalstatus || "",
+          stateorigin: verifiedNIN.state_of_origin || "",
+          lga: verifiedNIN.birthlga || "",
+          stateres: verifiedNIN.residence_state || "",
+          address: verifiedNIN.address || "",
+          nok_name:
+            verifiedNIN.nok_firstname && verifiedNIN.nok_surname
+              ? `${verifiedNIN.nok_firstname} ${verifiedNIN.nok_surname}`
+              : "",
+          nok_relationship: verifiedNIN.nok_relationship || "",
+          nok_phone: "",
+          nok_address: verifiedNIN.nok_address1 || "",
+        }
+      : {};
 
-    const initialValues = {
-      title: verifiedNIN.title || "",
-      surname: verifiedNIN.surname || "",
-      firstname: verifiedNIN.firstname || "",
-      othername: verifiedNIN.othername || "",
-      contact: verifiedNIN.telephoneno || "",
-      email: verifiedNIN.email || "",
-      dob: formatDate(verifiedNIN.birthdate) || "",
-      sex:
-        verifiedNIN.gender === "m"
-          ? "male"
-          : verifiedNIN.gender === "f"
-          ? "female"
-          : "",
-      maritalStatus: verifiedNIN.maritalstatus || "",
-      stateorigin: verifiedNIN.state_of_origin || "",
-      lga: verifiedNIN.birthlga || "",
-      stateres: verifiedNIN.residence_state || "",
-      address: verifiedNIN.address || "",
-      nok_name:
-        verifiedNIN.nok_firstname && verifiedNIN.nok_surname
-          ? `${verifiedNIN.nok_firstname} ${verifiedNIN.nok_surname}`
-          : "",
-      nok_relationship: verifiedNIN.nok_relationship || "",
-      nok_phone: "",
-      nok_address: verifiedNIN.nok_address1 || "",
-    };
-
-    reset(initialValues, {
-      keepDefaultValues: false,
-      keepErrors: false,
-      keepDirty: true,
-      keepIsSubmitted: false,
-      keepTouched: false,
-      keepIsValid: false,
-      keepSubmitCount: false,
-    });
-
-    verificationInitializedRef.current = true;
-    setIsLoading(false);
-  }, [verifiedNIN, reset, trigger]);
-
-  useEffect(() => {
     const storedValues = {
       title: formData.title || "",
       surname: formData.surname || "",
@@ -197,22 +180,28 @@ export default function ProfileForm({
       nok_address: formData.nextOfKinAddress || "",
     };
 
-    reset(storedValues, {
-      keepDefaultValues: false,
-      keepErrors: false,
-      keepDirty: true,
-      keepIsSubmitted: false,
-      keepTouched: false,
-      keepIsValid: false,
-      keepSubmitCount: false,
-    });
+    const hasVerifiedValues = Boolean(verifiedNIN);
+    const mergedValues = {
+      ...storedValues,
+      ...verifiedValues,
+    };
 
-    Object.entries(storedValues).forEach(([key, value]) => {
-      if (value !== "" && value !== null && value !== undefined) {
-        setValue(key as keyof FormValues, value, { shouldValidate: false, shouldTouch: false });
-      }
-    });
-  }, [formData, reset, setValue]);
+    if (hasVerifiedValues || !verificationInitializedRef.current) {
+      reset(mergedValues, {
+        keepDefaultValues: false,
+        keepErrors: false,
+        keepDirty: true,
+        keepIsSubmitted: false,
+        keepTouched: false,
+        keepIsValid: false,
+        keepSubmitCount: false,
+      });
+
+      verificationInitializedRef.current = hasVerifiedValues;
+    }
+
+    setIsLoading(false);
+  }, [formData, verifiedNIN, reset]);
 
   // Update LGAs when state of origin changes
   const selectedState = watch("stateorigin");
