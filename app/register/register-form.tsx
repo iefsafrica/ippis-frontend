@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { RegistrationSlipDialog, buildSlipDataFromFormData, type RegistrationSlipData } from "@/components/registration-slip";
 import { StepIndicator } from "./step-indicator";
 import VerificationStep from "./verification-step";
 import PersonalInfoStepII from "./personal-info-step";
@@ -163,6 +164,8 @@ export default function RegisterForm() {
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
   const [showSuccessCard, setShowSuccessCard] = useState(false);
+  const [showSlipModal, setShowSlipModal] = useState(false);
+  const [completedSlipData, setCompletedSlipData] = useState<RegistrationSlipData | null>(null);
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
   const hasLoadedStoredRegistrationIdRef = useRef(false);
@@ -861,13 +864,24 @@ export default function RegisterForm() {
         email_sent: true,
       }));
 
-      const successMessage = "Registration submitted successfully";
+      const profileUrl =
+        typeof formData.profileImage === "object" && formData.profileImage instanceof Blob
+          ? URL.createObjectURL(formData.profileImage)
+          : (typeof formData.profileImage === "string" ? formData.profileImage : undefined);
+
+      const sigUrl =
+        typeof formData.signature === "object" && formData.signature instanceof Blob
+          ? URL.createObjectURL(formData.signature)
+          : (typeof formData.signature === "string" ? formData.signature : undefined);
+
+      const slipData = buildSlipDataFromFormData(formData, canonicalId, profileUrl, sigUrl);
+      setCompletedSlipData(slipData);
+
+      const successMessage = "Registration submitted successfully! Your official IPPIS registration slip has been generated.";
       setSuccess(successMessage);
-      toast.success(successMessage, { icon: "🎉" });
+      toast.success("Registration submitted successfully!", { icon: "🎉" });
       setShowSuccessCard(true);
-      successTimeoutRef.current = window.setTimeout(() => {
-        router.push(`/track?id=${canonicalId}`);
-      }, 1200);
+      setShowSlipModal(true);
     } catch (err) {
       console.error("Registration submission failed:", err);
       setShowSuccessCard(false);
@@ -1104,16 +1118,38 @@ export default function RegisterForm() {
       )}
 
       {showSuccessCard ? (
-        <div className="mb-4 rounded-2xl border border-green-200 bg-gradient-to-r from-white via-green-50 to-green-50 p-4 shadow-inner shadow-green-100">
-          <div className="flex items-start gap-3">
-            <CheckCircle2 className="h-6 w-6 text-emerald-600" />
-            <div>
-              <p className="text-sm font-semibold text-slate-900">
-                Onboarding completed
-              </p>
-              <p className="text-sm text-slate-600">
-                {success || "Your onboarding has been completed successfully. You can now track your application."}
-              </p>
+        <div className="mb-6 rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-50 via-white to-emerald-50/80 p-5 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-base font-bold text-slate-900">
+                  Onboarding & Registration Completed
+                </p>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Your IPPIS enrolment reference ID is{" "}
+                  <span className="font-mono font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
+                    {completedSlipData?.registrationId || manualRegistrationIdInput || "IPPIS"}
+                  </span>
+                  . Your official registration slip with QR scan code and signatures is ready.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                onClick={() => setShowSlipModal(true)}
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-sm text-xs gap-1.5"
+              >
+                <Printer className="h-4 w-4" />
+                View & Print Registration Slip
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => router.push(`/track?id=${completedSlipData?.registrationId || manualRegistrationIdInput}`)}
+                className="text-xs gap-1.5 border-slate-300 text-slate-700 hover:bg-slate-100"
+              >
+                Track Application
+              </Button>
             </div>
           </div>
         </div>
@@ -1141,6 +1177,14 @@ export default function RegisterForm() {
 
       <div className="mt-6">{renderStep()}</div>
       </div>
+
+      {completedSlipData && (
+        <RegistrationSlipDialog
+          open={showSlipModal}
+          onOpenChange={setShowSlipModal}
+          data={completedSlipData}
+        />
+      )}
     </>
   );
 }

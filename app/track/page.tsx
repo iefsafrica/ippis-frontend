@@ -4,13 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useSearchParams } from "next/navigation"
-import { ArrowLeft, CheckCircle, Clock, FileText, Loader2, Search, UserCircle2 } from "lucide-react"
+import { ArrowLeft, CheckCircle, Clock, FileText, Loader2, Search, UserCircle2, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
+import { RegistrationSlipDialog, buildSlipDataFromTrackBundle, type RegistrationSlipData } from "@/components/registration-slip"
 
 type TrackStatus = string
 
@@ -131,6 +132,7 @@ interface SearchResult {
   createdAt: string
   updatedAt: string
   recordType: string
+  slipData?: RegistrationSlipData
 }
 
 const readRecordMetadata = (record: PendingEmployeeRecord | TrackRecord) => {
@@ -309,6 +311,7 @@ const buildSearchResultFromBundle = (
     createdAt: registration?.created_at || personal?.created_at || documents?.created_at || "N/A",
     updatedAt: registration?.updated_at || personal?.updated_at || documents?.updated_at || "N/A",
     recordType,
+    slipData: buildSlipDataFromTrackBundle(bundle, registrationId),
   }
 }
 
@@ -440,6 +443,7 @@ const buildSearchResultFromRecord = (
     createdAt: valueFromRecord(["created_at", "createdAt"]) || "N/A",
     updatedAt: valueFromRecord(["updated_at", "updatedAt"]) || "N/A",
     recordType,
+    slipData: buildSlipDataFromTrackBundle(record, registrationId),
   }
 }
 
@@ -504,6 +508,8 @@ export default function TrackApplicationPage() {
   const [searchMethod, setSearchMethod] = useState<"id" | "email">("id")
   const [searchValue, setSearchValue] = useState(initialId)
   const [searchResult, setSearchResult] = useState<SearchResult | null>(null)
+  const [showSlipDialog, setShowSlipDialog] = useState(false)
+  const shouldAutoOpenSlip = searchParams.get("slip") === "true" || searchParams.get("print") === "true"
 
   const executeSearch = async (rawValue?: string, method?: "id" | "email") => {
     const value = normalizeSearchValue(rawValue ?? searchValue)
@@ -580,6 +586,9 @@ export default function TrackApplicationPage() {
       }
 
       setSearchResult(foundResult)
+      if (shouldAutoOpenSlip && foundResult.slipData) {
+        setShowSlipDialog(true)
+      }
     } catch (error) {
       console.error("Track search error:", error)
       toast({
@@ -752,8 +761,16 @@ export default function TrackApplicationPage() {
                       <h3 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{searchResult.fullName}</h3>
                       <p className="mt-1 text-sm text-slate-500">ID: {searchResult.registrationId}</p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       {statusBadge}
+                      <Button
+                        onClick={() => setShowSlipDialog(true)}
+                        className="bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm flex items-center gap-2 font-semibold"
+                        size="sm"
+                      >
+                        <Printer className="h-4 w-4" />
+                        Print Registration Slip
+                      </Button>
                     </div>
                   </div>
 
@@ -847,6 +864,14 @@ export default function TrackApplicationPage() {
             </Link>
           </CardFooter>
         </Card>
+
+        {searchResult?.slipData && (
+          <RegistrationSlipDialog
+            open={showSlipDialog}
+            onOpenChange={setShowSlipDialog}
+            data={searchResult.slipData}
+          />
+        )}
       </div>
     </div>
   )
