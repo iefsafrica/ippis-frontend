@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { parseDateValue } from "@/components/ui/date-select";
+import { nigerianStates } from "./nigeria-data";
 import { usePersonalInfo } from "@/services/hooks/register/personal-info";
 import { useEmploymentInfo } from "@/services/hooks/register/employment-info";
 import { useRegistrationDocuments } from "@/services/hooks/register/documents";
@@ -259,47 +260,66 @@ export default function RegisterForm() {
   }, [registrationIdConfirmed, registrationId, manualRegistrationIdInput]);
 
   const normalizeVerifiedNinData = useCallback(
-    (data: VerifyNinData | null, fallbackNin: string) => {
+    (data: any, fallbackNin: string) => {
       if (!data) {
         return {};
       }
 
-      const splitName = (value?: string) => {
-        if (!value) return { firstName: "", surname: "", otherNames: "" };
-        const parts = value.trim().split(/\s+/);
-        return {
-          firstName: parts[0] || "",
-          surname: parts.length > 1 ? parts[parts.length - 1] : "",
-          otherNames: parts.length > 2 ? parts.slice(1, -1).join(" ") : "",
-        };
+      const getRaw = (val: any): string => {
+        if (typeof val !== "string") return "";
+        const trimmed = val.trim();
+        if (trimmed.toLowerCase() === "null" || trimmed.toLowerCase() === "undefined") return "";
+        return trimmed;
       };
 
-      const rawFirstName =
-        (typeof data.firstname === "string" && data.firstname) ||
-        (typeof data.first_name === "string" && data.first_name) ||
-        "";
-      const rawSurname =
-        (typeof data.surname === "string" && data.surname) ||
-        (typeof data.last_name === "string" && data.last_name) ||
-        "";
-      const rawOtherName =
-        (typeof data.middlename === "string" && data.middlename) ||
-        (typeof data.middle_name === "string" && data.middle_name) ||
-        (typeof data.othername === "string" && data.othername) ||
-        (typeof data.other_name === "string" && data.other_name) ||
-        "";
+      const normalizeStateName = (state?: string): string => {
+        const str = getRaw(state);
+        if (!str) return "";
+        if (/^(fct\s*abuja|abuja|fct|federal\s+capital\s+territory)$/i.test(str)) {
+          return "FCT";
+        }
+        const cleaned = str.replace(/\s+state$/i, "").trim().toLowerCase();
+        const found = nigerianStates.find(
+          (s) => s.toLowerCase() === cleaned || s.toLowerCase() === str.toLowerCase()
+        );
+        return found || str;
+      };
 
-      const nameParts = splitName(rawFirstName);
-      const firstName = rawFirstName
-        ? rawFirstName.includes(" ")
-          ? nameParts.firstName
-          : rawFirstName
-        : nameParts.firstName;
-      const surname = rawSurname || nameParts.surname;
-      const otherNames = rawOtherName || nameParts.otherNames;
+      const normalizeLgaName = (lga?: string): string => {
+        const raw = getRaw(lga);
+        if (!raw) return "";
+        return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+      };
+
+      const bio = (data.biographicData && typeof data.biographicData === "object") ? data.biographicData : {};
+      const contact = (data.contactData && typeof data.contactData === "object") ? data.contactData : {};
+
+      const rawFirstName =
+        getRaw(data.firstname) ||
+        getRaw(data.first_name) ||
+        getRaw(data.firstName) ||
+        getRaw(bio.firstName);
+
+      const rawSurname =
+        getRaw(data.surname) ||
+        getRaw(data.last_name) ||
+        getRaw(data.lastName) ||
+        getRaw(bio.lastName);
+
+      const rawOtherName =
+        getRaw(data.middlename) ||
+        getRaw(data.middle_name) ||
+        getRaw(data.middleName) ||
+        getRaw(bio.middleName) ||
+        getRaw(data.othername) ||
+        getRaw(data.other_name);
+
+      const firstName = rawFirstName;
+      const surname = rawSurname;
+      const otherNames = rawOtherName;
 
       // Extract gender/sex
-      const rawGender = String(data.gender || data.sex || "").toLowerCase();
+      const rawGender = String(data.gender || data.sex || bio.gender || "").toLowerCase();
       const sex = rawGender.startsWith("m")
         ? "male"
         : rawGender.startsWith("f")
@@ -307,21 +327,22 @@ export default function RegisterForm() {
           : "";
 
       // Extract marital status (Capitalized)
-      const rawMarital = String(data.maritalstatus || data.marital_status || "").trim();
+      const rawMarital = getRaw(data.maritalstatus || data.marital_status || bio.maritalStatus);
       const maritalStatus = rawMarital
         ? rawMarital.charAt(0).toUpperCase() + rawMarital.slice(1).toLowerCase()
         : "";
 
       // Extract photo / passport photograph
       const rawPhoto =
-        (typeof data.photo === "string" && data.photo) ||
-        (typeof data.photo_base64 === "string" && data.photo_base64) ||
-        (typeof data.photoBase64 === "string" && data.photoBase64) ||
-        (typeof data.image === "string" && data.image) ||
-        (typeof data.passport === "string" && data.passport) ||
-        (typeof data.picture === "string" && data.picture) ||
-        (typeof data.profileImage === "string" && data.profileImage) ||
-        (typeof data.avatar === "string" && data.avatar) ||
+        getRaw(data.photo) ||
+        getRaw(data.photo_base64) ||
+        getRaw(data.photoBase64) ||
+        getRaw(data.image) ||
+        getRaw(data.passport) ||
+        getRaw(data.picture) ||
+        getRaw(data.profileImage) ||
+        getRaw(data.avatar) ||
+        getRaw(data.biometricData?.[0]?.image) ||
         "";
 
       let profileImage = "";
@@ -339,16 +360,16 @@ export default function RegisterForm() {
 
       // Extract date of birth
       const rawDob =
-        (typeof data.birthdate === "string" && data.birthdate) ||
-        (typeof data.date_of_birth === "string" && data.date_of_birth) ||
-        (typeof data.dob === "string" && data.dob) ||
-        (typeof data.birth_date === "string" && data.birth_date) ||
-        (typeof data.dateOfBirth === "string" && data.dateOfBirth) ||
-        (typeof data.birthDate === "string" && data.birthDate) ||
-        (typeof data.DateOfBirth === "string" && data.DateOfBirth) ||
-        (typeof data.BirthDate === "string" && data.BirthDate) ||
-        (typeof data.bdate === "string" && data.bdate) ||
-        "";
+        getRaw(data.birthdate) ||
+        getRaw(data.date_of_birth) ||
+        getRaw(data.dob) ||
+        getRaw(data.birth_date) ||
+        getRaw(data.dateOfBirth) ||
+        getRaw(data.birthDate) ||
+        getRaw(data.DateOfBirth) ||
+        getRaw(data.BirthDate) ||
+        getRaw(data.bdate) ||
+        getRaw(bio.dateOfBirth);
 
       let dateOfBirth = "";
       if (rawDob) {
@@ -362,66 +383,69 @@ export default function RegisterForm() {
 
       // Extract phone number
       const phoneNumber =
-        (typeof data.telephoneno === "string" && data.telephoneno) ||
-        (typeof data.phone === "string" && data.phone) ||
-        (typeof data.phone_number === "string" && data.phone_number) ||
-        "";
+        getRaw(data.telephoneno) ||
+        getRaw(contact.phone1) ||
+        getRaw(data.phone) ||
+        getRaw(data.phone_number);
 
       // Extract state of origin & LGA
-      const stateOfOrigin =
-        (typeof data.state_of_origin === "string" && data.state_of_origin) ||
-        (typeof data.self_origin_state === "string" && data.self_origin_state) ||
-        (typeof data.birthstate === "string" && data.birthstate) ||
-        (typeof data.stateorigin === "string" && data.stateorigin) ||
-        "";
+      const rawOriginState =
+        getRaw(bio.originState) ||
+        getRaw(data.originState) ||
+        getRaw(data.state_of_origin) ||
+        getRaw(data.self_origin_state) ||
+        getRaw(data.birthstate) ||
+        getRaw(data.birthState) ||
+        getRaw(bio.birthState) ||
+        getRaw(data.stateorigin);
+      const stateOfOrigin = normalizeStateName(rawOriginState);
 
-      const lga =
-        (typeof data.birthlga === "string" && data.birthlga) ||
-        (typeof data.residence_lga === "string" && data.residence_lga) ||
-        (typeof data.lga_origin === "string" && data.lga_origin) ||
-        (typeof data.self_origin_lga === "string" && data.self_origin_lga) ||
-        (typeof data.lga === "string" && data.lga) ||
-        "";
+      const rawLga =
+        getRaw(bio.originLga) ||
+        getRaw(data.originLga) ||
+        getRaw(data.birthlga) ||
+        getRaw(data.birthLga) ||
+        getRaw(bio.birthLga) ||
+        getRaw(data.residence_lga) ||
+        getRaw(data.lga_origin) ||
+        getRaw(data.self_origin_lga) ||
+        getRaw(data.lga);
+      const lga = normalizeLgaName(rawLga);
 
       // Extract residence state & address
-      const stateOfResidence =
-        (typeof data.residence_state === "string" && data.residence_state) ||
-        (typeof data.residenceState === "string" && data.residenceState) ||
-        (typeof data.stateres === "string" && data.stateres) ||
-        "";
+      const rawResState =
+        getRaw(bio.residenceState) ||
+        getRaw(data.residenceState) ||
+        getRaw(data.residence_state) ||
+        getRaw(data.stateres);
+      const stateOfResidence = normalizeStateName(rawResState);
 
       const address =
-        (typeof data.address === "string" && data.address) ||
-        (typeof data.residence_address === "string" && data.residence_address) ||
-        (typeof data.residenceAdressLine1 === "string" && data.residenceAdressLine1) ||
-        (typeof data.residence_address_line1 === "string" && data.residence_address_line1) ||
-        "";
+        getRaw(bio.residenceAddressLine1) ||
+        getRaw(data.residenceAddressLine1) ||
+        getRaw(data.residence_address) ||
+        getRaw(data.address) ||
+        getRaw(data.residenceAdressLine1) ||
+        getRaw(data.residence_address_line1);
 
       // Extract next of kin
       const nokName =
-        (typeof data.nok_name === "string" && data.nok_name) ||
+        getRaw(data.nok_name) ||
         (data.nok_firstname && data.nok_surname
           ? `${data.nok_firstname} ${data.nok_surname}`.trim()
           : "");
 
-      const nokRelationship =
-        (typeof data.nok_relationship === "string" && data.nok_relationship) || "";
-
-      const nokPhone =
-        (typeof data.nok_phone === "string" && data.nok_phone) ||
-        (typeof data.nok_telephoneno === "string" && data.nok_telephoneno) ||
-        "";
-
+      const nokRelationship = getRaw(data.nok_relationship);
+      const nokPhone = getRaw(data.nok_phone) || getRaw(data.nok_telephoneno);
       const nokAddress =
-        (typeof data.nok_address === "string" && data.nok_address) ||
-        (typeof data.nok_address1 === "string" && data.nok_address1) ||
-        (typeof data.nok_address2 === "string" && data.nok_address2) ||
-        "";
+        getRaw(data.nok_address) ||
+        getRaw(data.nok_address1) ||
+        getRaw(data.nok_address2);
 
       return {
         nin: data.nin || fallbackNin,
         ninVerified: Boolean(data.verified),
-        title: (typeof data.title === "string" && data.title) || "",
+        title: getRaw(data.title),
         firstName,
         firstname: firstName,
         surname,
@@ -429,7 +453,7 @@ export default function RegisterForm() {
         othername: otherNames,
         phoneNumber,
         contact: phoneNumber,
-        email: (typeof data.email === "string" && data.email) || "",
+        email: getRaw(data.email),
         dateOfBirth,
         dob: dateOfBirth,
         sex,

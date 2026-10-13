@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { ChevronDown } from "lucide-react"
 import {
   CustomSelect,
   CustomSelectContent,
@@ -168,6 +169,8 @@ export function DateSelect({
   const maxDay = maxDate.getDate()
 
   const [parts, setParts] = React.useState<DateParts>(() => parseDateValue(value))
+  const onValueChangeRef = React.useRef(onValueChange)
+  onValueChangeRef.current = onValueChange
 
   React.useEffect(() => {
     if (!value) {
@@ -180,12 +183,12 @@ export function DateSelect({
       setParts(parsed)
       const canonical = `${parsed.year}-${parsed.month}-${parsed.day}`
       if (value !== canonical) {
-        onValueChange(canonical)
+        onValueChangeRef.current(canonical)
       }
     } else {
       setParts({ day: "", month: "", year: "" })
     }
-  }, [value, onValueChange])
+  }, [value])
 
   const emitValue = (nextParts: DateParts) => {
     const { year, month, day } = nextParts
@@ -260,6 +263,54 @@ export function DateSelect({
     }
     return output
   }, [maxYear, minYear, parts.year])
+
+  // When disabled/locked, render styled read-only boxes directly to guarantee value display
+  if (disabled) {
+    const activeParts = parseDateValue(value)
+    const dayLabel = activeParts.day ? String(Number(activeParts.day)) : "Day"
+    const monthLabel =
+      activeParts.month && MONTHS[Number(activeParts.month) - 1]
+        ? MONTHS[Number(activeParts.month) - 1]
+        : "Month"
+    const yearLabel = activeParts.year || "Year"
+
+    return (
+      <div className={cn("grid gap-2 sm:grid-cols-3", className)}>
+        <div
+          className={cn(
+            "flex h-10 w-full items-center justify-between rounded-md border border-input bg-slate-100 px-3 py-2 text-sm text-slate-800 shadow-sm opacity-90 cursor-not-allowed select-none",
+            triggerClassName,
+            error && "border-red-500"
+          )}
+        >
+          <span className={cn(!activeParts.day && "text-muted-foreground")}>{dayLabel}</span>
+          <ChevronDown className="h-4 w-4 opacity-50" />
+        </div>
+
+        <div
+          className={cn(
+            "flex h-10 w-full items-center justify-between rounded-md border border-input bg-slate-100 px-3 py-2 text-sm text-slate-800 shadow-sm opacity-90 cursor-not-allowed select-none",
+            triggerClassName,
+            error && "border-red-500"
+          )}
+        >
+          <span className={cn(!activeParts.month && "text-muted-foreground")}>{monthLabel}</span>
+          <ChevronDown className="h-4 w-4 opacity-50" />
+        </div>
+
+        <div
+          className={cn(
+            "flex h-10 w-full items-center justify-between rounded-md border border-input bg-slate-100 px-3 py-2 text-sm text-slate-800 shadow-sm opacity-90 cursor-not-allowed select-none",
+            triggerClassName,
+            error && "border-red-500"
+          )}
+        >
+          <span className={cn(!activeParts.year && "text-muted-foreground")}>{yearLabel}</span>
+          <ChevronDown className="h-4 w-4 opacity-50" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={cn("grid gap-2 sm:grid-cols-3", className)}>

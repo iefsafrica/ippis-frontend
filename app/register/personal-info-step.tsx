@@ -15,10 +15,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DateSelect, parseDateValue } from "@/components/ui/date-select";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { nigerianStates, getLgasByState } from "./nigeria-data";
 import { VerifyNinData } from "@/types/verify";
-import { Lock, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { Lock, ShieldCheck, CheckCircle2, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Form Schema
@@ -80,20 +80,11 @@ export default function ProfileForm({
   const [availableLgas, setAvailableLgas] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const getRawDob = (source: any): string => {
-    if (!source || typeof source !== "object") return "";
-    return (
-      (typeof source.birthdate === "string" && source.birthdate) ||
-      (typeof source.date_of_birth === "string" && source.date_of_birth) ||
-      (typeof source.dob === "string" && source.dob) ||
-      (typeof source.birth_date === "string" && source.birth_date) ||
-      (typeof source.dateOfBirth === "string" && source.dateOfBirth) ||
-      (typeof source.birthDate === "string" && source.birthDate) ||
-      (typeof source.DateOfBirth === "string" && source.DateOfBirth) ||
-      (typeof source.BirthDate === "string" && source.BirthDate) ||
-      (typeof source.bdate === "string" && source.bdate) ||
-      ""
-    );
+  const getRawString = (val: any): string => {
+    if (typeof val !== "string") return "";
+    const trimmed = val.trim();
+    if (trimmed.toLowerCase() === "null" || trimmed.toLowerCase() === "undefined") return "";
+    return trimmed;
   };
 
   // Format date to YYYY-MM-DD
@@ -106,87 +97,261 @@ export default function ProfileForm({
     return String(dateStr).trim();
   };
 
-  const normalizeState = (state?: string) => {
-    if (!state) return "";
-    const cleaned = state.replace(/\s+state$/i, "").trim().toLowerCase();
+  const normalizeState = (state?: string): string => {
+    const str = getRawString(state);
+    if (!str) return "";
+    if (/^(fct\s*abuja|abuja|fct|federal\s+capital\s+territory)$/i.test(str)) {
+      return "FCT";
+    }
+    const cleaned = str.replace(/\s+state$/i, "").trim().toLowerCase();
     const found = nigerianStates.find(
-      (s) => s.toLowerCase() === cleaned || s.toLowerCase() === state.trim().toLowerCase()
+      (s) => s.toLowerCase() === cleaned || s.toLowerCase() === str.toLowerCase()
     );
-    return found || state;
+    return found || str;
+  };
+
+  const normalizeLga = (lga?: string): string => {
+    const raw = getRawString(lga);
+    if (!raw) return "";
+    return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+  };
+
+  const extractDob = (source: any): string => {
+    if (!source || typeof source !== "object") return "";
+    const bio = (source.biographicData && typeof source.biographicData === "object") ? source.biographicData : {};
+    const raw =
+      getRawString(source.birthdate) ||
+      getRawString(source.date_of_birth) ||
+      getRawString(source.dateOfBirth) ||
+      getRawString(source.dob) ||
+      getRawString(source.birth_date) ||
+      getRawString(source.birthDate) ||
+      getRawString(source.DateOfBirth) ||
+      getRawString(source.BirthDate) ||
+      getRawString(source.bdate) ||
+      getRawString(bio.dateOfBirth);
+    return formatDate(raw);
+  };
+
+  const extractGender = (source: any): string => {
+    if (!source || typeof source !== "object") return "";
+    const bio = (source.biographicData && typeof source.biographicData === "object") ? source.biographicData : {};
+    const raw = String(source.gender || source.sex || bio.gender || "").toLowerCase();
+    if (raw.startsWith("m")) return "male";
+    if (raw.startsWith("f")) return "female";
+    return "";
+  };
+
+  const extractOriginState = (source: any): string => {
+    if (!source || typeof source !== "object") return "";
+    const bio = (source.biographicData && typeof source.biographicData === "object") ? source.biographicData : {};
+    return normalizeState(
+      bio.originState ||
+      source.originState ||
+      source.state_of_origin ||
+      source.self_origin_state ||
+      source.birthstate ||
+      source.birthState ||
+      bio.birthState ||
+      source.stateorigin ||
+      source.stateOfOrigin
+    );
+  };
+
+  const extractOriginLga = (source: any): string => {
+    if (!source || typeof source !== "object") return "";
+    const bio = (source.biographicData && typeof source.biographicData === "object") ? source.biographicData : {};
+    return normalizeLga(
+      bio.originLga ||
+      source.originLga ||
+      source.birthlga ||
+      source.birthLga ||
+      bio.birthLga ||
+      source.residence_lga ||
+      source.lga_origin ||
+      source.self_origin_lga ||
+      source.lga
+    );
+  };
+
+  const extractResidenceState = (source: any): string => {
+    if (!source || typeof source !== "object") return "";
+    const bio = (source.biographicData && typeof source.biographicData === "object") ? source.biographicData : {};
+    return normalizeState(
+      bio.residenceState ||
+      source.residenceState ||
+      source.residence_state ||
+      source.stateres ||
+      source.stateOfResidence
+    );
+  };
+
+  const extractAddress = (source: any): string => {
+    if (!source || typeof source !== "object") return "";
+    const bio = (source.biographicData && typeof source.biographicData === "object") ? source.biographicData : {};
+    return getRawString(
+      bio.residenceAddressLine1 ||
+      source.residenceAddressLine1 ||
+      source.residence_address ||
+      source.address ||
+      source.addressStateOfResidence ||
+      source.residenceAdressLine1 ||
+      source.residence_address_line1
+    );
+  };
+
+  const extractPhone = (source: any): string => {
+    if (!source || typeof source !== "object") return "";
+    const contact = (source.contactData && typeof source.contactData === "object") ? source.contactData : {};
+    return getRawString(
+      source.telephoneno ||
+      contact.phone1 ||
+      source.phone ||
+      source.phone_number ||
+      source.phoneNumber ||
+      source.contact
+    );
+  };
+
+  const extractFirstName = (source: any): string => {
+    if (!source || typeof source !== "object") return "";
+    const bio = (source.biographicData && typeof source.biographicData === "object") ? source.biographicData : {};
+    return getRawString(
+      source.firstname ||
+      source.first_name ||
+      source.firstName ||
+      bio.firstName
+    );
+  };
+
+  const extractSurname = (source: any): string => {
+    if (!source || typeof source !== "object") return "";
+    const bio = (source.biographicData && typeof source.biographicData === "object") ? source.biographicData : {};
+    return getRawString(
+      source.surname ||
+      source.last_name ||
+      source.lastName ||
+      bio.lastName
+    );
+  };
+
+  const extractOtherName = (source: any): string => {
+    if (!source || typeof source !== "object") return "";
+    const bio = (source.biographicData && typeof source.biographicData === "object") ? source.biographicData : {};
+    return getRawString(
+      source.middlename ||
+      source.middle_name ||
+      source.middleName ||
+      bio.middleName ||
+      source.othername ||
+      source.otherNames ||
+      source.other_name
+    );
   };
 
   const profileImageSrc =
-    (typeof verifiedNIN?.profileImage === "string" && verifiedNIN.profileImage) ||
-    (typeof verifiedNIN?.photo === "string" && verifiedNIN.photo) ||
-    (typeof verifiedNIN?.photo_base64 === "string" && verifiedNIN.photo_base64) ||
-    (typeof formData?.profileImage === "string" && formData.profileImage) ||
+    getRawString(verifiedNIN?.profileImage) ||
+    getRawString(verifiedNIN?.photo) ||
+    getRawString(verifiedNIN?.photo_base64) ||
+    getRawString(verifiedNIN?.image) ||
+    getRawString(verifiedNIN?.passport) ||
+    getRawString(formData?.profileImage) ||
     "";
+
+  // Compute merged initial values reactively from formData and verifiedNIN
+  const initialValues = useMemo<FormValues>(() => {
+    const verifiedDob = extractDob(verifiedNIN);
+    const verifiedSex = extractGender(verifiedNIN);
+    const verifiedState = extractOriginState(verifiedNIN);
+    const verifiedLga = extractOriginLga(verifiedNIN);
+    const verifiedResState = extractResidenceState(verifiedNIN);
+    const verifiedAddress = extractAddress(verifiedNIN);
+    const verifiedPhone = extractPhone(verifiedNIN);
+    const verifiedFirstName = extractFirstName(verifiedNIN);
+    const verifiedSurname = extractSurname(verifiedNIN);
+    const verifiedOthername = extractOtherName(verifiedNIN);
+    const verifiedEmail = getRawString(verifiedNIN?.email);
+    const verifiedTitle = getRawString(verifiedNIN?.title);
+    const verifiedMarital = getRawString(verifiedNIN?.maritalstatus || verifiedNIN?.marital_status);
+
+    const formDob = extractDob(formData);
+    const formSex = extractGender(formData);
+    const formState = extractOriginState(formData);
+    const formLga = extractOriginLga(formData);
+    const formResState = extractResidenceState(formData);
+    const formAddress = extractAddress(formData);
+    const formPhone = extractPhone(formData);
+    const formFirstName = extractFirstName(formData);
+    const formSurname = extractSurname(formData);
+    const formOthername = extractOtherName(formData);
+    const formEmail = getRawString(formData?.email);
+    const formTitle = getRawString(formData?.title);
+    const formMarital = getRawString(formData?.maritalStatus || formData?.marital_status);
+
+    return {
+      title: verifiedTitle || formTitle || "",
+      surname: verifiedSurname || formSurname || "",
+      firstname: verifiedFirstName || formFirstName || "",
+      othername: verifiedOthername || formOthername || "",
+      contact: verifiedPhone || formPhone || "",
+      email: verifiedEmail || formEmail || "",
+      dob: verifiedDob || formDob || "",
+      sex: verifiedSex || formSex || "",
+      maritalStatus: verifiedMarital || formMarital || "",
+      stateorigin: verifiedState || formState || "",
+      lga: verifiedLga || formLga || "",
+      stateres: verifiedResState || formResState || "",
+      address: verifiedAddress || formAddress || "",
+      nok_name: getRawString(verifiedNIN?.nok_name || formData?.nextOfKinName || formData?.nok_name),
+      nok_relationship: getRawString(verifiedNIN?.nok_relationship || formData?.nextOfKinRelationship || formData?.nok_relationship),
+      nok_phone: getRawString(verifiedNIN?.nok_phone || formData?.nextOfKinPhoneNumber || formData?.nok_phone),
+      nok_address: getRawString(verifiedNIN?.nok_address || formData?.nextOfKinAddress || formData?.nok_address),
+    };
+  }, [formData, verifiedNIN]);
 
   // Helper to check if a specific field was auto-filled from verified NIN data
   const isFieldVerified = (fieldName: keyof FormValues): boolean => {
     if (!verifiedNIN) return false;
+    const currentVal = initialValues[fieldName];
+    if (!currentVal || typeof currentVal !== "string" || !currentVal.trim()) {
+      return false;
+    }
 
     switch (fieldName) {
       case "surname":
-        return Boolean(verifiedNIN.surname || verifiedNIN.last_name);
+        return Boolean(extractSurname(verifiedNIN));
       case "firstname":
-        return Boolean(verifiedNIN.firstname || verifiedNIN.first_name);
+        return Boolean(extractFirstName(verifiedNIN));
       case "othername":
-        return Boolean(
-          verifiedNIN.middlename ||
-            verifiedNIN.middle_name ||
-            verifiedNIN.othername ||
-            verifiedNIN.other_name
-        );
+        return Boolean(extractOtherName(verifiedNIN));
       case "contact":
-        return Boolean(verifiedNIN.telephoneno || verifiedNIN.phone || verifiedNIN.phone_number);
+        return Boolean(extractPhone(verifiedNIN));
       case "email":
-        return Boolean(verifiedNIN.email);
-      case "dob": {
-        const raw = getRawDob(verifiedNIN);
-        return Boolean(raw && formatDate(raw));
-      }
+        return Boolean(getRawString(verifiedNIN.email));
+      case "dob":
+        return Boolean(extractDob(verifiedNIN));
       case "sex":
-        return Boolean(verifiedNIN.gender || verifiedNIN.sex);
+        return Boolean(extractGender(verifiedNIN));
       case "maritalStatus":
-        return Boolean(verifiedNIN.maritalstatus || verifiedNIN.marital_status);
+        return Boolean(getRawString(verifiedNIN.maritalstatus || verifiedNIN.marital_status));
       case "stateorigin":
-        return Boolean(
-          verifiedNIN.state_of_origin ||
-            verifiedNIN.self_origin_state ||
-            verifiedNIN.birthstate ||
-            verifiedNIN.stateorigin
-        );
+        return Boolean(extractOriginState(verifiedNIN));
       case "lga":
-        return Boolean(
-          verifiedNIN.birthlga ||
-            verifiedNIN.residence_lga ||
-            verifiedNIN.lga_origin ||
-            verifiedNIN.self_origin_lga ||
-            verifiedNIN.lga
-        );
+        return Boolean(extractOriginLga(verifiedNIN));
       case "stateres":
-        return Boolean(verifiedNIN.residence_state || verifiedNIN.residenceState || verifiedNIN.stateres);
+        return Boolean(extractResidenceState(verifiedNIN));
       case "address":
-        return Boolean(
-          verifiedNIN.address ||
-            verifiedNIN.residence_address ||
-            verifiedNIN.residenceAdressLine1 ||
-            verifiedNIN.residence_address_line1
-        );
+        return Boolean(extractAddress(verifiedNIN));
       case "title":
-        return Boolean(verifiedNIN.title);
+        return Boolean(getRawString(verifiedNIN.title));
       case "nok_name":
-        return Boolean(
-          verifiedNIN.nok_name ||
-            (verifiedNIN.nok_firstname && verifiedNIN.nok_surname)
-        );
+        return Boolean(getRawString(verifiedNIN.nok_name || (verifiedNIN.nok_firstname && verifiedNIN.nok_surname ? `${verifiedNIN.nok_firstname} ${verifiedNIN.nok_surname}` : "")));
       case "nok_relationship":
-        return Boolean(verifiedNIN.nok_relationship);
+        return Boolean(getRawString(verifiedNIN.nok_relationship));
       case "nok_phone":
-        return Boolean(verifiedNIN.nok_phone || verifiedNIN.nok_telephoneno);
+        return Boolean(getRawString(verifiedNIN.nok_phone || verifiedNIN.nok_telephoneno));
       case "nok_address":
-        return Boolean(verifiedNIN.nok_address || verifiedNIN.nok_address1);
+        return Boolean(getRawString(verifiedNIN.nok_address || verifiedNIN.nok_address1));
       default:
         return false;
     }
@@ -206,153 +371,26 @@ export default function ProfileForm({
     resolver: zodResolver(formSchema),
     mode: "onChange",
     reValidateMode: "onChange",
-    defaultValues: {
-      title: "",
-      surname: "",
-      firstname: "",
-      othername: "",
-      contact: "",
-      email: "",
-      dob: "",
-      sex: "",
-      maritalStatus: "",
-      stateorigin: "",
-      lga: "",
-      stateres: "",
-      address: "",
-      nok_name: "",
-      nok_relationship: "",
-      nok_phone: "",
-      nok_address: "",
-    },
+    values: initialValues,
+    defaultValues: initialValues,
   });
 
-  const verificationInitializedRef = useRef(false);
-
+  // Ensure form controller fields are actively hydrated on change
   useEffect(() => {
-    const rawSex = String(verifiedNIN?.gender || verifiedNIN?.sex || "").toLowerCase();
-    const normalizedSex = rawSex.startsWith("m")
-      ? "male"
-      : rawSex.startsWith("f")
-        ? "female"
-        : "";
-
-    const rawMarital = String(verifiedNIN?.maritalstatus || verifiedNIN?.marital_status || "").trim();
-    const normalizedMarital = rawMarital
-      ? rawMarital.charAt(0).toUpperCase() + rawMarital.slice(1).toLowerCase()
-      : "";
-
-    const rawTitle = (verifiedNIN?.title || "").toLowerCase();
-    const validTitles = ["mr", "mrs", "miss", "dr", "prof", "chief"];
-    const normalizedTitle = validTitles.includes(rawTitle) ? rawTitle : (verifiedNIN?.title || "");
-
-    const verifiedState = normalizeState(
-      verifiedNIN?.state_of_origin ||
-        verifiedNIN?.self_origin_state ||
-        verifiedNIN?.birthstate ||
-        verifiedNIN?.stateorigin
-    );
-
-    const verifiedResState = normalizeState(
-      verifiedNIN?.residence_state ||
-        verifiedNIN?.residenceState ||
-        verifiedNIN?.stateres
-    );
-
-    const verifiedValues = verifiedNIN
-      ? {
-          title: normalizedTitle || "",
-          surname: verifiedNIN.surname || verifiedNIN.last_name || "",
-          firstname: verifiedNIN.firstname || verifiedNIN.first_name || "",
-          othername:
-            verifiedNIN.othername ||
-            verifiedNIN.other_name ||
-            verifiedNIN.middlename ||
-            verifiedNIN.middle_name ||
-            "",
-          contact:
-            verifiedNIN.telephoneno ||
-            verifiedNIN.phone ||
-            verifiedNIN.phone_number ||
-            "",
-          email: verifiedNIN.email || "",
-          dob: formatDate(getRawDob(verifiedNIN)) || "",
-          sex: normalizedSex || "",
-          maritalStatus: normalizedMarital || "",
-          stateorigin: verifiedState || "",
-          lga:
-            verifiedNIN.birthlga ||
-            verifiedNIN.residence_lga ||
-            verifiedNIN.lga_origin ||
-            verifiedNIN.self_origin_lga ||
-            verifiedNIN.lga ||
-            "",
-          stateres: verifiedResState || "",
-          address:
-            verifiedNIN.address ||
-            verifiedNIN.residence_address ||
-            verifiedNIN.residenceAdressLine1 ||
-            verifiedNIN.residence_address_line1 ||
-            "",
-          nok_name:
-            verifiedNIN.nok_name ||
-            (verifiedNIN.nok_firstname && verifiedNIN.nok_surname
-              ? `${verifiedNIN.nok_firstname} ${verifiedNIN.nok_surname}`.trim()
-              : ""),
-          nok_relationship: verifiedNIN.nok_relationship || "",
-          nok_phone: verifiedNIN.nok_phone || verifiedNIN.nok_telephoneno || "",
-          nok_address: verifiedNIN.nok_address || verifiedNIN.nok_address1 || "",
-        }
-      : {};
-
-    const storedValues = {
-      title: formData.title || "",
-      surname: formData.surname || "",
-      firstname: formData.firstName || formData.firstname || "",
-      othername: formData.otherNames || formData.othername || "",
-      contact: formData.phoneNumber || formData.contact || "",
-      email: formData.email || "",
-      dob: formatDate(getRawDob(formData) || formData.dateOfBirth || formData.dob) || "",
-      sex: formData.sex || formData.gender || "",
-      maritalStatus: formData.maritalStatus || "",
-      stateorigin: normalizeState(formData.stateOfOrigin || formData.stateorigin) || "",
-      lga: formData.lga || "",
-      stateres: normalizeState(formData.stateOfResidence || formData.stateres) || "",
-      address: formData.addressStateOfResidence || formData.address || "",
-      nok_name: formData.nextOfKinName || formData.nok_name || "",
-      nok_relationship: formData.nextOfKinRelationship || formData.nok_relationship || "",
-      nok_phone: formData.nextOfKinPhoneNumber || formData.nok_phone || "",
-      nok_address: formData.nextOfKinAddress || formData.nok_address || "",
-    };
-
-    const hasVerifiedValues = Boolean(verifiedNIN);
-    const mergedValues = {
-      ...storedValues,
-      ...Object.fromEntries(
-        Object.entries(verifiedValues).filter(([, val]) => val !== "" && val !== null && val !== undefined)
-      ),
-    };
-
-    if (hasVerifiedValues || !verificationInitializedRef.current) {
-      reset(mergedValues, {
-        keepDefaultValues: false,
-        keepErrors: false,
-        keepDirty: true,
-        keepIsSubmitted: false,
-        keepTouched: false,
-        keepIsValid: false,
-        keepSubmitCount: false,
-      });
-
-      verificationInitializedRef.current = hasVerifiedValues;
-
-      if (mergedValues.dob) {
-        setValue("dob", mergedValues.dob, { shouldValidate: true, shouldDirty: true });
-      }
+    if (initialValues.dob) {
+      setValue("dob", initialValues.dob, { shouldValidate: true });
     }
-
+    if (initialValues.sex) {
+      setValue("sex", initialValues.sex, { shouldValidate: true });
+    }
+    if (initialValues.stateorigin) {
+      setValue("stateorigin", initialValues.stateorigin, { shouldValidate: true });
+    }
+    if (initialValues.lga) {
+      setValue("lga", initialValues.lga, { shouldValidate: true });
+    }
     setIsLoading(false);
-  }, [formData, verifiedNIN, reset]);
+  }, [initialValues, setValue]);
 
   // Update LGAs when state of origin changes
   const selectedState = watch("stateorigin");
@@ -365,20 +403,14 @@ export default function ProfileForm({
     }
 
     const lgas = getLgasByState(selectedState);
-    const verifiedLga =
-      verifiedNIN?.birthlga ||
-      verifiedNIN?.residence_lga ||
-      verifiedNIN?.lga_origin ||
-      verifiedNIN?.self_origin_lga ||
-      verifiedNIN?.lga ||
-      "";
+    const verifiedLga = extractOriginLga(verifiedNIN);
 
     // If verified LGA exists and isn't in default list, prepend it
     const mergedLgas = verifiedLga && !lgas.includes(verifiedLga) ? [verifiedLga, ...lgas] : lgas;
     setAvailableLgas(mergedLgas);
 
     if (!selectedLga && mergedLgas.length > 0) {
-      setValue("lga", mergedLgas[0]);
+      setValue("lga", verifiedLga || mergedLgas[0]);
     }
   }, [selectedState, selectedLga, setValue, verifiedNIN]);
 
@@ -525,35 +557,45 @@ export default function ProfileForm({
                 </span>
               )}
             </div>
-            <Controller
-              name="title"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    trigger("title");
-                  }}
-                  value={field.value}
-                  disabled={isFieldVerified("title")}
-                >
-                  <SelectTrigger className={cn(isFieldVerified("title") && "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed")}>
-                    <SelectValue placeholder="Select title" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {verifiedNIN?.title && !["mr", "mrs", "miss", "dr", "prof", "chief"].includes(verifiedNIN.title.toLowerCase()) ? (
-                      <SelectItem value={verifiedNIN.title}>{verifiedNIN.title}</SelectItem>
-                    ) : null}
-                    <SelectItem value="mr">Mr</SelectItem>
-                    <SelectItem value="mrs">Mrs</SelectItem>
-                    <SelectItem value="miss">Miss</SelectItem>
-                    <SelectItem value="dr">Dr</SelectItem>
-                    <SelectItem value="prof">Prof</SelectItem>
-                    <SelectItem value="chief">Chief</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            />
+            {isFieldVerified("title") ? (
+              <div className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-800 shadow-sm cursor-not-allowed select-none">
+                <span>
+                  {initialValues.title
+                    ? initialValues.title.charAt(0).toUpperCase() + initialValues.title.slice(1).toLowerCase()
+                    : ""}
+                </span>
+                <ChevronDown className="h-4 w-4 opacity-50" />
+              </div>
+            ) : (
+              <Controller
+                name="title"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      trigger("title");
+                    }}
+                    value={field.value}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select title" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {verifiedNIN?.title && !["mr", "mrs", "miss", "dr", "prof", "chief"].includes(verifiedNIN.title.toLowerCase()) ? (
+                        <SelectItem value={verifiedNIN.title}>{verifiedNIN.title}</SelectItem>
+                      ) : null}
+                      <SelectItem value="mr">Mr</SelectItem>
+                      <SelectItem value="mrs">Mrs</SelectItem>
+                      <SelectItem value="miss">Miss</SelectItem>
+                      <SelectItem value="dr">Dr</SelectItem>
+                      <SelectItem value="prof">Prof</SelectItem>
+                      <SelectItem value="chief">Chief</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            )}
             {showFieldError("title") && errors.title && (
               <p className="text-red-500 text-sm">{errors.title.message}</p>
             )}
@@ -712,14 +754,14 @@ export default function ProfileForm({
               control={control}
               render={({ field }) => (
                 <DateSelect
-                  value={field.value}
+                  value={field.value || initialValues.dob}
                   onValueChange={(value) => {
                     field.onChange(value);
                     trigger("dob");
                   }}
                   maxDate={new Date()}
                   triggerClassName={cn("h-10", isFieldVerified("dob") && "bg-slate-100 cursor-not-allowed opacity-90")}
-                  error={!!errors.dob}
+                  error={!isFieldVerified("dob") && showFieldError("dob")}
                   disabled={isFieldVerified("dob")}
                 />
               )}
@@ -739,28 +781,40 @@ export default function ProfileForm({
                 </span>
               )}
             </div>
-            <Controller
-              name="sex"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    trigger("sex");
-                  }}
-                  value={field.value}
-                  disabled={isFieldVerified("sex")}
-                >
-                  <SelectTrigger className={cn(isFieldVerified("sex") && "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed")}>
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            />
+            {isFieldVerified("sex") ? (
+              <div className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-800 shadow-sm cursor-not-allowed select-none">
+                <span>
+                  {(initialValues.sex || "").toLowerCase() === "male"
+                    ? "Male"
+                    : (initialValues.sex || "").toLowerCase() === "female"
+                      ? "Female"
+                      : initialValues.sex}
+                </span>
+                <ChevronDown className="h-4 w-4 opacity-50" />
+              </div>
+            ) : (
+              <Controller
+                name="sex"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      trigger("sex");
+                    }}
+                    value={field.value}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            )}
             {showFieldError("sex") && errors.sex && (
               <p className="text-red-500 text-sm">{errors.sex.message}</p>
             )}
@@ -776,30 +830,36 @@ export default function ProfileForm({
                 </span>
               )}
             </div>
-            <Controller
-              name="maritalStatus"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    trigger("maritalStatus");
-                  }}
-                  value={field.value}
-                  disabled={isFieldVerified("maritalStatus")}
-                >
-                  <SelectTrigger className={cn(isFieldVerified("maritalStatus") && "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed")}>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Single">Single</SelectItem>
-                    <SelectItem value="Married">Married</SelectItem>
-                    <SelectItem value="Divorced">Divorced</SelectItem>
-                    <SelectItem value="Widowed">Widowed</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            />
+            {isFieldVerified("maritalStatus") ? (
+              <div className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-800 shadow-sm cursor-not-allowed select-none">
+                <span>{initialValues.maritalStatus}</span>
+                <ChevronDown className="h-4 w-4 opacity-50" />
+              </div>
+            ) : (
+              <Controller
+                name="maritalStatus"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      trigger("maritalStatus");
+                    }}
+                    value={field.value}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Single">Single</SelectItem>
+                      <SelectItem value="Married">Married</SelectItem>
+                      <SelectItem value="Divorced">Divorced</SelectItem>
+                      <SelectItem value="Widowed">Widowed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            )}
             {showFieldError("maritalStatus") && errors.maritalStatus && (
               <p className="text-red-500 text-sm">
                 {errors.maritalStatus.message}
@@ -817,31 +877,37 @@ export default function ProfileForm({
                 </span>
               )}
             </div>
-            <Controller
-              name="stateorigin"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    trigger("stateorigin");
-                  }}
-                  value={field.value}
-                  disabled={isFieldVerified("stateorigin")}
-                >
-                  <SelectTrigger className={cn(isFieldVerified("stateorigin") && "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed")}>
-                    <SelectValue placeholder="Select state" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {nigerianStates.map((state) => (
-                      <SelectItem key={state} value={state}>
-                        {state}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
+            {isFieldVerified("stateorigin") ? (
+              <div className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-800 shadow-sm cursor-not-allowed select-none">
+                <span>{initialValues.stateorigin}</span>
+                <ChevronDown className="h-4 w-4 opacity-50" />
+              </div>
+            ) : (
+              <Controller
+                name="stateorigin"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      trigger("stateorigin");
+                    }}
+                    value={field.value}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {nigerianStates.map((state) => (
+                        <SelectItem key={state} value={state}>
+                          {state}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            )}
             {showFieldError("stateorigin") && errors.stateorigin && (
               <p className="text-red-500 text-sm">
                 {errors.stateorigin.message}
@@ -859,31 +925,38 @@ export default function ProfileForm({
                 </span>
               )}
             </div>
-            <Controller
-              name="lga"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    trigger("lga");
-                  }}
-                  value={field.value}
-                  disabled={isFieldVerified("lga") || !watch("stateorigin")}
-                >
-                  <SelectTrigger className={cn(isFieldVerified("lga") && "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed")}>
-                    <SelectValue placeholder="Select LGA" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableLgas.map((lga) => (
-                      <SelectItem key={lga} value={lga}>
-                        {lga}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
+            {isFieldVerified("lga") ? (
+              <div className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-800 shadow-sm cursor-not-allowed select-none">
+                <span>{initialValues.lga}</span>
+                <ChevronDown className="h-4 w-4 opacity-50" />
+              </div>
+            ) : (
+              <Controller
+                name="lga"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      trigger("lga");
+                    }}
+                    value={field.value}
+                    disabled={!watch("stateorigin")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select LGA" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableLgas.map((lga) => (
+                        <SelectItem key={lga} value={lga}>
+                          {lga}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            )}
             {showFieldError("lga") && errors.lga && (
               <p className="text-red-500 text-sm">{errors.lga.message}</p>
             )}
@@ -899,31 +972,37 @@ export default function ProfileForm({
                 </span>
               )}
             </div>
-            <Controller
-              name="stateres"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    trigger("stateres");
-                  }}
-                  value={field.value}
-                  disabled={isFieldVerified("stateres")}
-                >
-                  <SelectTrigger className={cn(isFieldVerified("stateres") && "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed")}>
-                    <SelectValue placeholder="Select state" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {nigerianStates.map((state) => (
-                      <SelectItem key={state} value={state}>
-                        {state}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
+            {isFieldVerified("stateres") ? (
+              <div className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-800 shadow-sm cursor-not-allowed select-none">
+                <span>{initialValues.stateres}</span>
+                <ChevronDown className="h-4 w-4 opacity-50" />
+              </div>
+            ) : (
+              <Controller
+                name="stateres"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      trigger("stateres");
+                    }}
+                    value={field.value}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {nigerianStates.map((state) => (
+                        <SelectItem key={state} value={state}>
+                          {state}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            )}
             {showFieldError("stateres") && errors.stateres && (
               <p className="text-red-500 text-sm">{errors.stateres.message}</p>
             )}
