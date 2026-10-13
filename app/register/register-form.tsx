@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { parseDateValue } from "@/components/ui/date-select";
 import { usePersonalInfo } from "@/services/hooks/register/personal-info";
 import { useEmploymentInfo } from "@/services/hooks/register/employment-info";
 import { useRegistrationDocuments } from "@/services/hooks/register/documents";
@@ -273,35 +274,183 @@ export default function RegisterForm() {
         };
       };
 
-      const nameParts = splitName(data.firstname);
+      const rawFirstName =
+        (typeof data.firstname === "string" && data.firstname) ||
+        (typeof data.first_name === "string" && data.first_name) ||
+        "";
+      const rawSurname =
+        (typeof data.surname === "string" && data.surname) ||
+        (typeof data.last_name === "string" && data.last_name) ||
+        "";
+      const rawOtherName =
+        (typeof data.middlename === "string" && data.middlename) ||
+        (typeof data.middle_name === "string" && data.middle_name) ||
+        (typeof data.othername === "string" && data.othername) ||
+        (typeof data.other_name === "string" && data.other_name) ||
+        "";
+
+      const nameParts = splitName(rawFirstName);
+      const firstName = rawFirstName
+        ? rawFirstName.includes(" ")
+          ? nameParts.firstName
+          : rawFirstName
+        : nameParts.firstName;
+      const surname = rawSurname || nameParts.surname;
+      const otherNames = rawOtherName || nameParts.otherNames;
+
+      // Extract gender/sex
+      const rawGender = String(data.gender || data.sex || "").toLowerCase();
+      const sex = rawGender.startsWith("m")
+        ? "male"
+        : rawGender.startsWith("f")
+          ? "female"
+          : "";
+
+      // Extract marital status (Capitalized)
+      const rawMarital = String(data.maritalstatus || data.marital_status || "").trim();
+      const maritalStatus = rawMarital
+        ? rawMarital.charAt(0).toUpperCase() + rawMarital.slice(1).toLowerCase()
+        : "";
+
+      // Extract photo / passport photograph
+      const rawPhoto =
+        (typeof data.photo === "string" && data.photo) ||
+        (typeof data.photo_base64 === "string" && data.photo_base64) ||
+        (typeof data.photoBase64 === "string" && data.photoBase64) ||
+        (typeof data.image === "string" && data.image) ||
+        (typeof data.passport === "string" && data.passport) ||
+        (typeof data.picture === "string" && data.picture) ||
+        (typeof data.profileImage === "string" && data.profileImage) ||
+        (typeof data.avatar === "string" && data.avatar) ||
+        "";
+
+      let profileImage = "";
+      if (rawPhoto) {
+        if (
+          rawPhoto.startsWith("data:image/") ||
+          rawPhoto.startsWith("http://") ||
+          rawPhoto.startsWith("https://")
+        ) {
+          profileImage = rawPhoto;
+        } else {
+          profileImage = `data:image/jpeg;base64,${rawPhoto.trim()}`;
+        }
+      }
+
+      // Extract date of birth
+      const rawDob =
+        (typeof data.birthdate === "string" && data.birthdate) ||
+        (typeof data.date_of_birth === "string" && data.date_of_birth) ||
+        (typeof data.dob === "string" && data.dob) ||
+        (typeof data.birth_date === "string" && data.birth_date) ||
+        (typeof data.dateOfBirth === "string" && data.dateOfBirth) ||
+        (typeof data.birthDate === "string" && data.birthDate) ||
+        (typeof data.DateOfBirth === "string" && data.DateOfBirth) ||
+        (typeof data.BirthDate === "string" && data.BirthDate) ||
+        (typeof data.bdate === "string" && data.bdate) ||
+        "";
+
+      let dateOfBirth = "";
+      if (rawDob) {
+        const parsed = parseDateValue(rawDob);
+        if (parsed.year && parsed.month && parsed.day) {
+          dateOfBirth = `${parsed.year}-${parsed.month}-${parsed.day}`;
+        } else {
+          dateOfBirth = rawDob.trim();
+        }
+      }
+
+      // Extract phone number
+      const phoneNumber =
+        (typeof data.telephoneno === "string" && data.telephoneno) ||
+        (typeof data.phone === "string" && data.phone) ||
+        (typeof data.phone_number === "string" && data.phone_number) ||
+        "";
+
+      // Extract state of origin & LGA
+      const stateOfOrigin =
+        (typeof data.state_of_origin === "string" && data.state_of_origin) ||
+        (typeof data.self_origin_state === "string" && data.self_origin_state) ||
+        (typeof data.birthstate === "string" && data.birthstate) ||
+        (typeof data.stateorigin === "string" && data.stateorigin) ||
+        "";
+
+      const lga =
+        (typeof data.birthlga === "string" && data.birthlga) ||
+        (typeof data.residence_lga === "string" && data.residence_lga) ||
+        (typeof data.lga_origin === "string" && data.lga_origin) ||
+        (typeof data.self_origin_lga === "string" && data.self_origin_lga) ||
+        (typeof data.lga === "string" && data.lga) ||
+        "";
+
+      // Extract residence state & address
+      const stateOfResidence =
+        (typeof data.residence_state === "string" && data.residence_state) ||
+        (typeof data.residenceState === "string" && data.residenceState) ||
+        (typeof data.stateres === "string" && data.stateres) ||
+        "";
+
+      const address =
+        (typeof data.address === "string" && data.address) ||
+        (typeof data.residence_address === "string" && data.residence_address) ||
+        (typeof data.residenceAdressLine1 === "string" && data.residenceAdressLine1) ||
+        (typeof data.residence_address_line1 === "string" && data.residence_address_line1) ||
+        "";
+
+      // Extract next of kin
+      const nokName =
+        (typeof data.nok_name === "string" && data.nok_name) ||
+        (data.nok_firstname && data.nok_surname
+          ? `${data.nok_firstname} ${data.nok_surname}`.trim()
+          : "");
+
+      const nokRelationship =
+        (typeof data.nok_relationship === "string" && data.nok_relationship) || "";
+
+      const nokPhone =
+        (typeof data.nok_phone === "string" && data.nok_phone) ||
+        (typeof data.nok_telephoneno === "string" && data.nok_telephoneno) ||
+        "";
+
+      const nokAddress =
+        (typeof data.nok_address === "string" && data.nok_address) ||
+        (typeof data.nok_address1 === "string" && data.nok_address1) ||
+        (typeof data.nok_address2 === "string" && data.nok_address2) ||
+        "";
 
       return {
         nin: data.nin || fallbackNin,
         ninVerified: Boolean(data.verified),
-        title: data.title || "",
-        firstName: data.firstname || nameParts.firstName || "",
-        surname: data.surname || nameParts.surname || "",
-        otherNames: data.othername || nameParts.otherNames || "",
-        phoneNumber: data.telephoneno || "",
-        email: data.email || "",
-        dateOfBirth: data.birthdate || "",
-        sex:
-          data.gender === "m"
-            ? "male"
-            : data.gender === "f"
-              ? "female"
-              : "",
-        maritalStatus: data.maritalstatus || "",
-        stateOfOrigin: data.state_of_origin || "",
-        lga: data.birthlga || "",
-        stateOfResidence: data.residence_state || "",
-        addressStateOfResidence: data.address || "",
-        nextOfKinName:
-          data.nok_firstname && data.nok_surname
-            ? `${data.nok_firstname} ${data.nok_surname}`.trim()
-            : "",
-        nextOfKinRelationship: data.nok_relationship || "",
-        nextOfKinAddress: data.nok_address1 || "",
+        title: (typeof data.title === "string" && data.title) || "",
+        firstName,
+        firstname: firstName,
+        surname,
+        otherNames,
+        othername: otherNames,
+        phoneNumber,
+        contact: phoneNumber,
+        email: (typeof data.email === "string" && data.email) || "",
+        dateOfBirth,
+        dob: dateOfBirth,
+        sex,
+        gender: sex,
+        maritalStatus,
+        stateOfOrigin,
+        stateorigin: stateOfOrigin,
+        lga,
+        stateOfResidence,
+        stateres: stateOfResidence,
+        addressStateOfResidence: address,
+        address,
+        nextOfKinName: nokName,
+        nok_name: nokName,
+        nextOfKinRelationship: nokRelationship,
+        nok_relationship: nokRelationship,
+        nextOfKinPhoneNumber: nokPhone,
+        nok_phone: nokPhone,
+        nextOfKinAddress: nokAddress,
+        nok_address: nokAddress,
+        ...(profileImage ? { profileImage, photo: profileImage } : {}),
       };
     },
     []
@@ -311,8 +460,8 @@ export default function RegisterForm() {
     (data: VerifyNinData | null, fallbackNin: string) => {
       if (!data) return;
 
+      const normalized = normalizeVerifiedNinData(data, fallbackNin);
       setFormData((prev) => {
-        const normalized = normalizeVerifiedNinData(data, fallbackNin);
         return {
           ...prev,
           ...Object.fromEntries(
@@ -320,6 +469,10 @@ export default function RegisterForm() {
           ),
         };
       });
+
+      if (normalized.profileImage) {
+        localStorage.setItem("registration_profileImage", normalized.profileImage);
+      }
     },
     [normalizeVerifiedNinData]
   );
@@ -354,7 +507,15 @@ export default function RegisterForm() {
       verificationData.verifiedNin ||
       verificationData.data ||
       null;
-    applyVerifiedNinData(verifiedPayload, verificationData.nin || formData.nin);
+
+    if (verifiedPayload) {
+      const normalized = normalizeVerifiedNinData(verifiedPayload, verificationData.nin || formData.nin);
+      setVerifiedNIN({
+        ...verifiedPayload,
+        ...normalized,
+      });
+      applyVerifiedNinData(verifiedPayload, verificationData.nin || formData.nin);
+    }
 
     if (!verificationData.manualVerification) {
       setSuccess("Verification successful.");

@@ -81,7 +81,8 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
         typeof response.verified === "boolean"
           ? response.verified
           : response.data?.verified ?? response.success;
-      const verifiedData = response.data ?? {
+      const verifiedData = {
+        ...(response.data ?? {}),
         nin: ninValue,
         verified: isVerified,
         registration_id: registrationIdFromResponse,
@@ -189,15 +190,15 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
                 onChange={(e) => setBvn(e.target.value)}
                 placeholder="Enter your 11-digit BVN"
                 maxLength={11}
-                disabled={loading}
-                className={errors.bvn ? "border-red-500" : ""}
+                disabled={loading || buttonLoading || bvnVerified}
+                className={errors.bvn ? "border-red-500" : bvnVerified ? "bg-slate-100 cursor-not-allowed" : ""}
               />
               {errors.bvn && (
                 <p className="text-red-500 text-xs">{errors.bvn}</p>
               )}
               {bvnVerified && (
                 <p className="flex items-center text-green-600 text-sm mt-1">
-                  <CheckCircle className="h-4 w-4 mr-1" /> BVN verified
+                  <CheckCircle className="h-4 w-4 mr-1" /> BVN verified & locked
                 </p>
               )}
             </div>
@@ -211,15 +212,15 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
                 onChange={(e) => setNin(e.target.value)}
                 placeholder="Enter your 11-digit NIN"
                 maxLength={11}
-                disabled={loading}
-                className={errors.nin ? "border-red-500" : ""}
+                disabled={loading || buttonLoading || ninVerified}
+                className={errors.nin ? "border-red-500" : ninVerified ? "bg-slate-100 cursor-not-allowed" : ""}
               />
               {errors.nin && (
                 <p className="text-red-500 text-xs">{errors.nin}</p>
               )}
               {ninVerified && (
                 <p className="flex items-center text-green-600 text-sm mt-1">
-                  <CheckCircle className="h-4 w-4 mr-1" /> NIN verified
+                  <CheckCircle className="h-4 w-4 mr-1" /> NIN verified & locked
                 </p>
               )}
             </div>

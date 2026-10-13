@@ -14,11 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DateSelect } from "@/components/ui/date-select";
+import { DateSelect, parseDateValue } from "@/components/ui/date-select";
 import { useState, useEffect, useRef } from "react";
 import { nigerianStates, getLgasByState } from "./nigeria-data";
 import { VerifyNinData } from "@/types/verify";
-// import LoadingSpinner from "@/components/loading-spinner";
+import { Lock, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // Form Schema
 export const formSchema = z.object({
@@ -60,6 +61,7 @@ interface PersonalInfoStepProps {
   formData: any;
   onSubmit: (data: any) => void;
   loading: boolean;
+  stepThreeHandle?: any;
   verifiedNIN: VerifyNinData | null;
   registrationIdInput: string;
   isRegistrationIdConfirmed: boolean;
@@ -78,112 +80,257 @@ export default function ProfileForm({
   const [availableLgas, setAvailableLgas] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Format date from DD-MM-YYYY to YYYY-MM-DD
-  const formatDate = (dateStr?: string): string => {
-    if (!dateStr) return "";
-    if (dateStr.includes("/")) {
-      const [day, month, year] = dateStr.split("/");
-      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-    } else if (dateStr.includes("-")) {
-      const [day, month, year] = dateStr.split("-");
-      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-    }
-    return dateStr;
+  const getRawDob = (source: any): string => {
+    if (!source || typeof source !== "object") return "";
+    return (
+      (typeof source.birthdate === "string" && source.birthdate) ||
+      (typeof source.date_of_birth === "string" && source.date_of_birth) ||
+      (typeof source.dob === "string" && source.dob) ||
+      (typeof source.birth_date === "string" && source.birth_date) ||
+      (typeof source.dateOfBirth === "string" && source.dateOfBirth) ||
+      (typeof source.birthDate === "string" && source.birthDate) ||
+      (typeof source.DateOfBirth === "string" && source.DateOfBirth) ||
+      (typeof source.BirthDate === "string" && source.BirthDate) ||
+      (typeof source.bdate === "string" && source.bdate) ||
+      ""
+    );
   };
 
- const {
-   register,
-   handleSubmit,
-   control,
-   setValue,
-   reset,
-   watch,
-   trigger,
-   formState: { errors, isValid, isDirty, touchedFields, isSubmitted },
- } = useForm<FormValues>({
-   resolver: zodResolver(formSchema),
-   mode: "onChange", // Validate on every change
-   reValidateMode: "onChange",
-   defaultValues: {
-     title: "",
-     surname: "",
-     firstname: "",
-     othername: "",
-     contact: "",
-     email: "",
-     dob: "",
-     sex: "",
-     maritalStatus: "",
-     stateorigin: "",
-     lga: "",
-     stateres: "",
-     address: "",
-     nok_name: "",
-     nok_relationship: "",
-     nok_phone: "",
-     nok_address: "",
-   },
- });
+  // Format date to YYYY-MM-DD
+  const formatDate = (dateStr?: string): string => {
+    if (!dateStr) return "";
+    const parsed = parseDateValue(dateStr);
+    if (parsed.year && parsed.month && parsed.day) {
+      return `${parsed.year}-${parsed.month}-${parsed.day}`;
+    }
+    return String(dateStr).trim();
+  };
 
-  // Build a single source of truth so NIN values are not overwritten by the
-  // later formData hydration effect.
+  const normalizeState = (state?: string) => {
+    if (!state) return "";
+    const cleaned = state.replace(/\s+state$/i, "").trim().toLowerCase();
+    const found = nigerianStates.find(
+      (s) => s.toLowerCase() === cleaned || s.toLowerCase() === state.trim().toLowerCase()
+    );
+    return found || state;
+  };
+
+  const profileImageSrc =
+    (typeof verifiedNIN?.profileImage === "string" && verifiedNIN.profileImage) ||
+    (typeof verifiedNIN?.photo === "string" && verifiedNIN.photo) ||
+    (typeof verifiedNIN?.photo_base64 === "string" && verifiedNIN.photo_base64) ||
+    (typeof formData?.profileImage === "string" && formData.profileImage) ||
+    "";
+
+  // Helper to check if a specific field was auto-filled from verified NIN data
+  const isFieldVerified = (fieldName: keyof FormValues): boolean => {
+    if (!verifiedNIN) return false;
+
+    switch (fieldName) {
+      case "surname":
+        return Boolean(verifiedNIN.surname || verifiedNIN.last_name);
+      case "firstname":
+        return Boolean(verifiedNIN.firstname || verifiedNIN.first_name);
+      case "othername":
+        return Boolean(
+          verifiedNIN.middlename ||
+            verifiedNIN.middle_name ||
+            verifiedNIN.othername ||
+            verifiedNIN.other_name
+        );
+      case "contact":
+        return Boolean(verifiedNIN.telephoneno || verifiedNIN.phone || verifiedNIN.phone_number);
+      case "email":
+        return Boolean(verifiedNIN.email);
+      case "dob": {
+        const raw = getRawDob(verifiedNIN);
+        return Boolean(raw && formatDate(raw));
+      }
+      case "sex":
+        return Boolean(verifiedNIN.gender || verifiedNIN.sex);
+      case "maritalStatus":
+        return Boolean(verifiedNIN.maritalstatus || verifiedNIN.marital_status);
+      case "stateorigin":
+        return Boolean(
+          verifiedNIN.state_of_origin ||
+            verifiedNIN.self_origin_state ||
+            verifiedNIN.birthstate ||
+            verifiedNIN.stateorigin
+        );
+      case "lga":
+        return Boolean(
+          verifiedNIN.birthlga ||
+            verifiedNIN.residence_lga ||
+            verifiedNIN.lga_origin ||
+            verifiedNIN.self_origin_lga ||
+            verifiedNIN.lga
+        );
+      case "stateres":
+        return Boolean(verifiedNIN.residence_state || verifiedNIN.residenceState || verifiedNIN.stateres);
+      case "address":
+        return Boolean(
+          verifiedNIN.address ||
+            verifiedNIN.residence_address ||
+            verifiedNIN.residenceAdressLine1 ||
+            verifiedNIN.residence_address_line1
+        );
+      case "title":
+        return Boolean(verifiedNIN.title);
+      case "nok_name":
+        return Boolean(
+          verifiedNIN.nok_name ||
+            (verifiedNIN.nok_firstname && verifiedNIN.nok_surname)
+        );
+      case "nok_relationship":
+        return Boolean(verifiedNIN.nok_relationship);
+      case "nok_phone":
+        return Boolean(verifiedNIN.nok_phone || verifiedNIN.nok_telephoneno);
+      case "nok_address":
+        return Boolean(verifiedNIN.nok_address || verifiedNIN.nok_address1);
+      default:
+        return false;
+    }
+  };
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    setValue,
+    reset,
+    watch,
+    trigger,
+    getValues,
+    formState: { errors, touchedFields, isSubmitted },
+  } = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    mode: "onChange",
+    reValidateMode: "onChange",
+    defaultValues: {
+      title: "",
+      surname: "",
+      firstname: "",
+      othername: "",
+      contact: "",
+      email: "",
+      dob: "",
+      sex: "",
+      maritalStatus: "",
+      stateorigin: "",
+      lga: "",
+      stateres: "",
+      address: "",
+      nok_name: "",
+      nok_relationship: "",
+      nok_phone: "",
+      nok_address: "",
+    },
+  });
+
   const verificationInitializedRef = useRef(false);
 
   useEffect(() => {
+    const rawSex = String(verifiedNIN?.gender || verifiedNIN?.sex || "").toLowerCase();
+    const normalizedSex = rawSex.startsWith("m")
+      ? "male"
+      : rawSex.startsWith("f")
+        ? "female"
+        : "";
+
+    const rawMarital = String(verifiedNIN?.maritalstatus || verifiedNIN?.marital_status || "").trim();
+    const normalizedMarital = rawMarital
+      ? rawMarital.charAt(0).toUpperCase() + rawMarital.slice(1).toLowerCase()
+      : "";
+
+    const rawTitle = (verifiedNIN?.title || "").toLowerCase();
+    const validTitles = ["mr", "mrs", "miss", "dr", "prof", "chief"];
+    const normalizedTitle = validTitles.includes(rawTitle) ? rawTitle : (verifiedNIN?.title || "");
+
+    const verifiedState = normalizeState(
+      verifiedNIN?.state_of_origin ||
+        verifiedNIN?.self_origin_state ||
+        verifiedNIN?.birthstate ||
+        verifiedNIN?.stateorigin
+    );
+
+    const verifiedResState = normalizeState(
+      verifiedNIN?.residence_state ||
+        verifiedNIN?.residenceState ||
+        verifiedNIN?.stateres
+    );
+
     const verifiedValues = verifiedNIN
       ? {
-          title: verifiedNIN.title || "",
-          surname: verifiedNIN.surname || "",
-          firstname: verifiedNIN.firstname || "",
-          othername: verifiedNIN.othername || "",
-          contact: verifiedNIN.telephoneno || "",
+          title: normalizedTitle || "",
+          surname: verifiedNIN.surname || verifiedNIN.last_name || "",
+          firstname: verifiedNIN.firstname || verifiedNIN.first_name || "",
+          othername:
+            verifiedNIN.othername ||
+            verifiedNIN.other_name ||
+            verifiedNIN.middlename ||
+            verifiedNIN.middle_name ||
+            "",
+          contact:
+            verifiedNIN.telephoneno ||
+            verifiedNIN.phone ||
+            verifiedNIN.phone_number ||
+            "",
           email: verifiedNIN.email || "",
-          dob: formatDate(verifiedNIN.birthdate) || "",
-          sex:
-            verifiedNIN.gender === "m"
-              ? "male"
-              : verifiedNIN.gender === "f"
-                ? "female"
-                : "",
-          maritalStatus: verifiedNIN.maritalstatus || "",
-          stateorigin: verifiedNIN.state_of_origin || "",
-          lga: verifiedNIN.birthlga || "",
-          stateres: verifiedNIN.residence_state || "",
-          address: verifiedNIN.address || "",
+          dob: formatDate(getRawDob(verifiedNIN)) || "",
+          sex: normalizedSex || "",
+          maritalStatus: normalizedMarital || "",
+          stateorigin: verifiedState || "",
+          lga:
+            verifiedNIN.birthlga ||
+            verifiedNIN.residence_lga ||
+            verifiedNIN.lga_origin ||
+            verifiedNIN.self_origin_lga ||
+            verifiedNIN.lga ||
+            "",
+          stateres: verifiedResState || "",
+          address:
+            verifiedNIN.address ||
+            verifiedNIN.residence_address ||
+            verifiedNIN.residenceAdressLine1 ||
+            verifiedNIN.residence_address_line1 ||
+            "",
           nok_name:
-            verifiedNIN.nok_firstname && verifiedNIN.nok_surname
-              ? `${verifiedNIN.nok_firstname} ${verifiedNIN.nok_surname}`
-              : "",
+            verifiedNIN.nok_name ||
+            (verifiedNIN.nok_firstname && verifiedNIN.nok_surname
+              ? `${verifiedNIN.nok_firstname} ${verifiedNIN.nok_surname}`.trim()
+              : ""),
           nok_relationship: verifiedNIN.nok_relationship || "",
-          nok_phone: "",
-          nok_address: verifiedNIN.nok_address1 || "",
+          nok_phone: verifiedNIN.nok_phone || verifiedNIN.nok_telephoneno || "",
+          nok_address: verifiedNIN.nok_address || verifiedNIN.nok_address1 || "",
         }
       : {};
 
     const storedValues = {
       title: formData.title || "",
       surname: formData.surname || "",
-      firstname: formData.firstName || "",
-      othername: formData.otherNames || "",
-      contact: formData.phoneNumber || "",
+      firstname: formData.firstName || formData.firstname || "",
+      othername: formData.otherNames || formData.othername || "",
+      contact: formData.phoneNumber || formData.contact || "",
       email: formData.email || "",
-      dob: formData.dateOfBirth || "",
-      sex: formData.sex || "",
+      dob: formatDate(getRawDob(formData) || formData.dateOfBirth || formData.dob) || "",
+      sex: formData.sex || formData.gender || "",
       maritalStatus: formData.maritalStatus || "",
-      stateorigin: formData.stateOfOrigin || "",
+      stateorigin: normalizeState(formData.stateOfOrigin || formData.stateorigin) || "",
       lga: formData.lga || "",
-      stateres: formData.stateOfResidence || "",
-      address: formData.addressStateOfResidence || "",
-      nok_name: formData.nextOfKinName || "",
-      nok_relationship: formData.nextOfKinRelationship || "",
-      nok_phone: formData.nextOfKinPhoneNumber || "",
-      nok_address: formData.nextOfKinAddress || "",
+      stateres: normalizeState(formData.stateOfResidence || formData.stateres) || "",
+      address: formData.addressStateOfResidence || formData.address || "",
+      nok_name: formData.nextOfKinName || formData.nok_name || "",
+      nok_relationship: formData.nextOfKinRelationship || formData.nok_relationship || "",
+      nok_phone: formData.nextOfKinPhoneNumber || formData.nok_phone || "",
+      nok_address: formData.nextOfKinAddress || formData.nok_address || "",
     };
 
     const hasVerifiedValues = Boolean(verifiedNIN);
     const mergedValues = {
       ...storedValues,
-      ...verifiedValues,
+      ...Object.fromEntries(
+        Object.entries(verifiedValues).filter(([, val]) => val !== "" && val !== null && val !== undefined)
+      ),
     };
 
     if (hasVerifiedValues || !verificationInitializedRef.current) {
@@ -198,6 +345,10 @@ export default function ProfileForm({
       });
 
       verificationInitializedRef.current = hasVerifiedValues;
+
+      if (mergedValues.dob) {
+        setValue("dob", mergedValues.dob, { shouldValidate: true, shouldDirty: true });
+      }
     }
 
     setIsLoading(false);
@@ -214,58 +365,76 @@ export default function ProfileForm({
     }
 
     const lgas = getLgasByState(selectedState);
-    setAvailableLgas(lgas);
+    const verifiedLga =
+      verifiedNIN?.birthlga ||
+      verifiedNIN?.residence_lga ||
+      verifiedNIN?.lga_origin ||
+      verifiedNIN?.self_origin_lga ||
+      verifiedNIN?.lga ||
+      "";
 
-    if (!selectedLga && lgas.length > 0) {
-      setValue("lga", lgas[0]);
+    // If verified LGA exists and isn't in default list, prepend it
+    const mergedLgas = verifiedLga && !lgas.includes(verifiedLga) ? [verifiedLga, ...lgas] : lgas;
+    setAvailableLgas(mergedLgas);
+
+    if (!selectedLga && mergedLgas.length > 0) {
+      setValue("lga", mergedLgas[0]);
     }
-  }, [selectedState, selectedLga, setValue]);
+  }, [selectedState, selectedLga, setValue, verifiedNIN]);
 
-const transformToFormData = (values: FormValues) => ({
-  title: values.title,
-  surname: values.surname,
-  firstname: values.firstname,
-  firstName: values.firstname,
-  first_name: values.firstname,
-  otherNames: values.othername || "",
-  other_name: values.othername || "",
-  phoneNumber: values.contact,
-  phone_number: values.contact,
-  telephoneno: values.contact,
-  email: values.email,
-  dateOfBirth: values.dob,
-  date_of_birth: values.dob,
-  sex: values.sex,
-  gender: values.sex,
-  maritalStatus: values.maritalStatus,
-  marital_status: values.maritalStatus,
-  stateOfOrigin: values.stateorigin,
-  state_of_origin: values.stateorigin,
-  lga: values.lga,
-  stateOfResidence: values.stateres,
-  state_of_residence: values.stateres,
-  addressStateOfResidence: values.address,
-  address_state_of_residence: values.address,
-  nextOfKinName: values.nok_name,
-  next_of_kin_name: values.nok_name,
-  nextOfKinRelationship: values.nok_relationship,
-  next_of_kin_relationship: values.nok_relationship,
-  nextOfKinPhoneNumber: values.nok_phone,
-  next_of_kin_phone_number: values.nok_phone,
-  nextOfKinAddress: values.nok_address,
-  next_of_kin_address: values.nok_address,
-});
+  const transformToFormData = (values: FormValues) => ({
+    title: values.title,
+    surname: values.surname,
+    firstname: values.firstname,
+    firstName: values.firstname,
+    first_name: values.firstname,
+    otherNames: values.othername || "",
+    other_name: values.othername || "",
+    phoneNumber: values.contact,
+    phone_number: values.contact,
+    telephoneno: values.contact,
+    email: values.email,
+    dateOfBirth: values.dob,
+    date_of_birth: values.dob,
+    sex: values.sex,
+    gender: values.sex,
+    maritalStatus: values.maritalStatus,
+    marital_status: values.maritalStatus,
+    stateOfOrigin: values.stateorigin,
+    state_of_origin: values.stateorigin,
+    lga: values.lga,
+    stateOfResidence: values.stateres,
+    state_of_residence: values.stateres,
+    addressStateOfResidence: values.address,
+    address_state_of_residence: values.address,
+    nextOfKinName: values.nok_name,
+    next_of_kin_name: values.nok_name,
+    nextOfKinRelationship: values.nok_relationship,
+    next_of_kin_relationship: values.nok_relationship,
+    nextOfKinPhoneNumber: values.nok_phone,
+    next_of_kin_phone_number: values.nok_phone,
+    nextOfKinAddress: values.nok_address,
+    next_of_kin_address: values.nok_address,
+  });
 
-  const showFieldError = (field: keyof FormValues) => Boolean(errors[field] && (touchedFields[field] || isSubmitted));
+  const showFieldError = (field: keyof FormValues) =>
+    Boolean(errors[field] && (touchedFields[field] || isSubmitted));
 
-const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
-  try {
-    localStorage.setItem("personalInfoData", JSON.stringify(data));
-    onSubmit(transformToFormData(data));
-  } catch (error) {
-    console.error("Failed to save personal info:", error);
-  }
-};
+  const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
+    try {
+      // Merge getValues() with data to ensure disabled/readOnly fields are NEVER dropped
+      const currentValues = getValues();
+      const finalData: FormValues = {
+        ...currentValues,
+        ...data,
+      };
+
+      localStorage.setItem("personalInfoData", JSON.stringify(finalData));
+      onSubmit(transformToFormData(finalData));
+    } catch (error) {
+      console.error("Failed to save personal info:", error);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -278,13 +447,51 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
   return (
     <section>
       <div>
-        <h2 className="text-2xl font-bold text-green-700 mb-6">
+        <h2 className="text-2xl font-bold text-green-700 mb-2">
           Step 2: Personal Information
         </h2>
         <p className="text-gray-600 mb-4">
-          Please provide your personal details. All fields marked with an
-          asterisk (*) are required.
+          Please provide your personal details. All fields marked with an asterisk (*) are required.
         </p>
+
+        {/* Passport Photo Preview Banner if retrieved */}
+        {profileImageSrc && (
+          <div className="flex flex-col sm:flex-row items-center gap-4 p-4 mb-6 bg-green-50/90 border border-green-300 rounded-lg shadow-sm">
+            <div className="relative shrink-0">
+              <img
+                src={profileImageSrc}
+                alt="Passport Photograph"
+                className="h-24 w-24 rounded-lg object-cover border-2 border-green-600 shadow-sm"
+              />
+              <div className="absolute -bottom-1 -right-1 bg-green-600 text-white rounded-full p-1 shadow">
+                <CheckCircle2 className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="text-center sm:text-left space-y-1">
+              <div className="flex items-center justify-center sm:justify-start gap-1.5 text-green-800 font-semibold text-base">
+                <ShieldCheck className="h-5 w-5 text-green-600 shrink-0" />
+                Verified Identity Passport Photograph
+              </div>
+              <p className="text-xs sm:text-sm text-green-700">
+                Retrieved directly from your National Identity Database (NIN) record and locked for security.
+              </p>
+              <span className="inline-flex items-center gap-1 text-[11px] text-green-800 bg-green-100 font-medium px-2 py-0.5 rounded-full mt-1">
+                <Lock className="h-3 w-3" /> Auto-filled & Locked
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Info Banner when fields are locked from NIN */}
+        {Boolean(verifiedNIN) && (
+          <div className="bg-amber-50/80 border border-amber-200 rounded-lg p-3.5 mb-6 flex items-start gap-3">
+            <Lock className="h-5 w-5 text-amber-700 mt-0.5 shrink-0" />
+            <div className="text-xs sm:text-sm text-amber-900">
+              <span className="font-semibold">Identity Verified: </span>
+              Personal details synchronized from your NIN record have been auto-filled and locked from editing to ensure data accuracy. Please review them and complete any remaining open fields.
+            </div>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
@@ -297,9 +504,7 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
               value={registrationIdInput}
               onChange={(event) => onRegistrationIdChange(event.target.value)}
               placeholder="Enter the IPPIS code you got from verification"
-              className={
-                !isRegistrationIdConfirmed ? "border-yellow-500" : undefined
-              }
+              className={!isRegistrationIdConfirmed ? "border-yellow-500" : undefined}
             />
             {!isRegistrationIdConfirmed && (
               <p className="text-yellow-600 text-xs">
@@ -308,10 +513,18 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
             )}
           </div>
         </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Title */}
           <div>
-            <Label htmlFor="title">Title*</Label>
+            <div className="flex items-center mb-1">
+              <Label htmlFor="title">Title*</Label>
+              {isFieldVerified("title") && (
+                <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                  <Lock className="h-3 w-3" /> Locked
+                </span>
+              )}
+            </div>
             <Controller
               name="title"
               control={control}
@@ -322,25 +535,21 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                     trigger("title");
                   }}
                   value={field.value}
+                  disabled={isFieldVerified("title")}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={cn(isFieldVerified("title") && "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed")}>
                     <SelectValue placeholder="Select title" />
                   </SelectTrigger>
-                <SelectContent>
-                    {verifiedNIN?.title && verifiedNIN.title.length >= 1 ? (
-                      <SelectItem value={verifiedNIN.title}>
-                        {verifiedNIN.title}
-                      </SelectItem>
-                    ) : (
-                      <>
-                        <SelectItem value="mr">Mr</SelectItem>
-                        <SelectItem value="mrs">Mrs</SelectItem>
-                        <SelectItem value="miss">Miss</SelectItem>
-                        <SelectItem value="dr">Dr</SelectItem>
-                        <SelectItem value="prof">Prof</SelectItem>
-                        <SelectItem value="chief">Chief</SelectItem>
-                      </>
-                    )}
+                  <SelectContent>
+                    {verifiedNIN?.title && !["mr", "mrs", "miss", "dr", "prof", "chief"].includes(verifiedNIN.title.toLowerCase()) ? (
+                      <SelectItem value={verifiedNIN.title}>{verifiedNIN.title}</SelectItem>
+                    ) : null}
+                    <SelectItem value="mr">Mr</SelectItem>
+                    <SelectItem value="mrs">Mrs</SelectItem>
+                    <SelectItem value="miss">Miss</SelectItem>
+                    <SelectItem value="dr">Dr</SelectItem>
+                    <SelectItem value="prof">Prof</SelectItem>
+                    <SelectItem value="chief">Chief</SelectItem>
                   </SelectContent>
                 </Select>
               )}
@@ -352,13 +561,26 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
 
           {/* Surname */}
           <div>
-            <Label htmlFor="surname">Surname*</Label>
+            <div className="flex items-center mb-1">
+              <Label htmlFor="surname">Surname*</Label>
+              {isFieldVerified("surname") && (
+                <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                  <Lock className="h-3 w-3" /> Locked
+                </span>
+              )}
+            </div>
             <Input
               id="surname"
               {...register("surname", {
                 onChange: () => trigger("surname"),
               })}
               placeholder="Enter your surname"
+              readOnly={isFieldVerified("surname")}
+              disabled={isFieldVerified("surname")}
+              className={cn(
+                isFieldVerified("surname") &&
+                  "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed select-none pointer-events-none"
+              )}
             />
             {showFieldError("surname") && errors.surname && (
               <p className="text-red-500 text-sm">{errors.surname.message}</p>
@@ -367,13 +589,26 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
 
           {/* First Name */}
           <div>
-            <Label htmlFor="firstname">First Name*</Label>
+            <div className="flex items-center mb-1">
+              <Label htmlFor="firstname">First Name*</Label>
+              {isFieldVerified("firstname") && (
+                <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                  <Lock className="h-3 w-3" /> Locked
+                </span>
+              )}
+            </div>
             <Input
               id="firstname"
               {...register("firstname", {
                 onChange: () => trigger("firstname"),
               })}
               placeholder="Enter your first name"
+              readOnly={isFieldVerified("firstname")}
+              disabled={isFieldVerified("firstname")}
+              className={cn(
+                isFieldVerified("firstname") &&
+                  "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed select-none pointer-events-none"
+              )}
             />
             {showFieldError("firstname") && errors.firstname && (
               <p className="text-red-500 text-sm">{errors.firstname.message}</p>
@@ -382,25 +617,51 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
 
           {/* Other Name */}
           <div>
-            <Label htmlFor="othername">Other Name</Label>
+            <div className="flex items-center mb-1">
+              <Label htmlFor="othername">Other Name</Label>
+              {isFieldVerified("othername") && (
+                <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                  <Lock className="h-3 w-3" /> Locked
+                </span>
+              )}
+            </div>
             <Input
               id="othername"
               {...register("othername", {
                 onChange: () => trigger("othername"),
               })}
               placeholder="Enter other names (optional)"
+              readOnly={isFieldVerified("othername")}
+              disabled={isFieldVerified("othername")}
+              className={cn(
+                isFieldVerified("othername") &&
+                  "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed select-none pointer-events-none"
+              )}
             />
           </div>
 
           {/* Contact Phone */}
           <div>
-            <Label htmlFor="contact">Phone Number*</Label>
+            <div className="flex items-center mb-1">
+              <Label htmlFor="contact">Phone Number*</Label>
+              {isFieldVerified("contact") && (
+                <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                  <Lock className="h-3 w-3" /> Locked
+                </span>
+              )}
+            </div>
             <Input
               id="contact"
               {...register("contact", {
                 onChange: () => trigger("contact"),
               })}
               placeholder="Enter phone number"
+              readOnly={isFieldVerified("contact")}
+              disabled={isFieldVerified("contact")}
+              className={cn(
+                isFieldVerified("contact") &&
+                  "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed select-none pointer-events-none"
+              )}
             />
             {showFieldError("contact") && errors.contact && (
               <p className="text-red-500 text-sm">{errors.contact.message}</p>
@@ -409,7 +670,14 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
 
           {/* Email */}
           <div>
-            <Label htmlFor="email">Email*</Label>
+            <div className="flex items-center mb-1">
+              <Label htmlFor="email">Email*</Label>
+              {isFieldVerified("email") && (
+                <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                  <Lock className="h-3 w-3" /> Locked
+                </span>
+              )}
+            </div>
             <Input
               id="email"
               type="email"
@@ -417,6 +685,12 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                 onChange: () => trigger("email"),
               })}
               placeholder="Enter email address"
+              readOnly={isFieldVerified("email")}
+              disabled={isFieldVerified("email")}
+              className={cn(
+                isFieldVerified("email") &&
+                  "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed select-none pointer-events-none"
+              )}
             />
             {showFieldError("email") && errors.email && (
               <p className="text-red-500 text-sm">{errors.email.message}</p>
@@ -425,7 +699,14 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
 
           {/* Date of Birth */}
           <div>
-            <Label>Date of Birth*</Label>
+            <div className="flex items-center mb-1">
+              <Label>Date of Birth*</Label>
+              {isFieldVerified("dob") && (
+                <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                  <Lock className="h-3 w-3" /> Locked
+                </span>
+              )}
+            </div>
             <Controller
               name="dob"
               control={control}
@@ -437,8 +718,9 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                     trigger("dob");
                   }}
                   maxDate={new Date()}
-                  triggerClassName="h-10"
+                  triggerClassName={cn("h-10", isFieldVerified("dob") && "bg-slate-100 cursor-not-allowed opacity-90")}
                   error={!!errors.dob}
+                  disabled={isFieldVerified("dob")}
                 />
               )}
             />
@@ -449,7 +731,14 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
 
           {/* Gender */}
           <div>
-            <Label htmlFor="sex">Gender*</Label>
+            <div className="flex items-center mb-1">
+              <Label htmlFor="sex">Gender*</Label>
+              {isFieldVerified("sex") && (
+                <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                  <Lock className="h-3 w-3" /> Locked
+                </span>
+              )}
+            </div>
             <Controller
               name="sex"
               control={control}
@@ -460,8 +749,9 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                     trigger("sex");
                   }}
                   value={field.value}
+                  disabled={isFieldVerified("sex")}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={cn(isFieldVerified("sex") && "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed")}>
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
@@ -478,7 +768,14 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
 
           {/* Marital Status */}
           <div>
-            <Label htmlFor="maritalStatus">Marital Status*</Label>
+            <div className="flex items-center mb-1">
+              <Label htmlFor="maritalStatus">Marital Status*</Label>
+              {isFieldVerified("maritalStatus") && (
+                <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                  <Lock className="h-3 w-3" /> Locked
+                </span>
+              )}
+            </div>
             <Controller
               name="maritalStatus"
               control={control}
@@ -489,8 +786,9 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                     trigger("maritalStatus");
                   }}
                   value={field.value}
+                  disabled={isFieldVerified("maritalStatus")}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={cn(isFieldVerified("maritalStatus") && "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed")}>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -511,7 +809,14 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
 
           {/* State of Origin */}
           <div>
-            <Label htmlFor="stateorigin">State of Origin*</Label>
+            <div className="flex items-center mb-1">
+              <Label htmlFor="stateorigin">State of Origin*</Label>
+              {isFieldVerified("stateorigin") && (
+                <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                  <Lock className="h-3 w-3" /> Locked
+                </span>
+              )}
+            </div>
             <Controller
               name="stateorigin"
               control={control}
@@ -522,8 +827,9 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                     trigger("stateorigin");
                   }}
                   value={field.value}
+                  disabled={isFieldVerified("stateorigin")}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={cn(isFieldVerified("stateorigin") && "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed")}>
                     <SelectValue placeholder="Select state" />
                   </SelectTrigger>
                   <SelectContent>
@@ -545,7 +851,14 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
 
           {/* LGA */}
           <div>
-            <Label htmlFor="lga">Local Government Area*</Label>
+            <div className="flex items-center mb-1">
+              <Label htmlFor="lga">Local Government Area*</Label>
+              {isFieldVerified("lga") && (
+                <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                  <Lock className="h-3 w-3" /> Locked
+                </span>
+              )}
+            </div>
             <Controller
               name="lga"
               control={control}
@@ -556,25 +869,17 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                     trigger("lga");
                   }}
                   value={field.value}
-                  disabled={!watch("stateorigin")}
+                  disabled={isFieldVerified("lga") || !watch("stateorigin")}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={cn(isFieldVerified("lga") && "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed")}>
                     <SelectValue placeholder="Select LGA" />
                   </SelectTrigger>
                   <SelectContent>
-                    {verifiedNIN?.birthlga && verifiedNIN.birthlga.length > 1 ? (
-                    <SelectItem value={verifiedNIN.birthlga}>
-                     {verifiedNIN.birthlga}
-                    </SelectItem>
-
-                    ) : (
-                      availableLgas.map((lga) => (
-                        <SelectItem key={lga} value={lga}>
-                          {lga}
-                        </SelectItem>
-                      ))
-
-                    )}
+                    {availableLgas.map((lga) => (
+                      <SelectItem key={lga} value={lga}>
+                        {lga}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               )}
@@ -586,7 +891,14 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
 
           {/* State of Residence */}
           <div>
-            <Label htmlFor="stateres">State of Residence*</Label>
+            <div className="flex items-center mb-1">
+              <Label htmlFor="stateres">State of Residence*</Label>
+              {isFieldVerified("stateres") && (
+                <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                  <Lock className="h-3 w-3" /> Locked
+                </span>
+              )}
+            </div>
             <Controller
               name="stateres"
               control={control}
@@ -597,8 +909,9 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                     trigger("stateres");
                   }}
                   value={field.value}
+                  disabled={isFieldVerified("stateres")}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={cn(isFieldVerified("stateres") && "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed")}>
                     <SelectValue placeholder="Select state" />
                   </SelectTrigger>
                   <SelectContent>
@@ -618,14 +931,27 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
 
           {/* Address */}
           <div className="md:col-span-2">
-            <Label htmlFor="address">Address*</Label>
+            <div className="flex items-center mb-1">
+              <Label htmlFor="address">Address*</Label>
+              {isFieldVerified("address") && (
+                <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                  <Lock className="h-3 w-3" /> Locked
+                </span>
+              )}
+            </div>
             <Textarea
               id="address"
               {...register("address", {
                 onChange: () => trigger("address"),
               })}
               placeholder="Enter your full address"
-              className="min-h-[100px]"
+              className={cn(
+                "min-h-[100px]",
+                isFieldVerified("address") &&
+                  "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed select-none pointer-events-none"
+              )}
+              readOnly={isFieldVerified("address")}
+              disabled={isFieldVerified("address")}
             />
             {showFieldError("address") && errors.address && (
               <p className="text-red-500 text-sm">{errors.address.message}</p>
@@ -639,13 +965,26 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Next of Kin Name */}
             <div>
-              <Label htmlFor="nok_name">Full Name*</Label>
+              <div className="flex items-center mb-1">
+                <Label htmlFor="nok_name">Full Name*</Label>
+                {isFieldVerified("nok_name") && (
+                  <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                    <Lock className="h-3 w-3" /> Locked
+                  </span>
+                )}
+              </div>
               <Input
                 id="nok_name"
                 {...register("nok_name", {
                   onChange: () => trigger("nok_name"),
                 })}
                 placeholder="Enter next of kin's full name"
+                readOnly={isFieldVerified("nok_name")}
+                disabled={isFieldVerified("nok_name")}
+                className={cn(
+                  isFieldVerified("nok_name") &&
+                    "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed select-none pointer-events-none"
+                )}
               />
               {showFieldError("nok_name") && errors.nok_name && (
                 <p className="text-red-500 text-sm">
@@ -656,7 +995,14 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
 
             {/* Next of Kin Relationship */}
             <div>
-              <Label htmlFor="nok_relationship">Relationship*</Label>
+              <div className="flex items-center mb-1">
+                <Label htmlFor="nok_relationship">Relationship*</Label>
+                {isFieldVerified("nok_relationship") && (
+                  <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                    <Lock className="h-3 w-3" /> Locked
+                  </span>
+                )}
+              </div>
               <Controller
                 name="nok_relationship"
                 control={control}
@@ -667,8 +1013,9 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
                       trigger("nok_relationship");
                     }}
                     value={field.value}
+                    disabled={isFieldVerified("nok_relationship")}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={cn(isFieldVerified("nok_relationship") && "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed")}>
                       <SelectValue placeholder="Select relationship" />
                     </SelectTrigger>
                     <SelectContent>
@@ -691,13 +1038,26 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
 
             {/* Next of Kin Phone */}
             <div>
-              <Label htmlFor="nok_phone">Phone Number*</Label>
+              <div className="flex items-center mb-1">
+                <Label htmlFor="nok_phone">Phone Number*</Label>
+                {isFieldVerified("nok_phone") && (
+                  <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                    <Lock className="h-3 w-3" /> Locked
+                  </span>
+                )}
+              </div>
               <Input
                 id="nok_phone"
                 {...register("nok_phone", {
                   onChange: () => trigger("nok_phone"),
                 })}
                 placeholder="Enter next of kin's phone number"
+                readOnly={isFieldVerified("nok_phone")}
+                disabled={isFieldVerified("nok_phone")}
+                className={cn(
+                  isFieldVerified("nok_phone") &&
+                    "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed select-none pointer-events-none"
+                )}
               />
               {showFieldError("nok_phone") && errors.nok_phone && (
                 <p className="text-red-500 text-sm">
@@ -708,14 +1068,27 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
 
             {/* Next of Kin Address */}
             <div>
-              <Label htmlFor="nok_address">Address*</Label>
+              <div className="flex items-center mb-1">
+                <Label htmlFor="nok_address">Address*</Label>
+                {isFieldVerified("nok_address") && (
+                  <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                    <Lock className="h-3 w-3" /> Locked
+                  </span>
+                )}
+              </div>
               <Textarea
                 id="nok_address"
                 {...register("nok_address", {
                   onChange: () => trigger("nok_address"),
                 })}
                 placeholder="Enter next of kin's address"
-                className="min-h-[80px]"
+                className={cn(
+                  "min-h-[80px]",
+                  isFieldVerified("nok_address") &&
+                    "bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed select-none pointer-events-none"
+                )}
+                readOnly={isFieldVerified("nok_address")}
+                disabled={isFieldVerified("nok_address")}
               />
               {showFieldError("nok_address") && errors.nok_address && (
                 <p className="text-red-500 text-sm">
@@ -733,6 +1106,3 @@ const handleFormSubmit: SubmitHandler<FormValues> = (data) => {
     </section>
   );
 }
-
-
-

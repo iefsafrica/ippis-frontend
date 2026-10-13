@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileUploader } from "./file-uploader";
 import { WebcamCapture } from "./webcam-capture";
-import { Camera, Upload } from "lucide-react";
+import { Camera, Upload, Lock, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { Button } from "@tremor/react";
 
 interface DocumentUploadStepProps {
@@ -181,56 +181,79 @@ const getImageSrc = (value: any) => {
             </div>
 
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="profileImage" className="flex items-center">
-                Profile Image (Passport Photograph)*
-                {errors.profileImage && (
-                  <span className="text-red-500 ml-1">*</span>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="profileImage" className="flex items-center">
+                  Profile Image (Passport Photograph)*
+                  {errors.profileImage && (
+                    <span className="text-red-500 ml-1">*</span>
+                  )}
+                </Label>
+                {formData.profileImage && (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded">
+                    <Lock className="h-3 w-3" /> Pulled from NIN (Locked)
+                  </span>
                 )}
-              </Label>
+              </div>
 
-              <Tabs
-                value={profileImageTab}
-                onValueChange={(value) =>
-                  setProfileImageTab(value as "upload" | "webcam")
-                }
-              >
-                <TabsList className="grid w-full grid-cols-2 mb-4">
-                  <TabsTrigger value="upload" className="flex items-center">
-                    <Upload className="h-4 w-4 mr-2" /> Upload Image
-                  </TabsTrigger>
-                  <TabsTrigger value="webcam" className="flex items-center">
-                    <Camera className="h-4 w-4 mr-2" /> Take Photo
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="upload">
-                  <FileUploader
-                    onFileSelect={(file) =>
-                      handleFileSelect("profileImage", file)
-                    }
-                    accept=".jpg,.jpeg,.png"
-                    error={errors.profileImage}
-                  />
-                </TabsContent>
-
-                <TabsContent value="webcam">
-                  <WebcamCapture
-                    onCapture={(file) => handleFileSelect("profileImage", file)}
-                  />
-                </TabsContent>
-              </Tabs>
-
-              {formData.profileImage && (
-                <div className="mt-2">
-                  <p className="text-sm text-green-600 mb-1">
-                    Profile image selected
-                  </p>
-                  <img
-                    src={getImageSrc(formData.profileImage)}
-                    alt="Profile preview"
-                    className="h-24 w-24 object-cover rounded-md border border-gray-300"
-                  />
+              {formData.profileImage ? (
+                <div className="p-4 bg-green-50/80 border border-green-300 rounded-lg flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                  <div className="relative shrink-0">
+                    <img
+                      src={getImageSrc(formData.profileImage)}
+                      alt="NIN Passport Photograph"
+                      className="h-24 w-24 object-cover rounded-md border-2 border-green-600 shadow-sm"
+                    />
+                    <div className="absolute -bottom-1 -right-1 bg-green-600 text-white rounded-full p-0.5 shadow">
+                      <CheckCircle2 className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="space-y-1 text-center sm:text-left">
+                    <p className="text-sm font-semibold text-green-800 flex items-center justify-center sm:justify-start gap-1.5">
+                      <ShieldCheck className="h-4 w-4 text-green-600" />
+                      Official Identity Photograph
+                    </p>
+                    <p className="text-xs text-green-700">
+                      Retrieved from your National Identity Database (NIN) record and locked for verification integrity.
+                    </p>
+                    <span className="inline-block text-[11px] font-medium text-green-800 bg-green-100 px-2 py-0.5 rounded-full mt-1">
+                      Verified & Synced
+                    </span>
+                  </div>
                 </div>
+              ) : (
+                <>
+                  <Tabs
+                    value={profileImageTab}
+                    onValueChange={(value) =>
+                      setProfileImageTab(value as "upload" | "webcam")
+                    }
+                  >
+                    <TabsList className="grid w-full grid-cols-2 mb-4">
+                      <TabsTrigger value="upload" className="flex items-center">
+                        <Upload className="h-4 w-4 mr-2" /> Upload Image
+                      </TabsTrigger>
+                      <TabsTrigger value="webcam" className="flex items-center">
+                        <Camera className="h-4 w-4 mr-2" /> Take Photo
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="upload">
+                      <FileUploader
+                        onFileSelect={(file) =>
+                          handleFileSelect("profileImage", file)
+                        }
+                        accept=".jpg,.jpeg,.png"
+                        error={errors.profileImage}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="webcam">
+                      <WebcamCapture
+                        onCapture={(file) => handleFileSelect("profileImage", file)}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </>
               )}
             </div>
 

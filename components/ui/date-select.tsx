@@ -44,21 +44,95 @@ const MONTHS = [
 
 const DEFAULT_MIN_YEAR = 1900
 
-const parseDateValue = (value?: string): DateParts => {
+const MONTH_MAP: Record<string, string> = {
+  jan: "01", january: "01",
+  feb: "02", february: "02",
+  mar: "03", march: "03",
+  apr: "04", april: "04",
+  may: "05",
+  jun: "06", june: "06",
+  jul: "07", july: "07",
+  aug: "08", august: "08",
+  sep: "09", sept: "09", september: "09",
+  oct: "10", october: "10",
+  nov: "11", november: "11",
+  dec: "12", december: "12",
+}
+
+export const parseDateValue = (value?: string): DateParts => {
   if (!value) {
     return { day: "", month: "", year: "" }
   }
 
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (!match) {
+  const trimmed = String(value).trim()
+  if (!trimmed) {
     return { day: "", month: "", year: "" }
   }
 
-  return {
-    year: match[1],
-    month: match[2],
-    day: match[3],
+  // 1. Match YYYY-MM-DD or YYYY-M-D or with slashes YYYY/MM/DD
+  const isoMatch = trimmed.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/)
+  if (isoMatch) {
+    return {
+      year: isoMatch[1],
+      month: isoMatch[2].padStart(2, "0"),
+      day: isoMatch[3].padStart(2, "0"),
+    }
   }
+
+  // 2. Day-Month-Year e.g. DD-MM-YYYY or DD/MM/YYYY or DD.MM.YYYY
+  const dmyMatch = trimmed.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/)
+  if (dmyMatch) {
+    return {
+      year: dmyMatch[3],
+      month: dmyMatch[2].padStart(2, "0"),
+      day: dmyMatch[1].padStart(2, "0"),
+    }
+  }
+
+  // 3. Named month formats e.g. 15-AUG-1990, 15-Aug-1990, 15 Aug 1990, Aug 15 1990, 1990-Aug-15
+  const cleanTokens = trimmed.replace(/,/g, " ").split(/[-/.\s]+/).filter(Boolean)
+  if (cleanTokens.length >= 3) {
+    const yearIndex = cleanTokens.findIndex((t) => /^\d{4}$/.test(t))
+    if (yearIndex !== -1) {
+      const year = cleanTokens[yearIndex]
+      const otherTokens = cleanTokens.filter((_, idx) => idx !== yearIndex)
+      
+      const monthNameIndex = otherTokens.findIndex((t) => MONTH_MAP[t.toLowerCase()])
+      if (monthNameIndex !== -1) {
+        const month = MONTH_MAP[otherTokens[monthNameIndex].toLowerCase()]
+        const dayToken = otherTokens.find((_, idx) => idx !== monthNameIndex)
+        if (dayToken && /^\d{1,2}$/.test(dayToken)) {
+          return {
+            year,
+            month,
+            day: dayToken.padStart(2, "0"),
+          }
+        }
+      } else {
+        const [n1, n2] = otherTokens.map((t) => t.padStart(2, "0"))
+        if (Number(n1) > 12) {
+          return { year, month: n2, day: n1 }
+        } else if (Number(n2) > 12) {
+          return { year, month: n1, day: n2 }
+        } else {
+          return { year, month: n2, day: n1 }
+        }
+      }
+    }
+  }
+
+  // 4. Fallback to JS Date parse
+  const timestamp = Date.parse(trimmed)
+  if (!isNaN(timestamp)) {
+    const d = new Date(timestamp)
+    return {
+      year: String(d.getFullYear()),
+      month: String(d.getMonth() + 1).padStart(2, "0"),
+      day: String(d.getDate()).padStart(2, "0"),
+    }
+  }
+
+  return { day: "", month: "", year: "" }
 }
 
 const getDaysInMonth = (year: string, month: string) => {
@@ -104,8 +178,14 @@ export function DateSelect({
     const parsed = parseDateValue(value)
     if (parsed.year && parsed.month && parsed.day) {
       setParts(parsed)
+      const canonical = `${parsed.year}-${parsed.month}-${parsed.day}`
+      if (value !== canonical) {
+        onValueChange(canonical)
+      }
+    } else {
+      setParts({ day: "", month: "", year: "" })
     }
-  }, [value])
+  }, [value, onValueChange])
 
   const emitValue = (nextParts: DateParts) => {
     const { year, month, day } = nextParts
@@ -174,17 +254,20 @@ export function DateSelect({
 
   const years = React.useMemo(() => {
     const output: string[] = []
-    for (let year = maxYear; year >= minYear; year -= 1) {
+    const startYear = Math.min(minYear, parts.year ? Number(parts.year) : minYear)
+    for (let year = maxYear; year >= startYear; year -= 1) {
       output.push(String(year))
     }
     return output
-  }, [maxYear, minYear])
+  }, [maxYear, minYear, parts.year])
 
   return (
     <div className={cn("grid gap-2 sm:grid-cols-3", className)}>
       <CustomSelect value={parts.day} onValueChange={handleDayChange} disabled={disabled}>
         <CustomSelectTrigger className={cn(triggerClassName, error && "border-red-500 focus:ring-red-500")}>
-          <CustomSelectValue placeholder="Day" />
+          <CustomSelectValue placeholder="Day">
+            {parts.day ? String(Number(parts.day)) : undefined}
+          </CustomSelectValue>
         </CustomSelectTrigger>
         <CustomSelectContent>
           {availableDays.map((day) => (
@@ -197,7 +280,9 @@ export function DateSelect({
 
       <CustomSelect value={parts.month} onValueChange={handleMonthChange} disabled={disabled}>
         <CustomSelectTrigger className={cn(triggerClassName, error && "border-red-500 focus:ring-red-500")}>
-          <CustomSelectValue placeholder="Month" />
+          <CustomSelectValue placeholder="Month">
+            {parts.month && MONTHS[Number(parts.month) - 1] ? MONTHS[Number(parts.month) - 1] : undefined}
+          </CustomSelectValue>
         </CustomSelectTrigger>
         <CustomSelectContent>
           {availableMonths.map((month) => (
@@ -210,7 +295,9 @@ export function DateSelect({
 
       <CustomSelect value={parts.year} onValueChange={handleYearChange} disabled={disabled}>
         <CustomSelectTrigger className={cn(triggerClassName, error && "border-red-500 focus:ring-red-500")}>
-          <CustomSelectValue placeholder="Year" />
+          <CustomSelectValue placeholder="Year">
+            {parts.year || undefined}
+          </CustomSelectValue>
         </CustomSelectTrigger>
         <CustomSelectContent>
           {years.map((year) => (
