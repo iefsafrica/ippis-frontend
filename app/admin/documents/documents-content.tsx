@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CommentDialog } from "../components/comment-dialog"
-import { useDocuments } from "@/services/hooks/employees/usePendingEmployees"
+import { useDocuments, usePendingEmployees } from "@/services/hooks/employees/usePendingEmployees"
 import { buttonHoverEnhancements } from "../employees/button-hover"
 
 // Define the Document interface to match the API response
@@ -74,26 +74,86 @@ export default function DocumentsContent() {
   const { toast } = useToast()
   
   const { data: documentsResponse, isLoading, error, refetch } = useDocuments()
+  const { data: pendingEmployeesData } = usePendingEmployees(1, 1000)
 
- //@ts-expect-error
-  const documents: DocumentByEmployee[] = documentsResponse || []
+  // Build employee lookup map for names
+  const employeeMap = useMemo(() => {
+    const map = new Map<string, { name: string; email: string }>()
+    const empList = pendingEmployeesData?.data?.employees || []
+    for (const emp of empList) {
+      const regId = (emp.registration_id || "").trim()
+      if (regId) {
+        const fullName = `${emp.firstname || ""} ${emp.surname || ""}`.trim() || emp.name || ""
+        map.set(regId, { name: fullName, email: emp.email || "" })
+      }
+    }
+    return map
+  }, [pendingEmployeesData])
 
-  const filteredDocuments = documents.filter(doc => {
-    const matchesSearch = 
-      doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.registrationId.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesStatus = statusFilter === "all" || doc.status === statusFilter
-    
-    // Check if the document has the filtered type
-    const matchesType = typeFilter === "all" || 
-      (typeFilter === "appointmentLetter" && doc.documents.appointmentLetter) ||
-      (typeFilter === "educationalCertificates" && doc.documents.educationalCertificates) ||
-      (typeFilter === "profileImage" && doc.documents.profileImage) ||
-      (typeFilter === "signature" && doc.documents.signature)
-    
-    return matchesSearch && matchesStatus && matchesType
-  })
+  // Extract raw documents list from response
+  const rawList: any[] = useMemo(() => {
+    if (!documentsResponse) return []
+    if (Array.isArray(documentsResponse)) return documentsResponse
+    if (Array.isArray((documentsResponse as any).data)) return (documentsResponse as any).data
+    if (Array.isArray((documentsResponse as any).documents)) return (documentsResponse as any).documents
+    return []
+  }, [documentsResponse])
+
+  // Normalize documents so both flat and nested properties are safely handled
+  const documents: DocumentByEmployee[] = useMemo(() => {
+    return rawList.map((item: any) => {
+      const regId = String(item.registrationId || item.registration_id || "").trim()
+      const matched = employeeMap.get(regId)
+      const name =
+        item.name ||
+        item.employeeName ||
+        item.employee_name ||
+        matched?.name ||
+        (regId ? `Employee (${regId})` : "Unknown Employee")
+
+      const docsObj = {
+        appointmentLetter: item.appointmentLetter ?? item.documents?.appointmentLetter ?? null,
+        educationalCertificates: item.educationalCertificates ?? item.documents?.educationalCertificates ?? null,
+        profileImage: item.profileImage ?? item.documents?.profileImage ?? null,
+        signature: item.signature ?? item.documents?.signature ?? null,
+      }
+
+      return {
+        registrationId: regId,
+        name,
+        documents: docsObj,
+        status: item.status || "pending",
+        uploadedAt: item.uploadedAt || item.created_at || item.createdAt || null,
+      }
+    })
+  }, [rawList, employeeMap])
+
+  const filteredDocuments = useMemo(() => {
+    const searchLower = (searchTerm || "").trim().toLowerCase()
+    return documents.filter((doc) => {
+      const nameLower = (doc.name || "").toLowerCase()
+      const regIdLower = (doc.registrationId || "").toLowerCase()
+
+      const matchesSearch =
+        !searchLower ||
+        nameLower.includes(searchLower) ||
+        regIdLower.includes(searchLower)
+
+      const matchesStatus =
+        statusFilter === "all" ||
+        (doc.status || "").toLowerCase() === statusFilter.toLowerCase()
+
+      const docs = doc.documents || {}
+      const matchesType =
+        typeFilter === "all" ||
+        (typeFilter === "appointmentLetter" && Boolean(docs.appointmentLetter)) ||
+        (typeFilter === "educationalCertificates" && Boolean(docs.educationalCertificates)) ||
+        (typeFilter === "profileImage" && Boolean(docs.profileImage)) ||
+        (typeFilter === "signature" && Boolean(docs.signature))
+
+      return matchesSearch && matchesStatus && matchesType
+    })
+  }, [documents, searchTerm, statusFilter, typeFilter])
 
   // Handle document preview
   const handlePreviewDocument = (document: DocumentByEmployee, documentType: string) => {
@@ -330,14 +390,15 @@ export default function DocumentsContent() {
 
   // Format employee name - handle empty spaces and undefined
   const formatEmployeeName = (name: string | undefined) => {
-    if (!name || name.trim() === "") {
+    if (!name || typeof name !== "string" || name.trim() === "") {
       return "Unknown Employee"
     }
     return name.trim()
   }
 
   // Get document URL for a specific type
-  const getDocumentUrl = (document: DocumentByEmployee, type: string) => {
+  const getDocumentUrl = (document: DocumentByEmployee | null | undefined, type: string) => {
+    if (!document?.documents) return null
     switch (type) {
       case "appointmentLetter":
         return document.documents.appointmentLetter
@@ -353,14 +414,20 @@ export default function DocumentsContent() {
   }
 
   // Check if employee has any pending documents
-  const hasPendingDocuments = (document: DocumentByEmployee) => {
-    return document.status === "pending" || 
-           Object.values(document.documents).some(doc => doc !== null)
+  const hasPendingDocuments = (document: DocumentByEmployee | null | undefined) => {
+    if (!document) return false
+    const docs = document.documents || {}
+    return (
+      document.status === "pending" ||
+      Object.values(docs).some((doc) => doc !== null)
+    )
   }
 
   // Get the count of uploaded documents for an employee
-  const getUploadedDocumentCount = (document: DocumentByEmployee) => {
-    return Object.values(document.documents).filter(doc => doc !== null).length
+  const getUploadedDocumentCount = (document: DocumentByEmployee | null | undefined) => {
+    if (!document) return 0
+    const docs = document.documents || {}
+    return Object.values(docs).filter((doc) => doc !== null).length
   }
 
   // Debug: Log the data to see what's happening
@@ -520,7 +587,7 @@ export default function DocumentsContent() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {Object.entries(document.documents).map(([type, url]) => (
+                          {Object.entries(document.documents || {}).map(([type, url]) => (
                             <TableRow key={type}>
                               <TableCell>
                                 <div className="flex items-center gap-2">
