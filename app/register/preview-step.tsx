@@ -6,6 +6,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Printer, Download } from "lucide-react";
+import { RegistrationSlipDialog, buildSlipDataFromFormData } from "@/components/registration-slip";
 
 interface PreviewStepProps {
   formData: any;
@@ -62,6 +64,18 @@ export function PreviewStep({
   const signaturePreviewSrc = usePreviewUrl(formData.signature);
   const [declaration, setDeclaration] = useState<boolean>(
     () => formData.declaration ?? false,
+  );
+  const [showSlipModal, setShowSlipModal] = useState<boolean>(false);
+  const currentRegId =
+    formData.registrationId ||
+    formData.registration_id ||
+    (typeof window !== "undefined" ? localStorage.getItem("registration_id") : null) ||
+    "IPPIS-DRAFT";
+  const draftSlipData = buildSlipDataFromFormData(
+    formData,
+    currentRegId,
+    profilePreviewSrc,
+    signaturePreviewSrc,
   );
   const prevDeclarationRef = useRef<boolean>(declaration);
   const formatDate = (dateString?: string) => {
@@ -539,18 +553,35 @@ export function PreviewStep({
         </TabsContent>
       </Tabs>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200">
         <p className="text-sm text-gray-500">
-          Check the box and click submit to complete onboarding and continue to tracking.
+          Review your details above. You can preview, print, or download your slip now, or click submit to finalize onboarding.
         </p>
-        <Button
-          onClick={handleSubmit}
-          disabled={!declaration || loading}
-          className="text-white"
-        >
-          {loading ? "Completing…" : "Complete Onboarding"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowSlipModal(true)}
+            className="border-emerald-700 text-emerald-800 hover:bg-emerald-50 gap-2 font-semibold shadow-xs"
+          >
+            <Printer className="h-4 w-4" />
+            Preview & Print / Download Slip
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={!declaration || loading}
+            className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold"
+          >
+            {loading ? "Completing…" : "Complete Onboarding"}
+          </Button>
+        </div>
       </div>
+
+      <RegistrationSlipDialog
+        open={showSlipModal}
+        onOpenChange={setShowSlipModal}
+        data={draftSlipData}
+      />
     </div>
   );
 }

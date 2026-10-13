@@ -214,6 +214,324 @@ export function buildSlipDataFromTrackBundle(
 }
 
 
+export function generateFallbackSlipHtml(data: RegistrationSlipData): string {
+  const regId = data.registrationId || "IPPIS"
+  const fullName = `${data.surname?.toUpperCase() || ""}, ${data.firstName || ""} ${data.otherNames || ""}`.trim() || "Applicant"
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://ippis.gov.ng"
+  const verifyUrl = `${origin}/track?id=${encodeURIComponent(regId)}`
+  const qrImgSrc = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(verifyUrl)}`
+
+  return `
+    <header style="border-bottom: 2px solid #065f46; padding-bottom: 16px; text-align: center;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="text-align: left;">
+          <span style="font-size: 10px; font-weight: bold; color: #64748b; display: block; text-transform: uppercase;">Ref No:</span>
+          <span style="font-size: 12px; font-family: monospace; font-weight: bold; color: #1e293b;">${regId}</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center;">
+          <img src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Coat_of_arms_of_Nigeria.svg-IFrFqiae8fXtNsVx4Ip0AeHFPjj7Mp.png" alt="Coat of Arms of Nigeria" style="height: 60px; width: auto; margin-bottom: 4px;" />
+          <h1 style="font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em; color: #020617; font-family: 'Libre Baskerville', Georgia, serif; margin: 0;">Federal Republic of Nigeria</h1>
+          <h2 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #064e3b; margin: 2px 0;">Office of the Accountant-General of the Federation</h2>
+          <p style="font-size: 11px; font-weight: 600; color: #334155; margin: 0;">Integrated Personnel and Payroll Information System (IPPIS)</p>
+        </div>
+        <div style="text-align: right;">
+          <span style="font-size: 10px; font-weight: bold; color: #64748b; display: block; text-transform: uppercase;">Status:</span>
+          <span style="background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase;">${(data.status || "Submitted").replace(/_/g, " ")}</span>
+        </div>
+      </div>
+      <div style="margin-top: 10px; display: inline-block; background: #065f46; color: #ffffff; padding: 4px 16px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em;">
+        Official Employee Registration Slip
+      </div>
+    </header>
+
+    <!-- Top Banner -->
+    <div style="margin: 16px 0; display: grid; grid-template-columns: 120px 1fr 140px; gap: 16px; align-items: center; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; background: #f8fafc;">
+      <div style="text-align: center;">
+        <div style="height: 120px; width: 105px; border: 2px solid #064e3b; border-radius: 4px; overflow: hidden; background: #e2e8f0; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+          ${data.profileImageUrl ? `<img src="${data.profileImageUrl}" alt="Passport Photo" style="width: 100%; height: 100%; object-fit: cover;" />` : `<span style="font-size: 10px; font-weight: bold; color: #64748b;">PASSPORT</span>`}
+        </div>
+        <span style="font-size: 9px; font-weight: bold; text-transform: uppercase; color: #475569; display: block; margin-top: 4px;">Passport Photo</span>
+      </div>
+
+      <div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 11px; font-weight: bold; text-transform: uppercase; color: #64748b;">Enrolment ID:</span>
+          <span style="background: #064e3b; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-family: monospace; font-size: 13px; font-weight: 800;">${regId}</span>
+        </div>
+        <div style="font-size: 16px; font-weight: 800; color: #020617; text-transform: uppercase; margin: 4px 0;">${fullName}</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; border-top: 1px solid #e2e8f0; padding-top: 6px;">
+          <div><strong style="color: #64748b; font-size: 10px; text-transform: uppercase; display: block;">NIN:</strong> ${data.nin || "—"}</div>
+          <div><strong style="color: #64748b; font-size: 10px; text-transform: uppercase; display: block;">BVN:</strong> ${data.bvn || "—"}</div>
+          <div><strong style="color: #64748b; font-size: 10px; text-transform: uppercase; display: block;">Department:</strong> ${data.department || data.organization || "—"}</div>
+          <div><strong style="color: #64748b; font-size: 10px; text-transform: uppercase; display: block;">Submitted:</strong> ${formatDateDisplay(data.registrationDate)}</div>
+        </div>
+      </div>
+
+      <div style="text-align: center; border-left: 1px solid #e2e8f0; padding-left: 12px;">
+        <div style="padding: 6px; background: #ffffff; border: 2px solid #0f172a; border-radius: 4px; display: inline-block;">
+          <img src="${qrImgSrc}" alt="Scan Code" style="width: 88px; height: 88px; display: block;" />
+        </div>
+        <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #064e3b; display: block; margin-top: 4px;">Official Scan Code</span>
+        <span style="font-size: 8px; color: #64748b; display: block;">Scan to verify authentication</span>
+      </div>
+    </div>
+
+    <!-- 1. Bio-Data -->
+    <div style="margin-bottom: 14px;">
+      <div style="background: #064e3b; color: #ffffff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+        1. Personal Bio-Data
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px;">
+        <tbody>
+          <tr>
+            <td style="width: 25%; background: #f8fafc; font-weight: 600; color: #475569;">Full Name:</td>
+            <td style="width: 25%; font-weight: 700; color: #020617;">${fullName}</td>
+            <td style="width: 25%; background: #f8fafc; font-weight: 600; color: #475569;">Gender:</td>
+            <td style="width: 25%;">${data.gender || "—"}</td>
+          </tr>
+          <tr>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">Date of Birth:</td>
+            <td>${formatDateDisplay(data.dateOfBirth)}</td>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">Marital Status:</td>
+            <td>${data.maritalStatus || "—"}</td>
+          </tr>
+          <tr>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">Phone Number:</td>
+            <td>${data.phoneNumber || "—"}</td>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">Email Address:</td>
+            <td>${data.email || "—"}</td>
+          </tr>
+          <tr>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">State / LGA:</td>
+            <td>${data.stateOfOrigin ? `${data.stateOfOrigin} / ${data.lga || "—"}` : "—"}</td>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">State of Residence:</td>
+            <td>${data.stateOfResidence || "—"}</td>
+          </tr>
+          <tr>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">Residential Address:</td>
+            <td colspan="3">${data.residentialAddress || "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 2. Employment Details -->
+    <div style="margin-bottom: 14px;">
+      <div style="background: #064e3b; color: #ffffff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+        2. Employment & Cadre Details
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px;">
+        <tbody>
+          <tr>
+            <td style="width: 25%; background: #f8fafc; font-weight: 600; color: #475569;">MDA / Ministry:</td>
+            <td style="width: 25%; font-weight: 700; color: #020617;">${data.department || data.organization || "—"}</td>
+            <td style="width: 25%; background: #f8fafc; font-weight: 600; color: #475569;">Cadre / Position:</td>
+            <td style="width: 25%;">${data.cadre || data.position || "—"}</td>
+          </tr>
+          <tr>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">Grade Level / Step:</td>
+            <td>${data.gradeLevel ? `GL ${data.gradeLevel}` : "—"} ${data.step ? `/ Step ${data.step}` : ""}</td>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">Salary Structure:</td>
+            <td>${data.salaryStructure || "CONPSS"}</td>
+          </tr>
+          <tr>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">Employment ID:</td>
+            <td>${data.employmentId || "—"}</td>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">Employment Type:</td>
+            <td>${data.employmentType || "Permanent"}</td>
+          </tr>
+          <tr>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">Service / File No:</td>
+            <td>${data.serviceNumber || "—"} / ${data.fileNumber || "—"}</td>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">Work Location:</td>
+            <td>${data.workLocation || "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 3. Payroll & Pension -->
+    <div style="margin-bottom: 14px;">
+      <div style="background: #064e3b; color: #ffffff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+        3. Payroll, Bank & Pension Details
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px;">
+        <tbody>
+          <tr>
+            <td style="width: 25%; background: #f8fafc; font-weight: 600; color: #475569;">Bank Name:</td>
+            <td style="width: 25%; font-weight: 700; color: #020617;">${data.bankName || "—"}</td>
+            <td style="width: 25%; background: #f8fafc; font-weight: 600; color: #475569;">Account Number:</td>
+            <td style="width: 25%; font-family: monospace; font-weight: 700;">${data.accountNumber || "—"}</td>
+          </tr>
+          <tr>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">PFA Name:</td>
+            <td>${data.pfaName || "—"}</td>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">RSA PIN:</td>
+            <td style="font-family: monospace; font-weight: 700;">${data.rsaPin || "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 4. Next of Kin -->
+    <div style="margin-bottom: 14px;">
+      <div style="background: #064e3b; color: #ffffff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+        4. Next of Kin Information
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px;">
+        <tbody>
+          <tr>
+            <td style="width: 25%; background: #f8fafc; font-weight: 600; color: #475569;">Next of Kin Name:</td>
+            <td style="width: 25%; font-weight: 700; color: #020617;">${data.nextOfKinName || "—"}</td>
+            <td style="width: 25%; background: #f8fafc; font-weight: 600; color: #475569;">Relationship:</td>
+            <td style="width: 25%;">${data.nextOfKinRelationship || "—"}</td>
+          </tr>
+          <tr>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">Phone Number:</td>
+            <td>${data.nextOfKinPhoneNumber || "—"}</td>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">Address:</td>
+            <td>${data.nextOfKinAddress || "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Attestation -->
+    <div style="border: 1px solid #fcd34d; background: #fffbeb; padding: 8px 12px; border-radius: 4px; font-size: 10px; color: #1e293b; margin-bottom: 14px;">
+      <strong style="color: #78350f; text-transform: uppercase; display: block; margin-bottom: 2px;">Solemn Declaration & Enrolment Attestation:</strong>
+      I hereby certify that the information provided on this registration slip is true, complete, and verifiable. I understand that any false declaration or forged document constitutes gross misconduct under the Public Service Rules and attracts immediate disqualification, cancellation of enrolment, and legal prosecution under the laws of the Federal Republic of Nigeria.
+    </div>
+
+    <!-- 3 Mandatory Signatures -->
+    <div style="border: 2px solid #0f172a; border-radius: 6px; padding: 12px; background: #f8fafc;">
+      <div style="text-align: center; margin-bottom: 10px;">
+        <h3 style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em; color: #020617; margin: 0;">Signatures & Official Endorsements</h3>
+        <p style="font-size: 9px; color: #475569; margin: 2px 0 0 0;">This slip requires the following three authorized endorsements to be valid for final IPPIS payroll inclusion:</p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+        <!-- i. Employee Signature -->
+        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 10px; text-align: center; display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <span style="display: inline-block; background: #f1f5f9; color: #1e293b; font-size: 9px; font-weight: bold; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; margin-bottom: 6px;">i. Employee Signature</span>
+            <div style="height: 52px; display: flex; align-items: center; justify-content: center; border: 1px dashed #cbd5e1; border-radius: 4px; background: #f8fafc; margin-bottom: 6px;">
+              ${data.signatureUrl ? `<img src="${data.signatureUrl}" alt="Signature" style="max-height: 48px; max-width: 120px; object-fit: contain;" />` : `<span style="font-size: 9px; color: #94a3b8; font-family: monospace;">[ Signed Digitally ]</span>`}
+            </div>
+          </div>
+          <div>
+            <div style="border-bottom: 2px solid #0f172a; margin-bottom: 4px;"></div>
+            <p style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #020617; margin: 0;">${fullName}</p>
+            <p style="font-size: 8px; color: #64748b; text-transform: uppercase; margin: 1px 0 0 0;">Signature of Employee</p>
+            <p style="font-size: 9px; color: #475569; font-family: monospace; margin: 2px 0 0 0;">Date: ${formatDateDisplay(data.registrationDate)}</p>
+          </div>
+        </div>
+
+        <!-- ii. Deputy Director Signature -->
+        <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 4px; padding: 10px; text-align: center; display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <span style="display: inline-block; background: #dcfce7; color: #14532d; font-size: 9px; font-weight: bold; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; margin-bottom: 6px;">ii. Deputy Director Signature</span>
+            <div style="height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px dashed #4ade80; border-radius: 4px; background: #dcfce7; margin-bottom: 6px; padding: 2px;">
+              <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; color: #14532d;">★ VERIFIED & RECOMMENDED ★</span>
+              <span style="font-size: 8px; color: #166534;">IPPIS Enrolment Division</span>
+            </div>
+          </div>
+          <div>
+            <div style="border-bottom: 2px solid #0f172a; margin-bottom: 4px;"></div>
+            <p style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #020617; margin: 0;">Deputy Director (IPPIS)</p>
+            <p style="font-size: 8px; color: #64748b; text-transform: uppercase; margin: 1px 0 0 0;">Enrolment & Payroll Operations</p>
+            <p style="font-size: 9px; color: #475569; font-family: monospace; margin: 2px 0 0 0;">Date: ${formatDateDisplay(data.registrationDate)}</p>
+          </div>
+        </div>
+
+        <!-- iii. Directors Signature -->
+        <div style="background: #ecfdf5; border: 1px solid #059669; border-radius: 4px; padding: 10px; text-align: center; display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <span style="display: inline-block; background: #065f46; color: #ffffff; font-size: 9px; font-weight: bold; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; margin-bottom: 6px;">iii. Director's Signature</span>
+            <div style="height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px solid #065f46; border-radius: 4px; background: #d1fae5; margin-bottom: 6px; padding: 2px;">
+              <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; color: #064e3b;">★ EXECUTIVE SEAL & APPROVAL ★</span>
+              <span style="font-size: 8px; color: #047857;">OAGF • Federal Republic of Nigeria</span>
+            </div>
+          </div>
+          <div>
+            <div style="border-bottom: 2px solid #0f172a; margin-bottom: 4px;"></div>
+            <p style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #020617; margin: 0;">Director, IPPIS</p>
+            <p style="font-size: 8px; color: #64748b; text-transform: uppercase; margin: 1px 0 0 0;">Office of the Accountant-General</p>
+            <p style="font-size: 9px; color: #475569; font-family: monospace; margin: 2px 0 0 0;">Date: ${formatDateDisplay(data.registrationDate)}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer style="margin-top: 14px; padding-top: 10px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 9px; color: #64748b;">
+      <div><strong>SECURITY NOTICE:</strong> Official Government Document. Unauthorized alteration is punishable under the Penal Code.</div>
+      <div style="font-family: monospace;">IPPIS Ref: ${regId} • Scan Code to Verify</div>
+    </footer>
+  `
+}
+
+export function downloadSlipDocument(data: RegistrationSlipData, element?: HTMLElement | null) {
+  if (typeof window === "undefined") return
+
+  const slipElement = element || document.getElementById("ippis-registration-slip")
+  let slipHtml = slipElement ? slipElement.innerHTML : ""
+  if (!slipHtml || slipHtml.trim().length === 0) {
+    slipHtml = generateFallbackSlipHtml(data)
+  }
+  const regId = data.registrationId || "IPPIS"
+
+  const htmlDocument = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IPPIS Registration Slip - ${regId}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Libre+Baskerville:wght@700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #f8fafc; color: #0f172a; padding: 24px 12px; }
+    .slip-wrapper { max-width: 900px; margin: 0 auto; background: #ffffff; padding: 32px; border: 2px solid #064e3b; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); position: relative; }
+    .action-bar { max-width: 900px; margin: 0 auto 16px auto; display: flex; justify-content: flex-end; gap: 10px; }
+    .btn { background: #047857; color: #ffffff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 8px; }
+    .btn:hover { background: #065f46; }
+    .btn-secondary { background: #475569; }
+    .btn-secondary:hover { background: #334155; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 6px; }
+    table, th, td { border: 1px solid #cbd5e1; }
+    td { padding: 6px 8px; }
+    .payslip-serif { font-family: 'Libre Baskerville', Georgia, serif; }
+    @media print {
+      @page { size: A4 portrait; margin: 6mm; }
+      body { background: #ffffff !important; padding: 0 !important; }
+      .action-bar { display: none !important; }
+      .slip-wrapper { border: 2px solid #064e3b !important; box-shadow: none !important; padding: 4mm !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="action-bar">
+    <button class="btn" onclick="window.print()">Print / Save as PDF</button>
+  </div>
+  <div class="slip-wrapper">
+    ${slipHtml}
+  </div>
+</body>
+</html>`
+
+  const blob = new Blob([htmlDocument], { type: "text/html;charset=utf-8" })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+  anchor.href = url
+  anchor.download = `IPPIS-Registration-Slip-${regId}.html`
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 2000)
+}
+
 export function RegistrationSlip({ data, onClose, showActions = true }: RegistrationSlipProps) {
   const printRef = useRef<HTMLDivElement>(null)
 
@@ -223,6 +541,10 @@ export function RegistrationSlip({ data, onClose, showActions = true }: Registra
 
   const handlePrint = () => {
     window.print()
+  }
+
+  const handleDownload = () => {
+    downloadSlipDocument(data, printRef.current)
   }
 
   return (
@@ -236,7 +558,7 @@ export function RegistrationSlip({ data, onClose, showActions = true }: Registra
               Official IPPIS Registration Slip • Verified Record
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               onClick={handlePrint}
               className="bg-emerald-700 text-white hover:bg-emerald-800 shadow-sm gap-2"
@@ -245,8 +567,17 @@ export function RegistrationSlip({ data, onClose, showActions = true }: Registra
               <Printer className="h-4 w-4" />
               Print Registration Slip
             </Button>
+            <Button
+              onClick={handleDownload}
+              variant="outline"
+              className="border-emerald-700 text-emerald-800 hover:bg-emerald-100 shadow-sm gap-2"
+              size="sm"
+            >
+              <Download className="h-4 w-4" />
+              Download Slip
+            </Button>
             {onClose && (
-              <Button onClick={onClose} variant="outline" size="sm" className="gap-1">
+              <Button onClick={onClose} variant="ghost" size="sm" className="gap-1 text-slate-600 hover:text-slate-900">
                 <X className="h-4 w-4" />
                 Close
               </Button>
@@ -662,6 +993,34 @@ export function RegistrationSlip({ data, onClose, showActions = true }: Registra
             IPPIS Verification Code: {data.registrationId} • Scan QR to Verify
           </div>
         </footer>
+
+        {/* Bottom Action Footer (Hidden in Print) */}
+        {showActions && (
+          <div className="no-print mt-6 pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+            <span className="text-xs text-slate-500">
+              Need a physical or digital copy? You can print or download this registration slip.
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                onClick={handlePrint}
+                className="bg-emerald-700 text-white hover:bg-emerald-800 shadow-sm gap-2"
+                size="sm"
+              >
+                <Printer className="h-4 w-4" />
+                Print Registration Slip
+              </Button>
+              <Button
+                onClick={handleDownload}
+                variant="outline"
+                className="border-emerald-700 text-emerald-800 hover:bg-emerald-50 shadow-sm gap-2"
+                size="sm"
+              >
+                <Download className="h-4 w-4" />
+                Download Slip
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Print-specific CSS */}

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { CheckCircle2, Printer } from "lucide-react";
+import { CheckCircle2, Printer, Download } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { RegistrationSlipDialog, buildSlipDataFromFormData, type RegistrationSlipData } from "@/components/registration-slip";
+import { RegistrationSlipDialog, buildSlipDataFromFormData, downloadSlipDocument, type RegistrationSlipData } from "@/components/registration-slip";
 import { StepIndicator } from "./step-indicator";
 import VerificationStep from "./verification-step";
 import PersonalInfoStepII from "./personal-info-step";
@@ -1141,7 +1141,20 @@ export default function RegisterForm() {
                 className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-sm text-xs gap-1.5"
               >
                 <Printer className="h-4 w-4" />
-                View & Print Registration Slip
+                Print Registration Slip
+              </Button>
+              <Button
+                onClick={() => {
+                  const slip =
+                    completedSlipData ||
+                    buildSlipDataFromFormData(formData, manualRegistrationIdInput || "IPPIS");
+                  downloadSlipDocument(slip);
+                }}
+                variant="outline"
+                className="border-emerald-700 text-emerald-800 hover:bg-emerald-50 text-xs gap-1.5 shadow-sm font-semibold"
+              >
+                <Download className="h-4 w-4" />
+                Download Slip
               </Button>
               <Button
                 variant="outline"
@@ -1178,13 +1191,11 @@ export default function RegisterForm() {
       <div className="mt-6">{renderStep()}</div>
       </div>
 
-      {completedSlipData && (
-        <RegistrationSlipDialog
-          open={showSlipModal}
-          onOpenChange={setShowSlipModal}
-          data={completedSlipData}
-        />
-      )}
+      <RegistrationSlipDialog
+        open={showSlipModal}
+        onOpenChange={setShowSlipModal}
+        data={completedSlipData || buildSlipDataFromFormData(formData, manualRegistrationIdInput || "IPPIS")}
+      />
     </>
   );
 }

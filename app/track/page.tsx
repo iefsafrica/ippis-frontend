@@ -4,14 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useSearchParams } from "next/navigation"
-import { ArrowLeft, CheckCircle, Clock, FileText, Loader2, Search, UserCircle2, Printer } from "lucide-react"
+import { ArrowLeft, CheckCircle, Clock, FileText, Loader2, Search, UserCircle2, Printer, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
-import { RegistrationSlipDialog, buildSlipDataFromTrackBundle, type RegistrationSlipData } from "@/components/registration-slip"
+import { RegistrationSlipDialog, buildSlipDataFromTrackBundle, downloadSlipDocument, type RegistrationSlipData } from "@/components/registration-slip"
 
 type TrackStatus = string
 
@@ -164,7 +164,7 @@ const getRecordValue = (
   fallback = "N/A",
 ) => {
   const metadata = readRecordMetadata(record)
-  const source = record as Record<string, unknown>
+  const source = record as unknown as Record<string, unknown>
 
   for (const key of keys) {
     const value = source[key] ?? metadata[key]
@@ -222,14 +222,14 @@ const getStatusLabel = (status: string) =>
     .join(" ")
 
 const isTrackRecord = (value: unknown): value is TrackRecord =>
-  Boolean(value) &&
+  value !== null &&
   typeof value === "object" &&
   !Array.isArray(value) &&
   "registration_id" in value &&
   "email" in value
 
 const isTrackBundle = (value: unknown): value is TrackRegistrationBundle =>
-  Boolean(value) && typeof value === "object" && !Array.isArray(value) && "registration" in value
+  value !== null && typeof value === "object" && !Array.isArray(value) && "registration" in value
 
 const extractTrackRecord = (payload: unknown): TrackApiResponse | null => {
   if (!payload || typeof payload !== "object") {
@@ -417,7 +417,7 @@ const buildSearchResultFromRecord = (
   const firstName = record.first_name || record.firstName || record.firstname || fallbackFirstName
   const surname = record.surname || fallbackSurname
   const fullName = `${surname} ${firstName}`.trim() || "Applicant"
-  const metadata = readRecordMetadata(record)
+  const metadata = readRecordMetadata(record as unknown as PendingEmployeeRecord)
   const valueFromRecord = (keys: string[]) => {
     for (const key of keys) {
       const value = (record as Record<string, unknown>)[key] ?? metadata[key]
@@ -761,7 +761,7 @@ export default function TrackApplicationPage() {
                       <h3 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{searchResult.fullName}</h3>
                       <p className="mt-1 text-sm text-slate-500">ID: {searchResult.registrationId}</p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2.5">
                       {statusBadge}
                       <Button
                         onClick={() => setShowSlipDialog(true)}
@@ -770,6 +770,18 @@ export default function TrackApplicationPage() {
                       >
                         <Printer className="h-4 w-4" />
                         Print Registration Slip
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          const slip = searchResult.slipData || buildSlipDataFromTrackBundle(searchResult, searchResult.registrationId)
+                          downloadSlipDocument(slip)
+                        }}
+                        variant="outline"
+                        className="border-emerald-700 text-emerald-800 hover:bg-emerald-50 shadow-sm flex items-center gap-2 font-semibold"
+                        size="sm"
+                      >
+                        <Download className="h-4 w-4" />
+                        Download Slip
                       </Button>
                     </div>
                   </div>
@@ -865,11 +877,11 @@ export default function TrackApplicationPage() {
           </CardFooter>
         </Card>
 
-        {searchResult?.slipData && (
+        {searchResult && (
           <RegistrationSlipDialog
             open={showSlipDialog}
             onOpenChange={setShowSlipDialog}
-            data={searchResult.slipData}
+            data={searchResult.slipData || buildSlipDataFromTrackBundle(searchResult, searchResult.registrationId)}
           />
         )}
       </div>
