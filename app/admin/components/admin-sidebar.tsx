@@ -674,14 +674,19 @@ export function AdminSidebar() {
     // },
 
     {
-      title: "Permissions",
-      href: "/admin/permissions",
-      icon: Shield,
+      title: "User Management",
+      href: "/admin/users",
+      icon: Users,
     },
     {
       title: "Roles",
       href: "/admin/roles",
       icon: UserCog,
+    },
+    {
+      title: "Permissions",
+      href: "/admin/permissions",
+      icon: Shield,
     },
     {
       title: "Settings",

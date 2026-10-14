@@ -1,0 +1,508 @@
+"use client"
+
+import React, { useState, useEffect } from "react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { toast } from "sonner"
+import {
+  executeBulkRoleAction,
+  getAvailableRoles,
+  previewBulkRoleAction,
+} from "@/services/endpoints/users/user-management"
+import type {
+  BulkRoleOutcomeReport,
+  BulkRolePreview,
+  UserAccount,
+} from "@/types/user-management"
+import type { Role } from "@/types/roles"
+import {
+  CheckCircle2,
+  Download,
+  Eye,
+  FileCheck2,
+  FileText,
+  Loader2,
+  Shield,
+  UserCheck,
+  UserMinus,
+  UserPlus,
+  Users,
+} from "lucide-react"
+
+interface BulkRoleDialogProps {
+  users: UserAccount[]
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSuccess: () => void
+}
+
+export function BulkRoleDialog({ users, open, onOpenChange, onSuccess }: BulkRoleDialogProps) {
+  const [step, setStep] = useState<"configure" | "preview" | "report">("configure")
+  const [roles, setRoles] = useState<Role[]>([])
+  const [selectedUserIds, setSelectedUserIds] = useState<(string | number)[]>([])
+  const [targetRoleId, setTargetRoleId] = useState<string>("")
+  const [action, setAction] = useState<"assign" | "revoke">("assign")
+  const [reason, setReason] = useState("")
+
+  const [previewData, setPreviewData] = useState<BulkRolePreview | null>(null)
+  const [reportData, setReportData] = useState<BulkRoleOutcomeReport | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      getAvailableRoles().then((r) => {
+        setRoles(r)
+        if (r.length > 0 && !targetRoleId) {
+          setTargetRoleId(String(r[0].id))
+        }
+      })
+      setSelectedUserIds(users.map((u) => u.id))
+      setStep("configure")
+      setPreviewData(null)
+      setReportData(null)
+      setReason("")
+    }
+  }, [open, users])
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedUserIds(users.map((u) => u.id))
+    } else {
+      setSelectedUserIds([])
+    }
+  }
+
+  const handleUserToggle = (id: string | number) => {
+    setSelectedUserIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    )
+  }
+
+  const handleGeneratePreview = async () => {
+    if (selectedUserIds.length === 0) {
+      toast.error("Selection Required", { description: "Please select at least one user account." })
+      return
+    }
+    if (!targetRoleId) {
+      toast.error("Role Required", { description: "Please select a target role." })
+      return
+    }
+
+    try {
+      setLoading(true)
+      const preview = await previewBulkRoleAction({
+        user_ids: selectedUserIds,
+        role_id: targetRoleId,
+        action,
+      })
+      setPreviewData(preview)
+      setStep("preview")
+    } catch (err: any) {
+      toast.error("Preview Generation Failed", { description: err.message })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleExecuteBulkAction = async () => {
+    if (!reason.trim()) {
+      toast.error("Justification Required", {
+        description: "USR09 requires an administrative reason for bulk role modifications.",
+      })
+      return
+    }
+
+    try {
+      setLoading(true)
+      const report = await executeBulkRoleAction({
+        user_ids: selectedUserIds,
+        role_id: targetRoleId,
+        action,
+        reason,
+      })
+      setReportData(report)
+      setStep("report")
+      toast.success("Bulk Role Operation Completed", {
+        description: `${report.succeeded_count} user accounts updated.`,
+      })
+      onSuccess()
+    } catch (err: any) {
+      toast.error("Execution Failed", { description: err.message })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDownloadReport = () => {
+    if (!reportData) return
+    const reportText = `IPPIS AUDIT - BULK ROLE OUTCOME REPORT (USR10)
+=====================================================
+Timestamp: ${reportData.timestamp}
+Action: ${reportData.action.toUpperCase()}
+Role Name: ${reportData.role_name}
+Total Accounts Processed: ${reportData.total_processed}
+Successful Updates: ${reportData.succeeded_count}
+Failures / Errors: ${reportData.failed_count}
+Justification Reason (USR09): ${reportData.reason}
+
+BREAKDOWN:
+${reportData.items.map((i) => `- [${i.status.toUpperCase()}] ${i.user_name} (ID: ${i.user_id}): ${i.message}`).join("\n")}
+=====================================================
+Generated by IPPIS Enterprise Administration Security System`
+
+    const blob = new Blob([reportText], { type: "text/plain;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.setAttribute("download", `ippis_bulk_role_report_${Date.now()}.txt`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast.success("Report Downloaded", { description: "Audit outcome report saved." })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-emerald-100 rounded-lg text-emerald-700">
+              <Users className="h-5 w-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-xl font-bold">
+                Bulk Role Assignment & Revocation (USR10)
+              </DialogTitle>
+              <DialogDescription>
+                {step === "configure" && "Step 1 of 3: Configure target role, operation mode, and selected accounts."}
+                {step === "preview" && "Step 2 of 3: Validate affected accounts and preview outcome before commit."}
+                {step === "report" && "Step 3 of 3: Bulk operation outcome report and audit confirmation."}
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        {/* STEP 1: CONFIGURE */}
+        {step === "configure" && (
+          <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl border bg-gray-50/50">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-gray-700">Operation Action</Label>
+                <Select value={action} onValueChange={(val: "assign" | "revoke") => setAction(val)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="assign">Assign Role (Grant Privilege)</SelectItem>
+                    <SelectItem value="revoke">Revoke Role (Remove Privilege)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-gray-700">Target Role</Label>
+                <Select value={targetRoleId} onValueChange={setTargetRoleId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select target role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roles.map((r) => (
+                      <SelectItem key={r.id} value={String(r.id)}>
+                        {r.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* User Selection Table */}
+            <div className="border rounded-xl overflow-hidden">
+              <div className="bg-gray-100 px-4 py-2.5 flex items-center justify-between text-xs font-semibold">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={selectedUserIds.length === users.length && users.length > 0}
+                    onCheckedChange={(c) => handleSelectAll(!!c)}
+                  />
+                  <span>Select Users for Operation ({selectedUserIds.length} of {users.length} selected)</span>
+                </div>
+              </div>
+              <ScrollArea className="h-60">
+                <div className="divide-y text-xs">
+                  {users.map((u) => {
+                    const isSelected = selectedUserIds.includes(u.id)
+                    return (
+                      <div
+                        key={u.id}
+                        onClick={() => handleUserToggle(u.id)}
+                        className={`flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 transition ${
+                          isSelected ? "bg-emerald-50/40" : ""
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => handleUserToggle(u.id)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div>
+                            <div className="font-semibold text-gray-900">{u.full_name}</div>
+                            <div className="text-gray-500 text-[11px]">
+                              {u.staff_id} &bull; {u.email}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                          {u.roles.map((r) => (
+                            <Badge
+                              key={r.id}
+                              variant="outline"
+                              className="text-[10px] bg-white border-gray-200 text-gray-700"
+                            >
+                              {r.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </ScrollArea>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: PREVIEW (USR10) */}
+        {step === "preview" && previewData && (
+          <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="p-3 rounded-lg border bg-gray-50 text-center">
+                <div className="text-xs text-gray-500">Selected Accounts</div>
+                <div className="text-xl font-bold text-gray-900">{previewData.total_selected}</div>
+              </div>
+              <div className="p-3 rounded-lg border bg-emerald-50 border-emerald-200 text-center">
+                <div className="text-xs text-emerald-700 font-medium">Will Be Updated</div>
+                <div className="text-xl font-bold text-emerald-700">{previewData.applicable_count}</div>
+              </div>
+              <div className="p-3 rounded-lg border bg-amber-50 border-amber-200 text-center">
+                <div className="text-xs text-amber-700 font-medium">Already in State (Skipped)</div>
+                <div className="text-xl font-bold text-amber-700">{previewData.already_in_state_count}</div>
+              </div>
+            </div>
+
+            {/* Validation & Preview Table */}
+            <div className="border rounded-xl overflow-hidden">
+              <div className="bg-gray-100 px-4 py-2 text-xs font-semibold text-gray-700">
+                Action Preview: {action.toUpperCase()} '{previewData.target_role.name}'
+              </div>
+              <ScrollArea className="h-60">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50 border-b text-gray-600 sticky top-0">
+                    <tr>
+                      <th className="p-2 text-left">User</th>
+                      <th className="p-2 text-left">Current Roles</th>
+                      <th className="p-2 text-left">Planned Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {previewData.affected_users.map((item) => (
+                      <tr key={item.user.id} className="hover:bg-gray-50/50">
+                        <td className="p-2">
+                          <div className="font-semibold text-gray-900">{item.user.full_name}</div>
+                          <div className="text-gray-500 text-[11px] font-mono">{item.user.staff_id}</div>
+                        </td>
+                        <td className="p-2">
+                          <div className="flex flex-wrap gap-1">
+                            {item.current_roles.map((r) => (
+                              <Badge key={r.id} variant="outline" className="text-[10px]">
+                                {r.name}
+                              </Badge>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="p-2">
+                          {item.will_change ? (
+                            <Badge className="bg-emerald-100 text-emerald-800 border-none font-medium text-[10px]">
+                              {item.action_summary}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-gray-500 border-gray-200 text-[10px]">
+                              {item.action_summary}
+                            </Badge>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </ScrollArea>
+            </div>
+
+            {/* Reason required by USR09 */}
+            <div className="space-y-1.5 p-3.5 border border-amber-200 bg-amber-50/60 rounded-xl">
+              <Label htmlFor="bulk_reason" className="text-xs font-semibold text-amber-900">
+                Mandatory Authorization Reason for Bulk Role Action (USR09) <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="bulk_reason"
+                placeholder="e.g. Mass role provisioning following reorganization of Treasury & Accounts division..."
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                className="bg-white min-h-[70px] text-xs border-amber-300"
+                required
+              />
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: OUTCOME REPORT (USR10) */}
+        {step === "report" && reportData && (
+          <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-600 text-white rounded-lg">
+                  <FileCheck2 className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="text-base font-bold text-emerald-900">
+                    Bulk Operation Outcome Report
+                  </div>
+                  <div className="text-xs text-emerald-700">
+                    Operation completed at {new Date(reportData.timestamp).toLocaleTimeString()}
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadReport}
+                className="border-emerald-300 text-emerald-800 hover:bg-emerald-100 flex items-center gap-1.5"
+              >
+                <Download className="h-3.5 w-3.5" /> Download Report
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 text-center text-xs">
+              <div className="p-3 border rounded-lg bg-gray-50">
+                <div className="text-gray-500">Processed</div>
+                <div className="text-lg font-bold">{reportData.total_processed}</div>
+              </div>
+              <div className="p-3 border rounded-lg bg-emerald-50 border-emerald-200">
+                <div className="text-emerald-700 font-medium">Succeeded</div>
+                <div className="text-lg font-bold text-emerald-700">{reportData.succeeded_count}</div>
+              </div>
+              <div className="p-3 border rounded-lg bg-gray-50">
+                <div className="text-gray-500">Skipped / No-Op</div>
+                <div className="text-lg font-bold">
+                  {reportData.items.filter((i) => i.status === "skipped").length}
+                </div>
+              </div>
+            </div>
+
+            <div className="border rounded-xl overflow-hidden">
+              <div className="bg-gray-100 px-4 py-2 text-xs font-semibold text-gray-700">
+                Individual Outcome Results (Logged to Audit Trail)
+              </div>
+              <ScrollArea className="h-60">
+                <div className="divide-y text-xs">
+                  {reportData.items.map((item, idx) => (
+                    <div key={idx} className="p-2.5 flex items-center justify-between hover:bg-gray-50">
+                      <div>
+                        <span className="font-semibold text-gray-900">{item.user_name}</span>
+                        <span className="text-gray-400 ml-2 font-mono text-[11px]">({item.user_id})</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-600 text-[11px]">{item.message}</span>
+                        <Badge
+                          className={
+                            item.status === "success"
+                              ? "bg-emerald-100 text-emerald-800 border-none text-[10px]"
+                              : "bg-gray-100 text-gray-700 border-none text-[10px]"
+                          }
+                        >
+                          {item.status.toUpperCase()}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          </div>
+        )}
+
+        <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t">
+          {step === "configure" && (
+            <>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="bg-[#008751] hover:bg-[#008751]/90 text-white"
+                onClick={handleGeneratePreview}
+                disabled={loading || selectedUserIds.length === 0}
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Eye className="h-4 w-4 mr-1.5" />}
+                Preview Validation (USR10)
+              </Button>
+            </>
+          )}
+
+          {step === "preview" && (
+            <>
+              <Button type="button" variant="outline" onClick={() => setStep("configure")} disabled={loading}>
+                Back to Selection
+              </Button>
+              <Button
+                type="button"
+                className="bg-[#008751] hover:bg-[#008751]/90 text-white"
+                onClick={handleExecuteBulkAction}
+                disabled={loading || !reason.trim()}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" /> Executing Bulk Operation...
+                  </>
+                ) : (
+                  `Confirm & Apply Bulk ${action.toUpperCase()}`
+                )}
+              </Button>
+            </>
+          )}
+
+          {step === "report" && (
+            <Button
+              type="button"
+              className="bg-[#008751] hover:bg-[#008751]/90 text-white"
+              onClick={() => onOpenChange(false)}
+            >
+              Done & Close
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
