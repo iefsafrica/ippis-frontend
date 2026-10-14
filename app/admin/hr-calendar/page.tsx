@@ -15,6 +15,9 @@ export default function HRCalendarPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">HR Calendar</h1>
         <div className="flex items-center gap-2">
+          <Button asChild variant="outline" className="border-green-600 text-green-700 hover:bg-green-50">
+            <Link href="/admin/hr-calendar/analytics">Analytics Dashboard</Link>
+          </Button>
           <Button asChild className="bg-green-600 hover:bg-green-700 text-white hover:text-white">
             <Link href="/admin/hr-calendar/events">View Events Table</Link>
           </Button>

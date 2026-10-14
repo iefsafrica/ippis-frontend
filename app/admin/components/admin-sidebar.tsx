@@ -60,7 +60,9 @@ export function AdminSidebar() {
     if (path.startsWith("/admin/employees")) return "employee-list";
     if (path.startsWith("/admin/core-hr")) return "core-hr";
     if (path.startsWith("/admin/performance")) return "performance";
+    if (path.startsWith("/admin/organization")) return "organization";
     if (path.startsWith("/admin/timesheets")) return "timesheets";
+    if (path.startsWith("/admin/hr-calendar")) return "hr-calendar";
     if (path.startsWith("/admin/hr-reports")) return "hr-reports";
     if (path.startsWith("/admin/recruitment")) return "recruitment";
     if (path.startsWith("/admin/training")) return "training";
@@ -71,7 +73,6 @@ export function AdminSidebar() {
     if (path.startsWith("/admin/assets")) return "assets";
     if (path.startsWith("/admin/file-manager")) return "file-manager";
     if (path.startsWith("/admin/support-tickets")) return "support-tickets";
-    if (path.startsWith("/admin/organization")) return "organization";
     return null;
   };
 
@@ -117,17 +118,8 @@ export function AdminSidebar() {
     }
   }, [pathname, isMobile]);
 
-  // Define which features are implemented and which are coming soon
-  const comingSoonFeatures = [
-    "/admin/recruitment",
-    "/admin/training",
-    "/admin/events-meetings",
-    "/admin/payroll",
-    "/admin/project-management",
-    "/admin/finance",
-    "/admin/assets",
-    "/admin/file-manager",
-  ];
+  // All features are now unlocked with executive analytics dashboards
+  const comingSoonFeatures: string[] = [];
 
   const isComingSoon = (path: string) => comingSoonFeatures.includes(path);
 
@@ -143,10 +135,14 @@ export function AdminSidebar() {
       icon: Users,
       isDropdown: true,
       toggleOnly: true,
-      isOpen: isDropdownOpen("employee-list"), // for Employees List
+      isOpen: isDropdownOpen("employee-list"),
       section: "employee-list",
       toggle: () => toggleDropdown("employee-list"),
       subItems: [
+        {
+          title: "Analytics Dashboard",
+          href: "/admin/employees?tab=analytics",
+        },
         {
           title: "Employee",
           href: "/admin/employees",
@@ -169,6 +165,10 @@ export function AdminSidebar() {
       section: "core-hr",
       toggle: () => toggleDropdown("core-hr"),
       subItems: [
+        {
+          title: "Analytics Dashboard",
+          href: "/admin/core-hr",
+        },
         {
           title: "Promotions",
           href: "/admin/core-hr/promotions",
@@ -208,10 +208,14 @@ export function AdminSidebar() {
       icon: TrendingUp,
       isDropdown: true,
       toggleOnly: true,
-      isOpen: isDropdownOpen("performance"), // for performance
+      isOpen: isDropdownOpen("performance"),
       section: "performance",
       toggle: () => toggleDropdown("performance"),
       subItems: [
+        {
+          title: "Analytics Dashboard",
+          href: "/admin/performance",
+        },
         {
           title: "Goal Type",
           href: "/admin/performance/goal-type",
@@ -239,6 +243,10 @@ export function AdminSidebar() {
       section: "organization",
       toggle: () => toggleDropdown("organization"),
       subItems: [
+        {
+          title: "Analytics Dashboard",
+          href: "/admin/organization",
+        },
         {
           title: "Company",
           href: "/admin/organization/company",
@@ -271,10 +279,14 @@ export function AdminSidebar() {
       icon: Clock,
       isDropdown: true,
       toggleOnly: true,
-      isOpen: isDropdownOpen("timesheets"), // for performance
+      isOpen: isDropdownOpen("timesheets"),
       section: "timesheets",
       toggle: () => toggleDropdown("timesheets"),
       subItems: [
+        {
+          title: "Analytics Dashboard",
+          href: "/admin/timesheets",
+        },
         {
           title: "Attendances",
           href: "/admin/timesheets/attendances",
@@ -303,8 +315,33 @@ export function AdminSidebar() {
     },
     {
       title: "HR Calendar",
-      href: "/admin/hr-calendar",
       icon: Calendar,
+      isDropdown: true,
+      isOpen: isDropdownOpen("hr-calendar"),
+      section: "hr-calendar",
+      toggle: () => toggleDropdown("hr-calendar"),
+      subItems: [
+        {
+          title: "Analytics Dashboard",
+          href: "/admin/hr-calendar/analytics",
+        },
+        {
+          title: "Calendar View",
+          href: "/admin/hr-calendar",
+        },
+        {
+          title: "Events Table",
+          href: "/admin/hr-calendar/events",
+        },
+        {
+          title: "Leaves Table",
+          href: "/admin/hr-calendar/leaves",
+        },
+        {
+          title: "Projects Table",
+          href: "/admin/hr-calendar/projects",
+        },
+      ],
     },
     {
       title: "HR Reports",
@@ -315,6 +352,10 @@ export function AdminSidebar() {
       section: "hr-reports",
       toggle: () => toggleDropdown("hr-reports"),
       subItems: [
+        {
+          title: "Analytics Dashboard",
+          href: "/admin/hr-reports",
+        },
         {
           title: "Attendance Report",
           href: "/admin/hr-reports/attendance",
@@ -361,10 +402,14 @@ export function AdminSidebar() {
       title: "Recruitment",
       icon: UserPlus,
       isDropdown: true,
-      isOpen: isDropdownOpen("recruitment"), // for performance
+      isOpen: isDropdownOpen("recruitment"),
       section: "recruitment",
       toggle: () => toggleDropdown("recruitment"),
       subItems: [
+        {
+          title: "Analytics Dashboard",
+          href: "/admin/recruitment",
+        },
         {
           title: "Job Post",
           href: "/admin/recruitment/job-post",
@@ -382,17 +427,21 @@ export function AdminSidebar() {
           href: "/admin/recruitment/cms",
         },
       ],
-      comingSoon: true,
+      comingSoon: false,
     },
     {
       title: "Training",
       icon: GraduationCap,
       isDropdown: true,
       toggleOnly: true,
-      isOpen: isDropdownOpen("training"), // for performance
+      isOpen: isDropdownOpen("training"),
       section: "training",
       toggle: () => toggleDropdown("training"),
       subItems: [
+        {
+          title: "Analytics Dashboard",
+          href: "/admin/training",
+        },
         {
           title: "Training List",
           href: "/admin/training/list",
@@ -406,7 +455,7 @@ export function AdminSidebar() {
           href: "/admin/training/trainers",
         },
       ],
-      comingSoon: true,
+      comingSoon: false,
     },
     {
       title: "Events & Meetings",
@@ -418,6 +467,10 @@ export function AdminSidebar() {
       toggle: () => toggleDropdown("event-meetings"),
       subItems: [
         {
+          title: "Analytics Dashboard",
+          href: "/admin/events-meetings",
+        },
+        {
           title: "Events",
           href: "/admin/events-meetings/events",
         },
@@ -426,17 +479,20 @@ export function AdminSidebar() {
           href: "/admin/events-meetings/meetings",
         },
       ],
-      comingSoon: true,
+      comingSoon: false,
     },
     {
       title: "Payroll",
       icon: DollarSign,
       isDropdown: true,
-      // href: "/admin/payroll",
       isOpen: isDropdownOpen("payroll"),
       section: "payroll",
       toggle: () => toggleDropdown("payroll"),
       subItems: [
+        {
+          title: "Analytics Dashboard",
+          href: "/admin/payroll",
+        },
         {
           title: "New Payment",
           href: "/admin/payroll/new-payment",
@@ -446,16 +502,20 @@ export function AdminSidebar() {
           href: "/admin/payroll/payment-history",
         },
       ],
-      comingSoon: true,
+      comingSoon: false,
     },
     {
       title: "Project Management",
       icon: FolderKanban,
       isDropdown: true,
-      isOpen: isDropdownOpen("project-managment"), // for performance
+      isOpen: isDropdownOpen("project-managment"),
       section: "project-managment",
       toggle: () => toggleDropdown("project-managment"),
       subItems: [
+        {
+          title: "Analytics Dashboard",
+          href: "/admin/project-management",
+        },
         {
           title: "Projects",
           href: "/admin/project-management/projects",
@@ -477,17 +537,20 @@ export function AdminSidebar() {
           href: "/admin/project-management/tax-type",
         },
       ],
-      comingSoon: true,
+      comingSoon: false,
     },
     {
       title: "Support Tickets",
       icon: LifeBuoy,
       isDropdown: true,
-      // href: "/admin/support-tickets",
-      isOpen: isDropdownOpen("support-tickets"), // for performance
+      isOpen: isDropdownOpen("support-tickets"),
       section: "support-tickets",
       toggle: () => toggleDropdown("support-tickets"),
       subItems: [
+        {
+          title: "Analytics Dashboard",
+          href: "/admin/support-tickets/analytics",
+        },
         {
           title: "All Tickets",
           href: "/admin/support-tickets",
@@ -511,10 +574,14 @@ export function AdminSidebar() {
       title: "Finance",
       icon: Wallet,
       isDropdown: true,
-      isOpen: isDropdownOpen("finance"), // for performance
+      isOpen: isDropdownOpen("finance"),
       section: "finance",
       toggle: () => toggleDropdown("finance"),
       subItems: [
+        {
+          title: "Analytics Dashboard",
+          href: "/admin/finance",
+        },
         {
           title: "Accounts List",
           href: "/admin/finance/accounts-list",
@@ -548,17 +615,20 @@ export function AdminSidebar() {
           href: "/admin/finance/transfer",
         },
       ],
-      comingSoon: true,
+      comingSoon: false,
     },
     {
       title: "Assets",
       icon: Package,
       isDropdown: true,
-      // href: "/admin/assets",
-      isOpen: isDropdownOpen("assets"), // for performance
+      isOpen: isDropdownOpen("assets"),
       section: "assets",
       toggle: () => toggleDropdown("assets"),
       subItems: [
+        {
+          title: "Analytics Dashboard",
+          href: "/admin/assets",
+        },
         {
           title: "Category",
           href: "/admin/assets/category",
@@ -568,19 +638,22 @@ export function AdminSidebar() {
           href: "/admin/assets/list",
         },
       ],
-      comingSoon: true,
+      comingSoon: false,
     },
     {
       title: "File Manager",
       icon: FolderOpen,
       isDropdown: true,
-      href: "/admin/file-manager",
-      isOpen: isDropdownOpen("file-manager"), // for performance
+      isOpen: isDropdownOpen("file-manager"),
       section: "file-manager",
       toggle: () => toggleDropdown("file-manager"),
       subItems: [
         {
-          title: "File Manager",
+          title: "Analytics Dashboard",
+          href: "/admin/file-manager",
+        },
+        {
+          title: "File Manager Workspace",
           href: "/admin/file-manager/dashboard",
         },
         {
@@ -592,7 +665,7 @@ export function AdminSidebar() {
           href: "/admin/file-manager/configuration",
         },
       ],
-      comingSoon: true,
+      comingSoon: false,
     },
     // {
     //   title: "Diagnostics",

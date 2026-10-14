@@ -1,11 +1,15 @@
 import type { Metadata } from "next"
-import { AssetsContent } from "./assets-content"
+import { AssetsAnalytics } from "@/app/admin/components/module-analytics/assets-analytics"
 
 export const metadata: Metadata = {
-  title: "Assets Management | IPPIS Admin",
-  description: "Manage organizational assets with live CRUD actions",
+  title: "Assets Analytics | IPPIS Admin",
+  description: "Executive analytics for Federal fixed assets, capital allocations, and lifecycle tracking",
 }
 
 export default function AssetsPage() {
-  return <AssetsContent />
+  return (
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+      <AssetsAnalytics />
+    </div>
+  )
 }
