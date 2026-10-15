@@ -77,7 +77,6 @@
     "file-saver": "latest",
     "fs": "latest",
     "gel": "latest",
-    "html2pdf.js": "^0.14.0",
     "input-otp": "1.4.1",
     "js-cookie": "latest",
     "jsonwebtoken": "latest",

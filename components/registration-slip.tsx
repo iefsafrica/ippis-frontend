@@ -591,6 +591,62 @@ export function printSlipDocument(data: RegistrationSlipData, element?: HTMLElem
   }
 }
 
+async function loadPdfLibraries(): Promise<{ html2canvas: any; jsPDF: any }> {
+  const w = typeof window !== "undefined" ? (window as any) : {}
+  if (w.html2canvas && (w.jspdf?.jsPDF || w.jsPDF)) {
+    return {
+      html2canvas: w.html2canvas,
+      jsPDF: w.jspdf?.jsPDF || w.jsPDF,
+    }
+  }
+
+  const loadScript = (src: string) => {
+    return new Promise<void>((resolve, reject) => {
+      if (document.querySelector(`script[src="${src}"]`)) {
+        return resolve()
+      }
+      const s = document.createElement("script")
+      s.src = src
+      s.crossOrigin = "anonymous"
+      s.onload = () => resolve()
+      s.onerror = () => reject(new Error(`Failed to load ${src}`))
+      document.head.appendChild(s)
+    })
+  }
+
+  await Promise.all([
+    loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"),
+    loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"),
+  ])
+
+  const html2canvas = (window as any).html2canvas
+  const jsPDF = (window as any).jspdf?.jsPDF || (window as any).jsPDF
+
+  if (!html2canvas || !jsPDF) {
+    throw new Error("PDF libraries could not be loaded")
+  }
+
+  return { html2canvas, jsPDF }
+}
+
+async function urlToDataUrl(url: string | null | undefined): Promise<string | null> {
+  if (!url) return null
+  if (url.startsWith("data:")) return url
+  try {
+    const res = await fetch(url, { mode: "cors" })
+    if (!res.ok) return url
+    const blob = await res.blob()
+    return await new Promise<string>((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve((reader.result as string) || url)
+      reader.onerror = () => resolve(url)
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return url
+  }
+}
+
 export async function downloadSlipDocument(data: RegistrationSlipData, element?: HTMLElement | null) {
   if (typeof window === "undefined") return
 
@@ -598,54 +654,49 @@ export async function downloadSlipDocument(data: RegistrationSlipData, element?:
   const toastId = toast.loading("Generating official PDF registration slip...")
 
   try {
-    let html2pdfModule: any = null
+    // 1. Convert critical images to base64 data URLs to eliminate any CORS canvas tainting
+    const [profileDataUrl, signatureDataUrl] = await Promise.all([
+      urlToDataUrl(data.profileImageUrl),
+      urlToDataUrl(data.signatureUrl),
+    ])
 
-    try {
-      const mod = (await import("html2pdf.js")) as any
-      html2pdfModule = mod.default || mod
-    } catch {
-      if ((window as any).html2pdf) {
-        html2pdfModule = (window as any).html2pdf
-      }
-    }
-
-    if (!html2pdfModule) {
-      await new Promise<void>((resolve, reject) => {
-        const script = document.createElement("script")
-        script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
-        script.onload = () => resolve()
-        script.onerror = () => reject(new Error("Failed to load PDF engine"))
-        document.head.appendChild(script)
-      })
-      html2pdfModule = (window as any).html2pdf
-    }
-
-    if (!html2pdfModule) {
-      throw new Error("PDF generator unavailable")
+    const slipDataWithBase64: RegistrationSlipData = {
+      ...data,
+      profileImageUrl: profileDataUrl || data.profileImageUrl,
+      signatureUrl: signatureDataUrl || data.signatureUrl,
     }
 
     const slipElement = element || document.getElementById("ippis-registration-slip")
     const qrSvg = slipElement?.querySelector("svg")?.outerHTML
 
+    // 2. Load battle-tested html2canvas and jsPDF dynamically in the browser
+    const { html2canvas, jsPDF } = await loadPdfLibraries()
+
+    // 3. Create isolated container placed at top: 0, left: 0 behind the body (NOT left: -9999px)
     const container = document.createElement("div")
     container.id = "ippis-pdf-export-container"
-    container.style.position = "absolute"
-    container.style.left = "-9999px"
+    container.style.position = "fixed"
+    container.style.left = "0"
     container.style.top = "0"
     container.style.width = "800px"
     container.style.background = "#ffffff"
+    container.style.color = "#0f172a"
     container.style.padding = "16px"
     container.style.boxSizing = "border-box"
-    container.innerHTML = generateFallbackSlipHtml(data, qrSvg)
+    container.style.zIndex = "-9999"
+    container.style.pointerEvents = "none"
+    container.style.opacity = "1" // Must be 1 for html2canvas to render full opacity
+    container.innerHTML = generateFallbackSlipHtml(slipDataWithBase64, qrSvg)
 
     document.body.appendChild(container)
 
-    // Wait for images inside container to finish loading
+    // 4. Wait for all images inside container to finish loading
     const images = Array.from(container.querySelectorAll("img"))
     if (images.length > 0) {
       await Promise.all(
         images.map((img) => {
-          if (img.complete) return Promise.resolve(null)
+          img.crossOrigin = "anonymous"
+          if (img.complete && img.naturalWidth > 0) return Promise.resolve(null)
           return new Promise((resolve) => {
             img.onload = () => resolve(null)
             img.onerror = () => resolve(null)
@@ -655,31 +706,68 @@ export async function downloadSlipDocument(data: RegistrationSlipData, element?:
       )
     }
 
-    const opt = {
-      margin: [6, 6, 6, 6],
-      filename: `IPPIS-Registration-Slip-${regId}.pdf`,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        letterRendering: true,
-        backgroundColor: "#ffffff",
-      },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      pagebreak: { mode: ["css", "legacy"], avoid: ["table", "tr", "div"] },
-    }
+    // Brief tick to ensure layout and fonts are fully settled
+    await new Promise((r) => setTimeout(r, 120))
 
-    await html2pdfModule().set(opt).from(container).save()
+    // 5. Render canvas using html2canvas directly
+    const contentHeight = container.scrollHeight || container.offsetHeight || 1100
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+      width: 800,
+      height: contentHeight,
+      windowWidth: 800,
+      x: 0,
+      y: 0,
+      scrollX: 0,
+      scrollY: 0,
+    })
 
+    // Remove temporary container
     if (container.parentNode) {
       container.parentNode.removeChild(container)
     }
 
+    // 6. Generate PDF via jsPDF with high quality
+    const imgData = canvas.toDataURL("image/jpeg", 0.98)
+
+    // A4 dimensions in mm
+    const pdfWidth = 210
+    const pdfHeight = 297
+    const margin = 8
+    const printableWidth = pdfWidth - 2 * margin
+    const pageContentHeight = pdfHeight - 2 * margin
+    const imgHeight = (canvas.height * printableWidth) / canvas.width
+
+    const pdf = new jsPDF("p", "mm", "a4")
+
+    if (imgHeight <= pageContentHeight) {
+      // Fits on a single page
+      pdf.addImage(imgData, "JPEG", margin, margin, printableWidth, imgHeight)
+    } else {
+      // Multi-page slicing
+      let heightLeft = imgHeight
+      let position = margin
+
+      pdf.addImage(imgData, "JPEG", margin, position, printableWidth, imgHeight)
+      heightLeft -= pageContentHeight
+
+      while (heightLeft > 0) {
+        position -= pageContentHeight
+        pdf.addPage()
+        pdf.addImage(imgData, "JPEG", margin, position, printableWidth, imgHeight)
+        heightLeft -= pageContentHeight
+      }
+    }
+
+    pdf.save(`IPPIS-Registration-Slip-${regId}.pdf`)
     toast.success("Registration slip downloaded as PDF!", { id: toastId })
   } catch (error) {
     console.error("PDF download error:", error)
-    toast.error("Could not download direct PDF. Opening print dialog to Save as PDF...", { id: toastId })
+    toast.error("Could not generate direct PDF. Opening print dialog to Save as PDF...", { id: toastId })
     printSlipDocument(data, element)
   }
 }
