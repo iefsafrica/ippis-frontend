@@ -1,7 +1,8 @@
 "use client"
 
-import React, { useRef } from "react"
+import React, { useRef, useState, useEffect } from "react"
 import Image from "next/image"
+import QRCode from "qrcode"
 import { QRCodeSVG } from "qrcode.react"
 import { Printer, Download, X, ShieldCheck, CheckCircle2, User, Building2, CreditCard, Users2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -85,6 +86,47 @@ const formatDateDisplay = (value?: string | null) => {
   }).format(date)
 }
 
+export function normalizeImageSrc(val?: string | null): string | null {
+  if (!val || typeof val !== "string") return null
+  const s = val.trim()
+  if (!s || s === "null" || s === "undefined") return null
+  // Exclude dead/mock Vercel blob storage URLs that 404 (keep public Coat of Arms if passed)
+  if (s.startsWith("https://blob.vercel-storage.com/")) return null
+  if (s.startsWith("data:image/") || s.startsWith("blob:")) return s
+  if (s.startsWith("/9j/")) return `data:image/jpeg;base64,${s}`
+  if (s.startsWith("iVBORw0")) return `data:image/png;base64,${s}`
+  if (s.startsWith("R0lGOD")) return `data:image/gif;base64,${s}`
+  if (s.startsWith("UklGR")) return `data:image/webp;base64,${s}`
+  if (/^[A-Za-z0-9+/=]+$/.test(s.slice(0, 100)) && s.length > 200) {
+    return `data:image/jpeg;base64,${s}`
+  }
+  if (s.startsWith("http://") || s.startsWith("https://")) return s
+  return null
+}
+
+const qrCache = new Map<string, string>()
+
+export async function generateQrDataUrl(text: string): Promise<string> {
+  if (!text) return ""
+  if (qrCache.has(text)) return qrCache.get(text)!
+  try {
+    const dataUrl = await QRCode.toDataURL(text, {
+      width: 140,
+      margin: 1,
+      color: {
+        dark: "#0f172a",
+        light: "#ffffff",
+      },
+      errorCorrectionLevel: "M",
+    })
+    qrCache.set(text, dataUrl)
+    return dataUrl
+  } catch (err) {
+    console.error("Failed to generate QR data URL:", err)
+    return `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(text)}`
+  }
+}
+
 export function buildSlipDataFromFormData(
   formData: any,
   registrationId: string,
@@ -132,8 +174,13 @@ export function buildSlipDataFromFormData(
     nextOfKinRelationship: formData.nextOfKinRelationship,
     nextOfKinPhoneNumber: formData.nextOfKinPhoneNumber,
     nextOfKinAddress: formData.nextOfKinAddress,
-    profileImageUrl: profilePreviewSrc || (typeof formData.profileImage === "string" ? formData.profileImage : null),
-    signatureUrl: signaturePreviewSrc || (typeof formData.signature === "string" ? formData.signature : null),
+    profileImageUrl:
+      normalizeImageSrc(profilePreviewSrc) ||
+      (typeof formData.profileImage === "string" ? normalizeImageSrc(formData.profileImage) : null) ||
+      (typeof formData.photo === "string" ? normalizeImageSrc(formData.photo) : null),
+    signatureUrl:
+      normalizeImageSrc(signaturePreviewSrc) ||
+      (typeof formData.signature === "string" ? normalizeImageSrc(formData.signature) : null),
   }
 }
 
@@ -166,6 +213,24 @@ export function buildSlipDataFromTrackBundle(
     bundleOrRecord?.first_name ||
     ""
   const otherNames = pers.other_names || ver.middlename || bundleOrRecord?.middlename || ""
+
+  const resolvedProfile =
+    normalizeImageSrc(doc.profile_image_path) ||
+    normalizeImageSrc(ver.photo) ||
+    normalizeImageSrc(meta?.photo) ||
+    normalizeImageSrc(pers.profile_picture) ||
+    normalizeImageSrc(pers.photo) ||
+    normalizeImageSrc(bundleOrRecord?.profile_image_path) ||
+    normalizeImageSrc(bundleOrRecord?.photo) ||
+    null
+
+  const resolvedSignature =
+    normalizeImageSrc(doc.signature_path) ||
+    normalizeImageSrc(ver.signature) ||
+    normalizeImageSrc(meta?.signature) ||
+    normalizeImageSrc(bundleOrRecord?.signature_path) ||
+    normalizeImageSrc(bundleOrRecord?.signature) ||
+    null
 
   return {
     registrationId: regId,
@@ -209,18 +274,25 @@ export function buildSlipDataFromTrackBundle(
     nextOfKinRelationship: pers.next_of_kin_relationship || bundleOrRecord?.next_of_kin_relationship,
     nextOfKinPhoneNumber: pers.next_of_kin_phone_number || bundleOrRecord?.next_of_kin_phone_number,
     nextOfKinAddress: pers.next_of_kin_address || bundleOrRecord?.next_of_kin_address,
-    profileImageUrl: doc.profile_image_path || ver.photo,
-    signatureUrl: doc.signature_path || ver.signature,
+    profileImageUrl: resolvedProfile,
+    signatureUrl: resolvedSignature,
   }
 }
 
 
-export function generateFallbackSlipHtml(data: RegistrationSlipData, qrSvg?: string): string {
+export function generateFallbackSlipHtml(
+  data: RegistrationSlipData,
+  qrCodeSrc?: string,
+  coatOfArmsSrc?: string,
+): string {
   const regId = data.registrationId || "IPPIS"
   const fullName = `${data.surname?.toUpperCase() || ""}, ${data.firstName || ""} ${data.otherNames || ""}`.trim() || "Applicant"
   const origin = typeof window !== "undefined" ? window.location.origin : "https://ippis.gov.ng"
   const verifyUrl = `${origin}/track?id=${encodeURIComponent(regId)}`
-  const qrImgSrc = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(verifyUrl)}`
+  const qrImgSrc = qrCodeSrc || `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(verifyUrl)}`
+  const coatOfArmsImg = coatOfArmsSrc || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Coat_of_arms_of_Nigeria.svg-IFrFqiae8fXtNsVx4Ip0AeHFPjj7Mp.png"
+  const profileImg = normalizeImageSrc(data.profileImageUrl)
+  const signatureImg = normalizeImageSrc(data.signatureUrl)
 
   return `
     <header style="border-bottom: 2px solid #065f46; padding-bottom: 14px; text-align: center;">
@@ -230,7 +302,7 @@ export function generateFallbackSlipHtml(data: RegistrationSlipData, qrSvg?: str
           <span style="font-size: 12px; font-family: monospace; font-weight: bold; color: #1e293b;">${regId}</span>
         </div>
         <div style="display: flex; flex-direction: column; align-items: center;">
-          <img src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Coat_of_arms_of_Nigeria.svg-IFrFqiae8fXtNsVx4Ip0AeHFPjj7Mp.png" alt="Coat of Arms of Nigeria" style="height: 56px; width: auto; margin-bottom: 3px;" />
+          <img src="${coatOfArmsImg}" alt="Coat of Arms of Nigeria" style="height: 56px; width: auto; margin-bottom: 3px;" />
           <h1 style="font-size: 17px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em; color: #020617; font-family: 'Libre Baskerville', Georgia, serif; margin: 0;">Federal Republic of Nigeria</h1>
           <h2 style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #064e3b; margin: 2px 0;">Office of the Accountant-General of the Federation</h2>
           <p style="font-size: 10px; font-weight: 600; color: #334155; margin: 0;">Integrated Personnel and Payroll Information System (IPPIS)</p>
@@ -249,7 +321,7 @@ export function generateFallbackSlipHtml(data: RegistrationSlipData, qrSvg?: str
     <div style="margin: 12px 0; display: grid; grid-template-columns: 110px 1fr 130px; gap: 14px; align-items: center; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; background: #f8fafc; page-break-inside: avoid; break-inside: avoid;">
       <div style="text-align: center;">
         <div style="height: 115px; width: 100px; border: 2px solid #064e3b; border-radius: 4px; overflow: hidden; background: #e2e8f0; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
-          ${data.profileImageUrl ? `<img src="${data.profileImageUrl}" alt="Passport Photo" style="width: 100%; height: 100%; object-fit: cover;" />` : `<span style="font-size: 10px; font-weight: bold; color: #64748b;">PASSPORT</span>`}
+          ${profileImg ? `<img src="${profileImg}" alt="Passport Photo" style="width: 100%; height: 100%; object-fit: cover; display: block;" />` : `<span style="font-size: 10px; font-weight: bold; color: #64748b;">PASSPORT</span>`}
         </div>
         <span style="font-size: 9px; font-weight: bold; text-transform: uppercase; color: #475569; display: block; margin-top: 3px;">Passport Photo</span>
       </div>
@@ -270,7 +342,7 @@ export function generateFallbackSlipHtml(data: RegistrationSlipData, qrSvg?: str
 
       <div style="text-align: center; border-left: 1px solid #e2e8f0; padding-left: 10px;">
         <div style="padding: 4px; background: #ffffff; border: 2px solid #0f172a; border-radius: 4px; display: inline-block;">
-          ${qrSvg ? `<div style="width: 84px; height: 84px; display: flex; align-items: center; justify-content: center;">${qrSvg}</div>` : `<img src="${qrImgSrc}" alt="Scan Code" style="width: 84px; height: 84px; display: block;" />`}
+          <img src="${qrImgSrc}" alt="Scan Code" style="width: 84px; height: 84px; display: block;" />
         </div>
         <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; color: #064e3b; display: block; margin-top: 3px;">Official Scan Code</span>
         <span style="font-size: 7px; color: #64748b; display: block;">Scan to verify authentication</span>
@@ -416,7 +488,7 @@ export function generateFallbackSlipHtml(data: RegistrationSlipData, qrSvg?: str
           <div>
             <span style="display: inline-block; background: #f1f5f9; color: #1e293b; font-size: 8px; font-weight: bold; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; margin-bottom: 4px;">i. Employee Signature</span>
             <div style="height: 48px; display: flex; align-items: center; justify-content: center; border: 1px dashed #cbd5e1; border-radius: 4px; background: #f8fafc; margin-bottom: 4px;">
-              ${data.signatureUrl ? `<img src="${data.signatureUrl}" alt="Signature" style="max-height: 44px; max-width: 120px; object-fit: contain;" />` : `<span style="font-size: 9px; color: #94a3b8; font-family: monospace;">[ Signed Digitally ]</span>`}
+              ${signatureImg ? `<img src="${signatureImg}" alt="Signature" style="max-height: 44px; max-width: 120px; object-fit: contain;" />` : `<span style="font-size: 9px; color: #94a3b8; font-family: monospace;">[ Signed Digitally ]</span>`}
             </div>
           </div>
           <div>
@@ -471,13 +543,30 @@ export function generateFallbackSlipHtml(data: RegistrationSlipData, qrSvg?: str
   `
 }
 
-export function printSlipDocument(data: RegistrationSlipData, element?: HTMLElement | null) {
+export async function printSlipDocument(data: RegistrationSlipData, element?: HTMLElement | null) {
   if (typeof window === "undefined") return
 
   const regId = data.registrationId || "IPPIS"
-  const slipElement = element || document.getElementById("ippis-registration-slip")
-  const qrSvg = slipElement?.querySelector("svg")?.outerHTML
-  const slipHtml = generateFallbackSlipHtml(data, qrSvg)
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://ippis.gov.ng"
+  const verifyUrl = `${origin}/track?id=${encodeURIComponent(regId)}`
+
+  const normalizedProfile = normalizeImageSrc(data.profileImageUrl)
+  const normalizedSignature = normalizeImageSrc(data.signatureUrl)
+
+  const [profileDataUrl, signatureDataUrl, qrDataUrl, coatOfArmsDataUrl] = await Promise.all([
+    urlToDataUrl(normalizedProfile),
+    urlToDataUrl(normalizedSignature),
+    generateQrDataUrl(verifyUrl),
+    urlToDataUrl("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Coat_of_arms_of_Nigeria.svg-IFrFqiae8fXtNsVx4Ip0AeHFPjj7Mp.png"),
+  ])
+
+  const slipDataWithBase64: RegistrationSlipData = {
+    ...data,
+    profileImageUrl: profileDataUrl || normalizedProfile || null,
+    signatureUrl: signatureDataUrl || normalizedSignature || null,
+  }
+
+  const slipHtml = generateFallbackSlipHtml(slipDataWithBase64, qrDataUrl, coatOfArmsDataUrl || undefined)
 
   // Remove existing iframe if present
   const oldFrame = document.getElementById("ippis-print-iframe")
@@ -632,18 +721,20 @@ async function loadPdfLibraries(): Promise<{ html2canvas: any; jsPDF: any }> {
 async function urlToDataUrl(url: string | null | undefined): Promise<string | null> {
   if (!url) return null
   if (url.startsWith("data:")) return url
+  // Do not attempt fetching dead/mock Vercel blob storage URLs that 404
+  if (url.startsWith("https://blob.vercel-storage.com/")) return null
   try {
     const res = await fetch(url, { mode: "cors" })
-    if (!res.ok) return url
+    if (!res.ok) return null
     const blob = await res.blob()
     return await new Promise<string>((resolve) => {
       const reader = new FileReader()
-      reader.onloadend = () => resolve((reader.result as string) || url)
-      reader.onerror = () => resolve(url)
+      reader.onloadend = () => resolve((reader.result as string) || null)
+      reader.onerror = () => resolve(null)
       reader.readAsDataURL(blob)
     })
   } catch {
-    return url
+    return null
   }
 }
 
@@ -654,20 +745,25 @@ export async function downloadSlipDocument(data: RegistrationSlipData, element?:
   const toastId = toast.loading("Generating official PDF registration slip...")
 
   try {
-    // 1. Convert critical images to base64 data URLs to eliminate any CORS canvas tainting
-    const [profileDataUrl, signatureDataUrl] = await Promise.all([
-      urlToDataUrl(data.profileImageUrl),
-      urlToDataUrl(data.signatureUrl),
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://ippis.gov.ng"
+    const verifyUrl = `${origin}/track?id=${encodeURIComponent(regId)}`
+
+    // 1. Resolve normalized images & generate base64 QR code and Coat of Arms in parallel
+    const normalizedProfile = normalizeImageSrc(data.profileImageUrl)
+    const normalizedSignature = normalizeImageSrc(data.signatureUrl)
+
+    const [profileDataUrl, signatureDataUrl, qrDataUrl, coatOfArmsDataUrl] = await Promise.all([
+      urlToDataUrl(normalizedProfile),
+      urlToDataUrl(normalizedSignature),
+      generateQrDataUrl(verifyUrl),
+      urlToDataUrl("https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Coat_of_arms_of_Nigeria.svg-IFrFqiae8fXtNsVx4Ip0AeHFPjj7Mp.png"),
     ])
 
     const slipDataWithBase64: RegistrationSlipData = {
       ...data,
-      profileImageUrl: profileDataUrl || data.profileImageUrl,
-      signatureUrl: signatureDataUrl || data.signatureUrl,
+      profileImageUrl: profileDataUrl || normalizedProfile || null,
+      signatureUrl: signatureDataUrl || normalizedSignature || null,
     }
-
-    const slipElement = element || document.getElementById("ippis-registration-slip")
-    const qrSvg = slipElement?.querySelector("svg")?.outerHTML
 
     // 2. Load battle-tested html2canvas and jsPDF dynamically in the browser
     const { html2canvas, jsPDF } = await loadPdfLibraries()
@@ -686,7 +782,7 @@ export async function downloadSlipDocument(data: RegistrationSlipData, element?:
     container.style.zIndex = "-9999"
     container.style.pointerEvents = "none"
     container.style.opacity = "1" // Must be 1 for html2canvas to render full opacity
-    container.innerHTML = generateFallbackSlipHtml(slipDataWithBase64, qrSvg)
+    container.innerHTML = generateFallbackSlipHtml(slipDataWithBase64, qrDataUrl, coatOfArmsDataUrl || undefined)
 
     document.body.appendChild(container)
 
@@ -768,7 +864,7 @@ export async function downloadSlipDocument(data: RegistrationSlipData, element?:
   } catch (error) {
     console.error("PDF download error:", error)
     toast.error("Could not generate direct PDF. Opening print dialog to Save as PDF...", { id: toastId })
-    printSlipDocument(data, element)
+    await printSlipDocument(data, element)
   }
 }
 
@@ -779,12 +875,21 @@ export function RegistrationSlip({ data, onClose, showActions = true }: Registra
   const origin = typeof window !== "undefined" ? window.location.origin : "https://ippis.gov.ng"
   const verifyUrl = `${origin}/track?id=${encodeURIComponent(data.registrationId)}`
 
-  const handlePrint = () => {
-    printSlipDocument(data, printRef.current)
+  const normalizedProfile = normalizeImageSrc(data.profileImageUrl)
+  const normalizedSignature = normalizeImageSrc(data.signatureUrl)
+
+  const [qrDataUrl, setQrDataUrl] = useState<string>("")
+
+  useEffect(() => {
+    generateQrDataUrl(verifyUrl).then(setQrDataUrl).catch(() => {})
+  }, [verifyUrl])
+
+  const handlePrint = async () => {
+    await printSlipDocument(data, printRef.current)
   }
 
-  const handleDownload = () => {
-    downloadSlipDocument(data, printRef.current)
+  const handleDownload = async () => {
+    await downloadSlipDocument(data, printRef.current)
   }
 
   return (
@@ -889,10 +994,10 @@ export function RegistrationSlip({ data, onClose, showActions = true }: Registra
           {/* Passport Photo */}
           <div className="flex flex-col items-center">
             <div className="h-32 w-28 rounded border-2 border-emerald-900/30 overflow-hidden bg-slate-100 flex items-center justify-center relative shadow-sm">
-              {data.profileImageUrl ? (
+              {normalizedProfile ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={data.profileImageUrl}
+                  src={normalizedProfile}
                   alt="Employee Passport"
                   className="h-full w-full object-cover"
                 />
@@ -944,13 +1049,22 @@ export function RegistrationSlip({ data, onClose, showActions = true }: Registra
           {/* Scan Code (QR Code) */}
           <div className="flex flex-col items-center justify-center border-t md:border-t-0 md:border-l border-slate-200 pl-0 md:pl-3 pt-3 md:pt-0">
             <div className="p-1.5 bg-white border-2 border-slate-800 rounded shadow-sm">
-              <QRCodeSVG
-                value={verifyUrl}
-                size={96}
-                level="M"
-                includeMargin={false}
-                className="h-24 w-24"
-              />
+              {qrDataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={qrDataUrl}
+                  alt="Official Scan Code"
+                  className="h-24 w-24 object-contain block"
+                />
+              ) : (
+                <QRCodeSVG
+                  value={verifyUrl}
+                  size={96}
+                  level="M"
+                  includeMargin={false}
+                  className="h-24 w-24"
+                />
+              )}
             </div>
             <span className="text-[9px] font-black uppercase tracking-wider text-emerald-900 mt-1.5 text-center">
               Official Scan Code
@@ -1132,10 +1246,10 @@ export function RegistrationSlip({ data, onClose, showActions = true }: Registra
                   i. Employee Signature
                 </span>
                 <div className="h-14 flex items-center justify-center border border-dashed border-slate-200 rounded mb-2 bg-slate-50/50">
-                  {data.signatureUrl ? (
+                  {normalizedSignature ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={data.signatureUrl}
+                      src={normalizedSignature}
                       alt="Employee Signature"
                       className="max-h-12 max-w-[130px] object-contain"
                     />
