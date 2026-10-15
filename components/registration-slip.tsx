@@ -106,25 +106,103 @@ export function normalizeImageSrc(val?: string | null): string | null {
 
 const qrCache = new Map<string, string>()
 
+export function generateSyncQrSvg(text: string, size = 140): string {
+  if (!text) return ""
+  try {
+    let result = ""
+    const toStr = (QRCode as any)?.toString || (QRCode as any)?.default?.toString
+    if (typeof toStr === "function") {
+      toStr(
+        text,
+        {
+          type: "svg",
+          width: size,
+          margin: 1,
+          color: {
+            dark: "#0f172a",
+            light: "#ffffff",
+          },
+          errorCorrectionLevel: "M",
+        },
+        (err: any, svg: string) => {
+          if (!err && svg) result = svg
+        }
+      )
+    }
+    return result
+  } catch (err) {
+    console.warn("Failed to generate sync QR SVG:", err)
+    return ""
+  }
+}
+
 export async function generateQrDataUrl(text: string): Promise<string> {
   if (!text) return ""
   if (qrCache.has(text)) return qrCache.get(text)!
-  try {
-    const dataUrl = await QRCode.toDataURL(text, {
-      width: 140,
-      margin: 1,
-      color: {
-        dark: "#0f172a",
-        light: "#ffffff",
-      },
-      errorCorrectionLevel: "M",
-    })
-    qrCache.set(text, dataUrl)
-    return dataUrl
-  } catch (err) {
-    console.error("Failed to generate QR data URL:", err)
-    return `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(text)}`
+
+  // 1. In browser, try canvas toDataURL ("image/png") for best compatibility with html2canvas and printing
+  if (typeof window !== "undefined" && typeof document !== "undefined") {
+    try {
+      const canvas = document.createElement("canvas")
+      canvas.width = 140
+      canvas.height = 140
+      const toCanvas = (QRCode as any)?.toCanvas || (QRCode as any)?.default?.toCanvas
+      if (typeof toCanvas === "function") {
+        await new Promise<void>((resolve, reject) => {
+          toCanvas(
+            canvas,
+            text,
+            {
+              width: 140,
+              margin: 1,
+              color: { dark: "#0f172a", light: "#ffffff" },
+              errorCorrectionLevel: "M",
+            },
+            (err: any) => {
+              if (err) reject(err)
+              else resolve()
+            }
+          )
+        })
+        const dataUrl = canvas.toDataURL("image/png")
+        if (dataUrl && dataUrl.startsWith("data:image/png")) {
+          qrCache.set(text, dataUrl)
+          return dataUrl
+        }
+      }
+    } catch (canvasErr) {
+      console.warn("Canvas QR generation failed, using SVG fallback:", canvasErr)
+    }
   }
+
+  // 2. Generate SVG synchronously
+  const svgMarkup = generateSyncQrSvg(text, 140)
+  if (svgMarkup) {
+    const svgDataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svgMarkup)}`
+    qrCache.set(text, svgDataUrl)
+    return svgDataUrl
+  }
+
+  // 3. Fallback to direct toDataURL
+  try {
+    const toDataURL = (QRCode as any)?.toDataURL || (QRCode as any)?.default?.toDataURL
+    if (typeof toDataURL === "function") {
+      const dataUrl = await toDataURL(text, {
+        width: 140,
+        margin: 1,
+        color: { dark: "#0f172a", light: "#ffffff" },
+        errorCorrectionLevel: "M",
+      })
+      if (dataUrl && typeof dataUrl === "string") {
+        qrCache.set(text, dataUrl)
+        return dataUrl
+      }
+    }
+  } catch (err) {
+    console.error("QRCode.toDataURL fallback failed:", err)
+  }
+
+  return ""
 }
 
 export function buildSlipDataFromFormData(
@@ -289,7 +367,22 @@ export function generateFallbackSlipHtml(
   const fullName = `${data.surname?.toUpperCase() || ""}, ${data.firstName || ""} ${data.otherNames || ""}`.trim() || "Applicant"
   const origin = typeof window !== "undefined" ? window.location.origin : "https://ippis.gov.ng"
   const verifyUrl = `${origin}/track?id=${encodeURIComponent(regId)}`
-  const qrImgSrc = qrCodeSrc || `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(verifyUrl)}`
+
+  // Build robust QR code representation without external network dependencies
+  let qrContentHtml = ""
+  if (qrCodeSrc && qrCodeSrc.trim().startsWith("<svg")) {
+    qrContentHtml = qrCodeSrc
+  } else if (qrCodeSrc && (qrCodeSrc.startsWith("data:image/") || qrCodeSrc.startsWith("http://") || qrCodeSrc.startsWith("https://"))) {
+    qrContentHtml = `<img src="${qrCodeSrc}" alt="Scan Code" style="width: 84px; height: 84px; display: block; object-fit: contain;" />`
+  } else {
+    const syncSvg = generateSyncQrSvg(verifyUrl, 84)
+    if (syncSvg) {
+      qrContentHtml = syncSvg
+    } else {
+      qrContentHtml = `<div style="width: 84px; height: 84px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #064e3b; font-weight: bold; text-align: center;">IPPIS AUTH CODE<br/>${regId}</div>`
+    }
+  }
+
   const coatOfArmsImg = coatOfArmsSrc || "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Coat_of_arms_of_Nigeria.svg-IFrFqiae8fXtNsVx4Ip0AeHFPjj7Mp.png"
   const profileImg = normalizeImageSrc(data.profileImageUrl)
   const signatureImg = normalizeImageSrc(data.signatureUrl)
@@ -341,8 +434,8 @@ export function generateFallbackSlipHtml(
       </div>
 
       <div style="text-align: center; border-left: 1px solid #e2e8f0; padding-left: 10px;">
-        <div style="padding: 4px; background: #ffffff; border: 2px solid #0f172a; border-radius: 4px; display: inline-block;">
-          <img src="${qrImgSrc}" alt="Scan Code" style="width: 84px; height: 84px; display: block;" />
+        <div style="padding: 4px; background: #ffffff; border: 2px solid #0f172a; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; width: 92px; height: 92px; box-sizing: border-box; overflow: hidden;">
+          ${qrContentHtml}
         </div>
         <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; color: #064e3b; display: block; margin-top: 3px;">Official Scan Code</span>
         <span style="font-size: 7px; color: #64748b; display: block;">Scan to verify authentication</span>
@@ -1048,23 +1141,14 @@ export function RegistrationSlip({ data, onClose, showActions = true }: Registra
 
           {/* Scan Code (QR Code) */}
           <div className="flex flex-col items-center justify-center border-t md:border-t-0 md:border-l border-slate-200 pl-0 md:pl-3 pt-3 md:pt-0">
-            <div className="p-1.5 bg-white border-2 border-slate-800 rounded shadow-sm">
-              {qrDataUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={qrDataUrl}
-                  alt="Official Scan Code"
-                  className="h-24 w-24 object-contain block"
-                />
-              ) : (
-                <QRCodeSVG
-                  value={verifyUrl}
-                  size={96}
-                  level="M"
-                  includeMargin={false}
-                  className="h-24 w-24"
-                />
-              )}
+            <div className="p-1.5 bg-white border-2 border-slate-800 rounded shadow-sm flex items-center justify-center">
+              <QRCodeSVG
+                value={verifyUrl}
+                size={96}
+                level="M"
+                includeMargin={false}
+                className="h-24 w-24"
+              />
             </div>
             <span className="text-[9px] font-black uppercase tracking-wider text-emerald-900 mt-1.5 text-center">
               Official Scan Code
