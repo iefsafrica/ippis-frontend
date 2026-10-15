@@ -20,6 +20,8 @@ import {
   Info,
   ShieldCheck,
   FileCheck,
+  Check,
+  Laptop,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -115,7 +117,7 @@ export default function DocumentUploadStep({
       errs.otherDocuments = "4. Other Related Documents are required.";
     }
     if (!formData.profileImage) {
-      errs.profileImage = "5. Passport photograph is required (live capture or upload).";
+      errs.profileImage = "5. Passport photograph is required (Live Photo Capture or Upload Image from Computer).";
     }
     if (!formData.signature) {
       errs.signature = "6. Signature upload is required.";
@@ -301,43 +303,81 @@ export default function DocumentUploadStep({
       </div>
 
       {/* Required Documents Summary Bar */}
-      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-          Required Documents Checklist (6 of 6)
-        </p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
-          {[
-            { num: "1", label: "Appointment Letter", ready: !!formData.appointmentLetter },
-            { num: "2", label: "Educational Documents", ready: !!formData.educationalCertificates },
-            {
-              num: "3",
-              label: "Last Promotion",
-              ready: !!formData.promotionLetter || isFirstAppointment,
-            },
-            { num: "4", label: "Other Documents", ready: !!formData.otherDocuments },
-            { num: "5", label: "Passport", ready: !!formData.profileImage },
-            { num: "6", label: "Signature", ready: !!formData.signature },
-          ].map((item) => (
-            <div
-              key={item.num}
-              className={`flex items-center gap-1.5 p-2 rounded-md border text-xs ${
-                item.ready
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-800 font-medium"
-                  : "bg-white border-slate-200 text-slate-600"
-              }`}
-            >
-              {item.ready ? (
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-              ) : (
-                <span className="h-3.5 w-3.5 rounded-full border border-slate-400 text-[10px] flex items-center justify-center text-slate-500 shrink-0 font-bold">
-                  {item.num}
-                </span>
-              )}
-              <span className="truncate">{item.label}</span>
+      {(() => {
+        const completedCount = [
+          !!formData.appointmentLetter,
+          !!formData.educationalCertificates,
+          !!formData.promotionLetter || isFirstAppointment,
+          !!formData.otherDocuments,
+          !!formData.profileImage,
+          !!formData.signature,
+        ].filter(Boolean).length;
+
+        return (
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                  Six (6) Required Documents for Verification
+                </p>
+                <p className="text-xs text-slate-500">
+                  {completedCount} of 6 required documents ready
+                </p>
+              </div>
+              <span
+                className={`text-xs font-semibold px-3 py-1 rounded-full self-start sm:self-center ${
+                  completedCount === 6
+                    ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                    : "bg-amber-100 text-amber-800 border border-amber-200"
+                }`}
+              >
+                {completedCount === 6 ? "✓ All 6 Documents Uploaded" : `${6 - completedCount} Document${6 - completedCount > 1 ? "s" : ""} Remaining`}
+              </span>
             </div>
-          ))}
-        </div>
-      </div>
+
+            {/* Progress Bar */}
+            <div className="w-full bg-slate-200 rounded-full h-2 mb-3.5 overflow-hidden">
+              <div
+                className="bg-emerald-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(completedCount / 6) * 100}%` }}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
+              {[
+                { num: "1", label: "Appointment Letter", ready: !!formData.appointmentLetter },
+                { num: "2", label: "Educational Documents", ready: !!formData.educationalCertificates },
+                {
+                  num: "3",
+                  label: "Letter of Last Promotion",
+                  ready: !!formData.promotionLetter || isFirstAppointment,
+                },
+                { num: "4", label: "Other Related Documents", ready: !!formData.otherDocuments },
+                { num: "5", label: "Passport Photograph", ready: !!formData.profileImage },
+                { num: "6", label: "Signature", ready: !!formData.signature },
+              ].map((item) => (
+                <div
+                  key={item.num}
+                  className={`flex items-center gap-1.5 p-2 rounded-lg border text-xs transition-colors ${
+                    item.ready
+                      ? "bg-emerald-50 border-emerald-300 text-emerald-800 font-medium"
+                      : "bg-white border-slate-200 text-slate-600"
+                  }`}
+                >
+                  {item.ready ? (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <span className="h-4 w-4 rounded-full border border-slate-400 text-[10px] flex items-center justify-center text-slate-600 shrink-0 font-bold bg-slate-50">
+                      {item.num}
+                    </span>
+                  )}
+                  <span className="truncate">{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Six Documents Grid */}
       <div className="space-y-6">
@@ -697,7 +737,7 @@ export default function DocumentUploadStep({
                     Passport Photograph <span className="text-red-500">*</span>
                   </Label>
                   <p className="text-xs text-slate-500">
-                    Either capture a live photo using your camera or upload an image from your computer.
+                    Provide your passport photo using either <strong>Live Photo Capture</strong> or <strong>Upload Image from Computer</strong>.
                   </p>
                 </div>
               </div>
@@ -733,7 +773,7 @@ export default function DocumentUploadStep({
                         </span>
                       ) : photoSource === "webcam" ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-800 bg-blue-100 px-2 py-0.5 rounded-full">
-                          <Camera className="h-3 w-3" /> Live Capture
+                          <Camera className="h-3 w-3" /> Live Camera Capture
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-[11px] font-medium text-purple-800 bg-purple-100 px-2 py-0.5 rounded-full">
@@ -743,8 +783,10 @@ export default function DocumentUploadStep({
                     </div>
                     <p className="text-xs text-slate-600 mt-1">
                       {photoSource === "nin"
-                        ? "Pre-populated from your verified National Identity Database. You can keep this or replace it below."
-                        : "Ready for employee biometric verification."}
+                        ? "Pre-populated from your verified National Identity Database. You can keep this or select an option below to replace it."
+                        : photoSource === "webcam"
+                        ? "Captured live via your device camera. You can retake it or upload a file from your computer below."
+                        : "Uploaded from your computer. You can choose a different file or switch to live camera capture below."}
                     </p>
                   </div>
 
@@ -755,9 +797,9 @@ export default function DocumentUploadStep({
                       size="sm"
                       variant="outline"
                       onClick={() => setPhotoMode("camera")}
-                      className={`text-xs gap-1.5 ${photoMode === "camera" ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-slate-300"}`}
+                      className={`text-xs gap-1.5 ${photoMode === "camera" ? "border-emerald-600 bg-emerald-50 text-emerald-800 font-semibold" : "border-slate-300"}`}
                     >
-                      <Camera className="h-3.5 w-3.5 text-emerald-600" /> Retake with Camera
+                      <Camera className="h-3.5 w-3.5 text-emerald-600" /> Retake Live Photo
                     </Button>
 
                     <Button
@@ -765,9 +807,9 @@ export default function DocumentUploadStep({
                       size="sm"
                       variant="outline"
                       onClick={() => setPhotoMode("upload")}
-                      className={`text-xs gap-1.5 ${photoMode === "upload" ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-slate-300"}`}
+                      className={`text-xs gap-1.5 ${photoMode === "upload" ? "border-emerald-600 bg-emerald-50 text-emerald-800 font-semibold" : "border-slate-300"}`}
                     >
-                      <Upload className="h-3.5 w-3.5 text-emerald-600" /> Upload from Computer
+                      <Laptop className="h-3.5 w-3.5 text-emerald-600" /> Upload from Computer
                     </Button>
 
                     <Button
@@ -784,37 +826,107 @@ export default function DocumentUploadStep({
               </div>
             )}
 
-            {/* Mode Switcher Tabs */}
+            {/* Two Selection Cards: Option 1 Live Capture vs Option 2 Computer Upload */}
             <div className="mb-4">
-              <div className="flex p-1 bg-slate-100 rounded-lg border border-slate-200 max-w-md mx-auto sm:mx-0">
-                <button
-                  type="button"
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block mb-2">
+                Choose Photo Method:
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Option 1: Live Photo Capture */}
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setPhotoMode("camera")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-md transition-all ${
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") setPhotoMode("camera");
+                  }}
+                  className={`cursor-pointer rounded-xl p-4 border-2 transition-all flex items-start gap-3.5 ${
                     photoMode === "camera"
-                      ? "bg-white text-emerald-800 shadow-sm border border-slate-200"
-                      : "text-slate-600 hover:text-slate-900"
+                      ? "border-emerald-600 bg-emerald-50/70 shadow-sm ring-1 ring-emerald-500"
+                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60"
                   }`}
                 >
-                  <Camera className="h-4 w-4 text-emerald-600" />
-                  Live Photo Capture
-                </button>
-                <button
-                  type="button"
+                  <div
+                    className={`p-2.5 rounded-xl shrink-0 transition-colors ${
+                      photoMode === "camera"
+                        ? "bg-emerald-600 text-white shadow-sm"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    <Camera className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <h4 className="font-semibold text-sm text-slate-900">
+                        Live Photo Capture
+                      </h4>
+                      <div
+                        className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                          photoMode === "camera"
+                            ? "border-emerald-600 bg-emerald-600 text-white"
+                            : "border-slate-300 bg-white"
+                        }`}
+                      >
+                        {photoMode === "camera" && (
+                          <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                      Capture an instant photo using your device webcam or camera with real-time oval guide.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Option 2: Upload Image from Computer */}
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setPhotoMode("upload")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-md transition-all ${
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") setPhotoMode("upload");
+                  }}
+                  className={`cursor-pointer rounded-xl p-4 border-2 transition-all flex items-start gap-3.5 ${
                     photoMode === "upload"
-                      ? "bg-white text-emerald-800 shadow-sm border border-slate-200"
-                      : "text-slate-600 hover:text-slate-900"
+                      ? "border-emerald-600 bg-emerald-50/70 shadow-sm ring-1 ring-emerald-500"
+                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60"
                   }`}
                 >
-                  <Upload className="h-4 w-4 text-emerald-600" />
-                  Upload from Computer
-                </button>
+                  <div
+                    className={`p-2.5 rounded-xl shrink-0 transition-colors ${
+                      photoMode === "upload"
+                        ? "bg-emerald-600 text-white shadow-sm"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    <Laptop className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <h4 className="font-semibold text-sm text-slate-900">
+                        Upload Image from Computer
+                      </h4>
+                      <div
+                        className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                          photoMode === "upload"
+                            ? "border-emerald-600 bg-emerald-600 text-white"
+                            : "border-slate-300 bg-white"
+                        }`}
+                      >
+                        {photoMode === "upload" && (
+                          <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                      Select and upload an existing passport photo file (JPG, JPEG, PNG) saved on your computer.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Mode Content */}
+            {/* Active Method UI Container */}
             {photoMode === "camera" ? (
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
                 <div className="mb-3 text-center sm:text-left">
@@ -832,6 +944,14 @@ export default function DocumentUploadStep({
               </div>
             ) : (
               <div className="space-y-3">
+                <div className="mb-1 text-center sm:text-left">
+                  <p className="text-xs font-semibold text-slate-800 flex items-center justify-center sm:justify-start gap-1.5">
+                    <Upload className="h-4 w-4 text-emerald-600" /> Upload Image from Computer
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Drag and drop or browse for a clear color passport photograph from your computer.
+                  </p>
+                </div>
                 <FileUploader
                   onFileSelect={(file) => handlePhotoSelect(file, "upload")}
                   accept=".jpg,.jpeg,.png"

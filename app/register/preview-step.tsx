@@ -515,7 +515,7 @@ export function PreviewStep({
 
                 <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                    5. Passport
+                    5. Passport Photograph
                   </p>
                   {formData.profileImage ? (
                     <div className="flex items-center gap-3">
