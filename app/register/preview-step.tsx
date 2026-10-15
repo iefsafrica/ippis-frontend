@@ -441,74 +441,113 @@ export function PreviewStep({
         </TabsContent>
 
         <TabsContent value="documents">
-          <Card className="border-red-200">
+          <Card className="border-slate-200 shadow-sm">
             <CardContent className="pt-6">
-              <h3 className="text-lg font-semibold mb-4">Uploaded Documents</h3>
+              <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <span>Six Required Verification Documents</span>
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">
-                    Appointment Letter
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    1. Appointment Letter
                   </p>
-                  <p className="text-sm">
-                    {formData.appointmentLetter
-                      ? formData.appointmentLetter.name
-                      : "Not uploaded"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">
-                    Educational Certificates
-                  </p>
-                  <p className="text-sm">
-                    {formData.educationalCertificates
-                      ? formData.educationalCertificates.name
-                      : "Not uploaded"}
+                  <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-1.5">
+                    {formData.appointmentLetter ? (
+                      <>
+                        <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                        {formData.appointmentLetter?.name || (typeof window !== 'undefined' && localStorage.getItem('registration_appointmentLetter_name')) || 'Appointment_Letter.pdf (Uploaded)'}
+                      </>
+                    ) : (
+                      <span className="text-slate-400 italic">Not uploaded</span>
+                    )}
                   </p>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">
-                    Promotion Letter
+
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    2. Educational Documents
                   </p>
-                  <p className="text-sm">
-                    {formData.promotionLetter
-                      ? formData.promotionLetter.name
-                      : "Not uploaded"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">
-                    Other Documents
-                  </p>
-                  <p className="text-sm">
-                    {formData.otherDocuments
-                      ? formData.otherDocuments.name
-                      : "Not uploaded"}
+                  <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-1.5">
+                    {formData.educationalCertificates ? (
+                      <>
+                        <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                        {formData.educationalCertificates?.name || (typeof window !== 'undefined' && localStorage.getItem('registration_educationalCertificates_name')) || 'Educational_Documents.pdf (Uploaded)'}
+                      </>
+                    ) : (
+                      <span className="text-slate-400 italic">Not uploaded</span>
+                    )}
                   </p>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">
-                    Profile Image
+
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    3. Letter of Last Promotion
+                  </p>
+                  <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-1.5">
+                    {formData.promotionLetter ? (
+                      <>
+                        <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                        {formData.promotionLetter?.name || (typeof window !== 'undefined' && localStorage.getItem('registration_promotionLetter_name')) || 'Promotion_Letter.pdf (Uploaded)'}
+                      </>
+                    ) : (typeof window !== 'undefined' && localStorage.getItem('registration_isFirstAppointment') === 'true') ? (
+                      <span className="text-blue-700 font-normal">Exempted (First Appointment)</span>
+                    ) : (
+                      <span className="text-slate-400 italic">Not uploaded</span>
+                    )}
+                  </p>
+                </div>
+
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    4. Other Related Documents
+                  </p>
+                  <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-1.5">
+                    {formData.otherDocuments ? (
+                      <>
+                        <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                        {formData.otherDocuments?.name || (typeof window !== 'undefined' && localStorage.getItem('registration_otherDocuments_name')) || 'Other_Related_Documents.pdf (Uploaded)'}
+                      </>
+                    ) : (
+                      <span className="text-slate-400 italic">Not uploaded</span>
+                    )}
+                  </p>
+                </div>
+
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                    5. Passport
                   </p>
                   {formData.profileImage ? (
-                    <img
-                      src={profilePreviewSrc}
-                      alt="Profile preview"
-                      className="h-16 w-16 object-cover rounded-md mt-1"
-                    />
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={profilePreviewSrc}
+                        alt="Passport photograph"
+                        className="h-20 w-20 object-cover rounded-md border-2 border-emerald-600 bg-white shadow-sm"
+                      />
+                      <span className="text-xs text-emerald-700 font-medium">Passport photograph ready</span>
+                    </div>
                   ) : (
-                    <p className="text-sm">Not uploaded</p>
+                    <p className="text-sm text-slate-400 italic">Not uploaded</p>
                   )}
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Signature</p>
+
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                    6. Signature
+                  </p>
                   {formData.signature ? (
-                    <img
-                      src={signaturePreviewSrc}
-                      alt="Signature preview"
-                      className="h-12 w-24 object-contain mt-1"
-                    />
+                    <div className="flex items-center gap-3">
+                      <div className="p-1.5 bg-white border border-slate-200 rounded">
+                        <img
+                          src={signaturePreviewSrc}
+                          alt="Signature specimen"
+                          className="h-12 w-28 object-contain"
+                        />
+                      </div>
+                      <span className="text-xs text-emerald-700 font-medium">Specimen signature ready</span>
+                    </div>
                   ) : (
-                    <p className="text-sm">Not uploaded</p>
+                    <p className="text-sm text-slate-400 italic">Not uploaded</p>
                   )}
                 </div>
               </div>
