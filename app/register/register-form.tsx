@@ -1157,7 +1157,7 @@ export default function RegisterForm() {
                 className="border-emerald-700 text-emerald-800 hover:bg-emerald-50 text-xs gap-1.5 shadow-sm font-semibold"
               >
                 <Download className="h-4 w-4" />
-                Download Slip
+                Download Slip (PDF)
               </Button>
               <Button
                 variant="outline"

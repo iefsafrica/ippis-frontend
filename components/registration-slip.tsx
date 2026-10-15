@@ -5,6 +5,7 @@ import Image from "next/image"
 import { QRCodeSVG } from "qrcode.react"
 import { Printer, Download, X, ShieldCheck, CheckCircle2, User, Building2, CreditCard, Users2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 import {
   Dialog,
   DialogContent,
@@ -214,7 +215,7 @@ export function buildSlipDataFromTrackBundle(
 }
 
 
-export function generateFallbackSlipHtml(data: RegistrationSlipData): string {
+export function generateFallbackSlipHtml(data: RegistrationSlipData, qrSvg?: string): string {
   const regId = data.registrationId || "IPPIS"
   const fullName = `${data.surname?.toUpperCase() || ""}, ${data.firstName || ""} ${data.otherNames || ""}`.trim() || "Applicant"
   const origin = typeof window !== "undefined" ? window.location.origin : "https://ippis.gov.ng"
@@ -222,66 +223,66 @@ export function generateFallbackSlipHtml(data: RegistrationSlipData): string {
   const qrImgSrc = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(verifyUrl)}`
 
   return `
-    <header style="border-bottom: 2px solid #065f46; padding-bottom: 16px; text-align: center;">
+    <header style="border-bottom: 2px solid #065f46; padding-bottom: 14px; text-align: center;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div style="text-align: left;">
+        <div style="text-align: left; width: 100px;">
           <span style="font-size: 10px; font-weight: bold; color: #64748b; display: block; text-transform: uppercase;">Ref No:</span>
           <span style="font-size: 12px; font-family: monospace; font-weight: bold; color: #1e293b;">${regId}</span>
         </div>
         <div style="display: flex; flex-direction: column; align-items: center;">
-          <img src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Coat_of_arms_of_Nigeria.svg-IFrFqiae8fXtNsVx4Ip0AeHFPjj7Mp.png" alt="Coat of Arms of Nigeria" style="height: 60px; width: auto; margin-bottom: 4px;" />
-          <h1 style="font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em; color: #020617; font-family: 'Libre Baskerville', Georgia, serif; margin: 0;">Federal Republic of Nigeria</h1>
-          <h2 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #064e3b; margin: 2px 0;">Office of the Accountant-General of the Federation</h2>
-          <p style="font-size: 11px; font-weight: 600; color: #334155; margin: 0;">Integrated Personnel and Payroll Information System (IPPIS)</p>
+          <img src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Coat_of_arms_of_Nigeria.svg-IFrFqiae8fXtNsVx4Ip0AeHFPjj7Mp.png" alt="Coat of Arms of Nigeria" style="height: 56px; width: auto; margin-bottom: 3px;" />
+          <h1 style="font-size: 17px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em; color: #020617; font-family: 'Libre Baskerville', Georgia, serif; margin: 0;">Federal Republic of Nigeria</h1>
+          <h2 style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #064e3b; margin: 2px 0;">Office of the Accountant-General of the Federation</h2>
+          <p style="font-size: 10px; font-weight: 600; color: #334155; margin: 0;">Integrated Personnel and Payroll Information System (IPPIS)</p>
         </div>
-        <div style="text-align: right;">
+        <div style="text-align: right; width: 100px;">
           <span style="font-size: 10px; font-weight: bold; color: #64748b; display: block; text-transform: uppercase;">Status:</span>
           <span style="background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase;">${(data.status || "Submitted").replace(/_/g, " ")}</span>
         </div>
       </div>
-      <div style="margin-top: 10px; display: inline-block; background: #065f46; color: #ffffff; padding: 4px 16px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em;">
+      <div style="margin-top: 8px; display: inline-block; background: #065f46; color: #ffffff; padding: 3px 14px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em;">
         Official Employee Registration Slip
       </div>
     </header>
 
     <!-- Top Banner -->
-    <div style="margin: 16px 0; display: grid; grid-template-columns: 120px 1fr 140px; gap: 16px; align-items: center; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; background: #f8fafc;">
+    <div style="margin: 12px 0; display: grid; grid-template-columns: 110px 1fr 130px; gap: 14px; align-items: center; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; background: #f8fafc; page-break-inside: avoid; break-inside: avoid;">
       <div style="text-align: center;">
-        <div style="height: 120px; width: 105px; border: 2px solid #064e3b; border-radius: 4px; overflow: hidden; background: #e2e8f0; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+        <div style="height: 115px; width: 100px; border: 2px solid #064e3b; border-radius: 4px; overflow: hidden; background: #e2e8f0; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
           ${data.profileImageUrl ? `<img src="${data.profileImageUrl}" alt="Passport Photo" style="width: 100%; height: 100%; object-fit: cover;" />` : `<span style="font-size: 10px; font-weight: bold; color: #64748b;">PASSPORT</span>`}
         </div>
-        <span style="font-size: 9px; font-weight: bold; text-transform: uppercase; color: #475569; display: block; margin-top: 4px;">Passport Photo</span>
+        <span style="font-size: 9px; font-weight: bold; text-transform: uppercase; color: #475569; display: block; margin-top: 3px;">Passport Photo</span>
       </div>
 
       <div>
         <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 11px; font-weight: bold; text-transform: uppercase; color: #64748b;">Enrolment ID:</span>
-          <span style="background: #064e3b; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-family: monospace; font-size: 13px; font-weight: 800;">${regId}</span>
+          <span style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b;">Enrolment ID:</span>
+          <span style="background: #064e3b; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-family: monospace; font-size: 12px; font-weight: 800;">${regId}</span>
         </div>
-        <div style="font-size: 16px; font-weight: 800; color: #020617; text-transform: uppercase; margin: 4px 0;">${fullName}</div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; border-top: 1px solid #e2e8f0; padding-top: 6px;">
-          <div><strong style="color: #64748b; font-size: 10px; text-transform: uppercase; display: block;">NIN:</strong> ${data.nin || "—"}</div>
-          <div><strong style="color: #64748b; font-size: 10px; text-transform: uppercase; display: block;">BVN:</strong> ${data.bvn || "—"}</div>
-          <div><strong style="color: #64748b; font-size: 10px; text-transform: uppercase; display: block;">Department:</strong> ${data.department || data.organization || "—"}</div>
-          <div><strong style="color: #64748b; font-size: 10px; text-transform: uppercase; display: block;">Submitted:</strong> ${formatDateDisplay(data.registrationDate)}</div>
+        <div style="font-size: 15px; font-weight: 800; color: #020617; text-transform: uppercase; margin: 3px 0;">${fullName}</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 10px; border-top: 1px solid #e2e8f0; padding-top: 5px;">
+          <div><strong style="color: #64748b; font-size: 9px; text-transform: uppercase; display: block;">NIN:</strong> ${data.nin || "—"}</div>
+          <div><strong style="color: #64748b; font-size: 9px; text-transform: uppercase; display: block;">BVN:</strong> ${data.bvn || "—"}</div>
+          <div><strong style="color: #64748b; font-size: 9px; text-transform: uppercase; display: block;">Department:</strong> ${data.department || data.organization || "—"}</div>
+          <div><strong style="color: #64748b; font-size: 9px; text-transform: uppercase; display: block;">Submitted:</strong> ${formatDateDisplay(data.registrationDate)}</div>
         </div>
       </div>
 
-      <div style="text-align: center; border-left: 1px solid #e2e8f0; padding-left: 12px;">
-        <div style="padding: 6px; background: #ffffff; border: 2px solid #0f172a; border-radius: 4px; display: inline-block;">
-          <img src="${qrImgSrc}" alt="Scan Code" style="width: 88px; height: 88px; display: block;" />
+      <div style="text-align: center; border-left: 1px solid #e2e8f0; padding-left: 10px;">
+        <div style="padding: 4px; background: #ffffff; border: 2px solid #0f172a; border-radius: 4px; display: inline-block;">
+          ${qrSvg ? `<div style="width: 84px; height: 84px; display: flex; align-items: center; justify-content: center;">${qrSvg}</div>` : `<img src="${qrImgSrc}" alt="Scan Code" style="width: 84px; height: 84px; display: block;" />`}
         </div>
-        <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #064e3b; display: block; margin-top: 4px;">Official Scan Code</span>
-        <span style="font-size: 8px; color: #64748b; display: block;">Scan to verify authentication</span>
+        <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; color: #064e3b; display: block; margin-top: 3px;">Official Scan Code</span>
+        <span style="font-size: 7px; color: #64748b; display: block;">Scan to verify authentication</span>
       </div>
     </div>
 
     <!-- 1. Bio-Data -->
-    <div style="margin-bottom: 14px;">
-      <div style="background: #064e3b; color: #ffffff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+    <div style="margin-bottom: 12px; page-break-inside: avoid; break-inside: avoid;">
+      <div style="background: #064e3b; color: #ffffff; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
         1. Personal Bio-Data
       </div>
-      <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 3px;">
         <tbody>
           <tr>
             <td style="width: 25%; background: #f8fafc; font-weight: 600; color: #475569;">Full Name:</td>
@@ -316,46 +317,46 @@ export function generateFallbackSlipHtml(data: RegistrationSlipData): string {
     </div>
 
     <!-- 2. Employment Details -->
-    <div style="margin-bottom: 14px;">
-      <div style="background: #064e3b; color: #ffffff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+    <div style="margin-bottom: 12px; page-break-inside: avoid; break-inside: avoid;">
+      <div style="background: #064e3b; color: #ffffff; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
         2. Employment & Cadre Details
       </div>
-      <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 3px;">
         <tbody>
           <tr>
             <td style="width: 25%; background: #f8fafc; font-weight: 600; color: #475569;">MDA / Ministry:</td>
             <td style="width: 25%; font-weight: 700; color: #020617;">${data.department || data.organization || "—"}</td>
-            <td style="width: 25%; background: #f8fafc; font-weight: 600; color: #475569;">Cadre / Position:</td>
+            <td style="width: 25%; background: #f8fafc; font-weight: 600; color: #475569;">Cadre / Designation:</td>
             <td style="width: 25%;">${data.cadre || data.position || "—"}</td>
           </tr>
           <tr>
             <td style="background: #f8fafc; font-weight: 600; color: #475569;">Grade Level / Step:</td>
             <td>${data.gradeLevel ? `GL ${data.gradeLevel}` : "—"} ${data.step ? `/ Step ${data.step}` : ""}</td>
             <td style="background: #f8fafc; font-weight: 600; color: #475569;">Salary Structure:</td>
-            <td>${data.salaryStructure || "CONPSS"}</td>
+            <td style="font-weight: 700; color: #064e3b;">${data.salaryStructure || "CONPSS"}</td>
           </tr>
           <tr>
-            <td style="background: #f8fafc; font-weight: 600; color: #475569;">Employment ID:</td>
-            <td>${data.employmentId || "—"}</td>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">First Appointment Date:</td>
+            <td>${formatDateDisplay(data.dateOfFirstAppointment)}</td>
             <td style="background: #f8fafc; font-weight: 600; color: #475569;">Employment Type:</td>
-            <td>${data.employmentType || "Permanent"}</td>
+            <td>${data.employmentType || "Permanent / Pensionable"}</td>
           </tr>
           <tr>
-            <td style="background: #f8fafc; font-weight: 600; color: #475569;">Service / File No:</td>
-            <td>${data.serviceNumber || "—"} / ${data.fileNumber || "—"}</td>
-            <td style="background: #f8fafc; font-weight: 600; color: #475569;">Work Location:</td>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">Work Location / Station:</td>
             <td>${data.workLocation || "—"}</td>
+            <td style="background: #f8fafc; font-weight: 600; color: #475569;">Service / File No.:</td>
+            <td>${data.serviceNumber || data.fileNumber || data.employmentId || "—"}</td>
           </tr>
         </tbody>
       </table>
     </div>
 
     <!-- 3. Payroll & Pension -->
-    <div style="margin-bottom: 14px;">
-      <div style="background: #064e3b; color: #ffffff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+    <div style="margin-bottom: 12px; page-break-inside: avoid; break-inside: avoid;">
+      <div style="background: #064e3b; color: #ffffff; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
         3. Payroll, Bank & Pension Details
       </div>
-      <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 3px;">
         <tbody>
           <tr>
             <td style="width: 25%; background: #f8fafc; font-weight: 600; color: #475569;">Bank Name:</td>
@@ -374,11 +375,11 @@ export function generateFallbackSlipHtml(data: RegistrationSlipData): string {
     </div>
 
     <!-- 4. Next of Kin -->
-    <div style="margin-bottom: 14px;">
-      <div style="background: #064e3b; color: #ffffff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+    <div style="margin-bottom: 12px; page-break-inside: avoid; break-inside: avoid;">
+      <div style="background: #064e3b; color: #ffffff; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
         4. Next of Kin Information
       </div>
-      <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 3px;">
         <tbody>
           <tr>
             <td style="width: 25%; background: #f8fafc; font-weight: 600; color: #475569;">Next of Kin Name:</td>
@@ -397,90 +398,107 @@ export function generateFallbackSlipHtml(data: RegistrationSlipData): string {
     </div>
 
     <!-- Attestation -->
-    <div style="border: 1px solid #fcd34d; background: #fffbeb; padding: 8px 12px; border-radius: 4px; font-size: 10px; color: #1e293b; margin-bottom: 14px;">
+    <div style="border: 1px solid #fcd34d; background: #fffbeb; padding: 8px 12px; border-radius: 4px; font-size: 9px; color: #1e293b; margin-bottom: 12px; page-break-inside: avoid; break-inside: avoid;">
       <strong style="color: #78350f; text-transform: uppercase; display: block; margin-bottom: 2px;">Solemn Declaration & Enrolment Attestation:</strong>
       I hereby certify that the information provided on this registration slip is true, complete, and verifiable. I understand that any false declaration or forged document constitutes gross misconduct under the Public Service Rules and attracts immediate disqualification, cancellation of enrolment, and legal prosecution under the laws of the Federal Republic of Nigeria.
     </div>
 
     <!-- 3 Mandatory Signatures -->
-    <div style="border: 2px solid #0f172a; border-radius: 6px; padding: 12px; background: #f8fafc;">
-      <div style="text-align: center; margin-bottom: 10px;">
+    <div style="border: 2px solid #0f172a; border-radius: 6px; padding: 10px; background: #f8fafc; page-break-inside: avoid; break-inside: avoid;">
+      <div style="text-align: center; margin-bottom: 8px;">
         <h3 style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em; color: #020617; margin: 0;">Signatures & Official Endorsements</h3>
-        <p style="font-size: 9px; color: #475569; margin: 2px 0 0 0;">This slip requires the following three authorized endorsements to be valid for final IPPIS payroll inclusion:</p>
+        <p style="font-size: 8px; color: #475569; margin: 2px 0 0 0;">This slip requires the following three authorized endorsements to be valid for final IPPIS payroll inclusion:</p>
       </div>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
         <!-- i. Employee Signature -->
-        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 10px; text-align: center; display: flex; flex-direction: column; justify-content: space-between;">
+        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: space-between;">
           <div>
-            <span style="display: inline-block; background: #f1f5f9; color: #1e293b; font-size: 9px; font-weight: bold; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; margin-bottom: 6px;">i. Employee Signature</span>
-            <div style="height: 52px; display: flex; align-items: center; justify-content: center; border: 1px dashed #cbd5e1; border-radius: 4px; background: #f8fafc; margin-bottom: 6px;">
-              ${data.signatureUrl ? `<img src="${data.signatureUrl}" alt="Signature" style="max-height: 48px; max-width: 120px; object-fit: contain;" />` : `<span style="font-size: 9px; color: #94a3b8; font-family: monospace;">[ Signed Digitally ]</span>`}
+            <span style="display: inline-block; background: #f1f5f9; color: #1e293b; font-size: 8px; font-weight: bold; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; margin-bottom: 4px;">i. Employee Signature</span>
+            <div style="height: 48px; display: flex; align-items: center; justify-content: center; border: 1px dashed #cbd5e1; border-radius: 4px; background: #f8fafc; margin-bottom: 4px;">
+              ${data.signatureUrl ? `<img src="${data.signatureUrl}" alt="Signature" style="max-height: 44px; max-width: 120px; object-fit: contain;" />` : `<span style="font-size: 9px; color: #94a3b8; font-family: monospace;">[ Signed Digitally ]</span>`}
             </div>
           </div>
           <div>
-            <div style="border-bottom: 2px solid #0f172a; margin-bottom: 4px;"></div>
-            <p style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #020617; margin: 0;">${fullName}</p>
+            <div style="border-bottom: 2px solid #0f172a; margin-bottom: 3px;"></div>
+            <p style="font-size: 9px; font-weight: bold; text-transform: uppercase; color: #020617; margin: 0;">${fullName}</p>
             <p style="font-size: 8px; color: #64748b; text-transform: uppercase; margin: 1px 0 0 0;">Signature of Employee</p>
-            <p style="font-size: 9px; color: #475569; font-family: monospace; margin: 2px 0 0 0;">Date: ${formatDateDisplay(data.registrationDate)}</p>
+            <p style="font-size: 8px; color: #475569; font-family: monospace; margin: 1px 0 0 0;">Date: ${formatDateDisplay(data.registrationDate)}</p>
           </div>
         </div>
 
         <!-- ii. Deputy Director Signature -->
-        <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 4px; padding: 10px; text-align: center; display: flex; flex-direction: column; justify-content: space-between;">
+        <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 4px; padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: space-between;">
           <div>
-            <span style="display: inline-block; background: #dcfce7; color: #14532d; font-size: 9px; font-weight: bold; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; margin-bottom: 6px;">ii. Deputy Director Signature</span>
-            <div style="height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px dashed #4ade80; border-radius: 4px; background: #dcfce7; margin-bottom: 6px; padding: 2px;">
+            <span style="display: inline-block; background: #dcfce7; color: #14532d; font-size: 8px; font-weight: bold; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; margin-bottom: 4px;">ii. Deputy Director Signature</span>
+            <div style="height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px dashed #4ade80; border-radius: 4px; background: #dcfce7; margin-bottom: 4px; padding: 2px;">
               <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; color: #14532d;">★ VERIFIED & RECOMMENDED ★</span>
-              <span style="font-size: 8px; color: #166534;">IPPIS Enrolment Division</span>
+              <span style="font-size: 7px; color: #166534;">IPPIS Enrolment Division</span>
             </div>
           </div>
           <div>
-            <div style="border-bottom: 2px solid #0f172a; margin-bottom: 4px;"></div>
-            <p style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #020617; margin: 0;">Deputy Director (IPPIS)</p>
+            <div style="border-bottom: 2px solid #0f172a; margin-bottom: 3px;"></div>
+            <p style="font-size: 9px; font-weight: bold; text-transform: uppercase; color: #020617; margin: 0;">Deputy Director (IPPIS)</p>
             <p style="font-size: 8px; color: #64748b; text-transform: uppercase; margin: 1px 0 0 0;">Enrolment & Payroll Operations</p>
-            <p style="font-size: 9px; color: #475569; font-family: monospace; margin: 2px 0 0 0;">Date: ${formatDateDisplay(data.registrationDate)}</p>
+            <p style="font-size: 8px; color: #475569; font-family: monospace; margin: 1px 0 0 0;">Date: ${formatDateDisplay(data.registrationDate)}</p>
           </div>
         </div>
 
         <!-- iii. Directors Signature -->
-        <div style="background: #ecfdf5; border: 1px solid #059669; border-radius: 4px; padding: 10px; text-align: center; display: flex; flex-direction: column; justify-content: space-between;">
+        <div style="background: #ecfdf5; border: 1px solid #059669; border-radius: 4px; padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: space-between;">
           <div>
-            <span style="display: inline-block; background: #065f46; color: #ffffff; font-size: 9px; font-weight: bold; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; margin-bottom: 6px;">iii. Director's Signature</span>
-            <div style="height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px solid #065f46; border-radius: 4px; background: #d1fae5; margin-bottom: 6px; padding: 2px;">
+            <span style="display: inline-block; background: #065f46; color: #ffffff; font-size: 8px; font-weight: bold; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; margin-bottom: 4px;">iii. Director's Signature</span>
+            <div style="height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px solid #065f46; border-radius: 4px; background: #d1fae5; margin-bottom: 4px; padding: 2px;">
               <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; color: #064e3b;">★ EXECUTIVE SEAL & APPROVAL ★</span>
-              <span style="font-size: 8px; color: #047857;">OAGF • Federal Republic of Nigeria</span>
+              <span style="font-size: 7px; color: #047857;">OAGF • Federal Republic of Nigeria</span>
             </div>
           </div>
           <div>
-            <div style="border-bottom: 2px solid #0f172a; margin-bottom: 4px;"></div>
-            <p style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #020617; margin: 0;">Director, IPPIS</p>
+            <div style="border-bottom: 2px solid #0f172a; margin-bottom: 3px;"></div>
+            <p style="font-size: 9px; font-weight: bold; text-transform: uppercase; color: #020617; margin: 0;">Director, IPPIS</p>
             <p style="font-size: 8px; color: #64748b; text-transform: uppercase; margin: 1px 0 0 0;">Office of the Accountant-General</p>
-            <p style="font-size: 9px; color: #475569; font-family: monospace; margin: 2px 0 0 0;">Date: ${formatDateDisplay(data.registrationDate)}</p>
+            <p style="font-size: 8px; color: #475569; font-family: monospace; margin: 1px 0 0 0;">Date: ${formatDateDisplay(data.registrationDate)}</p>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Footer -->
-    <footer style="margin-top: 14px; padding-top: 10px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 9px; color: #64748b;">
+    <footer style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 8px; color: #64748b; page-break-inside: avoid; break-inside: avoid;">
       <div><strong>SECURITY NOTICE:</strong> Official Government Document. Unauthorized alteration is punishable under the Penal Code.</div>
       <div style="font-family: monospace;">IPPIS Ref: ${regId} • Scan Code to Verify</div>
     </footer>
   `
 }
 
-export function downloadSlipDocument(data: RegistrationSlipData, element?: HTMLElement | null) {
+export function printSlipDocument(data: RegistrationSlipData, element?: HTMLElement | null) {
   if (typeof window === "undefined") return
 
-  const slipElement = element || document.getElementById("ippis-registration-slip")
-  let slipHtml = slipElement ? slipElement.innerHTML : ""
-  if (!slipHtml || slipHtml.trim().length === 0) {
-    slipHtml = generateFallbackSlipHtml(data)
-  }
   const regId = data.registrationId || "IPPIS"
+  const slipElement = element || document.getElementById("ippis-registration-slip")
+  const qrSvg = slipElement?.querySelector("svg")?.outerHTML
+  const slipHtml = generateFallbackSlipHtml(data, qrSvg)
 
-  const htmlDocument = `<!DOCTYPE html>
+  // Remove existing iframe if present
+  const oldFrame = document.getElementById("ippis-print-iframe")
+  if (oldFrame && oldFrame.parentNode) {
+    oldFrame.parentNode.removeChild(oldFrame)
+  }
+
+  const iframe = document.createElement("iframe")
+  iframe.id = "ippis-print-iframe"
+  iframe.style.position = "fixed"
+  iframe.style.top = "0"
+  iframe.style.left = "0"
+  iframe.style.width = "100%"
+  iframe.style.height = "100%"
+  iframe.style.border = "none"
+  iframe.style.opacity = "0"
+  iframe.style.pointerEvents = "none"
+  iframe.style.zIndex = "-9999"
+  document.body.appendChild(iframe)
+
+  const printDocument = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -489,47 +507,181 @@ export function downloadSlipDocument(data: RegistrationSlipData, element?: HTMLE
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Libre+Baskerville:wght@700&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #f8fafc; color: #0f172a; padding: 24px 12px; }
-    .slip-wrapper { max-width: 900px; margin: 0 auto; background: #ffffff; padding: 32px; border: 2px solid #064e3b; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); position: relative; }
-    .action-bar { max-width: 900px; margin: 0 auto 16px auto; display: flex; justify-content: flex-end; gap: 10px; }
-    .btn { background: #047857; color: #ffffff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 8px; }
-    .btn:hover { background: #065f46; }
-    .btn-secondary { background: #475569; }
-    .btn-secondary:hover { background: #334155; }
-    table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 6px; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: #ffffff;
+      color: #0f172a;
+      padding: 0;
+      margin: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .slip-container {
+      max-width: 820px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 16px;
+      box-sizing: border-box;
+      position: relative;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 3px; page-break-inside: avoid; break-inside: avoid; }
     table, th, td { border: 1px solid #cbd5e1; }
-    td { padding: 6px 8px; }
+    td { padding: 4px 7px; }
+    tr { page-break-inside: avoid; break-inside: avoid; }
     .payslip-serif { font-family: 'Libre Baskerville', Georgia, serif; }
+    .no-print { display: none !important; }
+    @page { size: A4 portrait; margin: 6mm 8mm; }
     @media print {
-      @page { size: A4 portrait; margin: 6mm; }
-      body { background: #ffffff !important; padding: 0 !important; }
-      .action-bar { display: none !important; }
-      .slip-wrapper { border: 2px solid #064e3b !important; box-shadow: none !important; padding: 4mm !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
+      body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; }
+      .slip-container {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      .no-print { display: none !important; }
     }
   </style>
 </head>
 <body>
-  <div class="action-bar">
-    <button class="btn" onclick="window.print()">Print / Save as PDF</button>
-  </div>
-  <div class="slip-wrapper">
+  <div class="slip-container">
     ${slipHtml}
   </div>
 </body>
 </html>`
 
-  const blob = new Blob([htmlDocument], { type: "text/html;charset=utf-8" })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement("a")
-  anchor.href = url
-  anchor.download = `IPPIS-Registration-Slip-${regId}.html`
-  document.body.appendChild(anchor)
-  anchor.click()
-  anchor.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 2000)
+  const doc = iframe.contentWindow?.document
+  if (doc) {
+    doc.open()
+    doc.write(printDocument)
+    doc.close()
+
+    const triggerPrint = () => {
+      try {
+        iframe.contentWindow?.focus()
+        iframe.contentWindow?.print()
+      } catch (err) {
+        console.error("Iframe print execution error, fallback to window.print:", err)
+        window.print()
+      }
+    }
+
+    const images = Array.from(doc.images || [])
+    if (images.length === 0) {
+      setTimeout(triggerPrint, 200)
+    } else {
+      const promises = images.map((img) => {
+        if (img.complete) return Promise.resolve(null)
+        return new Promise((resolve) => {
+          img.onload = () => resolve(null)
+          img.onerror = () => resolve(null)
+          setTimeout(() => resolve(null), 1200)
+        })
+      })
+      Promise.all(promises).then(() => {
+        setTimeout(triggerPrint, 200)
+      })
+    }
+  } else {
+    window.print()
+  }
+}
+
+export async function downloadSlipDocument(data: RegistrationSlipData, element?: HTMLElement | null) {
+  if (typeof window === "undefined") return
+
+  const regId = data.registrationId || "IPPIS"
+  const toastId = toast.loading("Generating official PDF registration slip...")
+
+  try {
+    let html2pdfModule: any = null
+
+    try {
+      const mod = (await import("html2pdf.js")) as any
+      html2pdfModule = mod.default || mod
+    } catch {
+      if ((window as any).html2pdf) {
+        html2pdfModule = (window as any).html2pdf
+      }
+    }
+
+    if (!html2pdfModule) {
+      await new Promise<void>((resolve, reject) => {
+        const script = document.createElement("script")
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
+        script.onload = () => resolve()
+        script.onerror = () => reject(new Error("Failed to load PDF engine"))
+        document.head.appendChild(script)
+      })
+      html2pdfModule = (window as any).html2pdf
+    }
+
+    if (!html2pdfModule) {
+      throw new Error("PDF generator unavailable")
+    }
+
+    const slipElement = element || document.getElementById("ippis-registration-slip")
+    const qrSvg = slipElement?.querySelector("svg")?.outerHTML
+
+    const container = document.createElement("div")
+    container.id = "ippis-pdf-export-container"
+    container.style.position = "absolute"
+    container.style.left = "-9999px"
+    container.style.top = "0"
+    container.style.width = "800px"
+    container.style.background = "#ffffff"
+    container.style.padding = "16px"
+    container.style.boxSizing = "border-box"
+    container.innerHTML = generateFallbackSlipHtml(data, qrSvg)
+
+    document.body.appendChild(container)
+
+    // Wait for images inside container to finish loading
+    const images = Array.from(container.querySelectorAll("img"))
+    if (images.length > 0) {
+      await Promise.all(
+        images.map((img) => {
+          if (img.complete) return Promise.resolve(null)
+          return new Promise((resolve) => {
+            img.onload = () => resolve(null)
+            img.onerror = () => resolve(null)
+            setTimeout(() => resolve(null), 1200)
+          })
+        })
+      )
+    }
+
+    const opt = {
+      margin: [6, 6, 6, 6],
+      filename: `IPPIS-Registration-Slip-${regId}.pdf`,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        letterRendering: true,
+        backgroundColor: "#ffffff",
+      },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["css", "legacy"], avoid: ["table", "tr", "div"] },
+    }
+
+    await html2pdfModule().set(opt).from(container).save()
+
+    if (container.parentNode) {
+      container.parentNode.removeChild(container)
+    }
+
+    toast.success("Registration slip downloaded as PDF!", { id: toastId })
+  } catch (error) {
+    console.error("PDF download error:", error)
+    toast.error("Could not download direct PDF. Opening print dialog to Save as PDF...", { id: toastId })
+    printSlipDocument(data, element)
+  }
 }
 
 export function RegistrationSlip({ data, onClose, showActions = true }: RegistrationSlipProps) {
@@ -540,7 +692,7 @@ export function RegistrationSlip({ data, onClose, showActions = true }: Registra
   const verifyUrl = `${origin}/track?id=${encodeURIComponent(data.registrationId)}`
 
   const handlePrint = () => {
-    window.print()
+    printSlipDocument(data, printRef.current)
   }
 
   const handleDownload = () => {
@@ -570,11 +722,11 @@ export function RegistrationSlip({ data, onClose, showActions = true }: Registra
             <Button
               onClick={handleDownload}
               variant="outline"
-              className="border-emerald-700 text-emerald-800 hover:bg-emerald-100 shadow-sm gap-2"
+              className="border-emerald-700 text-emerald-800 hover:bg-emerald-100 shadow-sm gap-2 font-semibold"
               size="sm"
             >
               <Download className="h-4 w-4" />
-              Download Slip
+              Download Slip (PDF)
             </Button>
             {onClose && (
               <Button onClick={onClose} variant="ghost" size="sm" className="gap-1 text-slate-600 hover:text-slate-900">
@@ -1012,11 +1164,11 @@ export function RegistrationSlip({ data, onClose, showActions = true }: Registra
               <Button
                 onClick={handleDownload}
                 variant="outline"
-                className="border-emerald-700 text-emerald-800 hover:bg-emerald-50 shadow-sm gap-2"
+                className="border-emerald-700 text-emerald-800 hover:bg-emerald-50 shadow-sm gap-2 font-semibold"
                 size="sm"
               >
                 <Download className="h-4 w-4" />
-                Download Slip
+                Download Slip (PDF)
               </Button>
             </div>
           </div>
@@ -1028,31 +1180,57 @@ export function RegistrationSlip({ data, onClose, showActions = true }: Registra
         @media print {
           @page {
             size: A4 portrait;
-            margin: 8mm;
+            margin: 6mm;
           }
-          body {
+          html, body {
             background: #ffffff !important;
-            color: #000000 !important;
+            color: #0f172a !important;
+            height: auto !important;
+            overflow: visible !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            padding: 0 !important;
+            margin: 0 !important;
           }
-          body * {
-            visibility: hidden;
+          /* Hide main page body elements when printing */
+          body > *:not([data-radix-portal]) {
+            display: none !important;
           }
-          #ippis-registration-slip,
-          #ippis-registration-slip * {
-            visibility: visible;
-          }
-          #ippis-registration-slip {
-            position: absolute;
-            left: 0;
-            top: 0;
+          /* Reset Dialog overlay, portal and content */
+          [data-radix-portal],
+          [role="dialog"],
+          [data-state="open"] {
+            position: static !important;
+            transform: none !important;
+            max-height: none !important;
+            height: auto !important;
             width: 100% !important;
             max-width: 100% !important;
+            overflow: visible !important;
+            padding: 0 !important;
             margin: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            background: #ffffff !important;
+            inset: auto !important;
+          }
+          /* Hide backdrop overlay and dialog header */
+          div[class*="fixed inset-0 bg-black"],
+          [data-radix-backdrop] {
+            display: none !important;
+          }
+          #ippis-registration-slip {
+            position: relative !important;
+            left: auto !important;
+            top: auto !important;
+            width: 100% !important;
+            max-width: 820px !important;
+            margin: 0 auto !important;
             padding: 4mm !important;
             box-shadow: none !important;
             border: 2px solid #064e3b !important;
+            display: block !important;
+            visibility: visible !important;
           }
           .no-print {
             display: none !important;

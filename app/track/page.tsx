@@ -781,7 +781,7 @@ export default function TrackApplicationPage() {
                         size="sm"
                       >
                         <Download className="h-4 w-4" />
-                        Download Slip
+                        Download Slip (PDF)
                       </Button>
                     </div>
                   </div>
