@@ -33,17 +33,19 @@ export function middleware(request: NextRequest) {
 
 
   const isAdminPath = path.startsWith("/admin")
+  const isAdminLogin = path === "/admin/login" || path === "/auth/login"
 
-  const token = request.cookies.get("ippis_token")?.value
-  const isAuthenticated = true 
+  const token = request.cookies.get("token")?.value || request.cookies.get("ippis_token")?.value
 
-
-  if (isAdminPath && !isAuthenticated && !token) {
-    return NextResponse.redirect(new URL("/auth/login", request.url))
+  // Protect admin routes: redirect unauthenticated requests to /admin/login
+  if (isAdminPath && !isAdminLogin && !token) {
+    const loginUrl = new URL("/admin/login", request.url)
+    loginUrl.searchParams.set("redirect", path)
+    return NextResponse.redirect(loginUrl)
   }
 
-  // If the path is login and there's a token, redirect to admin dashboard
-  if (path === "/auth/login" && (isAuthenticated || token)) {
+  // If the path is admin login and there is already a token, redirect to admin dashboard
+  if (isAdminLogin && token) {
     return NextResponse.redirect(new URL("/admin", request.url))
   }
 

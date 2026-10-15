@@ -20,14 +20,17 @@ export default function LoginPageClient() {
           <h1 className="text-2xl font-bold text-center text-gray-900">IPPIS Admin Portal</h1>
           <p className="text-sm text-center text-gray-600 mt-1">Enter your credentials to access the admin dashboard</p>
           <button
+            type="button"
             className="text-xs text-green-600 hover:text-green-700 mt-1"
             onClick={() => {
-              // Fill in demo credentials
               const usernameInput = document.querySelector('input[name="username"]') as HTMLInputElement
               const passwordInput = document.querySelector('input[name="password"]') as HTMLInputElement
               if (usernameInput && passwordInput) {
-                usernameInput.value = "admin"
-                passwordInput.value = "admin123"
+                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set
+                nativeSetter?.call(usernameInput, "admin")
+                usernameInput.dispatchEvent(new Event("input", { bubbles: true }))
+                nativeSetter?.call(passwordInput, "admin123")
+                passwordInput.dispatchEvent(new Event("input", { bubbles: true }))
               }
             }}
           >

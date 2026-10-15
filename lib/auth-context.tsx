@@ -3,6 +3,8 @@
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { getAuthToken, clearAuth, login as authLogin } from "@/lib/auth"
+import { adminGetProfile, adminLogout } from "@/services/endpoints/auth/admin-auth"
 
 // Define the User type
 export interface User {
@@ -48,26 +50,50 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setLoading(true)
 
-      // Check if we have a token in cookies
-      const cookies = document.cookie.split(";")
-      const tokenCookie = cookies.find((cookie) => cookie.trim().startsWith("ippis_token="))
-
-      if (tokenCookie) {
-        // We have a token, so we're authenticated
-        // For demo purposes, set the mock user
-        const mockUser: User = {
-          id: "1",
-          name: "Admin User",
-          email: "admin@example.com",
-          role: "admin",
-        }
-
-        setUser(mockUser)
-        setError(null)
+      const token = getAuthToken()
+      if (!token) {
+        setUser(null)
         return
       }
 
-      // No token found, user is not authenticated
+      // Validate token with backend /api/admin/auth/me
+      try {
+        const profile = await adminGetProfile()
+        if (profile?.data?.user) {
+          const profileUser: User = {
+            id: String(profile.data.user.id),
+            name: profile.data.user.fullName || profile.data.user.username,
+            email: profile.data.user.email,
+            role: profile.data.roles?.[0]?.name || "admin",
+            username: profile.data.user.username,
+          }
+          setUser(profileUser)
+          setError(null)
+          if (typeof window !== "undefined") {
+            localStorage.setItem("ippis_user", JSON.stringify(profileUser))
+          }
+          return
+        }
+      } catch (apiErr: any) {
+        // If 401, token is invalid or expired
+        if (apiErr.response?.status === 401) {
+          clearAuth()
+          setUser(null)
+          return
+        }
+
+        // For other temporary network issues, fall back to cached user if available
+        if (typeof window !== "undefined") {
+          const cached = localStorage.getItem("ippis_user")
+          if (cached) {
+            try {
+              setUser(JSON.parse(cached))
+              return
+            } catch {}
+          }
+        }
+      }
+
       setUser(null)
     } catch (err) {
       console.error("Auth check error:", err)
@@ -86,22 +112,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
       setLoading(true)
+      const res = await authLogin(username, password)
 
-      // For demo purposes, always succeed
-      const mockUser: User = {
-        id: "1",
-        name: username || "Admin User",
-        email: "admin@example.com",
-        role: "admin",
+      if (res.success && res.token) {
+        await checkAuth()
+        return true
       }
 
-      setUser(mockUser)
-      setError(null)
-
-      // Set a mock token in a cookie
-      document.cookie = `ippis_token=mock-token; path=/; max-age=${60 * 60 * 8}` // 8 hours
-
-      return true
+      setError(res.message || "Login failed")
+      return false
     } catch (err: any) {
       setError(err.message || "Login failed")
       return false
@@ -111,14 +130,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   // Logout function
-  const logout = () => {
+  const logout = async () => {
     try {
-      // Clear the token cookie
-      document.cookie = "ippis_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+      await adminLogout().catch(() => {})
+    } finally {
+      clearAuth()
       setUser(null)
       router.push("/admin/login")
-    } catch (err) {
-      console.error("Logout error:", err)
     }
   }
 

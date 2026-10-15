@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import Cookies from "js-cookie"
+import { login } from "@/lib/auth"
 
 export default function LoginPage() {
   const [username, setUsername] = useState("")
@@ -29,29 +29,19 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const result = await login(username.trim(), password)
 
-      // For demo purposes only - in production use actual authentication
-      if (username === "admin" && password === "admin123") {
-        // Set authentication cookie
-        Cookies.set("ippis_token", "demo-token-value", { expires: 1 }) // 1 day
-
-        // Store user in localStorage
-        const user = {
-          id: "1",
-          username: "admin",
-          role: "admin",
+      if (result.success) {
+        if (result.requiresOTP) {
+          router.push("/admin/login")
+        } else {
+          router.push("/admin")
         }
-        localStorage.setItem("ippis_user", JSON.stringify(user))
-
-        // Redirect to admin dashboard
-        router.push("/admin")
       } else {
-        setError("Invalid username or password")
+        setError(result.message || "Invalid username or password")
       }
-    } catch (err) {
-      setError("An error occurred. Please try again.")
+    } catch (err: any) {
+      setError(err.message || "An error occurred. Please try again.")
     } finally {
       setIsLoading(false)
     }

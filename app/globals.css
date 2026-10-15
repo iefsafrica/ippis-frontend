@@ -113,14 +113,7 @@ button {
   -moz-transition: all 0.3s ease;
 }
 
-/* Optimize font loading */
-@font-face {
-  font-family: "Inter";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap; /* Improve font loading performance */
-  src: url("/fonts/inter.woff2") format("woff2");
-}
+/* Font loading is handled by next/font/google in app/layout.tsx */
 
 /* Ensure proper font loading */
 html {

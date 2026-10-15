@@ -58,11 +58,35 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+let isRedirectingToLogin = false;
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    const status = error.response?.status;
+    const url = error.config?.url || "";
+
+    // If 401 Unauthorized occurs on protected calls (not during login attempts)
+    if (status === 401 && !url.includes("/auth/login")) {
+      Cookies.remove("token", { path: "/" });
+      Cookies.remove("ippis_token", { path: "/" });
+
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("token");
+        localStorage.removeItem("ippis_token");
+        localStorage.removeItem("ippis_user");
+
+        const path = window.location.pathname;
+        const isAuthPage = path.startsWith("/admin/login") || path.startsWith("/auth/login");
+        if (!isAuthPage && path.startsWith("/admin") && !isRedirectingToLogin) {
+          isRedirectingToLogin = true;
+          window.location.href = `/admin/login?expired=1&redirect=${encodeURIComponent(path)}`;
+        }
+      }
+    }
+
     console.error("API Error:", {
-      status: error.response?.status,
+      status,
       payload: error.response?.data,
       message: error.message,
     });
