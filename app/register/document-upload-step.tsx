@@ -149,7 +149,7 @@ export default function DocumentUploadStep({
       errs.otherDocuments = "4. Other Related Documents are required.";
     }
     if (!formData.profileImage) {
-      errs.profileImage = "5. Passport photograph is required (Keep Netapps photo, Live Capture, or Upload from Computer).";
+      errs.profileImage = "5. Passport photograph is required (Keep NIN photo, Live Capture, or Upload from Computer).";
     }
     if (!formData.signature) {
       errs.signature = "6. Signature upload is required.";
@@ -226,13 +226,13 @@ export default function DocumentUploadStep({
       localStorage.setItem("registration_profileImage", photoToKeep);
       localStorage.setItem("registration_netapps_photo", photoToKeep);
       localStorage.setItem("registration_profileImage_source", "nin");
-      localStorage.setItem("registration_profileImage_name", "Netapps_NIN_Verified_Passport.jpg");
+      localStorage.setItem("registration_profileImage_name", "NIN_Verified_Passport.jpg");
       localStorage.setItem("registration_profileImage_size", "Verified Record");
     }
 
     setFileMeta((prev) => ({
       ...prev,
-      profileImage: { name: "Netapps_NIN_Verified_Passport.jpg", size: "Verified Record" },
+      profileImage: { name: "NIN_Verified_Passport.jpg", size: "Verified Record" },
     }));
 
     setErrors((prev) => {
@@ -241,7 +241,7 @@ export default function DocumentUploadStep({
       return next;
     });
 
-    toast.success("Using verified passport photograph from Netapps / NIN record");
+    toast.success("Using verified passport photograph from National Identity (NIN) record");
   };
 
   // Passport photo handler (either camera or file upload)
@@ -788,7 +788,7 @@ export default function DocumentUploadStep({
           </CardContent>
         </Card>
 
-        {/* DOCUMENT 5: PASSPORT (KEEP NETAPPS PHOTO, LIVE PHOTO CAPTURE, OR COMPUTER UPLOAD) */}
+        {/* DOCUMENT 5: PASSPORT (KEEP NIN PHOTO, LIVE PHOTO CAPTURE, OR COMPUTER UPLOAD) */}
         <Card className={`transition-all border ${errors.profileImage ? "border-red-400 ring-1 ring-red-300" : formData.profileImage ? "border-emerald-300 bg-emerald-50/20" : "border-slate-200"}`}>
           <CardContent className="pt-6">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-4">
@@ -801,7 +801,7 @@ export default function DocumentUploadStep({
                     Passport Photograph <span className="text-red-500">*</span>
                   </Label>
                   <p className="text-xs text-slate-500">
-                    You can decide to <strong>keep the verified photo from Netapps / NIN</strong>, <strong>directly take a picture from your camera</strong>, or <strong>upload an image from your computer</strong>.
+                    You can decide to <strong>keep your verified photo from NIN</strong>, <strong>directly take a picture from your camera</strong>, or <strong>upload an image from your computer</strong>.
                   </p>
                 </div>
               </div>
@@ -833,7 +833,7 @@ export default function DocumentUploadStep({
                       <span className="text-sm font-semibold text-slate-800">Current Passport Photo</span>
                       {photoSource === "nin" ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
-                          <ShieldCheck className="h-3 w-3 text-emerald-700" /> Kept from Netapps / NIN Record
+                          <ShieldCheck className="h-3 w-3 text-emerald-700" /> Kept from NIN Record
                         </span>
                       ) : photoSource === "webcam" ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-800 bg-blue-100 px-2.5 py-0.5 rounded-full border border-blue-300">
@@ -847,10 +847,10 @@ export default function DocumentUploadStep({
                     </div>
                     <p className="text-xs text-slate-600 mt-1">
                       {photoSource === "nin"
-                        ? "Using your verified photograph retrieved from the Netapps / NIN database. You can keep this photo or choose to replace it below."
+                        ? "Using your verified photograph retrieved from the National Identity Database (NIN). You can keep this photo or choose to replace it below."
                         : photoSource === "webcam"
-                        ? "Captured live via your device camera. You can retake it, upload from your PC, or restore your Netapps photo."
-                        : "Uploaded from your computer. You can browse a different image, snap a live camera photo, or restore your Netapps photo."}
+                        ? "Captured live via your device camera. You can retake it, upload from your PC, or restore your NIN photo."
+                        : "Uploaded from your computer. You can browse a different image, snap a live camera photo, or restore your NIN photo."}
                     </p>
                   </div>
 
@@ -864,7 +864,7 @@ export default function DocumentUploadStep({
                         onClick={handleKeepNetappsPhoto}
                         className="text-xs gap-1.5 border-emerald-600 bg-emerald-50 text-emerald-800 font-semibold hover:bg-emerald-100"
                       >
-                        <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Revert to Netapps Photo
+                        <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Revert to NIN Photo
                       </Button>
                     )}
 
@@ -902,14 +902,14 @@ export default function DocumentUploadStep({
               </div>
             )}
 
-            {/* Selection Options: Keep Netapps / Live Capture / Upload from Computer */}
+            {/* Selection Options: Keep NIN Photo / Live Capture / Upload from Computer */}
             <div className="mb-4">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block mb-2">
                 Choose Photo Option:
               </label>
 
               <div className={`grid grid-cols-1 ${netappsPhoto ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3`}>
-                {/* Option 1 (if Netapps photo exists): Keep Verified Netapps Photo */}
+                {/* Option 1 (if NIN photo exists): Keep Verified NIN Photo */}
                 {netappsPhoto && (
                   <div
                     role="button"
@@ -927,7 +927,7 @@ export default function DocumentUploadStep({
                     <div className="relative shrink-0">
                       <img
                         src={getImageSrc(netappsPhoto)}
-                        alt="Netapps photo thumbnail"
+                        alt="NIN photo thumbnail"
                         className="h-10 w-10 rounded-lg object-cover border border-emerald-500 bg-white"
                       />
                       <div className="absolute -bottom-1 -right-1 bg-emerald-600 text-white rounded-full p-0.5 shadow">
@@ -937,7 +937,7 @@ export default function DocumentUploadStep({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
                         <h4 className="font-semibold text-xs text-slate-900 leading-snug">
-                          Keep Netapps / NIN Photo
+                          Keep Verified NIN Photo
                         </h4>
                         <div
                           className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
@@ -1059,7 +1059,7 @@ export default function DocumentUploadStep({
                   <ShieldCheck className="h-5 w-5" />
                 </div>
                 <div className="text-xs text-emerald-950 leading-relaxed flex-1">
-                  <strong>Verified Record Active:</strong> Your official identity photo from Netapps / NIN is selected as your passport photograph. If you wish to change it, switch to <strong>Live Photo Capture</strong> to snap a new photo or <strong>Upload Image from Computer</strong> above.
+                  <strong>Verified Record Active:</strong> Your official identity photo from the National Identity Database (NIN) is selected as your passport photograph. If you wish to change it, switch to <strong>Live Photo Capture</strong> to snap a new photo or <strong>Upload Image from Computer</strong> above.
                 </div>
               </div>
             ) : photoMode === "camera" ? (

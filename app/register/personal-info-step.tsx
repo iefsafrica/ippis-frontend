@@ -505,10 +505,10 @@ export default function ProfileForm({
                 Verified Identity Passport Photograph
               </div>
               <p className="text-xs sm:text-sm text-green-700">
-                Retrieved directly from your verified identity record (Netapps / NIN). You can keep this photo or change it on Step 4 (Document Upload) using live camera or computer upload.
+                Retrieved directly from your National Identity Database (NIN) record. You can keep this photo or change it on Step 4 (Document Upload) using live camera or computer upload.
               </p>
               <span className="inline-flex items-center gap-1 text-[11px] text-emerald-800 bg-emerald-100 font-medium px-2.5 py-0.5 rounded-full mt-1">
-                <ShieldCheck className="h-3.5 w-3.5" /> Synced from Netapps / NIN Record
+                <ShieldCheck className="h-3.5 w-3.5" /> Synced from NIN Record
               </span>
             </div>
           </div>
