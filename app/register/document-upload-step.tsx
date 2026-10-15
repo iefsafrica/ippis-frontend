@@ -129,6 +129,29 @@ export default function DocumentUploadStep({
     }
   }, [formData?.netappsPhoto, formData?.profileImage, photoSource, netappsPhoto]);
 
+  // Exemption state for promotion letter (First Appointment)
+  const [isFirstAppointment, setIsFirstAppointment] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("registration_isFirstAppointment") === "true";
+    }
+    return Boolean(formData?.isFirstAppointment);
+  });
+
+  // Track file metadata for display
+  const [fileMeta, setFileMeta] = useState<{ [key: string]: { name: string; size?: string } }>(() => {
+    const meta: { [key: string]: { name: string; size?: string } } = {};
+    if (typeof window !== "undefined") {
+      ["appointmentLetter", "educationalCertificates", "promotionLetter", "otherDocuments", "signature", "profileImage"].forEach((key) => {
+        const storedName = localStorage.getItem(`registration_${key}_name`);
+        const storedSize = localStorage.getItem(`registration_${key}_size`);
+        if (storedName) {
+          meta[key] = { name: storedName, size: storedSize || undefined };
+        }
+      });
+    }
+    return meta;
+  });
+
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
