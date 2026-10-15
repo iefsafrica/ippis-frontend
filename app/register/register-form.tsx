@@ -494,11 +494,14 @@ export default function RegisterForm() {
           ...Object.fromEntries(
             Object.entries(normalized).filter(([, value]) => value !== "" && value !== null && value !== undefined)
           ),
+          netappsPhoto: normalized.profileImage || (prev as any).netappsPhoto,
         };
       });
 
       if (normalized.profileImage) {
         localStorage.setItem("registration_profileImage", normalized.profileImage);
+        localStorage.setItem("registration_netapps_photo", normalized.profileImage);
+        localStorage.setItem("registration_profileImage_source", "nin");
       }
     },
     [normalizeVerifiedNinData]

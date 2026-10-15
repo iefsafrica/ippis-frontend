@@ -64,30 +64,6 @@ export default function DocumentUploadStep({
   onSubmit,
   loading = false,
 }: DocumentUploadStepProps) {
-  // Photo upload mode: "camera" | "upload"
-  const [photoMode, setPhotoMode] = useState<"camera" | "upload">("upload");
-  const [isFirstAppointment, setIsFirstAppointment] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("registration_isFirstAppointment") === "true";
-    }
-    return false;
-  });
-
-  // Track file metadata for display
-  const [fileMeta, setFileMeta] = useState<{ [key: string]: { name: string; size?: string } }>(() => {
-    const meta: { [key: string]: { name: string; size?: string } } = {};
-    if (typeof window !== "undefined") {
-      ["appointmentLetter", "educationalCertificates", "promotionLetter", "otherDocuments", "signature"].forEach((key) => {
-        const storedName = localStorage.getItem(`registration_${key}_name`);
-        const storedSize = localStorage.getItem(`registration_${key}_size`);
-        if (storedName) {
-          meta[key] = { name: storedName, size: storedSize || undefined };
-        }
-      });
-    }
-    return meta;
-  });
-
   // Photo source tag (e.g., "nin", "webcam", "upload")
   const [photoSource, setPhotoSource] = useState<"nin" | "webcam" | "upload" | "unknown">(() => {
     if (typeof window !== "undefined") {
@@ -96,6 +72,62 @@ export default function DocumentUploadStep({
     }
     return formData.profileImage ? "nin" : "unknown";
   });
+
+  // Netapps / NIN verified photo if retrieved during verification
+  const [netappsPhoto, setNetappsPhoto] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("registration_netapps_photo");
+      if (stored) return stored;
+      const initialSource = localStorage.getItem("registration_profileImage_source");
+      const currentPhoto = localStorage.getItem("registration_profileImage");
+      if ((initialSource === "nin" || !initialSource) && currentPhoto) {
+        localStorage.setItem("registration_netapps_photo", currentPhoto);
+        return currentPhoto;
+      }
+    }
+    if (formData?.netappsPhoto) return formData.netappsPhoto;
+    if (formData?.profileImage && (photoSource === "nin" || !photoSource)) {
+      return typeof formData.profileImage === "string" ? formData.profileImage : null;
+    }
+    return null;
+  });
+
+  // Photo mode: "keep_netapps" | "camera" | "upload"
+  const [photoMode, setPhotoMode] = useState<"keep_netapps" | "camera" | "upload">(() => {
+    if (typeof window !== "undefined") {
+      const src = localStorage.getItem("registration_profileImage_source");
+      if (src === "nin" || (!src && localStorage.getItem("registration_netapps_photo"))) {
+        return "keep_netapps";
+      }
+      if (src === "webcam") return "camera";
+      if (src === "upload") return "upload";
+    }
+    if (formData?.netappsPhoto || (formData?.profileImage && photoSource === "nin")) {
+      return "keep_netapps";
+    }
+    return "camera";
+  });
+
+  // Keep netappsPhoto synced if provided via props or localStorage
+  useEffect(() => {
+    if (!netappsPhoto) {
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("registration_netapps_photo");
+        if (stored) {
+          setNetappsPhoto(stored);
+          return;
+        }
+      }
+      if (formData?.netappsPhoto) {
+        setNetappsPhoto(formData.netappsPhoto);
+      } else if (formData?.profileImage && photoSource === "nin" && typeof formData.profileImage === "string") {
+        setNetappsPhoto(formData.profileImage);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("registration_netapps_photo", formData.profileImage);
+        }
+      }
+    }
+  }, [formData?.netappsPhoto, formData?.profileImage, photoSource, netappsPhoto]);
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
@@ -117,7 +149,7 @@ export default function DocumentUploadStep({
       errs.otherDocuments = "4. Other Related Documents are required.";
     }
     if (!formData.profileImage) {
-      errs.profileImage = "5. Passport photograph is required (Live Photo Capture or Upload Image from Computer).";
+      errs.profileImage = "5. Passport photograph is required (Keep Netapps photo, Live Capture, or Upload from Computer).";
     }
     if (!formData.signature) {
       errs.signature = "6. Signature upload is required.";
@@ -181,6 +213,37 @@ export default function DocumentUploadStep({
     }
   };
 
+  // Handler to keep the verified photo from Netapps / NIN record
+  const handleKeepNetappsPhoto = () => {
+    const photoToKeep = netappsPhoto || (typeof formData.profileImage === "string" ? formData.profileImage : null);
+    if (!photoToKeep) return;
+
+    updateFormData({ profileImage: photoToKeep });
+    setPhotoMode("keep_netapps");
+    setPhotoSource("nin");
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("registration_profileImage", photoToKeep);
+      localStorage.setItem("registration_netapps_photo", photoToKeep);
+      localStorage.setItem("registration_profileImage_source", "nin");
+      localStorage.setItem("registration_profileImage_name", "Netapps_NIN_Verified_Passport.jpg");
+      localStorage.setItem("registration_profileImage_size", "Verified Record");
+    }
+
+    setFileMeta((prev) => ({
+      ...prev,
+      profileImage: { name: "Netapps_NIN_Verified_Passport.jpg", size: "Verified Record" },
+    }));
+
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.profileImage;
+      return next;
+    });
+
+    toast.success("Using verified passport photograph from Netapps / NIN record");
+  };
+
   // Passport photo handler (either camera or file upload)
   const handlePhotoSelect = async (file: File, source: "webcam" | "upload") => {
     try {
@@ -208,7 +271,7 @@ export default function DocumentUploadStep({
         return next;
       });
 
-      toast.success(source === "webcam" ? "Passport photo captured!" : "Passport photo uploaded!");
+      toast.success(source === "webcam" ? "Passport photo captured via camera!" : "Passport photo uploaded from computer!");
     } catch (err) {
       console.error("Error setting passport photo:", err);
       toast.error("Failed to process photo. Please try again.");
@@ -225,6 +288,7 @@ export default function DocumentUploadStep({
       if (fieldName === "profileImage") {
         localStorage.removeItem("registration_profileImage_source");
         setPhotoSource("unknown");
+        setPhotoMode("camera");
       }
     }
     setFileMeta((prev) => {
@@ -724,7 +788,7 @@ export default function DocumentUploadStep({
           </CardContent>
         </Card>
 
-        {/* DOCUMENT 5: PASSPORT (LIVE PHOTO CAPTURE OR COMPUTER UPLOAD) */}
+        {/* DOCUMENT 5: PASSPORT (KEEP NETAPPS PHOTO, LIVE PHOTO CAPTURE, OR COMPUTER UPLOAD) */}
         <Card className={`transition-all border ${errors.profileImage ? "border-red-400 ring-1 ring-red-300" : formData.profileImage ? "border-emerald-300 bg-emerald-50/20" : "border-slate-200"}`}>
           <CardContent className="pt-6">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-4">
@@ -737,7 +801,7 @@ export default function DocumentUploadStep({
                     Passport Photograph <span className="text-red-500">*</span>
                   </Label>
                   <p className="text-xs text-slate-500">
-                    Provide your passport photo using either <strong>Live Photo Capture</strong> or <strong>Upload Image from Computer</strong>.
+                    You can decide to <strong>keep the verified photo from Netapps / NIN</strong>, <strong>directly take a picture from your camera</strong>, or <strong>upload an image from your computer</strong>.
                   </p>
                 </div>
               </div>
@@ -749,14 +813,14 @@ export default function DocumentUploadStep({
               )}
             </div>
 
-            {/* Current Photo Preview Card (if photo exists) */}
+            {/* Current Active Photo Preview Card (if photo exists) */}
             {formData.profileImage && (
-              <div className="mb-5 p-4 bg-slate-50 border border-slate-300 rounded-xl flex flex-col sm:flex-row items-center sm:items-start gap-4">
+              <div className="mb-5 p-4 bg-slate-50 border border-slate-300 rounded-xl flex flex-col sm:flex-row items-center sm:items-start gap-4 shadow-xs">
                 <div className="relative shrink-0">
                   <img
                     src={getImageSrc(formData.profileImage)}
                     alt="Passport Photograph Preview"
-                    className="h-28 w-28 object-cover rounded-lg border-2 border-emerald-600 shadow-md bg-white"
+                    className="h-28 w-28 object-cover rounded-xl border-2 border-emerald-600 shadow-md bg-white"
                   />
                   <div className="absolute -bottom-1 -right-1 bg-emerald-600 text-white rounded-full p-1 shadow">
                     <CheckCircle2 className="h-3.5 w-3.5" />
@@ -768,30 +832,42 @@ export default function DocumentUploadStep({
                     <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                       <span className="text-sm font-semibold text-slate-800">Current Passport Photo</span>
                       {photoSource === "nin" ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
-                          <ShieldCheck className="h-3 w-3" /> Synced from NIN
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                          <ShieldCheck className="h-3 w-3 text-emerald-700" /> Kept from Netapps / NIN Record
                         </span>
                       ) : photoSource === "webcam" ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-800 bg-blue-100 px-2 py-0.5 rounded-full">
-                          <Camera className="h-3 w-3" /> Live Camera Capture
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-800 bg-blue-100 px-2.5 py-0.5 rounded-full border border-blue-300">
+                          <Camera className="h-3 w-3 text-blue-700" /> Live Camera Capture
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-purple-800 bg-purple-100 px-2 py-0.5 rounded-full">
-                          <Upload className="h-3 w-3" /> Uploaded from Computer
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-purple-800 bg-purple-100 px-2.5 py-0.5 rounded-full border border-purple-300">
+                          <Laptop className="h-3 w-3 text-purple-700" /> Uploaded from Computer
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-slate-600 mt-1">
                       {photoSource === "nin"
-                        ? "Pre-populated from your verified National Identity Database. You can keep this or select an option below to replace it."
+                        ? "Using your verified photograph retrieved from the Netapps / NIN database. You can keep this photo or choose to replace it below."
                         : photoSource === "webcam"
-                        ? "Captured live via your device camera. You can retake it or upload a file from your computer below."
-                        : "Uploaded from your computer. You can choose a different file or switch to live camera capture below."}
+                        ? "Captured live via your device camera. You can retake it, upload from your PC, or restore your Netapps photo."
+                        : "Uploaded from your computer. You can browse a different image, snap a live camera photo, or restore your Netapps photo."}
                     </p>
                   </div>
 
-                  {/* Actions to replace or switch */}
+                  {/* Quick Action Buttons */}
                   <div className="pt-1 flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                    {netappsPhoto && (photoSource !== "nin" || formData.profileImage !== netappsPhoto) && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleKeepNetappsPhoto}
+                        className="text-xs gap-1.5 border-emerald-600 bg-emerald-50 text-emerald-800 font-semibold hover:bg-emerald-100"
+                      >
+                        <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Revert to Netapps Photo
+                      </Button>
+                    )}
+
                     <Button
                       type="button"
                       size="sm"
@@ -799,7 +875,7 @@ export default function DocumentUploadStep({
                       onClick={() => setPhotoMode("camera")}
                       className={`text-xs gap-1.5 ${photoMode === "camera" ? "border-emerald-600 bg-emerald-50 text-emerald-800 font-semibold" : "border-slate-300"}`}
                     >
-                      <Camera className="h-3.5 w-3.5 text-emerald-600" /> Retake Live Photo
+                      <Camera className="h-3.5 w-3.5 text-emerald-600" /> Take with Camera
                     </Button>
 
                     <Button
@@ -826,13 +902,63 @@ export default function DocumentUploadStep({
               </div>
             )}
 
-            {/* Two Selection Cards: Option 1 Live Capture vs Option 2 Computer Upload */}
+            {/* Selection Options: Keep Netapps / Live Capture / Upload from Computer */}
             <div className="mb-4">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block mb-2">
-                Choose Photo Method:
+                Choose Photo Option:
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Option 1: Live Photo Capture */}
+
+              <div className={`grid grid-cols-1 ${netappsPhoto ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3`}>
+                {/* Option 1 (if Netapps photo exists): Keep Verified Netapps Photo */}
+                {netappsPhoto && (
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={handleKeepNetappsPhoto}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") handleKeepNetappsPhoto();
+                    }}
+                    className={`cursor-pointer rounded-xl p-3.5 border-2 transition-all flex items-start gap-3 ${
+                      photoMode === "keep_netapps" && formData.profileImage === netappsPhoto
+                        ? "border-emerald-600 bg-emerald-50/70 shadow-sm ring-1 ring-emerald-500"
+                        : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60"
+                    }`}
+                  >
+                    <div className="relative shrink-0">
+                      <img
+                        src={getImageSrc(netappsPhoto)}
+                        alt="Netapps photo thumbnail"
+                        className="h-10 w-10 rounded-lg object-cover border border-emerald-500 bg-white"
+                      />
+                      <div className="absolute -bottom-1 -right-1 bg-emerald-600 text-white rounded-full p-0.5 shadow">
+                        <ShieldCheck className="h-2.5 w-2.5" />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <h4 className="font-semibold text-xs text-slate-900 leading-snug">
+                          Keep Netapps / NIN Photo
+                        </h4>
+                        <div
+                          className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                            photoMode === "keep_netapps" && formData.profileImage === netappsPhoto
+                              ? "border-emerald-600 bg-emerald-600 text-white"
+                              : "border-slate-300 bg-white"
+                          }`}
+                        >
+                          {photoMode === "keep_netapps" && formData.profileImage === netappsPhoto && (
+                            <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                        Use the verified photo retrieved from your National Identity record.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Option 2: Live Photo Capture */}
                 <div
                   role="button"
                   tabIndex={0}
@@ -840,14 +966,14 @@ export default function DocumentUploadStep({
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") setPhotoMode("camera");
                   }}
-                  className={`cursor-pointer rounded-xl p-4 border-2 transition-all flex items-start gap-3.5 ${
+                  className={`cursor-pointer rounded-xl p-3.5 border-2 transition-all flex items-start gap-3 ${
                     photoMode === "camera"
                       ? "border-emerald-600 bg-emerald-50/70 shadow-sm ring-1 ring-emerald-500"
                       : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60"
                   }`}
                 >
                   <div
-                    className={`p-2.5 rounded-xl shrink-0 transition-colors ${
+                    className={`p-2 rounded-xl shrink-0 transition-colors ${
                       photoMode === "camera"
                         ? "bg-emerald-600 text-white shadow-sm"
                         : "bg-slate-100 text-slate-600"
@@ -857,7 +983,7 @@ export default function DocumentUploadStep({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
-                      <h4 className="font-semibold text-sm text-slate-900">
+                      <h4 className="font-semibold text-xs text-slate-900 leading-snug">
                         Live Photo Capture
                       </h4>
                       <div
@@ -872,13 +998,13 @@ export default function DocumentUploadStep({
                         )}
                       </div>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                      Capture an instant photo using your device webcam or camera with real-time oval guide.
+                    <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                      Directly snap a new photo using your device webcam or camera.
                     </p>
                   </div>
                 </div>
 
-                {/* Option 2: Upload Image from Computer */}
+                {/* Option 3: Upload Image from Computer */}
                 <div
                   role="button"
                   tabIndex={0}
@@ -886,14 +1012,14 @@ export default function DocumentUploadStep({
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") setPhotoMode("upload");
                   }}
-                  className={`cursor-pointer rounded-xl p-4 border-2 transition-all flex items-start gap-3.5 ${
+                  className={`cursor-pointer rounded-xl p-3.5 border-2 transition-all flex items-start gap-3 ${
                     photoMode === "upload"
                       ? "border-emerald-600 bg-emerald-50/70 shadow-sm ring-1 ring-emerald-500"
                       : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60"
                   }`}
                 >
                   <div
-                    className={`p-2.5 rounded-xl shrink-0 transition-colors ${
+                    className={`p-2 rounded-xl shrink-0 transition-colors ${
                       photoMode === "upload"
                         ? "bg-emerald-600 text-white shadow-sm"
                         : "bg-slate-100 text-slate-600"
@@ -903,7 +1029,7 @@ export default function DocumentUploadStep({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
-                      <h4 className="font-semibold text-sm text-slate-900">
+                      <h4 className="font-semibold text-xs text-slate-900 leading-snug">
                         Upload Image from Computer
                       </h4>
                       <div
@@ -918,16 +1044,25 @@ export default function DocumentUploadStep({
                         )}
                       </div>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                      Select and upload an existing passport photo file (JPG, JPEG, PNG) saved on your computer.
+                    <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                      Upload an existing passport photo file (JPG, PNG) from your PC.
                     </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Active Method UI Container */}
-            {photoMode === "camera" ? (
+            {/* Active Workspace Container */}
+            {photoMode === "keep_netapps" && netappsPhoto ? (
+              <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl flex items-center gap-3">
+                <div className="p-2 bg-emerald-100 text-emerald-800 rounded-lg shrink-0">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div className="text-xs text-emerald-950 leading-relaxed flex-1">
+                  <strong>Verified Record Active:</strong> Your official identity photo from Netapps / NIN is selected as your passport photograph. If you wish to change it, switch to <strong>Live Photo Capture</strong> to snap a new photo or <strong>Upload Image from Computer</strong> above.
+                </div>
+              </div>
+            ) : photoMode === "camera" ? (
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
                 <div className="mb-3 text-center sm:text-left">
                   <p className="text-xs font-semibold text-slate-800 flex items-center justify-center sm:justify-start gap-1.5">
