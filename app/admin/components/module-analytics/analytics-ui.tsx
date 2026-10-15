@@ -148,10 +148,17 @@ export function AnalyticsHeader({
   )
 }
 
-export function AnalyticsKpiGrid({ items }: { items: KpiItem[] }) {
+export function AnalyticsKpiGrid({
+  items,
+  kpis,
+}: {
+  items?: KpiItem[]
+  kpis?: KpiItem[]
+}) {
+  const list = items || kpis || []
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {items.map((kpi, idx) => {
+      {list.map((kpi, idx) => {
         const theme = themeStyles[kpi.theme || "emerald"]
         const Icon = kpi.icon
 
@@ -243,10 +250,10 @@ export function AnalyticsChartCard({
 }
 
 export function QuickNavGrid({
-  links,
+  links = [],
   title = "Module Quick Navigation",
 }: {
-  links: {
+  links?: {
     title: string
     description: string
     href: string
@@ -255,6 +262,7 @@ export function QuickNavGrid({
   }[]
   title?: string
 }) {
+  const list = links || []
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -262,7 +270,7 @@ export function QuickNavGrid({
         <span className="text-xs text-slate-400">Direct Module Links</span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        {links.map((link, idx) => {
+        {list.map((link, idx) => {
           const Icon = link.icon
           return (
             <Link
