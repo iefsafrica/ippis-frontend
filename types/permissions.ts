@@ -3,6 +3,9 @@ export interface Permission {
   name: string
   resource: string
   action: string
+  module?: string
+  key?: string
+  is_privileged?: boolean
   description?: string
   created_at?: string
   updated_at?: string
@@ -53,13 +56,18 @@ export interface DeletePermissionResponse {
   error?: string
 }
 
-export type PermissionAssignmentAction = "assign_user" | "unassign_user" | "unassign_role"
+export type PermissionAssignmentAction = "assign_user" | "unassign_user" | "assign_role" | "unassign_role"
 
 export interface PermissionActionRequest {
   action: PermissionAssignmentAction
   permission_id: string | number
   user_id?: string
   role_id?: string | number
+  scope_level?: string
+  company_id?: number
+  department_id?: number
+  expires_at?: string
+  reason?: string
 }
 
 export interface PermissionActionResponse {

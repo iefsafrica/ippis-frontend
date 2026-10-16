@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -23,18 +24,24 @@ import {
   Clock3,
   Edit,
   Eye,
+  KeyRound,
   Loader2,
+  Search,
   Shield,
   UserMinus,
   UserPlus,
   Users,
+  X,
 } from "lucide-react"
 import { useCreateRole, useGetRole, useGetRoles, useRoleAction, useUpdateRole } from "@/services/hooks/roles"
+import { useGetPermissions } from "@/services/hooks/permissions"
 import type { Role } from "@/types/roles"
+import type { Permission } from "@/types/permissions"
 
 type RoleFormState = {
   name: string
   description: string
+  permissionIds: (string | number)[]
 }
 
 type RoleAccessTab = "assign" | "unassign"
@@ -46,10 +53,20 @@ type RoleAccessState = {
 const defaultFormState: RoleFormState = {
   name: "",
   description: "",
+  permissionIds: [],
 }
 
 const defaultAccessState: RoleAccessState = {
   userId: "",
+}
+
+const permissionBadgeClass = (value?: string) => {
+  const normalized = value?.toLowerCase().trim() ?? ""
+  if (normalized === "create") return "border-emerald-200 bg-emerald-50 text-emerald-700"
+  if (normalized === "update" || normalized === "edit") return "border-blue-200 bg-blue-50 text-blue-700"
+  if (normalized === "delete") return "border-red-200 bg-red-50 text-red-700"
+  if (normalized === "view" || normalized === "read") return "border-sky-200 bg-sky-50 text-sky-700"
+  return "border-gray-200 bg-gray-50 text-gray-700"
 }
 
 const formatDateTime = (value?: string) => {
@@ -65,8 +82,304 @@ const formatDateTime = (value?: string) => {
   })
 }
 
+interface PermissionSelectorProps {
+  selectedIds: (string | number)[]
+  onChange: (ids: (string | number)[]) => void
+  permissions: Permission[]
+  isLoading?: boolean
+}
+
+function PermissionSelector({
+  selectedIds,
+  onChange,
+  permissions,
+  isLoading,
+}: PermissionSelectorProps) {
+  const [search, setSearch] = useState("")
+  const [selectedResource, setSelectedResource] = useState<string>("all")
+
+  const selectedSet = useMemo(() => new Set(selectedIds.map(String)), [selectedIds])
+
+  const resources = useMemo(() => {
+    const set = new Set<string>()
+    permissions.forEach((p) => {
+      const res = p.resource || p.module
+      if (res) set.add(res)
+    })
+    return Array.from(set).sort()
+  }, [permissions])
+
+  const filteredPermissions = useMemo(() => {
+    const q = search.toLowerCase().trim()
+    return permissions.filter((p) => {
+      const res = (p.resource || p.module || "").toLowerCase()
+      if (selectedResource !== "all" && res !== selectedResource.toLowerCase()) {
+        return false
+      }
+      if (!q) return true
+      return (
+        p.name?.toLowerCase().includes(q) ||
+        p.action?.toLowerCase().includes(q) ||
+        p.resource?.toLowerCase().includes(q) ||
+        p.module?.toLowerCase().includes(q) ||
+        p.description?.toLowerCase().includes(q)
+      )
+    })
+  }, [permissions, search, selectedResource])
+
+  const groupedPermissions = useMemo(() => {
+    const groups: Record<string, Permission[]> = {}
+    filteredPermissions.forEach((p) => {
+      const key = p.resource || p.module || "General"
+      if (!groups[key]) groups[key] = []
+      groups[key].push(p)
+    })
+    return groups
+  }, [filteredPermissions])
+
+  const toggleOne = (id: string | number) => {
+    const strId = String(id)
+    if (selectedSet.has(strId)) {
+      onChange(selectedIds.filter((item) => String(item) !== strId))
+    } else {
+      onChange([...selectedIds, id])
+    }
+  }
+
+  const selectAllFiltered = () => {
+    const toAdd = filteredPermissions
+      .filter((p) => !selectedSet.has(String(p.id)))
+      .map((p) => p.id)
+    onChange([...selectedIds, ...toAdd])
+  }
+
+  const deselectAllFiltered = () => {
+    const filteredIdSet = new Set(filteredPermissions.map((p) => String(p.id)))
+    onChange(selectedIds.filter((id) => !filteredIdSet.has(String(id))))
+  }
+
+  const toggleGroup = (groupPermissions: Permission[]) => {
+    const allSelected = groupPermissions.every((p) => selectedSet.has(String(p.id)))
+    if (allSelected) {
+      const groupSet = new Set(groupPermissions.map((p) => String(p.id)))
+      onChange(selectedIds.filter((id) => !groupSet.has(String(id))))
+    } else {
+      const toAdd = groupPermissions
+        .filter((p) => !selectedSet.has(String(p.id)))
+        .map((p) => p.id)
+      onChange([...selectedIds, ...toAdd])
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 border rounded-xl bg-gray-50/50">
+        <Loader2 className="h-5 w-5 animate-spin text-emerald-600 mb-2" />
+        <span className="text-xs text-gray-500">Loading available permissions...</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Header with counter and quick action buttons */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Label className="text-sm font-semibold text-gray-900">Permissions</Label>
+          <Badge
+            variant="outline"
+            className="border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-medium"
+          >
+            {selectedIds.length} of {permissions.length} selected
+          </Badge>
+        </div>
+
+        <div className="flex items-center gap-1.5 text-xs">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={selectAllFiltered}
+            className="h-7 px-2 text-xs text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50"
+            disabled={filteredPermissions.length === 0}
+          >
+            Select All
+          </Button>
+          <span className="text-gray-300">|</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={deselectAllFiltered}
+            className="h-7 px-2 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+            disabled={filteredPermissions.length === 0}
+          >
+            Deselect All
+          </Button>
+          {selectedIds.length > 0 && (
+            <>
+              <span className="text-gray-300">|</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onChange([])}
+                className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                Clear All
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Search Input */}
+      <div className="relative">
+        <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Filter permissions by name, resource, action..."
+          className="pl-9 pr-8 text-xs h-9 bg-gray-50/60 focus:bg-white"
+        />
+        {search && (
+          <button
+            type="button"
+            onClick={() => setSearch("")}
+            className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Resource filter tabs / chips */}
+      {resources.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+          <button
+            type="button"
+            onClick={() => setSelectedResource("all")}
+            className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+              selectedResource === "all"
+                ? "bg-emerald-600 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            All ({permissions.length})
+          </button>
+          {resources.map((res) => {
+            const count = permissions.filter(
+              (p) => (p.resource || p.module || "").toLowerCase() === res.toLowerCase()
+            ).length
+            return (
+              <button
+                key={res}
+                type="button"
+                onClick={() => setSelectedResource(res)}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap capitalize transition-colors ${
+                  selectedResource.toLowerCase() === res.toLowerCase()
+                    ? "bg-emerald-600 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {res.replace(/_/g, " ")} ({count})
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Permissions List container */}
+      <div className="max-h-60 sm:max-h-72 overflow-y-auto rounded-xl border border-gray-200 bg-white divide-y divide-gray-100 shadow-inner">
+        {Object.keys(groupedPermissions).length === 0 ? (
+          <div className="p-6 text-center text-xs text-gray-500">
+            {search ? `No permissions matching "${search}"` : "No permissions available"}
+          </div>
+        ) : (
+          Object.entries(groupedPermissions).map(([groupName, groupPerms]) => {
+            const groupAllSelected = groupPerms.every((p) => selectedSet.has(String(p.id)))
+
+            return (
+              <div key={groupName} className="p-2 space-y-1">
+                {/* Group Header */}
+                <div className="flex items-center justify-between px-2 py-1 bg-gray-50/80 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(groupPerms)}
+                      className="text-xs font-semibold uppercase tracking-wider text-gray-700 hover:text-emerald-700 flex items-center gap-1.5"
+                    >
+                      <span>{groupName.replace(/_/g, " ")}</span>
+                    </button>
+                    <Badge variant="secondary" className="text-[10px] py-0 px-1.5 bg-gray-200 text-gray-700">
+                      {groupPerms.length}
+                    </Badge>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleGroup(groupPerms)}
+                    className="h-6 px-2 text-[11px] text-emerald-700 hover:text-emerald-800"
+                  >
+                    {groupAllSelected ? "Deselect group" : "Select group"}
+                  </Button>
+                </div>
+
+                {/* Group items */}
+                <div className="space-y-1 pt-1">
+                  {groupPerms.map((perm) => {
+                    const isChecked = selectedSet.has(String(perm.id))
+                    return (
+                      <div
+                        key={perm.id}
+                        onClick={() => toggleOne(perm.id)}
+                        className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                          isChecked
+                            ? "bg-emerald-50/60 border border-emerald-100"
+                            : "hover:bg-gray-50 border border-transparent"
+                        }`}
+                      >
+                        <Checkbox
+                          checked={isChecked}
+                          onCheckedChange={() => toggleOne(perm.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-0.5 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-xs font-medium text-gray-900">{perm.name}</span>
+                            {perm.action && (
+                              <Badge className={`text-[10px] py-0 px-1.5 ${permissionBadgeClass(perm.action)}`}>
+                                {perm.action}
+                              </Badge>
+                            )}
+                            {perm.is_privileged && (
+                              <Badge className="text-[10px] py-0 px-1.5 border-amber-200 bg-amber-50 text-amber-700">
+                                Privileged
+                              </Badge>
+                            )}
+                          </div>
+                          {perm.description && (
+                            <p className="text-[11px] text-gray-500 line-clamp-1 mt-0.5">{perm.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function RolesContent() {
   const { data, isLoading, error, refetch } = useGetRoles()
+  const { data: permissionsResponse, isLoading: isLoadingPermissions } = useGetPermissions()
   const createRoleMutation = useCreateRole()
   const updateRoleMutation = useUpdateRole()
   const roleActionMutation = useRoleAction()
@@ -85,16 +398,22 @@ export default function RolesContent() {
   )
 
   const roles = data?.data ?? []
+  const allPermissions = useMemo(() => permissionsResponse?.data ?? [], [permissionsResponse])
   const selectedRoleDetail = roleDetailResponse?.data ?? selectedRole
 
   useEffect(() => {
-    if (showEditDialog && selectedRoleDetail) {
-      setForm({
-        name: selectedRoleDetail.name ?? "",
-        description: selectedRoleDetail.description ?? "",
-      })
+    if (showEditDialog && selectedRoleDetail && selectedRoleDetail.id === selectedRole?.id) {
+      setForm((prev) => ({
+        ...prev,
+        name: selectedRoleDetail.name ?? prev.name,
+        description: selectedRoleDetail.description ?? prev.description,
+        permissionIds:
+          selectedRoleDetail.permissions && selectedRoleDetail.permissions.length > 0
+            ? selectedRoleDetail.permissions.map((p) => p.id)
+            : prev.permissionIds,
+      }))
     }
-  }, [selectedRoleDetail, showEditDialog])
+  }, [selectedRoleDetail?.id, showEditDialog])
 
   const stats = useMemo(() => {
     const recent = roles.filter((item) => {
@@ -144,6 +463,7 @@ export default function RolesContent() {
     setForm({
       name: role.name ?? "",
       description: role.description ?? "",
+      permissionIds: (role.permissions || []).map((p) => p.id),
     })
     setShowEditDialog(true)
   }
@@ -167,10 +487,12 @@ export default function RolesContent() {
       await createRoleMutation.mutateAsync({
         name: form.name.trim(),
         description: form.description.trim() || undefined,
+        permission_ids: form.permissionIds,
       })
       toast.success("Role created successfully")
       setShowAddDialog(false)
       setForm(defaultFormState)
+      await refetch()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create role")
     }
@@ -190,10 +512,12 @@ export default function RolesContent() {
         id: selectedRole.id,
         name: form.name.trim(),
         description: form.description.trim() || undefined,
+        permission_ids: form.permissionIds,
       })
       toast.success("Role updated successfully")
       setShowEditDialog(false)
       setSelectedRole(null)
+      await refetch()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update role")
     }
@@ -243,6 +567,27 @@ export default function RolesContent() {
       label: "Description",
       sortable: false,
       render: (value: string) => <div className="max-w-[360px] truncate text-sm text-gray-600">{value || "N/A"}</div>,
+    },
+    {
+      key: "permissions",
+      label: "Permissions",
+      sortable: false,
+      render: (_: unknown, row: Role) => {
+        const count = row.permissions?.length ?? 0
+        return (
+          <Badge
+            variant="outline"
+            className={
+              count > 0
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700 font-normal"
+                : "border-gray-200 bg-gray-50 text-gray-400 font-normal"
+            }
+          >
+            <KeyRound className="mr-1 h-3 w-3" />
+            {count} {count === 1 ? "perm" : "perms"}
+          </Badge>
+        )
+      },
     },
     {
       key: "created_at",
@@ -312,7 +657,7 @@ export default function RolesContent() {
               </div>
               <div>
                 <h1 className="text-2xl font-semibold text-gray-900">Roles</h1>
-                <p className="text-sm text-gray-500">Create roles, update details, and assign or remove users from roles.</p>
+                <p className="text-sm text-gray-500">Create roles, assign permissions, update details, and manage user assignments.</p>
               </div>
             </div>
           </div>
@@ -356,33 +701,42 @@ export default function RolesContent() {
         </CardContent>
       </Card>
 
+      {/* Create Role Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="sm:max-w-[560px]">
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col p-6">
           <DialogHeader>
             <DialogTitle>Create Role</DialogTitle>
-            <DialogDescription>Add a new system role.</DialogDescription>
+            <DialogDescription>Add a new system role and assign permissions.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreateRole} className="grid gap-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="role-name">Name</Label>
-              <Input
-                id="role-name"
-                value={form.name}
-                onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                placeholder="e.g. SuperAdmin"
+          <form onSubmit={handleCreateRole} className="flex flex-col flex-1 min-h-0 overflow-hidden gap-4 py-2">
+            <div className="overflow-y-auto space-y-4 pr-1 flex-1">
+              <div className="space-y-2">
+                <Label htmlFor="role-name">Name</Label>
+                <Input
+                  id="role-name"
+                  value={form.name}
+                  onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                  placeholder="e.g. Payroll Reviewer"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="role-description">Description</Label>
+                <Textarea
+                  id="role-description"
+                  value={form.description}
+                  onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+                  placeholder="Describe what this role can do"
+                  rows={2}
+                />
+              </div>
+              <PermissionSelector
+                selectedIds={form.permissionIds}
+                onChange={(ids) => setForm((prev) => ({ ...prev, permissionIds: ids }))}
+                permissions={allPermissions}
+                isLoading={isLoadingPermissions}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="role-description">Description</Label>
-              <Textarea
-                id="role-description"
-                value={form.description}
-                onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-                placeholder="Describe what this role can do"
-                rows={4}
-              />
-            </div>
-            <DialogFooter>
+            <DialogFooter className="pt-3 border-t">
               <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
                 Cancel
               </Button>
@@ -394,31 +748,40 @@ export default function RolesContent() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Role Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="sm:max-w-[560px]">
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col p-6">
           <DialogHeader>
             <DialogTitle>Edit Role</DialogTitle>
-            <DialogDescription>Update the selected role details.</DialogDescription>
+            <DialogDescription>Update the selected role details and permissions.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleUpdateRole} className="grid gap-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="edit-role-name">Name</Label>
-              <Input
-                id="edit-role-name"
-                value={form.name}
-                onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+          <form onSubmit={handleUpdateRole} className="flex flex-col flex-1 min-h-0 overflow-hidden gap-4 py-2">
+            <div className="overflow-y-auto space-y-4 pr-1 flex-1">
+              <div className="space-y-2">
+                <Label htmlFor="edit-role-name">Name</Label>
+                <Input
+                  id="edit-role-name"
+                  value={form.name}
+                  onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-role-description">Description</Label>
+                <Textarea
+                  id="edit-role-description"
+                  value={form.description}
+                  onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+                  rows={2}
+                />
+              </div>
+              <PermissionSelector
+                selectedIds={form.permissionIds}
+                onChange={(ids) => setForm((prev) => ({ ...prev, permissionIds: ids }))}
+                permissions={allPermissions}
+                isLoading={isLoadingPermissions}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-role-description">Description</Label>
-              <Textarea
-                id="edit-role-description"
-                value={form.description}
-                onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-                rows={4}
-              />
-            </div>
-            <DialogFooter>
+            <DialogFooter className="pt-3 border-t">
               <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>
                 Cancel
               </Button>
@@ -430,14 +793,15 @@ export default function RolesContent() {
         </DialogContent>
       </Dialog>
 
+      {/* View Role Dialog */}
       <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
-        <DialogContent className="sm:max-w-[640px]">
+        <DialogContent className="sm:max-w-[640px] max-h-[90vh] flex flex-col p-6">
           <DialogHeader>
             <DialogTitle>Role Details</DialogTitle>
-            <DialogDescription>Full details for the selected role.</DialogDescription>
+            <DialogDescription>Full details and permissions for the selected role.</DialogDescription>
           </DialogHeader>
           {selectedRoleDetail ? (
-            <div className="grid gap-4 py-2">
+            <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1">
                   <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Name</p>
@@ -462,6 +826,39 @@ export default function RolesContent() {
                   {selectedRoleDetail.description || "No description provided"}
                 </p>
               </div>
+              <div className="space-y-2 pt-2 border-t">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Assigned Permissions</p>
+                  <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 font-normal">
+                    {selectedRoleDetail.permissions?.length ?? 0} total
+                  </Badge>
+                </div>
+                {selectedRoleDetail.permissions && selectedRoleDetail.permissions.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-2 border rounded-xl bg-gray-50/60">
+                    {selectedRoleDetail.permissions.map((perm) => (
+                      <Badge
+                        key={perm.id}
+                        variant="secondary"
+                        className="bg-white border border-gray-200 text-gray-800 text-xs py-1 px-2 flex items-center gap-1.5 shadow-xs"
+                      >
+                        <span className="font-medium">{perm.name}</span>
+                        {perm.resource && (
+                          <span className="text-[10px] text-gray-400 bg-gray-100 px-1 py-0.5 rounded">
+                            {perm.resource}
+                          </span>
+                        )}
+                        {perm.action && (
+                          <Badge className={`text-[9px] py-0 px-1 ${permissionBadgeClass(perm.action)}`}>
+                            {perm.action}
+                          </Badge>
+                        )}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 italic">No permissions assigned to this role.</p>
+                )}
+              </div>
             </div>
           ) : (
             <div className="flex items-center justify-center py-10">
@@ -471,6 +868,7 @@ export default function RolesContent() {
         </DialogContent>
       </Dialog>
 
+      {/* Role Assignment Dialog */}
       <Dialog open={showAccessDialog} onOpenChange={setShowAccessDialog}>
         <DialogContent className="sm:max-w-[720px]">
           <DialogHeader>

@@ -1,9 +1,12 @@
+import type { Permission } from "@/types/permissions"
+
 export interface Role {
   id: string | number
   name: string
   description?: string
   created_at?: string
   updated_at?: string
+  permissions?: Permission[]
 }
 
 export interface GetRolesResponse {
@@ -21,6 +24,8 @@ export interface GetRoleResponse {
 export interface CreateRoleRequest {
   name: string
   description?: string
+  permission_ids?: (string | number)[]
+  permissions?: (string | number)[]
 }
 
 export interface CreateRoleResponse {
@@ -33,6 +38,8 @@ export interface UpdateRoleRequest {
   id: string | number
   name: string
   description?: string
+  permission_ids?: (string | number)[]
+  permissions?: (string | number)[]
 }
 
 export interface UpdateRoleResponse {
