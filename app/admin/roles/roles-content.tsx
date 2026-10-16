@@ -98,34 +98,39 @@ function PermissionSelector({
   const [search, setSearch] = useState("")
   const [selectedResource, setSelectedResource] = useState<string>("all")
 
-  const selectedSet = useMemo(() => new Set(selectedIds.map(String)), [selectedIds])
+  const validPermissions = useMemo(
+    () => (Array.isArray(permissions) ? permissions.filter((p): p is Permission => Boolean(p && p.id != null)) : []),
+    [permissions]
+  )
+
+  const selectedSet = useMemo(() => new Set((selectedIds || []).map(String)), [selectedIds])
 
   const resources = useMemo(() => {
     const set = new Set<string>()
-    permissions.forEach((p) => {
+    validPermissions.forEach((p) => {
       const res = p.resource || p.module
       if (res) set.add(res)
     })
     return Array.from(set).sort()
-  }, [permissions])
+  }, [validPermissions])
 
   const filteredPermissions = useMemo(() => {
     const q = search.toLowerCase().trim()
-    return permissions.filter((p) => {
+    return validPermissions.filter((p) => {
       const res = (p.resource || p.module || "").toLowerCase()
       if (selectedResource !== "all" && res !== selectedResource.toLowerCase()) {
         return false
       }
       if (!q) return true
       return (
-        p.name?.toLowerCase().includes(q) ||
-        p.action?.toLowerCase().includes(q) ||
-        p.resource?.toLowerCase().includes(q) ||
-        p.module?.toLowerCase().includes(q) ||
-        p.description?.toLowerCase().includes(q)
+        (p.name || "").toLowerCase().includes(q) ||
+        (p.action || "").toLowerCase().includes(q) ||
+        (p.resource || "").toLowerCase().includes(q) ||
+        (p.module || "").toLowerCase().includes(q) ||
+        (p.description || "").toLowerCase().includes(q)
       )
     })
-  }, [permissions, search, selectedResource])
+  }, [validPermissions, search, selectedResource])
 
   const groupedPermissions = useMemo(() => {
     const groups: Record<string, Permission[]> = {}
@@ -140,9 +145,9 @@ function PermissionSelector({
   const toggleOne = (id: string | number) => {
     const strId = String(id)
     if (selectedSet.has(strId)) {
-      onChange(selectedIds.filter((item) => String(item) !== strId))
+      onChange((selectedIds || []).filter((item) => String(item) !== strId))
     } else {
-      onChange([...selectedIds, id])
+      onChange([...(selectedIds || []), id])
     }
   }
 
@@ -150,24 +155,24 @@ function PermissionSelector({
     const toAdd = filteredPermissions
       .filter((p) => !selectedSet.has(String(p.id)))
       .map((p) => p.id)
-    onChange([...selectedIds, ...toAdd])
+    onChange([...(selectedIds || []), ...toAdd])
   }
 
   const deselectAllFiltered = () => {
     const filteredIdSet = new Set(filteredPermissions.map((p) => String(p.id)))
-    onChange(selectedIds.filter((id) => !filteredIdSet.has(String(id))))
+    onChange((selectedIds || []).filter((id) => !filteredIdSet.has(String(id))))
   }
 
   const toggleGroup = (groupPermissions: Permission[]) => {
     const allSelected = groupPermissions.every((p) => selectedSet.has(String(p.id)))
     if (allSelected) {
       const groupSet = new Set(groupPermissions.map((p) => String(p.id)))
-      onChange(selectedIds.filter((id) => !groupSet.has(String(id))))
+      onChange((selectedIds || []).filter((id) => !groupSet.has(String(id))))
     } else {
       const toAdd = groupPermissions
         .filter((p) => !selectedSet.has(String(p.id)))
         .map((p) => p.id)
-      onChange([...selectedIds, ...toAdd])
+      onChange([...(selectedIds || []), ...toAdd])
     }
   }
 
@@ -190,7 +195,7 @@ function PermissionSelector({
             variant="outline"
             className="border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-medium"
           >
-            {selectedIds.length} of {permissions.length} selected
+            {(selectedIds || []).length} of {validPermissions.length} selected
           </Badge>
         </div>
 
@@ -216,7 +221,7 @@ function PermissionSelector({
           >
             Deselect All
           </Button>
-          {selectedIds.length > 0 && (
+          {(selectedIds || []).length > 0 && (
             <>
               <span className="text-gray-300">|</span>
               <Button
@@ -265,10 +270,10 @@ function PermissionSelector({
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
-            All ({permissions.length})
+            All ({validPermissions.length})
           </button>
           {resources.map((res) => {
-            const count = permissions.filter(
+            const count = validPermissions.filter(
               (p) => (p.resource || p.module || "").toLowerCase() === res.toLowerCase()
             ).length
             return (
@@ -397,23 +402,36 @@ export default function RolesContent() {
     showViewDialog || showEditDialog ? selectedRole?.id : undefined,
   )
 
-  const roles = data?.data ?? []
-  const allPermissions = useMemo(() => permissionsResponse?.data ?? [], [permissionsResponse])
+  const roles = useMemo(() => (Array.isArray(data?.data) ? data.data : []), [data?.data])
+  const allPermissions = useMemo(
+    () => (Array.isArray(permissionsResponse?.data) ? permissionsResponse.data : []),
+    [permissionsResponse?.data]
+  )
   const selectedRoleDetail = roleDetailResponse?.data ?? selectedRole
 
   useEffect(() => {
-    if (showEditDialog && selectedRoleDetail && selectedRoleDetail.id === selectedRole?.id) {
-      setForm((prev) => ({
-        ...prev,
-        name: selectedRoleDetail.name ?? prev.name,
-        description: selectedRoleDetail.description ?? prev.description,
-        permissionIds:
-          selectedRoleDetail.permissions && selectedRoleDetail.permissions.length > 0
-            ? selectedRoleDetail.permissions.map((p) => p.id)
-            : prev.permissionIds,
-      }))
+    if (!showEditDialog || !roleDetailResponse?.data || roleDetailResponse.data.id !== selectedRole?.id) {
+      return
     }
-  }, [selectedRoleDetail?.id, showEditDialog])
+    const rawPerms = roleDetailResponse.data.permissions
+    const validPerms = Array.isArray(rawPerms)
+      ? rawPerms.filter((p): p is Permission => Boolean(p && p.id != null)).map((p) => p.id)
+      : []
+
+    if (validPerms.length > 0) {
+      setForm((prev) => {
+        if (prev.permissionIds.length === 0) {
+          return {
+            ...prev,
+            name: roleDetailResponse.data.name ?? prev.name,
+            description: roleDetailResponse.data.description ?? prev.description,
+            permissionIds: validPerms,
+          }
+        }
+        return prev
+      })
+    }
+  }, [roleDetailResponse?.data, showEditDialog, selectedRole?.id])
 
   const stats = useMemo(() => {
     const recent = roles.filter((item) => {
@@ -460,10 +478,13 @@ export default function RolesContent() {
 
   const openEditDialog = (role: Role) => {
     setSelectedRole(role)
+    const validPerms = Array.isArray(role.permissions)
+      ? role.permissions.filter((p): p is Permission => Boolean(p && p.id != null)).map((p) => p.id)
+      : []
     setForm({
       name: role.name ?? "",
       description: role.description ?? "",
-      permissionIds: (role.permissions || []).map((p) => p.id),
+      permissionIds: validPerms,
     })
     setShowEditDialog(true)
   }
@@ -545,87 +566,93 @@ export default function RolesContent() {
     }
   }
 
-  const columns = [
-    {
-      key: "name",
-      label: "Role",
-      sortable: true,
-      render: (value: string, row: Role) => (
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-100">
-            <Shield className="h-5 w-5 text-emerald-700" />
+  const columns = useMemo(
+    () => [
+      {
+        key: "name",
+        label: "Role",
+        sortable: true,
+        render: (value: string, row: Role) => (
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-100">
+              <Shield className="h-5 w-5 text-emerald-700" />
+            </div>
+            <div className="min-w-0">
+              <div className="truncate font-medium text-gray-900">{value}</div>
+              <div className="truncate text-xs text-gray-500">Role ID: {row.id}</div>
+            </div>
           </div>
-          <div className="min-w-0">
-            <div className="truncate font-medium text-gray-900">{value}</div>
-            <div className="truncate text-xs text-gray-500">Role ID: {row.id}</div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: "description",
-      label: "Description",
-      sortable: false,
-      render: (value: string) => <div className="max-w-[360px] truncate text-sm text-gray-600">{value || "N/A"}</div>,
-    },
-    {
-      key: "permissions",
-      label: "Permissions",
-      sortable: false,
-      render: (_: unknown, row: Role) => {
-        const count = row.permissions?.length ?? 0
-        return (
-          <Badge
-            variant="outline"
-            className={
-              count > 0
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700 font-normal"
-                : "border-gray-200 bg-gray-50 text-gray-400 font-normal"
-            }
-          >
-            <KeyRound className="mr-1 h-3 w-3" />
-            {count} {count === 1 ? "perm" : "perms"}
-          </Badge>
-        )
+        ),
       },
-    },
-    {
-      key: "created_at",
-      label: "Created",
-      sortable: true,
-      render: (value: string) => (
-        <div className="flex items-center gap-2 text-sm text-gray-700">
-          <Clock3 className="h-4 w-4 text-gray-400" />
-          <span>{formatDateTime(value)}</span>
-        </div>
-      ),
-    },
-    {
-      key: "updated_at",
-      label: "Updated",
-      sortable: true,
-      render: (value: string) => (
-        <div className="text-sm text-gray-700">{formatDateTime(value)}</div>
-      ),
-    },
-    {
-      key: "actions",
-      label: "Actions",
-      render: (_: unknown, row: Role) => (
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => openViewDialog(row)} title="View role">
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="icon" onClick={() => openEditDialog(row)} title="Edit role">
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="icon" onClick={() => openAccessDialog(row)} title="Assign or unassign role">
-            <Users className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
-    },
-  ]
+      {
+        key: "description",
+        label: "Description",
+        sortable: false,
+        render: (value: string) => <div className="max-w-[360px] truncate text-sm text-gray-600">{value || "N/A"}</div>,
+      },
+      {
+        key: "permissions",
+        label: "Permissions",
+        sortable: false,
+        render: (_: unknown, row: Role) => {
+          const validPerms = Array.isArray(row.permissions)
+            ? row.permissions.filter((p) => Boolean(p && p.id != null))
+            : []
+          const count = validPerms.length
+          return (
+            <Badge
+              variant="outline"
+              className={
+                count > 0
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 font-normal"
+                  : "border-gray-200 bg-gray-50 text-gray-400 font-normal"
+              }
+            >
+              <KeyRound className="mr-1 h-3 w-3" />
+              {count} {count === 1 ? "perm" : "perms"}
+            </Badge>
+          )
+        },
+      },
+      {
+        key: "created_at",
+        label: "Created",
+        sortable: true,
+        render: (value: string) => (
+          <div className="flex items-center gap-2 text-sm text-gray-700">
+            <Clock3 className="h-4 w-4 text-gray-400" />
+            <span>{formatDateTime(value)}</span>
+          </div>
+        ),
+      },
+      {
+        key: "updated_at",
+        label: "Updated",
+        sortable: true,
+        render: (value: string) => (
+          <div className="text-sm text-gray-700">{formatDateTime(value)}</div>
+        ),
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        render: (_: unknown, row: Role) => (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => openViewDialog(row)} title="View role">
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => openEditDialog(row)} title="Edit role">
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => openAccessDialog(row)} title="Assign or unassign role">
+              <Users className="h-4 w-4" />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    []
+  )
 
   if (isLoading) {
     return (
@@ -830,30 +857,36 @@ export default function RolesContent() {
                 <div className="flex items-center justify-between">
                   <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Assigned Permissions</p>
                   <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 font-normal">
-                    {selectedRoleDetail.permissions?.length ?? 0} total
+                    {Array.isArray(selectedRoleDetail.permissions)
+                      ? selectedRoleDetail.permissions.filter((p) => Boolean(p && p.id != null)).length
+                      : 0}{" "}
+                    total
                   </Badge>
                 </div>
-                {selectedRoleDetail.permissions && selectedRoleDetail.permissions.length > 0 ? (
+                {Array.isArray(selectedRoleDetail.permissions) &&
+                selectedRoleDetail.permissions.filter((p) => Boolean(p && p.id != null)).length > 0 ? (
                   <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-2 border rounded-xl bg-gray-50/60">
-                    {selectedRoleDetail.permissions.map((perm) => (
-                      <Badge
-                        key={perm.id}
-                        variant="secondary"
-                        className="bg-white border border-gray-200 text-gray-800 text-xs py-1 px-2 flex items-center gap-1.5 shadow-xs"
-                      >
-                        <span className="font-medium">{perm.name}</span>
-                        {perm.resource && (
-                          <span className="text-[10px] text-gray-400 bg-gray-100 px-1 py-0.5 rounded">
-                            {perm.resource}
-                          </span>
-                        )}
-                        {perm.action && (
-                          <Badge className={`text-[9px] py-0 px-1 ${permissionBadgeClass(perm.action)}`}>
-                            {perm.action}
-                          </Badge>
-                        )}
-                      </Badge>
-                    ))}
+                    {selectedRoleDetail.permissions
+                      .filter((p): p is Permission => Boolean(p && p.id != null))
+                      .map((perm) => (
+                        <Badge
+                          key={perm.id}
+                          variant="secondary"
+                          className="bg-white border border-gray-200 text-gray-800 text-xs py-1 px-2 flex items-center gap-1.5 shadow-xs"
+                        >
+                          <span className="font-medium">{perm.name}</span>
+                          {perm.resource && (
+                            <span className="text-[10px] text-gray-400 bg-gray-100 px-1 py-0.5 rounded">
+                              {perm.resource}
+                            </span>
+                          )}
+                          {perm.action && (
+                            <Badge className={`text-[9px] py-0 px-1 ${permissionBadgeClass(perm.action)}`}>
+                              {perm.action}
+                            </Badge>
+                          )}
+                        </Badge>
+                      ))}
                   </div>
                 ) : (
                   <p className="text-xs text-gray-400 italic">No permissions assigned to this role.</p>

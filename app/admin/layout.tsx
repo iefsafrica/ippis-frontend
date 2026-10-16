@@ -55,11 +55,7 @@ export default function AdminLayout({
             </Suspense>
             <main className="flex-1 min-h-0 min-w-0 overflow-y-auto bg-white pt-4 sm:px-4 sm:pt-6 lg:px-6 lg:pt-6">
               <Suspense fallback={<AdminLoading />}>
-                {React.Children.map(children, (child, index) =>
-                  React.isValidElement(child)
-                    ? React.cloneElement(child, { key: index })
-                    : child
-                )}
+                {children}
               </Suspense>
             </main>
           </div>
