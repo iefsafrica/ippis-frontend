@@ -1,5 +1,4 @@
-import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import "react-day-picker/dist/style.css"
@@ -17,6 +16,15 @@ const inter = Inter({
   preload: true,
   variable: "--font-inter",
 })
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: "cover",
+  themeColor: "#15803d",
+}
 
 export const metadata: Metadata = {
   title: {

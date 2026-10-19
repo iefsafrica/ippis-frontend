@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { CheckCircle2, Printer, Download } from "lucide-react";
+import { CheckCircle2, Printer, Download, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { RegistrationSlipDialog, buildSlipDataFromFormData, downloadSlipDocument, type RegistrationSlipData } from "@/components/registration-slip";
@@ -1115,13 +1115,13 @@ export default function RegisterForm() {
         </DialogContent>
       </Dialog>
 
-      <div className="bg-white p-6 rounded-lg shadow-md">
+      <div className="bg-white p-3 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl shadow-sm border border-slate-100 w-full max-w-full overflow-hidden">
       {error && (
         <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>
       )}
 
       {showSuccessCard ? (
-        <div className="mb-6 rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-50 via-white to-emerald-50/80 p-5 shadow-sm">
+        <div className="mb-6 rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-50 via-white to-emerald-50/80 p-4 sm:p-5 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-start gap-3">
               <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0 mt-0.5" />
@@ -1175,13 +1175,106 @@ export default function RegisterForm() {
         </div>
       ) : null}
 
-      <div className="mb-4 rounded-lg border p-4 bg-slate-50">
-        <h3 className="text-sm font-semibold text-slate-700 mb-2">Onboarding Progress</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-medium">
-          <div className="flex justify-between"><span>Personal Info</span><span>{registrationStatus.personal_information_saved ? "✅" : "⏳"}</span></div>
-          <div className="flex justify-between"><span>Employment Info</span><span>{registrationStatus.employment_information_saved ? "✅" : "⏳"}</span></div>
-          <div className="flex justify-between"><span>Documents Uploaded</span><span>{registrationStatus.documents_uploaded ? "✅" : "⏳"}</span></div>
-          <div className="flex justify-between"><span>Email Sent</span><span>{registrationStatus.email_sent ? "✅" : "⏳"}</span></div>
+      {/* Onboarding Progress section: fully responsive across all mobile screens */}
+      <div className="mb-4 sm:mb-6 rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50/50 via-white to-slate-50/70 p-3 sm:p-4 shadow-xs">
+        <div className="flex items-center justify-between gap-2 mb-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <span className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md bg-emerald-600 text-white shadow-xs shrink-0">
+              <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            </span>
+            <h3 className="text-xs sm:text-sm font-bold text-slate-800 tracking-tight truncate">
+              Onboarding Progress
+            </h3>
+          </div>
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/80 px-2 py-0.5 text-[10px] sm:text-xs font-semibold text-emerald-800 shrink-0">
+            {
+              [
+                registrationStatus.personal_information_saved,
+                registrationStatus.employment_information_saved,
+                registrationStatus.documents_uploaded,
+                registrationStatus.email_sent,
+              ].filter(Boolean).length
+            } of 4 Saved
+          </span>
+        </div>
+
+        {/* Responsive Milestones: 2 columns on mobile, 4 columns on desktop */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-medium">
+          <div className={`flex items-center justify-between rounded-lg border p-2 transition-colors ${
+            registrationStatus.personal_information_saved
+              ? "border-emerald-200 bg-emerald-50/70 text-emerald-900"
+              : "border-slate-200 bg-white text-slate-600"
+          }`}>
+            <span className="truncate mr-1 text-[11px] sm:text-xs">Personal Info</span>
+            {registrationStatus.personal_information_saved ? (
+              <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 shrink-0">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                <span className="hidden min-[400px]:inline">Saved</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-[10px] text-slate-400 shrink-0">
+                <Clock className="h-3 w-3" />
+                <span className="hidden min-[400px]:inline">Pending</span>
+              </span>
+            )}
+          </div>
+
+          <div className={`flex items-center justify-between rounded-lg border p-2 transition-colors ${
+            registrationStatus.employment_information_saved
+              ? "border-emerald-200 bg-emerald-50/70 text-emerald-900"
+              : "border-slate-200 bg-white text-slate-600"
+          }`}>
+            <span className="truncate mr-1 text-[11px] sm:text-xs">Employment</span>
+            {registrationStatus.employment_information_saved ? (
+              <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 shrink-0">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                <span className="hidden min-[400px]:inline">Saved</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-[10px] text-slate-400 shrink-0">
+                <Clock className="h-3 w-3" />
+                <span className="hidden min-[400px]:inline">Pending</span>
+              </span>
+            )}
+          </div>
+
+          <div className={`flex items-center justify-between rounded-lg border p-2 transition-colors ${
+            registrationStatus.documents_uploaded
+              ? "border-emerald-200 bg-emerald-50/70 text-emerald-900"
+              : "border-slate-200 bg-white text-slate-600"
+          }`}>
+            <span className="truncate mr-1 text-[11px] sm:text-xs">Documents</span>
+            {registrationStatus.documents_uploaded ? (
+              <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 shrink-0">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                <span className="hidden min-[400px]:inline">Uploaded</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-[10px] text-slate-400 shrink-0">
+                <Clock className="h-3 w-3" />
+                <span className="hidden min-[400px]:inline">Pending</span>
+              </span>
+            )}
+          </div>
+
+          <div className={`flex items-center justify-between rounded-lg border p-2 transition-colors ${
+            registrationStatus.email_sent
+              ? "border-emerald-200 bg-emerald-50/70 text-emerald-900"
+              : "border-slate-200 bg-white text-slate-600"
+          }`}>
+            <span className="truncate mr-1 text-[11px] sm:text-xs">Confirmation</span>
+            {registrationStatus.email_sent ? (
+              <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 shrink-0">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                <span className="hidden min-[400px]:inline">Sent</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-[10px] text-slate-400 shrink-0">
+                <Clock className="h-3 w-3" />
+                <span className="hidden min-[400px]:inline">Pending</span>
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

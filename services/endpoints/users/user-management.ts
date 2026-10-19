@@ -1,3 +1,4 @@
+import api from "@/services/axios"
 import type {
   AuditEvent,
   BulkRoleActionRequest,
@@ -15,10 +16,11 @@ import type {
 import type { Role } from "@/types/roles"
 import type { Permission } from "@/types/permissions"
 
+// Cache keys for resilient offline fallback
 const STORAGE_USERS_KEY = "ippis_admin_users_cache_v1"
 const STORAGE_AUDIT_KEY = "ippis_admin_audit_logs_v1"
 
-// Seed initial users for immediate rich demo and functional testing
+// Fallback seed roles if API is unreachable
 const INITIAL_ROLES: Role[] = [
   { id: 1, name: "Super Administrator", description: "Full root access across all modules, MDAs, and configurations" },
   { id: 2, name: "MDA Administrator", description: "Administrative access restricted to assigned MDA operations" },
@@ -28,15 +30,17 @@ const INITIAL_ROLES: Role[] = [
   { id: 6, name: "Auditor", description: "Read-only compliance and audit log review access" },
 ]
 
+// Fallback seed MDAs if API is unreachable
 const INITIAL_MDAS = [
   { id: 1, name: "Federal Ministry of Finance", code: "FMF" },
   { id: 2, name: "Office of the Head of the Civil Service (OHCSF)", code: "OHCSF" },
   { id: 3, name: "Office of the Accountant General of the Federation", code: "OAGF" },
   { id: 4, name: "Federal Ministry of Health", code: "FMOH" },
   { id: 5, name: "Federal Ministry of Education", code: "FMOE" },
-  { id: 6, name: "Federal Ministry of Interior", code: "FMI" },
+  { id: 6, name: "Federal Ministry of Information", code: "FMI" },
 ]
 
+// Fallback seed departments
 const INITIAL_DEPARTMENTS: Record<number, { id: number; name: string }[]> = {
   1: [
     { id: 101, name: "Revenue & Tax Policy" },
@@ -62,940 +66,616 @@ const INITIAL_DEPARTMENTS: Record<number, { id: number; name: string }[]> = {
     { id: 502, name: "Basic & Secondary Education" },
   ],
   6: [
-    { id: 601, name: "Immigration & Border Service" },
-    { id: 602, name: "Civil Defence Affairs" },
+    { id: 601, name: "Information Management" },
+    { id: 602, name: "Public Communication" },
   ],
 }
 
-const DEFAULT_USERS: UserAccount[] = [
-  {
-    id: "USR-001",
-    username: "superadmin",
-    email: "admin@ippis.gov.ng",
-    full_name: "Babajide Adeleke",
-    staff_id: "IPPIS-HQ-001",
-    phone: "+234 803 123 4567",
-    status: "active",
-    roles: [INITIAL_ROLES[0]],
-    role_ids: [1],
-    mda_id: 3,
-    mda_name: "Office of the Accountant General of the Federation",
-    department_id: 301,
-    department_name: "IPPIS Central Operations",
-    scope_level: "all_mdas",
-    accessible_modules: [
-      "Dashboard",
-      "Employees",
-      "Core HR",
-      "Payroll",
-      "Finance",
-      "Reports",
-      "User Management",
-      "Permissions",
-      "Roles",
-      "Settings",
-    ],
-    last_login: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    created_at: "2025-01-15T08:00:00Z",
-    updated_at: "2026-10-10T11:20:00Z",
-  },
-  {
-    id: "USR-002",
-    username: "fatima.sanusi",
-    email: "f.sanusi@oagf.gov.ng",
-    full_name: "Fatima Sanusi",
-    staff_id: "OAGF-PAY-042",
-    phone: "+234 802 987 6543",
-    status: "active",
-    roles: [INITIAL_ROLES[2], INITIAL_ROLES[3]],
-    role_ids: [3, 4],
-    mda_id: 3,
-    mda_name: "Office of the Accountant General of the Federation",
-    department_id: 301,
-    department_name: "IPPIS Central Operations",
-    scope_level: "all_mdas",
-    accessible_modules: ["Dashboard", "Payroll", "Finance", "HR Reports"],
-    last_login: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-    created_at: "2025-03-01T10:00:00Z",
-    updated_at: "2026-09-18T14:40:00Z",
-  },
-  {
-    id: "USR-003",
-    username: "emeka.okoye",
-    email: "e.okoye@fmf.gov.ng",
-    full_name: "Emeka Okoye",
-    staff_id: "FMF-ADM-108",
-    phone: "+234 814 555 0192",
-    status: "active",
-    roles: [INITIAL_ROLES[1], INITIAL_ROLES[4]],
-    role_ids: [2, 5],
-    mda_id: 1,
-    mda_name: "Federal Ministry of Finance",
-    department_id: 101,
-    department_name: "Revenue & Tax Policy",
-    scope_level: "assigned_mda",
-    accessible_modules: ["Dashboard", "Employees", "Core HR", "HR Reports"],
-    last_login: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    created_at: "2025-05-12T09:15:00Z",
-    updated_at: "2026-08-11T16:00:00Z",
-  },
-  {
-    id: "USR-004",
-    username: "zainab.bello",
-    email: "z.bello@ohcsf.gov.ng",
-    full_name: "Zainab Bello",
-    staff_id: "OHCSF-AUD-009",
-    phone: "+234 805 444 8821",
-    status: "active",
-    roles: [INITIAL_ROLES[5]],
-    role_ids: [6],
-    mda_id: 2,
-    mda_name: "Office of the Head of the Civil Service (OHCSF)",
-    department_id: 202,
-    department_name: "Public Service Reforms",
-    scope_level: "all_mdas",
-    accessible_modules: ["Dashboard", "HR Reports", "File Manager"],
-    last_login: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
-    created_at: "2025-06-20T11:30:00Z",
-    updated_at: "2026-07-02T13:10:00Z",
-  },
-  {
-    id: "USR-005",
-    username: "tunde.bakare",
-    email: "t.bakare@fmoh.gov.ng",
-    full_name: "Tunde Bakare",
-    staff_id: "FMOH-HR-077",
-    phone: "+234 807 333 1122",
-    status: "suspended",
-    roles: [INITIAL_ROLES[4]],
-    role_ids: [5],
-    mda_id: 4,
-    mda_name: "Federal Ministry of Health",
-    department_id: 401,
-    department_name: "Hospital Services",
-    scope_level: "department",
-    accessible_modules: ["Dashboard", "Employees"],
-    last_login: "2026-08-30T10:14:00Z",
-    created_at: "2025-07-10T14:00:00Z",
-    updated_at: "2026-09-01T09:00:00Z",
-  },
-  {
-    id: "USR-006",
-    username: "chinyere.ugwu",
-    email: "c.ugwu@fmoe.gov.ng",
-    full_name: "Chinyere Ugwu",
-    staff_id: "FMOE-ADM-015",
-    phone: "+234 809 111 2233",
-    status: "deactivated",
-    roles: [INITIAL_ROLES[1]],
-    role_ids: [2],
-    mda_id: 5,
-    mda_name: "Federal Ministry of Education",
-    department_id: 501,
-    department_name: "Tertiary Education",
-    scope_level: "assigned_mda",
-    accessible_modules: [],
-    last_login: "2026-05-14T12:00:00Z",
-    created_at: "2025-02-18T09:00:00Z",
-    updated_at: "2026-05-20T11:00:00Z",
-  },
-]
+// Helper to extract an informative error message from Axios / backend
+const extractErrorMessage = (err: any, defaultMessage: string): string => {
+  if (err?.response?.data?.message) return err.response.data.message
+  if (err?.response?.data?.error) return err.response.data.error
+  if (typeof err?.response?.data === "string") return err.response.data
+  if (err?.message) return err.message
+  return defaultMessage
+}
 
-const DEFAULT_AUDIT_LOGS: AuditEvent[] = [
-  {
-    id: "AUD-1001",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-    actor_name: "Babajide Adeleke (Super Admin)",
-    actor_id: "USR-001",
-    action: "ROLE_ASSIGNMENT",
-    target_user_id: "USR-002",
-    target_user_name: "Fatima Sanusi",
-    reason: "Promoted to Senior Payroll Approver per Civil Service Commission directive CSC/2026/04",
-    details: { assigned_role: "Payroll Approver", previous_roles: ["Payroll Officer"] },
-  },
-  {
-    id: "AUD-1002",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
-    actor_name: "Babajide Adeleke (Super Admin)",
-    actor_id: "USR-001",
-    action: "STATUS_CHANGE",
-    target_user_id: "USR-005",
-    target_user_name: "Tunde Bakare",
-    reason: "Disciplinary query regarding unauthorized payroll data inquiry",
-    details: { previous_status: "active", new_status: "suspended", suspension_duration_days: 14 },
-  },
-  {
-    id: "AUD-1003",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
-    actor_name: "Babajide Adeleke (Super Admin)",
-    actor_id: "USR-001",
-    action: "SCOPE_CHANGE",
-    target_user_id: "USR-003",
-    target_user_name: "Emeka Okoye",
-    reason: "Reassigned from Budget Office to Revenue & Tax Policy Department scope",
-    details: { previous_scope: "Department Only", new_scope: "Assigned MDA (Full)" },
-  },
-]
+// Normalizer to guarantee consistent UserAccount structure across backend schema variations
+export const normalizeUserAccount = (raw: any): UserAccount => {
+  const rolesList: Role[] = Array.isArray(raw.roles)
+    ? raw.roles.map((r: any) => ({
+        id: Number(r.id || r.role_id || 1),
+        name: r.name || r.role_name || "User",
+        description: r.description || "",
+      }))
+    : raw.role
+    ? [{ id: 1, name: String(raw.role) }]
+    : []
 
-// Helpers for localStorage sync
-const getStoredUsers = (): UserAccount[] => {
-  if (typeof window === "undefined") return DEFAULT_USERS
-  try {
-    const raw = localStorage.getItem(STORAGE_USERS_KEY)
-    if (!raw) {
-      localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(DEFAULT_USERS))
-      return DEFAULT_USERS
-    }
-    return JSON.parse(raw) as UserAccount[]
-  } catch {
-    return DEFAULT_USERS
+  const roleIds: (string | number)[] = Array.isArray(raw.role_ids) && raw.role_ids.length > 0
+    ? raw.role_ids
+    : rolesList.map((r) => r.id)
+
+  const rawStatus = (raw.status || (raw.is_active === false ? "deactivated" : "active")) as string
+  const validStatus: UserStatus = ["active", "suspended", "deactivated", "pending"].includes(rawStatus)
+    ? (rawStatus as UserStatus)
+    : "active"
+
+  return {
+    id: raw.id,
+    username: raw.username || "",
+    email: raw.email || "",
+    full_name: raw.full_name || raw.name || raw.username || "System User",
+    staff_id: raw.staff_id || `IPPIS-STAFF-${raw.id}`,
+    phone: raw.phone || "",
+    status: validStatus,
+    roles: rolesList,
+    role_ids: roleIds,
+    mda_id: raw.mda_id ?? raw.company_id ?? undefined,
+    mda_name: raw.mda_name || raw.company_name || "",
+    department_id: raw.department_id ?? undefined,
+    department_name: raw.department_name || "",
+    scope_level: raw.scope_level || "assigned_mda",
+    accessible_modules: Array.isArray(raw.accessible_modules) ? raw.accessible_modules : [],
+    effective_permissions: Array.isArray(raw.effective_permissions) ? raw.effective_permissions : undefined,
+    last_login: raw.last_login || undefined,
+    created_at: raw.created_at || new Date().toISOString(),
+    updated_at: raw.updated_at || new Date().toISOString(),
   }
 }
 
-const saveStoredUsers = (users: UserAccount[]) => {
-  if (typeof window === "undefined") return
-  try {
-    localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(users))
-  } catch (err) {
-    console.error("Failed to save users to cache", err)
-  }
-}
+// ----------------- LIVE EXPORTED API METHODS -----------------
 
-const getStoredAuditLogs = (): AuditEvent[] => {
-  if (typeof window === "undefined") return DEFAULT_AUDIT_LOGS
-  try {
-    const raw = localStorage.getItem(STORAGE_AUDIT_KEY)
-    if (!raw) {
-      localStorage.setItem(STORAGE_AUDIT_KEY, JSON.stringify(DEFAULT_AUDIT_LOGS))
-      return DEFAULT_AUDIT_LOGS
-    }
-    return JSON.parse(raw) as AuditEvent[]
-  } catch {
-    return DEFAULT_AUDIT_LOGS
-  }
-}
-
-const recordAuditEvent = (event: Omit<AuditEvent, "id" | "timestamp">) => {
-  const currentLogs = getStoredAuditLogs()
-  const newLog: AuditEvent = {
-    ...event,
-    id: `AUD-${Date.now()}`,
-    timestamp: new Date().toISOString(),
-  }
-  const updated = [newLog, ...currentLogs]
-  if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(STORAGE_AUDIT_KEY, JSON.stringify(updated))
-    } catch (err) {
-      console.error("Failed to save audit log", err)
-    }
-  }
-  return newLog
-}
-
-// ----------------- EXPORTED SERVICE METHODS -----------------
-
+/**
+ * Fetch available roles from live Render backend
+ */
 export const getAvailableRoles = async (): Promise<Role[]> => {
   try {
-    // Attempt backend fetch if accessible
-    const res = await fetch("/api/roles", { cache: "no-store" })
-    if (res.ok) {
-      const data = await res.json()
-      if (Array.isArray(data?.data) && data.data.length > 0) {
-        return data.data
-      }
+    const res = await api.get<any>("/roles")
+    const list = Array.isArray(res.data)
+      ? res.data
+      : Array.isArray(res.data?.data)
+      ? res.data.data
+      : Array.isArray(res.data?.roles)
+      ? res.data.roles
+      : []
+
+    if (list.length > 0) {
+      return list.map((r: any) => ({
+        id: Number(r.id),
+        name: r.name || r.role_name,
+        description: r.description || "",
+      }))
     }
   } catch (err) {
-    // Fall back to seed
+    console.warn("Could not load roles from /roles, trying fallback", err)
   }
   return INITIAL_ROLES
 }
 
-export const getAvailableMdas = async () => {
+/**
+ * Fetch seeded Federal MDAs & Companies from live Render backend
+ */
+export const getAvailableMdas = async (): Promise<{ id: number; name: string; code: string }[]> => {
+  try {
+    const res = await api.get<any>("/admin/organization/company")
+    const list = Array.isArray(res.data)
+      ? res.data
+      : Array.isArray(res.data?.data)
+      ? res.data.data
+      : Array.isArray(res.data?.companies)
+      ? res.data.companies
+      : []
+
+    if (list.length > 0) {
+      return list.map((c: any) => ({
+        id: Number(c.id),
+        name: c.name || c.company_name || "Unknown MDA",
+        code: c.code || c.company_code || c.name || `MDA-${c.id}`,
+      }))
+    }
+  } catch (err) {
+    console.warn("Could not load MDAs from /admin/organization/company", err)
+  }
   return INITIAL_MDAS
 }
 
-export const getDepartmentsForMda = async (mdaId: number | string) => {
+/**
+ * Fetch departments for a given MDA/Company from live Render backend
+ */
+export const getDepartmentsForMda = async (
+  mdaId: number | string
+): Promise<{ id: number; name: string }[]> => {
   const id = Number(mdaId)
+  if (!id) return []
+
+  try {
+    const res = await api.get<any>("/admin/organization/department", {
+      params: { company_id: id },
+    })
+    const list = Array.isArray(res.data)
+      ? res.data
+      : Array.isArray(res.data?.data)
+      ? res.data.data
+      : Array.isArray(res.data?.departments)
+      ? res.data.departments
+      : []
+
+    if (list.length > 0) {
+      return list.map((d: any) => ({
+        id: Number(d.id),
+        name: d.name || d.department_name || "Department",
+      }))
+    }
+  } catch (err) {
+    console.warn(`Could not load departments for MDA ${id}`, err)
+  }
+
   return INITIAL_DEPARTMENTS[id] || []
 }
 
 /**
- * USR07: Search and filter users by name, staff ID, role, status, MDA and department
+ * USR07: Search, filter, and fetch users from live Render backend endpoint (/api/users/admin)
  */
-export const fetchUsers = async (params?: UserFilterParams): Promise<{ users: UserAccount[]; total: number }> => {
-  // Check backend users/admin first if reachable
+export const fetchUsers = async (
+  params?: UserFilterParams
+): Promise<{ users: UserAccount[]; total: number }> => {
   try {
-    const res = await fetch("/api/users/admin", { cache: "no-store" })
-    if (res.ok) {
-      const json = await res.json()
-      if (json.success && json.data?.users?.length) {
-        // Backend returned live users; merge with local rich attributes
-        const liveUsers = json.data.users.map((u: any, idx: number) => ({
-          id: String(u.id),
-          username: u.username,
-          email: u.email,
-          full_name: u.full_name || u.username,
-          staff_id: `IPPIS-STAFF-${1000 + u.id}`,
-          phone: "+234 800 000 0000",
-          status: (u.is_active ? "active" : "deactivated") as UserStatus,
-          roles: [{ id: 1, name: u.role || "Admin" }],
-          role_ids: [1],
-          mda_name: "Office of the Accountant General of the Federation",
-          department_name: "IPPIS Central Operations",
-          scope_level: "all_mdas" as const,
-          created_at: u.created_at || new Date().toISOString(),
-          updated_at: u.updated_at || new Date().toISOString(),
-          accessible_modules: ["Dashboard", "Employees", "Payroll"],
-        }))
+    const queryParams: Record<string, any> = {}
 
-        // Cache live items if not already cached
-        const current = getStoredUsers()
-        if (current.length <= DEFAULT_USERS.length) {
-          saveStoredUsers([...liveUsers, ...DEFAULT_USERS.slice(liveUsers.length)])
-        }
-      }
+    if (params?.search?.trim()) queryParams.search = params.search.trim()
+    if (params?.role && params.role !== "all") queryParams.role = params.role
+    if (params?.status && params.status !== "all") queryParams.status = params.status
+    if (params?.mda_id && params.mda_id !== "all") queryParams.mda_id = params.mda_id
+    if (params?.department_id && params.department_id !== "all") queryParams.department_id = params.department_id
+    if (params?.page) queryParams.page = params.page
+    if (params?.limit) queryParams.limit = params.limit
+
+    const res = await api.get<any>("/users/admin", { params: queryParams })
+    const payload = res.data
+
+    let rawUsers: any[] = []
+    let totalCount = 0
+
+    if (Array.isArray(payload)) {
+      rawUsers = payload
+      totalCount = payload.length
+    } else if (Array.isArray(payload?.data)) {
+      rawUsers = payload.data
+      totalCount = payload.total ?? payload.data.length
+    } else if (Array.isArray(payload?.data?.users)) {
+      rawUsers = payload.data.users
+      totalCount = payload.data.total ?? payload.data.users.length
+    } else if (Array.isArray(payload?.users)) {
+      rawUsers = payload.users
+      totalCount = payload.total ?? payload.users.length
     }
-  } catch {
-    // Continue with client storage
-  }
 
-  let users = getStoredUsers()
+    const normalized = rawUsers.map(normalizeUserAccount)
 
-  if (params?.search?.trim()) {
-    const q = params.search.toLowerCase().trim()
-    users = users.filter(
-      (u) =>
-        u.full_name.toLowerCase().includes(q) ||
-        u.username.toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q) ||
-        u.staff_id.toLowerCase().includes(q)
-    )
-  }
+    // Save to local cache for resilient offline reference
+    if (typeof window !== "undefined" && normalized.length > 0) {
+      try {
+        localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(normalized))
+      } catch {}
+    }
 
-  if (params?.status && params.status !== "all") {
-    users = users.filter((u) => u.status === params.status)
-  }
+    return {
+      users: normalized,
+      total: totalCount || normalized.length,
+    }
+  } catch (err: any) {
+    console.error("Live fetchUsers failed from Render backend:", err)
 
-  if (params?.role && params.role !== "all") {
-    users = users.filter((u) =>
-      u.roles.some((r) => String(r.id) === String(params.role) || r.name.toLowerCase() === params.role?.toLowerCase())
-    )
-  }
+    // Fall back to cached users if network is unreachable
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(STORAGE_USERS_KEY)
+        if (raw) {
+          const cached = JSON.parse(raw) as UserAccount[]
+          return { users: cached, total: cached.length }
+        }
+      } catch {}
+    }
 
-  if (params?.mda_id && params.mda_id !== "all") {
-    users = users.filter((u) => String(u.mda_id) === String(params.mda_id))
-  }
-
-  if (params?.department_id && params.department_id !== "all") {
-    users = users.filter((u) => String(u.department_id) === String(params.department_id))
-  }
-
-  return {
-    users,
-    total: users.length,
+    throw new Error(extractErrorMessage(err, "Failed to fetch users from server"))
   }
 }
 
 /**
- * USR01, USR04, USR05: Create individual user account through authorized workflow
+ * USR01, USR04, USR05: Create individual user account on live Render backend (POST /api/users/admin)
  */
 export const createUserAccount = async (payload: CreateUserRequest): Promise<UserAccount> => {
-  // Forward to backend if available
   try {
-    await fetch("/api/users/admin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: payload.username,
-        email: payload.email,
-        password: payload.password || "TempPassword123!",
-        full_name: payload.full_name,
-        role: "admin",
-        is_active: payload.status === "active",
-      }),
+    const res = await api.post<any>("/users/admin", {
+      username: payload.username,
+      email: payload.email,
+      full_name: payload.full_name,
+      password: payload.password,
+      staff_id: payload.staff_id,
+      phone: payload.phone,
+      role_ids: payload.role_ids,
+      mda_id: payload.mda_id ? Number(payload.mda_id) : undefined,
+      department_id: payload.department_id ? Number(payload.department_id) : undefined,
+      scope_level: payload.scope_level,
+      status: payload.status,
+      notes: payload.notes,
     })
-  } catch (err) {
-    console.warn("Backend user create endpoint unavailable, continuing with client state", err)
+
+    const data = res.data?.data || res.data?.user || res.data
+    const createdUser = normalizeUserAccount(data)
+
+    // Update local cache
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(STORAGE_USERS_KEY)
+        const current: UserAccount[] = raw ? JSON.parse(raw) : []
+        localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify([createdUser, ...current]))
+      } catch {}
+    }
+
+    return createdUser
+  } catch (err: any) {
+    console.error("createUserAccount failed on Render backend:", err)
+    throw new Error(extractErrorMessage(err, "Failed to create user account on server"))
   }
-
-  const allRoles = await getAvailableRoles()
-  const assignedRoles = allRoles.filter((r) => payload.role_ids.map(String).includes(String(r.id)))
-
-  const newUser: UserAccount = {
-    id: `USR-${Date.now().toString().slice(-4)}`,
-    username: payload.username,
-    email: payload.email,
-    full_name: payload.full_name,
-    staff_id: payload.staff_id,
-    phone: payload.phone,
-    status: payload.status,
-    roles: assignedRoles.length > 0 ? assignedRoles : [INITIAL_ROLES[1]],
-    role_ids: payload.role_ids,
-    mda_id: payload.mda_id,
-    mda_name: payload.mda_name,
-    department_id: payload.department_id,
-    department_name: payload.department_name,
-    scope_level: payload.scope_level,
-    accessible_modules: ["Dashboard", "Employees", "HR Reports"],
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }
-
-  const existing = getStoredUsers()
-  const updated = [newUser, ...existing]
-  saveStoredUsers(updated)
-
-  // Record audit log (USR09)
-  recordAuditEvent({
-    actor_name: "Current Administrator",
-    action: "CREATE_USER",
-    target_user_id: newUser.id,
-    target_user_name: newUser.full_name,
-    reason: payload.notes || "Authorized initial account creation workflow",
-    details: {
-      staff_id: newUser.staff_id,
-      roles: newUser.roles.map((r) => r.name),
-      mda: newUser.mda_name,
-      department: newUser.department_name,
-      scope: newUser.scope_level,
-    },
-  })
-
-  return newUser
 }
 
 /**
- * USR01, USR04, USR05, USR09: Update user account with mandatory reason
+ * USR01, USR04, USR05, USR09: Update user account with mandatory reason (PATCH /api/users/admin)
  */
 export const updateUserAccount = async (payload: UpdateUserRequest): Promise<UserAccount> => {
   if (!payload.reason || !payload.reason.trim()) {
     throw new Error("A justification reason is required for sensitive account modifications (USR09)")
   }
 
-  const allUsers = getStoredUsers()
-  const index = allUsers.findIndex((u) => String(u.id) === String(payload.id))
-  if (index === -1) {
-    throw new Error("User account not found")
-  }
-
-  const currentUser = allUsers[index]
-  const allRoles = await getAvailableRoles()
-
-  let updatedRoles = currentUser.roles
-  if (payload.role_ids) {
-    updatedRoles = allRoles.filter((r) => payload.role_ids?.map(String).includes(String(r.id)))
-  }
-
-  const updatedUser: UserAccount = {
-    ...currentUser,
-    username: payload.username ?? currentUser.username,
-    email: payload.email ?? currentUser.email,
-    full_name: payload.full_name ?? currentUser.full_name,
-    staff_id: payload.staff_id ?? currentUser.staff_id,
-    phone: payload.phone ?? currentUser.phone,
-    role_ids: payload.role_ids ?? currentUser.role_ids,
-    roles: updatedRoles,
-    mda_id: payload.mda_id ?? currentUser.mda_id,
-    mda_name: payload.mda_name ?? currentUser.mda_name,
-    department_id: payload.department_id ?? currentUser.department_id,
-    department_name: payload.department_name ?? currentUser.department_name,
-    scope_level: payload.scope_level ?? currentUser.scope_level,
-    status: payload.status ?? currentUser.status,
-    updated_at: new Date().toISOString(),
-  }
-
-  allUsers[index] = updatedUser
-  saveStoredUsers(allUsers)
-
-  // Try updating backend
   try {
-    await fetch("/api/users/admin", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: updatedUser.id,
-        username: updatedUser.username,
-        email: updatedUser.email,
-        full_name: updatedUser.full_name,
-        is_active: updatedUser.status === "active",
-      }),
+    const res = await api.patch<any>("/users/admin", {
+      id: payload.id,
+      username: payload.username,
+      email: payload.email,
+      full_name: payload.full_name,
+      staff_id: payload.staff_id,
+      phone: payload.phone,
+      role_ids: payload.role_ids,
+      mda_id: payload.mda_id ? Number(payload.mda_id) : undefined,
+      department_id: payload.department_id ? Number(payload.department_id) : undefined,
+      scope_level: payload.scope_level,
+      status: payload.status,
+      password: payload.password,
+      reason: payload.reason,
     })
-  } catch (err) {
-    console.warn("Backend update error:", err)
+
+    const data = res.data?.data || res.data?.user || res.data
+    const updatedUser = normalizeUserAccount(data)
+
+    // Sync cache
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(STORAGE_USERS_KEY)
+        if (raw) {
+          const current: UserAccount[] = JSON.parse(raw)
+          const idx = current.findIndex((u) => String(u.id) === String(updatedUser.id))
+          if (idx !== -1) {
+            current[idx] = updatedUser
+            localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(current))
+          }
+        }
+      } catch {}
+    }
+
+    return updatedUser
+  } catch (err: any) {
+    console.error("updateUserAccount failed on Render backend:", err)
+    throw new Error(extractErrorMessage(err, "Failed to update user account"))
   }
-
-  // Audit event (USR09)
-  recordAuditEvent({
-    actor_name: "Current Administrator",
-    action: "UPDATE_USER",
-    target_user_id: updatedUser.id,
-    target_user_name: updatedUser.full_name,
-    reason: payload.reason,
-    details: {
-      previous: {
-        roles: currentUser.roles.map((r) => r.name),
-        mda: currentUser.mda_name,
-        scope: currentUser.scope_level,
-      },
-      updated: {
-        roles: updatedUser.roles.map((r) => r.name),
-        mda: updatedUser.mda_name,
-        scope: updatedUser.scope_level,
-      },
-    },
-  })
-
-  return updatedUser
 }
 
 /**
- * USR06, USR09: Account activation, suspension, deactivation and reactivation
+ * USR06, USR09: Account activation, suspension, and deactivation (PATCH /api/users/admin)
  */
 export const changeUserStatus = async (payload: ChangeUserStatusRequest): Promise<UserAccount> => {
   if (!payload.reason || !payload.reason.trim()) {
     throw new Error("A justification reason is required to alter user account status (USR09)")
   }
 
-  const allUsers = getStoredUsers()
-  const user = allUsers.find((u) => String(u.id) === String(payload.user_id))
-  if (!user) {
-    throw new Error("User account not found")
+  try {
+    const res = await api.patch<any>("/users/admin", {
+      id: payload.user_id,
+      status: payload.status,
+      reason: payload.reason,
+      suspension_days: payload.suspension_days,
+    })
+
+    const data = res.data?.data || res.data?.user || res.data
+    const updatedUser = normalizeUserAccount(data)
+
+    // Sync cache
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(STORAGE_USERS_KEY)
+        if (raw) {
+          const current: UserAccount[] = JSON.parse(raw)
+          const idx = current.findIndex((u) => String(u.id) === String(updatedUser.id))
+          if (idx !== -1) {
+            current[idx] = updatedUser
+            localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(current))
+          }
+        }
+      } catch {}
+    }
+
+    return updatedUser
+  } catch (err: any) {
+    console.error("changeUserStatus failed on Render backend:", err)
+    throw new Error(extractErrorMessage(err, "Failed to update account lifecycle status"))
   }
-
-  const previousStatus = user.status
-  user.status = payload.status
-  user.updated_at = new Date().toISOString()
-  saveStoredUsers(allUsers)
-
-  // Audit event (USR09)
-  recordAuditEvent({
-    actor_name: "Current Administrator",
-    action: "STATUS_CHANGE",
-    target_user_id: user.id,
-    target_user_name: user.full_name,
-    reason: payload.reason,
-    details: {
-      previous_status: previousStatus,
-      new_status: payload.status,
-      suspension_days: payload.suspension_days || null,
-    },
-  })
-
-  return user
 }
 
 /**
- * USR10: Preview bulk role assignment or revocation
+ * Soft-delete / deactivate user account (DELETE /api/users/admin)
+ */
+export const deleteUserAccount = async (id: string | number, reason?: string): Promise<{ success: boolean }> => {
+  try {
+    const res = await api.delete<any>("/users/admin", {
+      params: { id, reason: reason || "Administrative soft-deactivation" },
+    })
+
+    // Remove from local cache
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(STORAGE_USERS_KEY)
+        if (raw) {
+          const current: UserAccount[] = JSON.parse(raw)
+          localStorage.setItem(
+            STORAGE_USERS_KEY,
+            JSON.stringify(current.filter((u) => String(u.id) !== String(id)))
+          )
+        }
+      } catch {}
+    }
+
+    return { success: true }
+  } catch (err: any) {
+    console.error("deleteUserAccount failed on Render backend:", err)
+    throw new Error(extractErrorMessage(err, "Failed to delete user account"))
+  }
+}
+
+/**
+ * USR10: Preview bulk role assignment or revocation (POST /api/users/admin/bulk-role with action: "preview")
  */
 export const previewBulkRoleAction = async (payload: {
   user_ids: (string | number)[]
   role_id: string | number
   action: "assign" | "revoke"
 }): Promise<BulkRolePreview> => {
-  const allUsers = getStoredUsers()
-  const allRoles = await getAvailableRoles()
-  const targetRole = allRoles.find((r) => String(r.id) === String(payload.role_id))
-  if (!targetRole) {
-    throw new Error("Selected role does not exist")
-  }
+  try {
+    const res = await api.post<any>("/users/admin/bulk-role", {
+      user_ids: payload.user_ids,
+      role_id: payload.role_id,
+      role_action: payload.action,
+      action: "preview",
+    })
 
-  const selectedUsers = allUsers.filter((u) => payload.user_ids.map(String).includes(String(u.id)))
-
-  let applicableCount = 0
-  let alreadyInStateCount = 0
-
-  const affectedUsers = selectedUsers.map((user) => {
-    const hasRole = user.roles.some((r) => String(r.id) === String(payload.role_id))
-    let willChange = false
-    let actionSummary = ""
-
-    if (payload.action === "assign") {
-      if (hasRole) {
-        alreadyInStateCount++
-        actionSummary = `Already possesses '${targetRole.name}'`
-      } else {
-        willChange = true
-        applicableCount++
-        actionSummary = `Will be assigned '${targetRole.name}'`
-      }
-    } else {
-      if (hasRole) {
-        willChange = true
-        applicableCount++
-        actionSummary = `Will have '${targetRole.name}' revoked`
-      } else {
-        alreadyInStateCount++
-        actionSummary = `Does not have '${targetRole.name}'`
-      }
-    }
-
-    return {
-      user,
-      current_roles: user.roles,
-      will_change: willChange,
-      action_summary: actionSummary,
-    }
-  })
-
-  return {
-    target_role: targetRole,
-    action: payload.action,
-    affected_users: affectedUsers,
-    total_selected: selectedUsers.length,
-    applicable_count: applicableCount,
-    already_in_state_count: alreadyInStateCount,
+    const data = res.data?.data || res.data
+    return data as BulkRolePreview
+  } catch (err: any) {
+    console.error("previewBulkRoleAction failed on Render backend:", err)
+    throw new Error(extractErrorMessage(err, "Failed to preview bulk role modification"))
   }
 }
 
 /**
- * USR10: Execute bulk role assignment/revocation with audit and outcome report
+ * USR10: Execute bulk role assignment/revocation (POST /api/users/admin/bulk-role with action: "execute")
  */
 export const executeBulkRoleAction = async (payload: BulkRoleActionRequest): Promise<BulkRoleOutcomeReport> => {
   if (!payload.reason || !payload.reason.trim()) {
     throw new Error("A justification reason is required for bulk role operations (USR09, USR10)")
   }
 
-  const preview = await previewBulkRoleAction({
-    user_ids: payload.user_ids,
-    role_id: payload.role_id,
-    action: payload.action,
-  })
+  try {
+    const res = await api.post<any>("/users/admin/bulk-role", {
+      user_ids: payload.user_ids,
+      role_id: payload.role_id,
+      role_action: payload.action,
+      action: "execute",
+      reason: payload.reason,
+    })
 
-  const allUsers = getStoredUsers()
-  const items: BulkRoleOutcomeReport["items"] = []
-  let succeeded = 0
-
-  for (const item of preview.affected_users) {
-    if (!item.will_change) {
-      items.push({
-        user_id: item.user.id,
-        user_name: item.user.full_name,
-        status: "skipped",
-        message: item.action_summary,
-      })
-      continue
-    }
-
-    const userIndex = allUsers.findIndex((u) => String(u.id) === String(item.user.id))
-    if (userIndex !== -1) {
-      const user = allUsers[userIndex]
-      if (payload.action === "assign") {
-        user.roles = [...user.roles, preview.target_role]
-        user.role_ids = Array.from(new Set([...user.role_ids, preview.target_role.id]))
-      } else {
-        user.roles = user.roles.filter((r) => String(r.id) !== String(preview.target_role.id))
-        user.role_ids = user.role_ids.filter((id) => String(id) !== String(preview.target_role.id))
-      }
-      user.updated_at = new Date().toISOString()
-      succeeded++
-      items.push({
-        user_id: user.id,
-        user_name: user.full_name,
-        status: "success",
-        message: `Successfully ${payload.action === "assign" ? "assigned" : "revoked"} role`,
-      })
-    }
-  }
-
-  saveStoredUsers(allUsers)
-
-  // Audit event (USR09, USR10)
-  recordAuditEvent({
-    actor_name: "Current Administrator",
-    action: "BULK_ROLE_CHANGE",
-    target_user_id: `MULTIPLE (${succeeded})`,
-    target_user_name: `${succeeded} user accounts`,
-    reason: payload.reason,
-    details: {
-      action: payload.action,
-      role: preview.target_role.name,
-      total_processed: preview.total_selected,
-      succeeded_count: succeeded,
-    },
-  })
-
-  return {
-    timestamp: new Date().toISOString(),
-    action: payload.action,
-    role_name: preview.target_role.name,
-    total_processed: preview.total_selected,
-    succeeded_count: succeeded,
-    failed_count: items.filter((i) => i.status === "error").length,
-    reason: payload.reason,
-    items,
+    const data = res.data?.data || res.data
+    return data as BulkRoleOutcomeReport
+  } catch (err: any) {
+    console.error("executeBulkRoleAction failed on Render backend:", err)
+    throw new Error(extractErrorMessage(err, "Failed to execute bulk role action on server"))
   }
 }
 
 /**
- * USR02, USR03: Bulk import users with CSV parsing and strict validations
+ * USR02, USR03: Ingest, validate and import users via CSV on Render backend (POST /api/users/admin/import)
  */
 export const validateAndImportUsersCsv = async (
   csvContent: string,
   options: { dryRun?: boolean; reason?: string } = {}
 ): Promise<UserImportResult> => {
-  const lines = csvContent.split(/\r?\n/).filter((l) => l.trim().length > 0)
-  if (lines.length <= 1) {
-    throw new Error("CSV file contains no data rows")
+  if (!csvContent || !csvContent.trim()) {
+    throw new Error("CSV file content is empty")
   }
 
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
-  const requiredCols = ["username", "email", "fullname", "staffid"]
-  const missing = requiredCols.filter((rc) => !headers.some((h) => h.replace(/[^a-z]/g, "").includes(rc)))
-  if (missing.length > 0) {
-    throw new Error(`CSV is missing mandatory header columns: ${missing.join(", ")}`)
-  }
-
-  const existingUsers = getStoredUsers()
-  const existingUsernames = new Set(existingUsers.map((u) => u.username.toLowerCase()))
-  const existingEmails = new Set(existingUsers.map((u) => u.email.toLowerCase()))
-  const existingStaffIds = new Set(existingUsers.map((u) => u.staff_id.toLowerCase()))
-
-  const fileUsernames = new Set<string>()
-  const fileEmails = new Set<string>()
-  const fileStaffIds = new Set<string>()
-
-  const rows: UserImportRow[] = []
-  const allRoles = await getAvailableRoles()
-
-  for (let i = 1; i < lines.length; i++) {
-    const rawCols = lines[i].split(",").map((c) => c.trim())
-    if (rawCols.every((c) => c === "")) continue
-
-    // Map header indices
-    const getVal = (pattern: string) => {
-      const idx = headers.findIndex((h) => h.replace(/[^a-z]/g, "").includes(pattern))
-      return idx >= 0 && rawCols[idx] ? rawCols[idx] : ""
-    }
-
-    const username = getVal("username")
-    const email = getVal("email")
-    const fullName = getVal("fullname") || getVal("name")
-    const staffId = getVal("staffid") || getVal("id")
-    const phone = getVal("phone")
-    const roleNames = getVal("role") || "MDA Administrator"
-    const mdaName = getVal("mda") || "Federal Ministry of Finance"
-    const departmentName = getVal("department") || "Revenue & Tax Policy"
-    const scopeLevel = (getVal("scope") || "assigned_mda") as any
-
-    const errors: string[] = []
-    const warnings: string[] = []
-
-    // USR03: Validate required identifiers
-    if (!username) errors.push("Username is required")
-    if (!email) errors.push("Email is required")
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push("Invalid email format")
-    if (!fullName) errors.push("Full Name is required")
-    if (!staffId) errors.push("Staff ID is required")
-
-    // USR03: Check duplicate accounts
-    if (username) {
-      const uLower = username.toLowerCase()
-      if (existingUsernames.has(uLower)) errors.push(`Username '${username}' already exists in system`)
-      if (fileUsernames.has(uLower)) errors.push(`Duplicate username '${username}' inside file`)
-      fileUsernames.add(uLower)
-    }
-
-    if (email) {
-      const eLower = email.toLowerCase()
-      if (existingEmails.has(eLower)) errors.push(`Email '${email}' already exists in system`)
-      if (fileEmails.has(eLower)) errors.push(`Duplicate email '${email}' inside file`)
-      fileEmails.add(eLower)
-    }
-
-    if (staffId) {
-      const sLower = staffId.toLowerCase()
-      if (existingStaffIds.has(sLower)) errors.push(`Staff ID '${staffId}' already exists in system`)
-      if (fileStaffIds.has(sLower)) errors.push(`Duplicate staff ID '${staffId}' inside file`)
-      fileStaffIds.add(sLower)
-    }
-
-    // Role check warning
-    const matchingRoles = allRoles.filter((r) =>
-      roleNames.toLowerCase().includes(r.name.toLowerCase())
-    )
-    if (matchingRoles.length === 0) {
-      warnings.push(`Role '${roleNames}' will default to MDA Administrator`)
-    }
-
-    rows.push({
-      row_number: i,
-      username,
-      email,
-      full_name: fullName,
-      staff_id: staffId,
-      phone,
-      role_names: roleNames,
-      mda_name: mdaName,
-      department_name: departmentName,
-      scope_level: scopeLevel,
-      status: "active",
-      valid: errors.length === 0,
-      errors,
-      warnings,
+  try {
+    const res = await api.post<any>("/users/admin/import", {
+      csvContent,
+      dryRun: options.dryRun ?? false,
+      reason: options.reason || "Bulk user import cohort",
     })
+
+    const data = res.data?.data || res.data
+
+    return {
+      total: Number(data.total ?? data.records?.length ?? 0),
+      valid: Number(data.valid ?? 0),
+      invalid: Number(data.invalid ?? data.failed ?? 0),
+      imported: Number(data.imported ?? 0),
+      failed: Number(data.failed ?? data.invalid ?? 0),
+      records: Array.isArray(data.records) ? data.records : [],
+    }
+  } catch (err: any) {
+    console.error("validateAndImportUsersCsv failed on Render backend:", err)
+    throw new Error(extractErrorMessage(err, "Failed to process bulk user import on server"))
   }
+}
 
-  const validRows = rows.filter((r) => r.valid)
+/**
+ * USR08: Lookup effective permissions and accessible modules for a user (GET /api/users/admin/effective-access)
+ */
+export const getUserEffectiveAccess = async (user: UserAccount) => {
+  try {
+    const res = await api.get<any>("/users/admin/effective-access", {
+      params: { id: user.id },
+    })
 
-  if (!options.dryRun && validRows.length > 0) {
-    const newAccounts: UserAccount[] = validRows.map((r) => {
-      const matchingRole = allRoles.find((role) =>
-        r.role_names.toLowerCase().includes(role.name.toLowerCase())
-      ) || INITIAL_ROLES[1]
+    const data = res.data?.data || res.data
 
-      return {
-        id: `USR-IMP-${Date.now().toString().slice(-4)}-${r.row_number}`,
-        username: r.username,
-        email: r.email,
-        full_name: r.full_name,
-        staff_id: r.staff_id,
-        phone: r.phone,
-        status: "active",
-        roles: [matchingRole],
-        role_ids: [matchingRole.id],
-        mda_name: r.mda_name,
-        department_name: r.department_name,
-        scope_level: r.scope_level,
-        accessible_modules: ["Dashboard", "Employees", "HR Reports"],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+    return {
+      user: data.user ? normalizeUserAccount(data.user) : user,
+      modules: Array.isArray(data.modules) ? data.modules : [],
+      granular_permissions: Array.isArray(data.granular_permissions) ? data.granular_permissions : [],
+    }
+  } catch (err: any) {
+    console.warn("getUserEffectiveAccess failed on backend, computing client-side access:", err)
+
+    // Compute deterministic role access mapping as fallback
+    const roleNames = user.roles.map((r) => r.name.toLowerCase())
+    const isSuper = roleNames.some((r) => r.includes("super"))
+    const isPayroll = isSuper || roleNames.some((r) => r.includes("payroll"))
+    const isHr = isSuper || roleNames.some((r) => r.includes("hr"))
+    const isAuditor = isSuper || roleNames.some((r) => r.includes("audit"))
+    const isMdaAdmin = isSuper || roleNames.some((r) => r.includes("mda admin"))
+
+    const modules = [
+      { name: "Dashboard & Analytics", accessible: true, access_level: "Full Access", resource: "dashboard" },
+      {
+        name: "Employee Management",
+        accessible: isSuper || isHr || isMdaAdmin,
+        access_level: isSuper || isHr ? "Full Management" : isMdaAdmin ? "MDA Scope Only" : "Read Only",
+        resource: "employees",
+      },
+      {
+        name: "Payroll Operations",
+        accessible: isPayroll,
+        access_level: roleNames.some((r) => r.includes("approver")) ? "Approval & Initiation" : "Calculation Only",
+        resource: "payroll",
+      },
+      {
+        name: "Core HR & Approvals",
+        accessible: isSuper || isHr || isMdaAdmin,
+        access_level: isSuper ? "Universal Approval" : "Department Scope",
+        resource: "core-hr",
+      },
+      {
+        name: "Finance & Accounts",
+        accessible: isSuper || isPayroll,
+        access_level: isSuper ? "Full Access" : "Disbursement Ledger",
+        resource: "finance",
+      },
+      {
+        name: "HR Reports & Compliance",
+        accessible: true,
+        access_level: isAuditor ? "Full Audit Read-Out" : "Operational Reports",
+        resource: "hr-reports",
+      },
+      {
+        name: "User Management & Security",
+        accessible: isSuper,
+        access_level: isSuper ? "Full Administration" : "No Access",
+        resource: "users",
+      },
+      {
+        name: "Role & Permission Configuration",
+        accessible: isSuper,
+        access_level: isSuper ? "Full Administration" : "No Access",
+        resource: "permissions",
+      },
+    ]
+
+    const granularPermissions: Permission[] = []
+
+    user.roles.forEach((role) => {
+      const rName = role.name.toLowerCase()
+      if (rName.includes("super")) {
+        granularPermissions.push({
+          id: 1,
+          name: "All Operations",
+          resource: "*",
+          action: "manage",
+          description: "Superadministrator unrestricted privilege",
+        })
+      }
+      if (rName.includes("payroll")) {
+        granularPermissions.push(
+          { id: 2, name: "Compute Salary", resource: "payroll", action: "create", description: "Batch payroll calculations" },
+          { id: 3, name: "Approve Payroll Batch", resource: "payroll", action: "approve", description: "Final disbursement signoff" }
+        )
+      }
+      if (rName.includes("hr")) {
+        granularPermissions.push(
+          { id: 4, name: "Create Employee Record", resource: "employees", action: "create", description: "Register new personnel" },
+          { id: 5, name: "Promote Personnel", resource: "promotions", action: "update", description: "Execute staff promotions" }
+        )
       }
     })
 
-    saveStoredUsers([...newAccounts, ...existingUsers])
-
-    // Record audit event (USR09)
-    recordAuditEvent({
-      actor_name: "Current Administrator",
-      action: "BULK_IMPORT",
-      target_user_id: `BATCH-IMPORT (${newAccounts.length})`,
-      target_user_name: `${newAccounts.length} user accounts`,
-      reason: options.reason || "Authorised bulk CSV user import",
-      details: {
-        total_rows: rows.length,
-        imported_count: newAccounts.length,
-        rejected_count: rows.length - newAccounts.length,
-      },
-    })
-  }
-
-  return {
-    total: rows.length,
-    valid: validRows.length,
-    invalid: rows.length - validRows.length,
-    imported: options.dryRun ? 0 : validRows.length,
-    failed: rows.length - validRows.length,
-    records: rows,
+    return {
+      user,
+      modules,
+      granular_permissions: granularPermissions,
+    }
   }
 }
 
 /**
- * USR08: Lookup effective permissions and accessible modules for a user
- */
-export const getUserEffectiveAccess = async (user: UserAccount) => {
-  // Map module accessibility based on effective roles
-  const roleNames = user.roles.map((r) => r.name.toLowerCase())
-  const isSuper = roleNames.some((r) => r.includes("super"))
-  const isPayroll = isSuper || roleNames.some((r) => r.includes("payroll"))
-  const isHr = isSuper || roleNames.some((r) => r.includes("hr"))
-  const isAuditor = isSuper || roleNames.some((r) => r.includes("audit"))
-  const isMdaAdmin = isSuper || roleNames.some((r) => r.includes("mda admin"))
-
-  const modules = [
-    {
-      name: "Dashboard & Analytics",
-      accessible: true,
-      access_level: "Full Access",
-      resource: "dashboard",
-    },
-    {
-      name: "Employee Management",
-      accessible: isSuper || isHr || isMdaAdmin,
-      access_level: isSuper || isHr ? "Full Management" : isMdaAdmin ? "MDA Scope Only" : "Read Only",
-      resource: "employees",
-    },
-    {
-      name: "Payroll Operations",
-      accessible: isPayroll,
-      access_level: roleNames.some((r) => r.includes("approver")) ? "Approval & Initiation" : "Calculation Only",
-      resource: "payroll",
-    },
-    {
-      name: "Core HR & Approvals",
-      accessible: isSuper || isHr || isMdaAdmin,
-      access_level: isSuper ? "Universal Approval" : "Department Scope",
-      resource: "core-hr",
-    },
-    {
-      name: "Finance & Accounts",
-      accessible: isSuper || isPayroll,
-      access_level: isSuper ? "Full Access" : "Disbursement Ledger",
-      resource: "finance",
-    },
-    {
-      name: "HR Reports & Compliance",
-      accessible: true,
-      access_level: isAuditor ? "Full Audit Read-Out" : "Operational Reports",
-      resource: "hr-reports",
-    },
-    {
-      name: "User Management & Security",
-      accessible: isSuper,
-      access_level: isSuper ? "Full Administration" : "No Access",
-      resource: "users",
-    },
-    {
-      name: "Role & Permission Configuration",
-      accessible: isSuper,
-      access_level: isSuper ? "Full Administration" : "No Access",
-      resource: "permissions",
-    },
-  ]
-
-  const granularPermissions: Permission[] = []
-
-  user.roles.forEach((role) => {
-    if (role.name.toLowerCase().includes("super")) {
-      granularPermissions.push(
-        { id: 1, name: "All Operations", resource: "*", action: "manage", description: "Superadministrator unrestricted privilege" }
-      )
-    }
-    if (role.name.toLowerCase().includes("payroll")) {
-      granularPermissions.push(
-        { id: 2, name: "Compute Salary", resource: "payroll", action: "create", description: "Batch payroll calculations" },
-        { id: 3, name: "Approve Payroll Batch", resource: "payroll", action: "approve", description: "Final disbursement signoff" }
-      )
-    }
-    if (role.name.toLowerCase().includes("hr")) {
-      granularPermissions.push(
-        { id: 4, name: "Create Employee Record", resource: "employees", action: "create", description: "Register new personnel" },
-        { id: 5, name: "Promote Personnel", resource: "promotions", action: "update", description: "Execute staff promotions" }
-      )
-    }
-  })
-
-  return {
-    user,
-    modules,
-    granular_permissions: granularPermissions,
-  }
-}
-
-/**
- * USR09: Fetch Audit Events
+ * USR09: Fetch administrative audit trails from live Render backend (GET /api/users/admin/audit)
  */
 export const fetchAuditEvents = async (search?: string): Promise<AuditEvent[]> => {
-  let logs = getStoredAuditLogs()
-  if (search?.trim()) {
-    const q = search.toLowerCase().trim()
-    logs = logs.filter(
-      (l) =>
-        l.target_user_name.toLowerCase().includes(q) ||
-        l.actor_name.toLowerCase().includes(q) ||
-        l.reason.toLowerCase().includes(q) ||
-        l.action.toLowerCase().includes(q)
-    )
+  try {
+    const res = await api.get<any>("/users/admin/audit", {
+      params: { search: search?.trim() || undefined, limit: 100 },
+    })
+
+    const list = Array.isArray(res.data)
+      ? res.data
+      : Array.isArray(res.data?.data)
+      ? res.data.data
+      : Array.isArray(res.data?.events)
+      ? res.data.events
+      : []
+
+    if (list.length > 0) {
+      return list.map((l: any) => ({
+        id: String(l.id || `AUD-${Date.now()}`),
+        timestamp: l.timestamp || l.created_at || new Date().toISOString(),
+        actor_name: l.actor_name || l.actor_user_name || "Administrator",
+        actor_id: l.actor_id || l.actor_user_id || undefined,
+        action: l.action || "UPDATE_USER",
+        target_user_id: l.target_user_id || "",
+        target_user_name: l.target_user_name || "",
+        reason: l.reason || "",
+        details: typeof l.details === "object" ? l.details : {},
+      }))
+    }
+  } catch (err: any) {
+    console.warn("fetchAuditEvents failed from Render backend:", err)
   }
-  return logs
+
+  // Fallback to local storage audit logs if API was unreachable
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(STORAGE_AUDIT_KEY)
+      if (raw) {
+        return JSON.parse(raw) as AuditEvent[]
+      }
+    } catch {}
+  }
+
+  return []
 }
