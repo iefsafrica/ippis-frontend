@@ -18,7 +18,6 @@ import {
   ChevronRight,
   LogOut,
   Shield,
-  Server,
   ChevronDown,
   ChevronUp,
   Clock,
@@ -700,29 +699,6 @@ export function AdminSidebar() {
     },
   ];
 
-  const setupItems = [
-    {
-      title: "Database Setup",
-      href: "/admin/setup?tab=database",
-      icon: Database,
-    },
-    {
-      title: "Users Setup",
-      href: "/admin/setup?tab=users",
-      icon: Users,
-    },
-    {
-      title: "Permissions Setup",
-      href: "/admin/setup?tab=permissions",
-      icon: Shield,
-    },
-    {
-      title: "System Setup",
-      href: "/admin/setup?tab=system",
-      icon: Server,
-    },
-  ];
-
   const sidebarContent = (
     <div className="flex-1 min-h-0 py-5 flex flex-col bg-white">
       <nav className="flex-1 min-h-0 overflow-y-auto px-3 space-y-0.5 pr-1">
@@ -900,60 +876,6 @@ export function AdminSidebar() {
               </div>
             );
           })}
-
-          {/* Setup Section */}
-          <div className="mt-6 pt-6 border-t border-gray-100">
-            <h3
-              className={cn(
-                "px-3 text-xs font-bold text-[#008751]/70 uppercase tracking-wider",
-                collapsed ? "text-center" : ""
-              )}
-            >
-              {!collapsed && "System Setup"}
-            </h3>
-            <div className="mt-2 space-y-1">
-              {setupItems.map((item) => {
-                const isActive =
-                  pathname === "/admin/setup" &&
-                  item.href.includes(
-                    new URL(item.href, "http://localhost").searchParams.get(
-                      "tab"
-                    ) || ""
-                  );
-                return (
-                  <Tooltip
-                    key={item.href}
-                    delayDuration={collapsed ? 100 : 1000000}
-                  >
-                    <TooltipTrigger asChild>
-                      <Link
-                        href={item.href}
-                        className={cn(
-                          "flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all",
-                          isActive
-                            ? "bg-[#008751]/10 text-[#008751] font-semibold"
-                            : "text-gray-700 hover:bg-[#008751]/10 hover:text-[#008751]"
-                        )}
-                      >
-                        <item.icon
-                          className={cn(
-                            "h-5 w-5",
-                            isActive ? "text-[#008751]" : "text-gray-500"
-                          )}
-                        />
-                        {!collapsed && (
-                          <span className="ml-3">{item.title}</span>
-                        )}
-                      </Link>
-                    </TooltipTrigger>
-                    {collapsed && (
-                      <TooltipContent side="right">{item.title}</TooltipContent>
-                    )}
-                  </Tooltip>
-                );
-              })}
-            </div>
-          </div>
         </TooltipProvider>
       </nav>
 
