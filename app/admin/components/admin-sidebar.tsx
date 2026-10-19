@@ -125,17 +125,6 @@ export function AdminSidebar() {
     user?.role?.toLowerCase().includes("super") ||
     user?.role_key?.toLowerCase().includes("super");
 
-  // Filter modules strictly according to the user's assigned role and permissions
-  const visibleNavItems = navItems.filter((item) => {
-    if (item.href === "/admin") return true; // Dashboard is always accessible
-    if (isSuper) return true; // Super Administrator sees all modules
-    return (
-      canAccessModule(item.title) ||
-      (item.section ? canAccessModule(item.section) : false) ||
-      (item.href ? canAccessModule(item.href) : false)
-    );
-  });
-
   // All features are now unlocked with executive analytics dashboards
   const comingSoonFeatures: string[] = [];
 
@@ -717,6 +706,16 @@ export function AdminSidebar() {
       icon: Database,
     },
   ];
+  // Filter modules strictly according to the user's assigned role and permissions
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.href === "/admin") return true; // Dashboard is always accessible
+    if (isSuper) return true; // Super Administrator sees all modules
+    return (
+      canAccessModule(item.title) ||
+      (item.section ? canAccessModule(item.section) : false) ||
+      (item.href ? canAccessModule(item.href) : false)
+    );
+  });
 
   const sidebarContent = (
     <div className="flex-1 min-h-0 py-5 flex flex-col bg-white">
