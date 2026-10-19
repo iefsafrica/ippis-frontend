@@ -7,33 +7,45 @@ import { useAuth } from "@/lib/auth-context"
 interface ProtectedRouteProps {
   children: ReactNode
   requiredRole?: string | string[]
+  requiredModule?: string
 }
 
-export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, user } = useAuth()
+export function ProtectedRoute({ children, requiredRole, requiredModule }: ProtectedRouteProps) {
+  const { user, loading, canAccessModule } = useAuth()
   const router = useRouter()
 
-  // For demo purposes, consider the user always authenticated
-  const isDemoMode = true // Set to true for demo purposes
-  const effectiveIsAuthenticated = isDemoMode || isAuthenticated
-
   useEffect(() => {
-    // Skip authentication checks in demo mode
-    if (isDemoMode) return
+    if (loading) return
 
-    if (!isLoading && !isAuthenticated) {
+    if (!user) {
       router.push("/admin/login")
+      return
     }
 
-    if (!isLoading && isAuthenticated && requiredRole) {
+    const isSuper =
+      user.role?.toLowerCase().includes("super") ||
+      user.role_key?.toLowerCase().includes("super")
+
+    if (isSuper) return
+
+    if (requiredRole) {
       const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole]
-      if (user && !roles.includes(user.role)) {
-        router.push("/admin/unauthorized")
+      const hasRole = roles.some((r) =>
+        user.role?.toLowerCase().includes(r.toLowerCase()) ||
+        user.role_key?.toLowerCase() === r.toLowerCase()
+      )
+      if (!hasRole) {
+        router.push("/admin")
+        return
       }
     }
-  }, [isLoading, isAuthenticated, router, requiredRole, user, isDemoMode])
 
-  if (isLoading && !isDemoMode) {
+    if (requiredModule && !canAccessModule(requiredModule)) {
+      router.push("/admin")
+    }
+  }, [loading, user, router, requiredRole, requiredModule, canAccessModule])
+
+  if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
@@ -44,16 +56,31 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     )
   }
 
-  // In demo mode, always render children
-  if (!effectiveIsAuthenticated && !isDemoMode) {
+  if (!user) {
     return null
   }
 
-  if (requiredRole && user && !isDemoMode) {
+  const isSuper =
+    user.role?.toLowerCase().includes("super") ||
+    user.role_key?.toLowerCase().includes("super")
+
+  if (isSuper) {
+    return <>{children}</>
+  }
+
+  if (requiredRole) {
     const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole]
-    if (!roles.includes(user.role)) {
+    const hasRole = roles.some((r) =>
+      user.role?.toLowerCase().includes(r.toLowerCase()) ||
+      user.role_key?.toLowerCase() === r.toLowerCase()
+    )
+    if (!hasRole) {
       return null
     }
+  }
+
+  if (requiredModule && !canAccessModule(requiredModule)) {
+    return null
   }
 
   return <>{children}</>

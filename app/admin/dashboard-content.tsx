@@ -1,5 +1,7 @@
 'use client'
 import { useState, useEffect } from "react"
+import Link from "next/link"
+import { useAuth } from "@/lib/auth-context"
 import {
   Card, CardContent, CardHeader, CardTitle,
 } from "@/components/ui/card"
@@ -32,6 +34,8 @@ import {
   Mail,
   IdCard,
   Key,
+  ChevronRight,
+  ShieldCheck,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -48,6 +52,132 @@ export default function DashboardContent() {
   const [refreshing, setRefreshing] = useState(false)
   const [employeeTab, setEmployeeTab] = useState<"recent" | "pending">("recent")
   const [activityTab, setActivityTab] = useState<"recent" | "pending">("recent")
+  const { user, canAccessModule } = useAuth()
+
+  const allAvailableModules = [
+    {
+      title: "Employee Management",
+      description: "Personnel directory, records, onboarding and identity verification",
+      href: "/admin/employees",
+      icon: Users,
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
+    },
+    {
+      title: "Payroll Operations",
+      description: "Salary calculation, deductions, cycle approvals and payment history",
+      href: "/admin/payroll",
+      icon: TrendingUp,
+      color: "text-emerald-600",
+      bgColor: "bg-emerald-50",
+    },
+    {
+      title: "Core HR & Approvals",
+      description: "Promotions, awards, transfers, grievances and discipline",
+      href: "/admin/core-hr",
+      icon: Briefcase,
+      color: "text-purple-600",
+      bgColor: "bg-purple-50",
+    },
+    {
+      title: "Finance & Accounts",
+      description: "Disbursements, deposit tracking, bank transfers and account balances",
+      href: "/admin/finance",
+      icon: Building,
+      color: "text-indigo-600",
+      bgColor: "bg-indigo-50",
+    },
+    {
+      title: "HR Reports & Compliance",
+      description: "Statutory attendance, payroll, pension, and audit reporting",
+      href: "/admin/hr-reports",
+      icon: FileText,
+      color: "text-amber-600",
+      bgColor: "bg-amber-50",
+    },
+    {
+      title: "Timesheets & Attendance",
+      description: "Daily attendances, shifts, leaves and holiday scheduling",
+      href: "/admin/timesheets",
+      icon: Clock,
+      color: "text-teal-600",
+      bgColor: "bg-teal-50",
+    },
+    {
+      title: "HR Calendar & Events",
+      description: "Institutional calendar, leave schedules and official events",
+      href: "/admin/hr-calendar",
+      icon: Calendar,
+      color: "text-cyan-600",
+      bgColor: "bg-cyan-50",
+    },
+    {
+      title: "Organization Structure",
+      description: "MDAs, companies, departments, designations and policies",
+      href: "/admin/organization",
+      icon: Building,
+      color: "text-rose-600",
+      bgColor: "bg-rose-50",
+    },
+    {
+      title: "Recruitment & Talent",
+      description: "Job posts, candidate applications, evaluations and interviews",
+      href: "/admin/recruitment",
+      icon: UserPlus,
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
+    },
+    {
+      title: "Performance & Appraisal",
+      description: "Performance indicators, appraisal cycles and evaluations",
+      href: "/admin/performance",
+      icon: Activity,
+      color: "text-violet-600",
+      bgColor: "bg-violet-50",
+    },
+    {
+      title: "Training & Development",
+      description: "Capacity building programs, trainers, and course management",
+      href: "/admin/training",
+      icon: Briefcase,
+      color: "text-sky-600",
+      bgColor: "bg-sky-50",
+    },
+    {
+      title: "Support Tickets & Helpdesk",
+      description: "User assistance, IT support requests, and knowledge base",
+      href: "/admin/support-tickets",
+      icon: Mail,
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
+    },
+    {
+      title: "User Management & Security",
+      description: "Administrator provisioning, role assignments and access reviews",
+      href: "/admin/users",
+      icon: Users,
+      color: "text-red-600",
+      bgColor: "bg-red-50",
+    },
+    {
+      title: "Role & Permission Control",
+      description: "RBAC policies, granular permissions and segregation of duties",
+      href: "/admin/roles",
+      icon: Key,
+      color: "text-amber-700",
+      bgColor: "bg-amber-100",
+    },
+    {
+      title: "System Settings",
+      description: "Platform parameters, email templates, and environment settings",
+      href: "/admin/settings",
+      icon: Key,
+      color: "text-slate-600",
+      bgColor: "bg-slate-100",
+    },
+  ];
+
+  const authorizedModules = allAvailableModules.filter((m) => canAccessModule(m.href));
 
   const {
     data: statsData,

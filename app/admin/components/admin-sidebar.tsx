@@ -45,6 +45,7 @@ import {
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/lib/auth-context";
 
 export function AdminSidebar() {
   const pathname = usePathname();
@@ -116,6 +117,24 @@ export function AdminSidebar() {
       setMobileSidebarOpen(false);
     }
   }, [pathname, isMobile]);
+
+  // All features are now unlocked with executive analytics dashboards
+  const { user, canAccessModule } = useAuth();
+
+  const isSuper =
+    user?.role?.toLowerCase().includes("super") ||
+    user?.role_key?.toLowerCase().includes("super");
+
+  // Filter modules strictly according to the user's assigned role and permissions
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.href === "/admin") return true; // Dashboard is always accessible
+    if (isSuper) return true; // Super Administrator sees all modules
+    return (
+      canAccessModule(item.title) ||
+      (item.section ? canAccessModule(item.section) : false) ||
+      (item.href ? canAccessModule(item.href) : false)
+    );
+  });
 
   // All features are now unlocked with executive analytics dashboards
   const comingSoonFeatures: string[] = [];
@@ -703,7 +722,7 @@ export function AdminSidebar() {
     <div className="flex-1 min-h-0 py-5 flex flex-col bg-white">
       <nav className="flex-1 min-h-0 overflow-y-auto px-3 space-y-0.5 pr-1">
         <TooltipProvider delayDuration={0}>
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive = item.isDropdown
               ? item.subItems?.some((subItem) => pathname === subItem.href) ||
                 activeSection === item.section
