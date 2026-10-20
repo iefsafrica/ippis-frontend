@@ -23,30 +23,35 @@ export function middleware(request: NextRequest) {
   response.headers.set("Expires", "0")
   const path = request.nextUrl.pathname
 
-  const isPublicPath =
-    path === "/login" ||
+  const isAuthRoute =
+    path === "/admin/login" ||
+    path === "/admin/forgot-password" ||
+    path === "/admin/reset-password" ||
     path === "/auth/login" ||
     path === "/auth/forgot-password" ||
+    path === "/login" ||
+    path === "/forgot-password" ||
+    path === "/reset-password"
+
+  const isPublicPath =
+    isAuthRoute ||
     path === "/" ||
     path.startsWith("/api/") ||
     path === "/register" ||
     path === "/track"
 
-
   const isAdminPath = path.startsWith("/admin")
-  const isAdminLogin = path === "/admin/login" || path === "/auth/login" || path === "/login"
-
   const token = request.cookies.get("token")?.value || request.cookies.get("ippis_token")?.value
 
-  // Protect admin routes: redirect unauthenticated requests to /admin/login
-  if (isAdminPath && !isAdminLogin && !token) {
+  // Protect admin routes: redirect unauthenticated requests to /admin/login (except auth routes)
+  if (isAdminPath && !isAuthRoute && !token) {
     const loginUrl = new URL("/admin/login", request.url)
     loginUrl.searchParams.set("redirect", path)
     return NextResponse.redirect(loginUrl)
   }
 
   // If the path is admin login and there is already a token, redirect to admin dashboard
-  if (isAdminLogin && token) {
+  if ((path === "/admin/login" || path === "/login") && token) {
     return NextResponse.redirect(new URL("/admin", request.url))
   }
 
