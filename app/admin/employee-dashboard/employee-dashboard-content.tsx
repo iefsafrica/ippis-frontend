@@ -66,6 +66,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import {
+  getSelfServiceData,
+  clockInSelfService,
+  clockOutSelfService,
+  applyLeaveSelfService,
+  regularizeAttendanceSelfService,
+  updateProfileSelfService,
+  createTicketSelfService,
+  SelfServiceData,
+} from "@/services/endpoints/employees/self-service";
 
 export default function EmployeeDashboardContent() {
   const { user, logout } = useAuth();
@@ -75,6 +85,8 @@ export default function EmployeeDashboardContent() {
   const [clockInTime, setClockInTime] = useState("08:14 AM");
   const [clockOutTime, setClockOutTime] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [selfServiceData, setSelfServiceData] = useState<SelfServiceData | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: "success" | "info" | "error"; text: string } | null>(null);
 
   // Modals state
@@ -87,8 +99,54 @@ export default function EmployeeDashboardContent() {
   // Form states
   const [leaveForm, setLeaveForm] = useState({ type: "Annual Leave", start: "", end: "", reason: "" });
   const [regularizeForm, setRegularizeForm] = useState({ date: "", punchType: "Clock In", reason: "" });
-  const [profileForm, setProfileForm] = useState({ phone: "0803 123 4567", address: "Plot 12, Gwarinpa Estate, Abuja", nokName: "Mrs. Amina Bello", nokPhone: "0809 987 6543", nokRelation: "Spouse" });
+  const [profileForm, setProfileForm] = useState({
+    phone: "0803 123 4567",
+    address: "Plot 12, Gwarinpa Estate, Abuja",
+    nokName: "Mrs. Amina Bello",
+    nokPhone: "0809 987 6543",
+    nokRelation: "Spouse",
+  });
   const [ticketForm, setTicketForm] = useState({ category: "HR Enquiry", subject: "", description: "", priority: "Normal" });
+
+  // Load live data from self-service API on mount
+  useEffect(() => {
+    let isMounted = true;
+    const load = async () => {
+      try {
+        setDataLoading(true);
+        const data = await getSelfServiceData();
+        if (data && isMounted) {
+          setSelfServiceData(data);
+          if (data.attendance?.todayStatus) {
+            setClockStatus(data.attendance.todayStatus);
+          }
+          if (data.attendance?.clockInTime) {
+            setClockInTime(data.attendance.clockInTime);
+          }
+          if (data.attendance?.clockOutTime) {
+            setClockOutTime(data.attendance.clockOutTime);
+          }
+          if (data.profile) {
+            setProfileForm({
+              phone: data.profile.phone || "0803 123 4567",
+              address: data.profile.residentialAddress || "Plot 12, Gwarinpa Estate, Abuja",
+              nokName: data.profile.nextOfKin?.name || "Mrs. Amina Bello",
+              nokPhone: data.profile.nextOfKin?.phone || "0809 987 6543",
+              nokRelation: data.profile.nextOfKin?.relationship || "Spouse",
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error loading self-service data:", err);
+      } finally {
+        if (isMounted) setDataLoading(false);
+      }
+    };
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Real-time clock
   useEffect(() => {
@@ -109,52 +167,114 @@ export default function EmployeeDashboardContent() {
   const handleClockToggle = async () => {
     setActionLoading(true);
     try {
-      const nowStr = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
       if (clockStatus === "clocked_in") {
+        const res = await clockOutSelfService();
         setClockStatus("clocked_out");
-        setClockOutTime(nowStr);
-        showNotification(`Clocked Out successfully at ${nowStr}. Have a great evening!`, "info");
+        const outTime = res.clockOutTime || new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+        setClockOutTime(outTime);
+        showNotification(res.message || `Clocked Out successfully at ${outTime}. Have a great evening!`, "info");
       } else {
+        const res = await clockInSelfService();
         setClockStatus("clocked_in");
-        setClockInTime(nowStr);
+        const inTime = res.clockInTime || new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+        setClockInTime(inTime);
         setClockOutTime(null);
-        showNotification(`Clocked In successfully at ${nowStr}. Have a productive day!`, "success");
+        showNotification(res.message || `Clocked In successfully at ${inTime}. Have a productive day!`, "success");
       }
+    } catch (err: any) {
+      showNotification("Action could not be synced. Please check network connection.", "error");
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleApplyLeave = (e: React.FormEvent) => {
+  const handleApplyLeave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLeaveModalOpen(false);
-    showNotification(`Leave application for ${leaveForm.type} submitted to your department supervisor.`, "success");
+    setActionLoading(true);
+    try {
+      const res = await applyLeaveSelfService({
+        leaveType: leaveForm.type,
+        startDate: leaveForm.start,
+        endDate: leaveForm.end,
+        reason: leaveForm.reason,
+      });
+      setLeaveModalOpen(false);
+      showNotification(res.message, "success");
+      if (res.leaveRequest && selfServiceData) {
+        setSelfServiceData({
+          ...selfServiceData,
+          leaves: {
+            ...selfServiceData.leaves,
+            pendingRequests: [res.leaveRequest, ...(selfServiceData.leaves?.pendingRequests || [])],
+          },
+        });
+      }
+    } catch (err: any) {
+      showNotification("Failed to submit leave request.", "error");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const handleRegularize = (e: React.FormEvent) => {
+  const handleRegularize = async (e: React.FormEvent) => {
     e.preventDefault();
-    setRegularizeModalOpen(false);
-    showNotification("Attendance regularisation request submitted for HR approval.", "success");
+    setActionLoading(true);
+    try {
+      const res = await regularizeAttendanceSelfService({
+        date: regularizeForm.date,
+        punchType: regularizeForm.punchType,
+        reason: regularizeForm.reason,
+      });
+      setRegularizeModalOpen(false);
+      showNotification(res.message, "success");
+    } catch (err: any) {
+      showNotification("Failed to submit regularisation request.", "error");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const handleProfileSubmit = (e: React.FormEvent) => {
+  const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setProfileModalOpen(false);
-    showNotification("Profile update request submitted to HR for statutory record verification.", "success");
+    setActionLoading(true);
+    try {
+      const res = await updateProfileSelfService(profileForm);
+      setProfileModalOpen(false);
+      showNotification(res.message, "success");
+    } catch (err: any) {
+      showNotification("Failed to submit profile update.", "error");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const handleTicketSubmit = (e: React.FormEvent) => {
+  const handleTicketSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setTicketModalOpen(false);
-    showNotification("Support ticket created (#TKT-9912) and assigned to Helpdesk.", "success");
+    setActionLoading(true);
+    try {
+      const res = await createTicketSelfService(ticketForm);
+      setTicketModalOpen(false);
+      showNotification(res.message, "success");
+      if (res.ticket && selfServiceData) {
+        setSelfServiceData({
+          ...selfServiceData,
+          supportTickets: [res.ticket, ...(selfServiceData.supportTickets || [])],
+        });
+      }
+    } catch (err: any) {
+      showNotification("Failed to submit support ticket.", "error");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const employeeName = user?.name || "Dr. Ibrahim Aliyu";
-  const staffId = user?.username?.includes("@") ? "IPPIS-STAFF-18420" : user?.username || "IPPIS-STAFF-18420";
-  const departmentName = "Department of Human Resources Management";
-  const mdaName = "Federal Ministry of Finance, Budget & National Planning";
-  const positionTitle = "Chief Administrative Officer";
-  const reportingManager = "Engr. Abubakar S. Bello (Director, HR & Personnel)";
+  const employeeName = selfServiceData?.profile?.fullName || user?.name || "Dr. Ibrahim Aliyu";
+  const staffId = selfServiceData?.profile?.employeeId || (user?.username?.includes("@") ? "IPPIS-STAFF-18420" : user?.username || "IPPIS-STAFF-18420");
+  const departmentName = selfServiceData?.profile?.department || "Department of Human Resources Management";
+  const mdaName = selfServiceData?.profile?.mda || "Federal Ministry of Finance, Budget & National Planning";
+  const positionTitle = selfServiceData?.profile?.position || "Chief Administrative Officer";
+  const reportingManager = selfServiceData?.profile?.reportingManager || "Engr. Abubakar S. Bello (Director, HR & Personnel)";
+  const gradeLevelText = selfServiceData?.profile ? `${selfServiceData.profile.cadre} (${selfServiceData.profile.gradeLevel} / ${selfServiceData.profile.step})` : "Admin Officer Cadre (GL 12 / Step 4)";
 
   return (
     <div className="space-y-6 pb-12">
@@ -208,7 +328,7 @@ export default function EmployeeDashboardContent() {
             <div className="flex flex-wrap items-center gap-4 text-xs text-emerald-200 pt-1">
               <span>Employee ID: <strong className="font-mono text-white">{staffId}</strong></span>
               <span>•</span>
-              <span>Cadre: <strong className="text-white">Admin Officer Cadre (GL 12 / Step 4)</strong></span>
+              <span>Cadre: <strong className="text-white">{gradeLevelText}</strong></span>
             </div>
           </div>
 

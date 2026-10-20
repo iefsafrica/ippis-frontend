@@ -163,6 +163,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Aliases
       if (
+        (target === "self-service" || target === "employee-dashboard" || target === "portal" || target === "overview" || target === "my profile" || target === "profile") &&
+        (allowed.includes("self-service") || allowed.includes("overview") || allowed.includes("profile") || allowed.includes("employee-dashboard") || allowed.includes("dashboard"))
+      ) {
+        return true
+      }
+
+      if (
         (target === "employee-list" || target === "employees" || target === "employee" || target.includes("employee")) &&
         (allowed.includes("employees") || allowed.includes("employees list") || allowed.includes("employee-list") || allowed.includes("/admin/employees"))
       ) {
