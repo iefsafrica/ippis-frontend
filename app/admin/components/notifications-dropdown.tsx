@@ -1,9 +1,9 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useEffect } from "react"
-import { Bell, Check, X } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
+import { Bell, Check, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -14,98 +14,80 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { NotificationItem } from "./notification-item"
-import { Badge } from "@/components/ui/badge"
-
-// Define a simple notification type for now
-type Notification = {
-  id: string
-  title: string
-  message: string
-  type: string
-  read: boolean
-  createdAt: string
-}
+import {
+  fetchNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+} from "@/services/endpoints/notifications/notifications"
+import { NotificationItemData } from "@/types/notifications"
 
 export function NotificationsDropdown() {
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
+  const [notifications, setNotifications] = useState<NotificationItemData[]>([])
+  const [loading, setLoading] = useState(false)
+  const [initialLoaded, setInitialLoaded] = useState(false)
   const [open, setOpen] = useState(false)
 
-  // Count unread notifications
-  const unreadCount = notifications.filter((n) => !n.read).length
+  const unreadCount = notifications.filter((n) => !(n.read ?? n.is_read)).length
   const hasUnread = unreadCount > 0
 
-  // Fetch notifications
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        setLoading(true)
-        // For now, just use mock data
-        // In a real implementation, this would be an API call
-        const mockNotifications: Notification[] = [
-          {
-            id: "1",
-            title: "New Registration",
-            message: "A new employee has registered and is awaiting approval",
-            type: "registration",
-            read: false,
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: "2",
-            title: "Document Uploaded",
-            message: "New documents have been uploaded for verification",
-            type: "document",
-            read: true,
-            createdAt: new Date(Date.now() - 3600000).toISOString(),
-          },
-          {
-            id: "3",
-            title: "System Update",
-            message: "The system will undergo maintenance tonight at 11 PM",
-            type: "system",
-            read: false,
-            createdAt: new Date(Date.now() - 7200000).toISOString(),
-          },
-        ]
-
-        setNotifications(mockNotifications)
-        setError(null)
-      } catch (err) {
-        console.error("Error fetching notifications:", err)
-        setError("Failed to load notifications")
-      } finally {
+  const loadData = useCallback(async (isInitial = false) => {
+    try {
+      if (isInitial) setLoading(true)
+      const res = await fetchNotifications()
+      if (res && Array.isArray(res.notifications)) {
+        setNotifications(res.notifications)
+      }
+    } catch (err) {
+      console.error("Error loading notifications:", err)
+    } finally {
+      if (isInitial) {
         setLoading(false)
+        setInitialLoaded(true)
       }
     }
-
-    fetchNotifications()
   }, [])
 
-  // Mark a notification as read
-  const markAsRead = async (id: string) => {
-    try {
-      // In a real implementation, this would be an API call
-      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
-    } catch (err) {
-      console.error("Error marking notification as read:", err)
+  // Initial load
+  useEffect(() => {
+    loadData(true)
+
+    // Periodic refresh every 45 seconds to keep unread badges up-to-date
+    const interval = setInterval(() => {
+      loadData(false)
+    }, 45000)
+
+    return () => clearInterval(interval)
+  }, [loadData])
+
+  // Refresh whenever dropdown opens
+  useEffect(() => {
+    if (open) {
+      loadData(false)
     }
+  }, [open, loadData])
+
+  // Mark a single notification as read
+  const handleMarkAsRead = async (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true, is_read: true } : n))
+    )
+    await markNotificationAsRead(id)
   }
 
   // Mark all notifications as read
-  const markAllAsRead = async () => {
-    try {
-      // In a real implementation, this would be an API call
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-    } catch (err) {
-      console.error("Error marking all notifications as read:", err)
-    }
+  const handleMarkAllAsRead = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    setNotifications((prev) =>
+      prev.map((n) => ({ ...n, read: true, is_read: true }))
+    )
+    await markAllNotificationsAsRead()
   }
 
-  const handleMarkAllAsRead = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation() // Prevent closing dropdown
-    markAllAsRead()
+  const handleViewAll = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setOpen(false)
+    router.push("/admin/notifications")
   }
 
   return (
@@ -114,99 +96,93 @@ export function NotificationsDropdown() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative text-gray-500 hover:text-primary hover:bg-primary/5 rounded-full"
+          className="relative text-gray-500 hover:text-[#008751] hover:bg-[#008751]/10 rounded-full transition-colors"
+          aria-label="Open notifications"
         >
           <Bell className="h-5 w-5" />
           {hasUnread && (
-            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#008751] text-[10px] font-medium text-white">
-              {unreadCount}
+            <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-[#008751] text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+              {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
           <span className="sr-only">Notifications</span>
         </Button>
       </DropdownMenuTrigger>
+
       <DropdownMenuContent
         align="end"
-        className="w-80 p-0 overflow-hidden rounded-xl border border-gray-200 shadow-lg bg-white"
-        style={{ zIndex: 100 }} // Ensure high z-index
-        sideOffset={8} // Add some offset to prevent overlap with the trigger
-        alignOffset={0} // Adjust alignment offset
-        forceMount // Force mount to ensure proper positioning
+        className="w-[360px] sm:w-[380px] p-0 overflow-hidden rounded-2xl border border-gray-100 shadow-2xl bg-white"
+        style={{ zIndex: 100 }}
+        sideOffset={8}
+        alignOffset={0}
       >
-        <div className="bg-gradient-to-r from-primary/10 to-primary/5 px-4 py-3 flex items-center justify-between">
-          <DropdownMenuLabel className="p-0 flex items-center gap-2">
-            <Bell className="h-4 w-4 text-primary" />
-            <span className="text-gray-900 font-bold">Notifications</span>
+        {/* Header matching user's design */}
+        <div className="px-4 py-3 bg-[#F4F9F6] border-b border-gray-100 flex items-center justify-between">
+          <DropdownMenuLabel className="p-0 flex items-center gap-2.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#008751]" />
+            <span className="text-gray-900 font-bold text-base tracking-tight">Notifications</span>
             {unreadCount > 0 && (
-              <Badge className="bg-secondary text-white text-xs rounded-full px-2">{unreadCount} new</Badge>
+              <span className="flex flex-col items-center justify-center rounded-full bg-[#C91A25] text-white w-7 h-7 shadow-sm">
+                <span className="text-[11px] font-bold leading-none">{unreadCount}</span>
+                <span className="text-[8px] font-medium leading-none opacity-90">new</span>
+              </span>
             )}
           </DropdownMenuLabel>
+
           {unreadCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
               onClick={handleMarkAllAsRead}
-              className="text-xs text-[#008751] hover:text-[#008751]/80 hover:bg-[#008751]/5"
+              className="text-xs font-semibold text-[#008751] hover:text-[#006b40] hover:bg-[#008751]/10 h-7 px-2.5 gap-1 rounded-md transition-colors"
             >
-              <Check className="h-3 w-3" />
+              <Check className="h-3.5 w-3.5 stroke-[2.5]" />
               Mark all as read
             </Button>
           )}
         </div>
+
         <DropdownMenuSeparator className="m-0" />
-        <div className="max-h-[320px] overflow-y-auto py-1">
-          {loading ? (
-            <div className="p-4 text-center text-sm text-gray-500">
-              <div className="animate-pulse flex flex-col gap-2">
-                <div className="h-12 bg-gray-100 rounded-md"></div>
-                <div className="h-12 bg-gray-100 rounded-md"></div>
-                <div className="h-12 bg-gray-100 rounded-md"></div>
-              </div>
-            </div>
-          ) : error ? (
-            <div className="p-4 text-center">
-              <X className="h-5 w-5 text-red-500 mx-auto mb-2" />
-              <p className="text-sm text-red-600 font-medium">{error}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2 text-xs h-8"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setOpen(false)
-                }}
-              >
-                Dismiss
-              </Button>
+
+        {/* Notifications list */}
+        <div className="max-h-[380px] overflow-y-auto p-1.5 divide-y divide-gray-50/50">
+          {loading && !initialLoaded ? (
+            <div className="p-4 space-y-2">
+              <div className="h-16 bg-gray-100/80 rounded-xl animate-pulse" />
+              <div className="h-16 bg-gray-100/80 rounded-xl animate-pulse" />
+              <div className="h-16 bg-gray-100/80 rounded-xl animate-pulse" />
             </div>
           ) : notifications.length === 0 ? (
-            <div className="p-6 text-center">
+            <div className="py-10 px-4 text-center">
               <div className="bg-gray-50 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3">
                 <Bell className="h-6 w-6 text-gray-400" />
               </div>
-              <p className="text-sm text-gray-700 font-medium">No notifications</p>
-              <p className="text-xs text-gray-500 mt-1">You're all caught up!</p>
+              <p className="text-sm text-gray-800 font-semibold">No notifications</p>
+              <p className="text-xs text-gray-500 mt-0.5">You're all caught up!</p>
             </div>
           ) : (
             <DropdownMenuGroup>
               {notifications.map((notification) => (
-                <div key={notification.id} className="px-1">
-                  <NotificationItem notification={notification} onRead={() => markAsRead(notification.id)} />
-                </div>
+                <NotificationItem
+                  key={notification.id}
+                  notification={notification}
+                  onRead={() => handleMarkAsRead(notification.id)}
+                  onCloseDropdown={() => setOpen(false)}
+                />
               ))}
             </DropdownMenuGroup>
           )}
         </div>
+
         <DropdownMenuSeparator className="m-0" />
-        <div className="p-2 bg-gray-50 text-center">
+
+        {/* Footer */}
+        <div className="p-2.5 bg-[#FAFAFA] border-t border-gray-100 text-center">
           <Button
             variant="ghost"
             size="sm"
-            className="text-xs text-gray-700 hover:text-primary hover:bg-primary/5 w-full justify-center"
-            onClick={(e) => {
-              e.stopPropagation()
-              setOpen(false)
-            }}
+            className="text-xs font-medium text-gray-700 hover:text-[#008751] hover:bg-white w-full justify-center transition-colors h-8"
+            onClick={handleViewAll}
           >
             View all notifications
           </Button>

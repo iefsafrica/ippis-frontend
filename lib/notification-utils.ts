@@ -1,7 +1,10 @@
 import { neon } from "@neondatabase/serverless"
 
-// Get database connection
-const sql = neon(process.env.DATABASE_URL!)
+function getSql() {
+  const dbUrl = process.env.DATABASE_URL
+  if (!dbUrl) return null
+  return neon(dbUrl)
+}
 
 export async function createSystemNotification({
   title,
@@ -13,36 +16,32 @@ export async function createSystemNotification({
 }: {
   title: string
   message: string
-  type?: "info" | "warning" | "success" | "error"
+  type?: "info" | "warning" | "success" | "error" | "registration" | "document" | "system" | "alert"
   recipientId?: number | null
   expiresAt?: Date | null
   actionUrl?: string | null
 }) {
   try {
+    const sql = getSql()
+    if (!sql) {
+      console.warn("DATABASE_URL is not configured; skipping notification creation.")
+      return false
+    }
+
     if (recipientId) {
       // Create notification for a specific user
-      await sql(
-        `
-        INSERT INTO notifications 
+      await sql`
+        INSERT INTO dashboard_notifications 
         (title, message, type, recipient_id, expires_at, action_url)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        `,
-        [title, message, type, recipientId, expiresAt, actionUrl],
-      )
+        VALUES (${title}, ${message}, ${type}, ${recipientId}, ${expiresAt ? expiresAt.toISOString() : null}, ${actionUrl})
+      `
     } else {
-      // Create notification for all admin users
-      const adminUsers = await sql("SELECT id FROM admin_users WHERE is_active = true")
-
-      for (const user of adminUsers) {
-        await sql(
-          `
-          INSERT INTO notifications 
-          (title, message, type, recipient_id, expires_at, action_url)
-          VALUES ($1, $2, $3, $4, $5, $6)
-          `,
-          [title, message, type, user.id, expiresAt, actionUrl],
-        )
-      }
+      // Create broadcast notification (recipient_id = NULL)
+      await sql`
+        INSERT INTO dashboard_notifications 
+        (title, message, type, recipient_id, expires_at, action_url)
+        VALUES (${title}, ${message}, ${type}, NULL, ${expiresAt ? expiresAt.toISOString() : null}, ${actionUrl})
+      `
     }
 
     return true
@@ -57,7 +56,7 @@ export async function notifyNewEmployeeRegistration(employeeName: string, employ
   return createSystemNotification({
     title: "New Employee Registration",
     message: `${employeeName} has registered and requires approval.`,
-    type: "info",
+    type: "registration",
     actionUrl: `/admin/pending?highlight=${employeeId}`,
   })
 }
@@ -67,7 +66,7 @@ export async function notifyDocumentsUploaded(employeeName: string, employeeId: 
   return createSystemNotification({
     title: "Documents Uploaded",
     message: `${employeeName} has uploaded ${documentCount} document(s) that require verification.`,
-    type: "info",
+    type: "document",
     actionUrl: `/admin/documents?employee=${employeeId}`,
   })
 }
@@ -76,7 +75,7 @@ export async function notifyDocumentsUploaded(employeeName: string, employeeId: 
 export async function notifySystemEvent(
   title: string,
   message: string,
-  type: "info" | "warning" | "success" | "error" = "info",
+  type: "info" | "warning" | "success" | "error" | "system" = "system",
 ) {
   return createSystemNotification({
     title,

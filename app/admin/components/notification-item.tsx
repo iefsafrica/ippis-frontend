@@ -1,31 +1,44 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { formatDistanceToNow } from "date-fns"
-import { Bell, FileText, UserPlus, AlertTriangle, Info, Check } from "lucide-react"
+import { Bell, FileText, UserPlus, AlertTriangle, Info, Check, ShieldAlert } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { NotificationItemData } from "@/types/notifications"
 
 interface NotificationProps {
-  notification: {
-    id: string
-    title: string
-    message: string
-    type: string
-    read: boolean
-    createdAt: string
-  }
+  notification: NotificationItemData
   onRead: () => void
+  onCloseDropdown?: () => void
 }
 
-export function NotificationItem({ notification, onRead }: NotificationProps) {
-  const [isRead, setIsRead] = useState(notification.read)
+export function NotificationItem({ notification, onRead, onCloseDropdown }: NotificationProps) {
+  const router = useRouter()
+  const [isRead, setIsRead] = useState(Boolean(notification.read ?? notification.is_read))
+
+  useEffect(() => {
+    setIsRead(Boolean(notification.read ?? notification.is_read))
+  }, [notification.read, notification.is_read])
 
   const handleClick = (e: React.MouseEvent) => {
-    // Prevent event bubbling
     e.stopPropagation()
 
+    if (!isRead) {
+      setIsRead(true)
+      onRead()
+    }
+
+    const targetUrl = notification.actionUrl || notification.action_url
+    if (targetUrl) {
+      if (onCloseDropdown) onCloseDropdown()
+      router.push(targetUrl)
+    }
+  }
+
+  const handleMarkAsReadOnly = (e: React.MouseEvent) => {
+    e.stopPropagation()
     if (!isRead) {
       setIsRead(true)
       onRead()
@@ -33,24 +46,45 @@ export function NotificationItem({ notification, onRead }: NotificationProps) {
   }
 
   const getIcon = () => {
-    switch (notification.type) {
+    switch (notification.type?.toLowerCase()) {
       case "registration":
-        return <UserPlus className="h-5 w-5 text-primary" />
+        return <UserPlus className="h-5 w-5 text-[#008751]" />
       case "document":
-        return <FileText className="h-5 w-5 text-blue-500" />
+        return <FileText className="h-5 w-5 text-[#2563EB]" />
       case "alert":
-        return <AlertTriangle className="h-5 w-5 text-amber-500" />
+        return <AlertTriangle className="h-5 w-5 text-amber-600" />
+      case "security":
+        return <ShieldAlert className="h-5 w-5 text-rose-600" />
       case "system":
-        return <Info className="h-5 w-5 text-purple-500" />
+        return <Info className="h-5 w-5 text-[#7C3AED]" />
       default:
         return <Bell className="h-5 w-5 text-gray-500" />
     }
   }
 
+  const getIconWrapperClass = () => {
+    switch (notification.type?.toLowerCase()) {
+      case "registration":
+        return "bg-[#D8F3E5]"
+      case "document":
+        return "bg-[#EBF3FF]"
+      case "alert":
+        return "bg-amber-100"
+      case "security":
+        return "bg-rose-100"
+      case "system":
+        return "bg-[#E9F7F2]"
+      default:
+        return "bg-gray-100"
+    }
+  }
+
   const getTimeAgo = () => {
     try {
-      return formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })
-    } catch (error) {
+      const dateVal = notification.createdAt || notification.created_at
+      if (!dateVal) return "recently"
+      return formatDistanceToNow(new Date(dateVal), { addSuffix: true })
+    } catch {
       return "recently"
     }
   }
@@ -58,32 +92,49 @@ export function NotificationItem({ notification, onRead }: NotificationProps) {
   return (
     <div
       className={cn(
-        "flex items-start gap-3 p-3 cursor-pointer transition-colors rounded-lg mx-1 my-0.5",
-        isRead ? "bg-white hover:bg-gray-50" : "bg-primary/5 hover:bg-primary/10",
+        "flex items-start gap-3 p-3.5 cursor-pointer transition-all duration-150 rounded-xl mx-1 my-1 border",
+        isRead
+          ? "bg-white border-transparent hover:bg-gray-50/80"
+          : "bg-[#F0FAF5] border-emerald-100/70 hover:bg-[#E8F7F0]",
       )}
       onClick={handleClick}
     >
-      <div className={cn("flex-shrink-0 rounded-full p-2", isRead ? "bg-gray-100" : "bg-primary/10")}>{getIcon()}</div>
+      <div className={cn("flex-shrink-0 rounded-full p-2.5 flex items-center justify-center", getIconWrapperClass())}>
+        {getIcon()}
+      </div>
+
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <h4 className={cn("text-sm font-medium line-clamp-1", isRead ? "text-gray-900" : "text-primary")}>
+          <h4
+            className={cn(
+              "text-sm font-semibold line-clamp-1",
+              isRead ? "text-gray-900" : "text-[#008751]",
+            )}
+          >
             {notification.title}
           </h4>
-          {!isRead && <span className="flex-shrink-0 rounded-full bg-primary w-2 h-2" />}
+          {!isRead && (
+            <span
+              className="flex-shrink-0 rounded-full bg-[#008751] w-2.5 h-2.5 mt-1"
+              title="Unread notification"
+            />
+          )}
         </div>
-        <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">{notification.message}</p>
-        <div className="flex items-center justify-between mt-1">
-          <span className="text-xs text-gray-500">{getTimeAgo()}</span>
+
+        <p className="text-xs text-gray-600 mt-1 line-clamp-2 leading-relaxed">
+          {notification.message}
+        </p>
+
+        <div className="flex items-center justify-between mt-2 pt-0.5">
+          <span className="text-xs text-gray-500 font-normal">{getTimeAgo()}</span>
           {!isRead && (
             <button
-              className="text-xs text-primary flex items-center gap-0.5 hover:underline"
-              onClick={(e) => {
-                e.stopPropagation()
-                setIsRead(true)
-                onRead()
-              }}
+              type="button"
+              className="text-xs text-[#008751] hover:text-[#006b40] font-medium flex items-center gap-1 hover:underline transition-colors ml-auto"
+              onClick={handleMarkAsReadOnly}
             >
-              <Check className="h-3 w-3" /> Mark as read
+              <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+              Mark as read
             </button>
           )}
         </div>
