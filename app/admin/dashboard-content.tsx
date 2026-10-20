@@ -177,7 +177,17 @@ export default function DashboardContent() {
     },
   ];
 
-  const authorizedModules = allAvailableModules.filter((m) => canAccessModule(m.href));
+  const isSuper =
+    user?.role?.toLowerCase().includes("super") ||
+    user?.role_key?.toLowerCase().includes("super");
+
+  const canSeeEmployees =
+    isSuper ||
+    canAccessModule("employees") ||
+    canAccessModule("/admin/employees") ||
+    canAccessModule("Employees List");
+
+  const authorizedModules = allAvailableModules.filter((m) => isSuper || canAccessModule(m.href) || canAccessModule(m.title));
 
   const {
     data: statsData,
@@ -340,7 +350,54 @@ export default function DashboardContent() {
           </Button>
         </div>
 
-        {/* Stats Grid */}
+        {/* Authorized Functional Workspaces */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Your Authorized Modules</h2>
+              <p className="text-xs text-slate-500">Modules and functional workspaces accessible under your assigned role ({user?.role || "User"})</p>
+            </div>
+            <Badge variant="outline" className="text-xs text-emerald-800 bg-emerald-50 border-emerald-200">
+              {authorizedModules.length} Active Modules
+            </Badge>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {authorizedModules.map((module) => (
+              <Link
+                key={module.title}
+                href={module.href}
+                className="group relative bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:border-[#008751]/40 hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className={`p-2.5 rounded-lg ${module.bgColor} ${module.color}`}>
+                      <module.icon className="h-5 w-5" />
+                    </div>
+                    <Badge variant="outline" className="text-[10px] text-slate-400 group-hover:text-[#008751] group-hover:border-[#008751]/30">
+                      Access Granted
+                    </Badge>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-900 text-sm group-hover:text-[#008751] transition-colors">
+                      {module.title}
+                    </h3>
+                    <p className="text-xs text-slate-500 line-clamp-2 mt-1 leading-relaxed">
+                      {module.description}
+                    </p>
+                  </div>
+                </div>
+                <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-[#008751]">
+                  <span>Open Workspace</span>
+                  <ChevronRight className="w-3.5 h-3.5 transform group-hover:translate-x-0.5 transition-transform" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {canSeeEmployees && (
+      <>
+        {/* Stats Grid - Only for personnel authorized for employee data */}
         <div className="grid w-full grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
           {statCards.map((stat, index) => (
             <Card key={stat.label} className="relative w-full overflow-hidden border-slate-200 transition-all duration-200 hover:border-slate-300 hover:shadow-lg">
@@ -409,6 +466,8 @@ export default function DashboardContent() {
             </CardContent>
           </Card>
         </div>
+      </>
+    )}
 
         {/* Recent Activities */}
         <Card className="w-full border-slate-200">

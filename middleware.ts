@@ -24,6 +24,7 @@ export function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
 
   const isPublicPath =
+    path === "/login" ||
     path === "/auth/login" ||
     path === "/auth/forgot-password" ||
     path === "/" ||
@@ -33,7 +34,7 @@ export function middleware(request: NextRequest) {
 
 
   const isAdminPath = path.startsWith("/admin")
-  const isAdminLogin = path === "/admin/login" || path === "/auth/login"
+  const isAdminLogin = path === "/admin/login" || path === "/auth/login" || path === "/login"
 
   const token = request.cookies.get("token")?.value || request.cookies.get("ippis_token")?.value
 

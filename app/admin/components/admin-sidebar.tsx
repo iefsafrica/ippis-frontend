@@ -706,16 +706,100 @@ export function AdminSidebar() {
       icon: Database,
     },
   ];
+  const roleLower = (user?.role || "").toLowerCase();
+  const roleKeyLower = (user?.role_key || "").toLowerCase();
+
+  const isApplicant =
+    !isSuper &&
+    (roleLower === "applicant" ||
+      roleKeyLower === "applicant" ||
+      roleLower.includes("applicant") ||
+      (user?.accessible_modules &&
+        user.accessible_modules.some((m) => m.toLowerCase().includes("application")) &&
+        !user.accessible_modules.some((m) => m.toLowerCase().includes("employees"))));
+
+  const isPureEmployee =
+    !isSuper &&
+    !isApplicant &&
+    (roleLower === "employee" ||
+      roleKeyLower === "employee" ||
+      roleLower === "selfservice" ||
+      roleKeyLower === "self_service" ||
+      roleLower.includes("employee")) &&
+    !roleLower.includes("admin") &&
+    !roleLower.includes("super") &&
+    !roleLower.includes("hr") &&
+    !roleLower.includes("payroll") &&
+    !roleLower.includes("finance") &&
+    !roleLower.includes("auditor") &&
+    !roleLower.includes("director") &&
+    !roleLower.includes("head");
+
+  const applicantNavItems = [
+    {
+      title: "Application Status",
+      href: "/admin/application-status",
+      icon: FileText,
+    },
+  ];
+
+  const employeeNavItems = [
+    {
+      title: "Overview",
+      href: "/admin",
+      icon: LayoutDashboard,
+    },
+    {
+      title: "My Profile",
+      href: "/admin?tab=profile",
+      icon: Users,
+    },
+    {
+      title: "Attendance & Clocking",
+      href: "/admin?tab=attendance",
+      icon: Clock,
+    },
+    {
+      title: "Leave Management",
+      href: "/admin?tab=leaves",
+      icon: Calendar,
+    },
+    {
+      title: "Payroll & Payslips",
+      href: "/admin?tab=payroll",
+      icon: DollarSign,
+    },
+    {
+      title: "Goals & Performance",
+      href: "/admin?tab=performance",
+      icon: TrendingUp,
+    },
+    {
+      title: "Policies & Circulars",
+      href: "/admin?tab=announcements",
+      icon: FileBarChart,
+    },
+    {
+      title: "Helpdesk & Tickets",
+      href: "/admin?tab=helpdesk",
+      icon: LifeBuoy,
+    },
+  ];
+
   // Filter modules strictly according to the user's assigned role and permissions
-  const visibleNavItems = navItems.filter((item) => {
-    if (item.href === "/admin") return true; // Dashboard is always accessible
-    if (isSuper) return true; // Super Administrator sees all modules
-    return (
-      canAccessModule(item.title) ||
-      (item.section ? canAccessModule(item.section) : false) ||
-      (item.href ? canAccessModule(item.href) : false)
-    );
-  });
+  const visibleNavItems = isApplicant
+    ? applicantNavItems
+    : isPureEmployee
+    ? employeeNavItems
+    : navItems.filter((item) => {
+        if (item.href === "/admin") return true; // Dashboard is always accessible
+        if (isSuper) return true; // Super Administrator sees all modules
+        return (
+          canAccessModule(item.title) ||
+          (item.section ? canAccessModule(item.section) : false) ||
+          (item.href ? canAccessModule(item.href) : false)
+        );
+      });
 
   const sidebarContent = (
     <div className="flex-1 min-h-0 py-5 flex flex-col bg-white">
