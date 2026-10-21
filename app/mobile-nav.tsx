@@ -62,6 +62,13 @@ export default function MobileNav() {
                   Testimonials
                 </Link>
                 <Link
+                  href="#tickets"
+                  className="text-lg font-medium py-2 border-b border-gray-100 text-green-700 font-semibold hover:text-green-800"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Support Tickets
+                </Link>
+                <Link
                   href="#contact"
                   className="text-lg font-medium py-2 border-b border-gray-100 text-gray-900 hover:text-green-600"
                   onClick={() => setIsOpen(false)}

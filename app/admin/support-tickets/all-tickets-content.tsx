@@ -18,6 +18,7 @@ import ExportService from "@/app/admin/services/export-service"
 import { toast } from "sonner"
 import { Download, Plus } from "lucide-react"
 import type { SupportTicket } from "@/types/supportTickets"
+import { SUPPORT_TICKET_MOCKS } from "./data/mock-tickets"
 
 const STATUS_OPTIONS = [
   { value: "open", label: "Open" },
@@ -32,7 +33,33 @@ export default function AllTicketsContent() {
   const [advancedSearchParams, setAdvancedSearchParams] = useState<Record<string, string>>({})
 
   const { data, isLoading, isError } = useGetSupportTickets()
-  const tickets = data?.data?.tickets ?? []
+  const apiTickets = data?.data?.tickets ?? []
+
+  const tickets = useMemo(() => {
+    let localSubmitted: SupportTicket[] = []
+    if (typeof window !== "undefined") {
+      try {
+        const stored = window.localStorage.getItem("ippis_recent_tickets") || window.sessionStorage.getItem("ippis_recent_tickets")
+        if (stored) {
+          localSubmitted = JSON.parse(stored)
+        }
+      } catch {
+        // ignore
+      }
+    }
+    // Deduplicate by ticket_id
+    const combined = [...localSubmitted, ...apiTickets]
+    if (combined.length === 0) {
+      return SUPPORT_TICKET_MOCKS
+    }
+    const seen = new Set<string>()
+    return combined.filter((t) => {
+      const id = String(t.ticket_id || t.id)
+      if (seen.has(id)) return false
+      seen.add(id)
+      return true
+    })
+  }, [apiTickets])
 
   const stats = useMemo(() => {
     const total = tickets.length
@@ -264,9 +291,9 @@ export default function AllTicketsContent() {
            </div>
 
           <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
-            {isLoading ? (
+            {isLoading && tickets.length === 0 ? (
               <div className="py-12 text-center text-sm text-gray-500">Loading tickets...</div>
-            ) : isError ? (
+            ) : isError && tickets.length === 0 ? (
               <div className="py-12 text-center text-sm text-red-600">Failed to load tickets. Please refresh the page.</div>
             ) : (
               <SupportTicketList

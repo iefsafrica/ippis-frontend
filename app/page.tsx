@@ -2,11 +2,12 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { CheckCircle } from "lucide-react"
+import { CheckCircle, Ticket } from "lucide-react"
 import MobileNav from "./mobile-nav"
 import NewsSection from "./news-section"
 import TimelineSection from "./timeline-section"
 import FaqSection from "./faq-section"
+import TicketSection from "./ticket-section"
 import Script from "next/script"
 
 export default function Home() {
@@ -53,6 +54,9 @@ export default function Home() {
             <Link href="#testimonials" className="text-sm font-medium text-gray-900 hover:text-primary">
               Testimonials
             </Link>
+            <Link href="#tickets" className="text-sm font-medium text-green-700 hover:text-green-800 font-semibold">
+              Support Tickets
+            </Link>
             <Link href="#contact" className="text-sm font-medium text-gray-900 hover:text-primary">
               Contact
             </Link>
@@ -90,6 +94,12 @@ export default function Home() {
                   <Link href="/track">
                     <Button variant="outline" className="text-gray-900 border-gray-300 hover:bg-gray-100">
                       Track Application
+                    </Button>
+                  </Link>
+                  <Link href="#tickets">
+                    <Button variant="outline" className="text-green-800 border-green-300 bg-white hover:bg-green-50 flex items-center gap-1.5 shadow-sm">
+                      <Ticket className="h-4 w-4 text-green-700" />
+                      Support Tickets
                     </Button>
                   </Link>
                 </div>
@@ -263,6 +273,7 @@ export default function Home() {
         <TimelineSection />
         <NewsSection />
         <FaqSection />
+        <TicketSection />
 
         <section id="contact" className="w-full py-12 md:py-24 lg:py-32">
           <div className="container px-4 md:px-6">
@@ -293,6 +304,14 @@ export default function Home() {
                       <p>
                         <strong>Hours:</strong> Monday - Friday, 8:00 AM - 5:00 PM
                       </p>
+                    </div>
+                    <div className="pt-4">
+                      <Link href="#tickets">
+                        <Button className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-1.5">
+                          <Ticket className="h-4 w-4" />
+                          Submit or Track a Support Ticket
+                        </Button>
+                      </Link>
                     </div>
                   </div>
                 </CardContent>
@@ -342,6 +361,9 @@ export default function Home() {
             </p>
           </div>
           <div className="flex flex-col gap-2 md:flex-row md:gap-4">
+            <Link href="#tickets" className="text-sm text-green-800 hover:text-green-900 font-medium hover:underline">
+              Support Tickets
+            </Link>
             <Link href="/privacy-policy" className="text-sm text-gray-700 hover:text-primary hover:underline">
               Privacy Policy
             </Link>
