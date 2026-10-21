@@ -18,7 +18,6 @@ import ExportService from "@/app/admin/services/export-service"
 import { toast } from "sonner"
 import { Download, Plus } from "lucide-react"
 import type { SupportTicket } from "@/types/supportTickets"
-import { SUPPORT_TICKET_MOCKS } from "./data/mock-tickets"
 
 const STATUS_OPTIONS = [
   { value: "open", label: "Open" },
@@ -33,7 +32,7 @@ export default function AllTicketsContent() {
   const [advancedSearchParams, setAdvancedSearchParams] = useState<Record<string, string>>({})
 
   const { data, isLoading, isError } = useGetSupportTickets()
-  const apiTickets = data?.data?.tickets ?? []
+  const apiTickets: SupportTicket[] = (data as any)?.data?.tickets ?? []
 
   const tickets = useMemo(() => {
     let localSubmitted: SupportTicket[] = []
@@ -49,9 +48,6 @@ export default function AllTicketsContent() {
     }
     // Deduplicate by ticket_id
     const combined = [...localSubmitted, ...apiTickets]
-    if (combined.length === 0) {
-      return SUPPORT_TICKET_MOCKS
-    }
     const seen = new Set<string>()
     return combined.filter((t) => {
       const id = String(t.ticket_id || t.id)

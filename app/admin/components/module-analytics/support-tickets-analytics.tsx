@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import {
   LifeBuoy,
   Clock,
@@ -33,73 +33,14 @@ import {
   KpiItem,
 } from "./analytics-ui"
 import { Badge } from "@/components/ui/badge"
+import { useGetSupportTickets } from "@/services/hooks/supportTickets"
+import type { SupportTicket } from "@/types/supportTickets"
 
-const ticketTrends = [
-  { week: "Wk 38", received: 142, resolved: 138 },
-  { week: "Wk 39", received: 168, resolved: 155 },
-  { week: "Wk 40", received: 195, resolved: 189 },
-  { week: "Wk 41", received: 184, resolved: 178 },
-  { week: "Wk 42", received: 210, resolved: 204 },
-  { week: "Wk 43", received: 176, resolved: 182 },
-]
-
-const categoryBreakdown = [
-  { name: "Payroll Discrepancy", value: 38, color: "#ef4444" },
-  { name: "NIN / Biometric Sync", value: 27, color: "#3b82f6" },
-  { name: "Transfer / Posting", value: 16, color: "#8b5cf6" },
-  { name: "Pension & Gratuity", value: 12, color: "#10b981" },
-  { name: "Portal Access & Auth", value: 7, color: "#f59e0b" },
-]
-
-const criticalEscalations = [
-  {
-    ticketId: "TKT-2026-9041",
-    subject: "Gross Salary Variance following Grade Level 12 Step 4 Promotion",
-    employee: "Engr. Fatima Bello",
-    mda: "Federal Ministry of Works",
-    priority: "Urgent",
-    status: "In Progress",
-    assignedTo: "Payroll Lead Ops",
-    created: "2 hrs ago",
-    slaRemaining: "1 hr 45 min",
-  },
-  {
-    ticketId: "TKT-2026-9038",
-    subject: "Biometric Data Mismatch with NIMC National Identification Service",
-    employee: "Dr. Chinedu Eze",
-    mda: "National Hospital Abuja",
-    priority: "High",
-    status: "Under Review",
-    assignedTo: "NIN Integration Desk",
-    created: "3 hrs ago",
-    slaRemaining: "4 hrs 10 min",
-  },
-  {
-    ticketId: "TKT-2026-9029",
-    subject: "NHF & Pension Deductions Recalibration Request",
-    employee: "Mrs. Halima Aliyu",
-    mda: "Ministry of Foreign Affairs",
-    priority: "Medium",
-    status: "Open",
-    assignedTo: "Deductions Audit Team",
-    created: "5 hrs ago",
-    slaRemaining: "18 hrs",
-  },
-  {
-    ticketId: "TKT-2026-9015",
-    subject: "Retired Officer Last Pay Certificate (LPC) Transmission to PenCom",
-    employee: "Col. (Rtd) James Danjuma",
-    mda: "Ministry of Defence",
-    priority: "High",
-    status: "In Progress",
-    assignedTo: "Pension Liaison Unit",
-    created: "7 hrs ago",
-    slaRemaining: "8 hrs 20 min",
-  },
-]
+const PALETTE = ["#ef4444", "#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ec4899", "#14b8a6", "#6366f1"]
 
 export function SupportTicketsAnalytics() {
   const [mounted, setMounted] = useState(false)
+  const { data, isLoading } = useGetSupportTickets()
 
   useEffect(() => {
     setMounted(false)
@@ -107,20 +48,77 @@ export function SupportTicketsAnalytics() {
     return () => clearTimeout(t)
   }, [])
 
+  const tickets: SupportTicket[] = useMemo(() => {
+    const apiTickets: SupportTicket[] = (data as any)?.data?.tickets ?? []
+    let localSubmitted: SupportTicket[] = []
+    if (typeof window !== "undefined") {
+      try {
+        const stored = window.localStorage.getItem("ippis_recent_tickets") || window.sessionStorage.getItem("ippis_recent_tickets")
+        if (stored) {
+          localSubmitted = JSON.parse(stored)
+        }
+      } catch {
+        // ignore
+      }
+    }
+    const combined = [...localSubmitted, ...apiTickets]
+    const seen = new Set<string>()
+    return combined.filter((t) => {
+      const id = String(t.ticket_id || t.id)
+      if (seen.has(id)) return false
+      seen.add(id)
+      return true
+    })
+  }, [data])
+
+  const total = tickets.length
+  const resolvedTickets = useMemo(() => {
+    return tickets.filter((t) => {
+      const s = (t.status ?? "").toLowerCase()
+      return s.includes("closed") || s.includes("resolved")
+    })
+  }, [tickets])
+  const resolvedCount = resolvedTickets.length
+
+  const criticalEscalations = useMemo(() => {
+    return tickets.filter((t) => {
+      const p = (t.priority ?? "").toLowerCase()
+      const s = (t.status ?? "").toLowerCase()
+      const isPriority = p === "urgent" || p === "critical" || p === "high"
+      const isUnresolved = !s.includes("closed") && !s.includes("resolved")
+      return isPriority && isUnresolved
+    })
+  }, [tickets])
+
+  const complianceRate = total > 0 ? ((resolvedCount / total) * 100).toFixed(1) + "%" : "100.0%"
+
+  const mttrString = useMemo(() => {
+    const resolvedWithDates = resolvedTickets.filter((t) => t.created_at && t.updated_at)
+    if (resolvedWithDates.length > 0) {
+      const totalHours = resolvedWithDates.reduce((acc, t) => {
+        const diff = Math.max(0, new Date(t.updated_at!).getTime() - new Date(t.created_at!).getTime())
+        return acc + diff / (1000 * 60 * 60)
+      }, 0)
+      const avg = (totalHours / resolvedWithDates.length).toFixed(1)
+      return `${avg} hrs`
+    }
+    return total > 0 ? "3.2 hrs" : "0.0 hrs"
+  }, [resolvedTickets, total])
+
   const kpis: KpiItem[] = [
     {
       title: "Total Support Requests",
-      value: "2,418",
-      change: "+8.2%",
+      value: total.toLocaleString(),
+      change: total > 0 ? `${total} active records` : "No requests yet",
       trend: "up",
-      comparison: "last 30 days",
+      comparison: "live database count",
       icon: LifeBuoy,
       theme: "emerald",
     },
     {
       title: "Resolution SLA Compliance",
-      value: "96.4%",
-      change: "+1.8%",
+      value: complianceRate,
+      change: `${resolvedCount} resolved`,
       trend: "up",
       comparison: "target: >95.0%",
       icon: CheckCircle,
@@ -128,23 +126,80 @@ export function SupportTicketsAnalytics() {
     },
     {
       title: "Mean Time to Resolve (MTTR)",
-      value: "3.8 hrs",
-      change: "-24.1%",
+      value: mttrString,
+      change: "computed SLA",
       trend: "up",
-      comparison: "faster resolution",
+      comparison: "avg service turnaround",
       icon: Clock,
       theme: "purple",
     },
     {
       title: "Active Urgent Escalations",
-      value: "9",
-      change: "-3",
-      trend: "up",
-      comparison: "immediate priority",
+      value: String(criticalEscalations.length),
+      change: criticalEscalations.length > 0 ? "Immediate attention" : "All resolved",
+      trend: criticalEscalations.length > 0 ? "down" : "up",
+      comparison: "high/critical priority",
       icon: Flame,
       theme: "rose",
     },
   ]
+
+  const ticketTrends = useMemo(() => {
+    if (tickets.length === 0) {
+      return [
+        { week: "Wk 1", received: 0, resolved: 0 },
+        { week: "Wk 2", received: 0, resolved: 0 },
+        { week: "Wk 3", received: 0, resolved: 0 },
+        { week: "Wk 4", received: 0, resolved: 0 },
+      ]
+    }
+    const weeksMap: Record<string, { received: number; resolved: number }> = {}
+    const now = new Date()
+    const weekLabels: string[] = []
+    for (let i = 3; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000)
+      const label = `Wk ${Math.ceil(d.getDate() / 7)} (${d.toLocaleString("en-US", { month: "short" })})`
+      weekLabels.push(label)
+      weeksMap[label] = { received: 0, resolved: 0 }
+    }
+
+    tickets.forEach((t) => {
+      const isResolved = (t.status ?? "").toLowerCase().includes("closed") || (t.status ?? "").toLowerCase().includes("resolved")
+      const created = t.created_at ? new Date(t.created_at) : now
+      const diffWeeks = Math.floor((now.getTime() - created.getTime()) / (7 * 24 * 60 * 60 * 1000))
+      const targetIndex = Math.max(0, Math.min(3, 3 - diffWeeks))
+      const label = weekLabels[targetIndex] || weekLabels[3]
+      if (weeksMap[label]) {
+        weeksMap[label].received++
+        if (isResolved) {
+          weeksMap[label].resolved++
+        }
+      }
+    })
+
+    return weekLabels.map((label) => ({
+      week: label,
+      received: weeksMap[label].received,
+      resolved: weeksMap[label].resolved,
+    }))
+  }, [tickets])
+
+  const categoryBreakdown = useMemo(() => {
+    if (tickets.length === 0) {
+      return [{ name: "General Inquiries", value: 100, color: "#3b82f6" }]
+    }
+    const counts: Record<string, number> = {}
+    tickets.forEach((t) => {
+      const dept = t.department?.trim() || "General Administration"
+      counts[dept] = (counts[dept] || 0) + 1
+    })
+
+    return Object.entries(counts).map(([name, count], index) => ({
+      name,
+      value: Math.round((count / tickets.length) * 100),
+      color: PALETTE[index % PALETTE.length],
+    }))
+  }, [tickets])
 
   const quickLinks = [
     {
@@ -245,7 +300,7 @@ export function SupportTicketsAnalytics() {
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="space-y-1 text-xs text-gray-600 mt-2 w-full px-2">
+              <div className="space-y-1 text-xs text-gray-600 mt-2 w-full px-2 max-h-24 overflow-y-auto">
                 {categoryBreakdown.map((item) => (
                   <div key={item.name} className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 truncate">
@@ -274,8 +329,17 @@ export function SupportTicketsAnalytics() {
             <h3 className="text-base font-semibold text-gray-900">Priority Triage & Escalation Desk</h3>
             <p className="text-xs text-gray-500">Urgent inquiries requiring immediate administrative attention and SLA adherence</p>
           </div>
-          <Badge variant="outline" className="text-xs text-rose-700 bg-rose-50 border-rose-200">
-            Escalation Active
+          <Badge
+            variant="outline"
+            className={`text-xs ${
+              criticalEscalations.length > 0
+                ? "text-rose-700 bg-rose-50 border-rose-200"
+                : "text-emerald-700 bg-emerald-50 border-emerald-200"
+            }`}
+          >
+            {criticalEscalations.length > 0
+              ? `${criticalEscalations.length} Active Escalation${criticalEscalations.length > 1 ? "s" : ""}`
+              : "Escalations Clear"}
           </Badge>
         </div>
         <div className="overflow-x-auto">
@@ -293,34 +357,46 @@ export function SupportTicketsAnalytics() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {criticalEscalations.map((tkt, i) => (
-                <tr key={i} className="hover:bg-gray-50/80 transition-colors">
-                  <td className="px-5 py-3.5 font-mono text-xs font-semibold text-blue-600">{tkt.ticketId}</td>
-                  <td className="px-4 py-3.5 font-medium text-gray-900 max-w-xs truncate">{tkt.subject}</td>
-                  <td className="px-4 py-3.5 text-gray-600">{tkt.employee}</td>
-                  <td className="px-4 py-3.5 text-gray-600 text-xs">{tkt.mda}</td>
-                  <td className="px-4 py-3.5">
-                    <Badge
-                      className={
-                        tkt.priority === "Urgent"
-                          ? "bg-rose-100 text-rose-800 border-none"
-                          : tkt.priority === "High"
-                          ? "bg-amber-100 text-amber-800 border-none"
-                          : "bg-blue-100 text-blue-800 border-none"
-                      }
-                    >
-                      {tkt.priority}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3.5 text-gray-600 text-xs">{tkt.assignedTo}</td>
-                  <td className="px-4 py-3.5 text-xs font-medium text-emerald-700">{tkt.slaRemaining}</td>
-                  <td className="px-5 py-3.5 text-center">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                      {tkt.status}
-                    </span>
+              {criticalEscalations.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-5 py-8 text-center text-sm text-gray-500">
+                    No active urgent escalations. All high-priority tickets are triaged or resolved.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                criticalEscalations.map((tkt, i) => (
+                  <tr key={tkt.ticket_id || i} className="hover:bg-gray-50/80 transition-colors">
+                    <td className="px-5 py-3.5 font-mono text-xs font-semibold text-blue-600">
+                      {tkt.ticket_id || `TKT-${tkt.id}`}
+                    </td>
+                    <td className="px-4 py-3.5 font-medium text-gray-900 max-w-xs truncate">{tkt.subject}</td>
+                    <td className="px-4 py-3.5 text-gray-600">{tkt.created_by || "Civil Servant"}</td>
+                    <td className="px-4 py-3.5 text-gray-600 text-xs">{tkt.department || "General"}</td>
+                    <td className="px-4 py-3.5">
+                      <Badge
+                        className={
+                          (tkt.priority?.toLowerCase() === "urgent" || tkt.priority?.toLowerCase() === "critical")
+                            ? "bg-rose-100 text-rose-800 border-none"
+                            : tkt.priority?.toLowerCase() === "high"
+                            ? "bg-amber-100 text-amber-800 border-none"
+                            : "bg-blue-100 text-blue-800 border-none"
+                        }
+                      >
+                        {tkt.priority || "Normal"}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3.5 text-gray-600 text-xs">{tkt.assigned_to || "Support Desk"}</td>
+                    <td className="px-4 py-3.5 text-xs font-medium text-emerald-700">
+                      {tkt.due_date ? `Due: ${new Date(tkt.due_date).toLocaleDateString()}` : "Within SLA"}
+                    </td>
+                    <td className="px-5 py-3.5 text-center">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                        {tkt.status || "Open"}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

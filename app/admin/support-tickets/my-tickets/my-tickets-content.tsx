@@ -10,11 +10,9 @@ import { SupportTicketsShell } from "../components/support-tickets-shell"
 import { SupportTicketList } from "../components/support-ticket-list"
 import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { useGetSupportTickets, useUpdateSupportTicket } from "@/services/hooks/supportTickets"
-import { SUPPORT_TICKET_MOCKS } from "../data/mock-tickets"
+import { useAuth } from "@/lib/auth-context"
 import type { SupportTicket } from "@/types/supportTickets"
 import { toast } from "sonner"
-
-const CURRENT_USER = "Sarah Johnson"
 
 const STATUS_OPTIONS = [
   { value: "open", label: "Open" },
@@ -25,6 +23,7 @@ const STATUS_OPTIONS = [
 ]
 
 export default function MyTicketsContent() {
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState("assigned")
   const [searchTerm, setSearchTerm] = useState("")
   const [statusTicket, setStatusTicket] = useState<SupportTicket | null>(null)
@@ -32,15 +31,58 @@ export default function MyTicketsContent() {
 
   const { data } = useGetSupportTickets()
   const updateTicket = useUpdateSupportTicket()
-  const tickets = data?.data?.tickets ?? SUPPORT_TICKET_MOCKS
+
+  const tickets = useMemo(() => {
+    const apiTickets: SupportTicket[] = (data as any)?.data?.tickets ?? []
+    let localSubmitted: SupportTicket[] = []
+    if (typeof window !== "undefined") {
+      try {
+        const stored = window.localStorage.getItem("ippis_recent_tickets") || window.sessionStorage.getItem("ippis_recent_tickets")
+        if (stored) {
+          localSubmitted = JSON.parse(stored)
+        }
+      } catch {
+        // ignore
+      }
+    }
+    const combined = [...localSubmitted, ...apiTickets]
+    const seen = new Set<string>()
+    return combined.filter((t) => {
+      const id = String(t.ticket_id || t.id)
+      if (seen.has(id)) return false
+      seen.add(id)
+      return true
+    })
+  }, [data])
+
+  const currentUserName = (
+    (user as any)?.name ||
+    [(user as any)?.first_name, (user as any)?.last_name].filter(Boolean).join(" ") ||
+    user?.email ||
+    ""
+  )
+    .toLowerCase()
+    .trim()
+
+  const isAssignedToUser = (ticket: SupportTicket) => {
+    if (!currentUserName) return false
+    const assigned = (ticket.assigned_to ?? "").toLowerCase()
+    return assigned.includes(currentUserName) || currentUserName.includes(assigned)
+  }
+
+  const isCreatedByUser = (ticket: SupportTicket) => {
+    if (!currentUserName) return false
+    const creator = (ticket.created_by ?? "").toLowerCase()
+    return creator.includes(currentUserName) || (user?.email && creator.includes(user.email.toLowerCase()))
+  }
 
   const assignedToMe = useMemo(
-    () => tickets.filter((ticket) => ticket.assigned_to === CURRENT_USER).length,
-    [tickets],
+    () => tickets.filter(isAssignedToUser).length,
+    [tickets, currentUserName],
   )
   const createdByMe = useMemo(
-    () => tickets.filter((ticket) => ticket.created_by === CURRENT_USER).length,
-    [tickets],
+    () => tickets.filter(isCreatedByUser).length,
+    [tickets, currentUserName],
   )
   const openTickets = useMemo(
     () => tickets.filter((ticket) => (ticket.status ?? "").toLowerCase().includes("open")).length,
@@ -56,10 +98,10 @@ export default function MyTicketsContent() {
   const baseTabMap = useMemo(
     () => ({
       all: tickets,
-      assigned: tickets.filter((ticket) => ticket.assigned_to === CURRENT_USER),
-      created: tickets.filter((ticket) => ticket.created_by === CURRENT_USER),
+      assigned: tickets.filter(isAssignedToUser),
+      created: tickets.filter(isCreatedByUser),
     }),
-    [tickets],
+    [tickets, currentUserName],
   )
 
   const normalizedSearch = searchTerm.trim().toLowerCase()

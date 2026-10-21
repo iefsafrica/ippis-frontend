@@ -107,7 +107,7 @@ export default function KnowledgeBaseContent() {
   const updateArticle = useUpdateKnowledgeBaseArticle()
   const deleteArticle = useDeleteKnowledgeBaseArticle()
 
-  const articles = data?.data?.articles ?? []
+  const articles: KnowledgeBaseArticle[] = (data as any)?.data?.articles ?? []
   const categories = useMemo(() => {
     const categorized = Array.from(new Set(articles.map((article) => article.category ?? "Uncategorized")))
     return categorized.sort()

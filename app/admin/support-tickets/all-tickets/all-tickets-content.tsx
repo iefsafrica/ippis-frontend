@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import type { FormEvent } from "react"
 import type { UseQueryResult } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
@@ -252,7 +252,28 @@ export default function AllTicketsContent() {
   }
   const getAssigneeDisplayName = (value?: string | null) => findEmployeeByValue(value)?.name ?? value ?? ""
 
-  const tickets: SupportTicket[] = supportTicketsResult.data?.data?.tickets ?? []
+  const tickets: SupportTicket[] = useMemo(() => {
+    const apiTickets = supportTicketsResult.data?.data?.tickets ?? []
+    let localSubmitted: SupportTicket[] = []
+    if (typeof window !== "undefined") {
+      try {
+        const stored = window.localStorage.getItem("ippis_recent_tickets") || window.sessionStorage.getItem("ippis_recent_tickets")
+        if (stored) {
+          localSubmitted = JSON.parse(stored)
+        }
+      } catch {
+        // ignore
+      }
+    }
+    const combined = [...localSubmitted, ...apiTickets]
+    const seen = new Set<string>()
+    return combined.filter((t) => {
+      const id = String(t.ticket_id || t.id)
+      if (seen.has(id)) return false
+      seen.add(id)
+      return true
+    })
+  }, [supportTicketsResult.data])
   const total = tickets.length
   const open = tickets.filter((ticket) => ticket.status?.toLowerCase().includes("open")).length
   const inProgress = tickets.filter((ticket) => ticket.status?.toLowerCase().includes("progress")).length
