@@ -11,6 +11,7 @@ import { BarChart, LineChart, DonutChart } from "@tremor/react"
 import { Clock, BarChart2, Activity, ThumbsUp } from "lucide-react"
 import { useGetSupportTickets } from "@/services/hooks/supportTickets"
 import type { SupportTicket } from "@/types/supportTickets"
+import ExportService from "@/app/admin/services/export-service"
 
 export default function ReportsContent() {
   const [dateRange, setDateRange] = useState("last30")
@@ -188,12 +189,112 @@ export default function ReportsContent() {
     { label: "First Response", value: totalTickets > 0 ? "1.8 hours" : "N/A", subtitle: subtitleLabel },
   ]
 
+  const handleExportCSV = () => {
+    const columns = [
+      { header: "Ticket ID", accessor: "ticket_id" },
+      { header: "Subject", accessor: "subject" },
+      { header: "Department", accessor: "department" },
+      { header: "Priority", accessor: "priority" },
+      { header: "Status", accessor: "status" },
+      { header: "Assigned To", accessor: "assigned_to" },
+      { header: "Created Date", accessor: "created_at" },
+    ]
+    ExportService.exportToCSV(filteredTickets, {
+      title: "Support Tickets Reports",
+      filename: "support_tickets_reports",
+      columns,
+    })
+  }
+
+  const handlePrintReport = () => {
+    ExportService.printMultiSectionReport({
+      title: "Support Desk SLA & Operational Performance Report",
+      subtitle: `Filtered by: Department [${department === "all" ? "All Departments" : department}] | Scope [${subtitleLabel}]`,
+      organization: "Federal Republic of Nigeria — Integrated Personnel and Payroll Information System (IPPIS)",
+      period: subtitleLabel,
+      summaryStats: [
+        { label: "Total Tickets", value: String(totalTickets), subtitle: subtitleLabel },
+        { label: "Avg. Resolution", value: resolvedCount > 0 ? "5.2 hours" : "N/A", subtitle: subtitleLabel },
+        { label: "First Response", value: totalTickets > 0 ? "1.8 hours" : "N/A", subtitle: subtitleLabel },
+        { label: "Satisfaction Rate", value: `${resolutionRate}%`, subtitle: subtitleLabel },
+      ],
+      sections: [
+        {
+          title: "Support Ticket Log & Inquiries Registry",
+          subtitle: "Detailed listing of active and resolved employee cases matching current report criteria",
+          columns: [
+            { header: "Ticket ID", accessor: "ticket_id" },
+            { header: "Subject Summary", accessor: "subject" },
+            { header: "Department", accessor: "department" },
+            { header: "Priority", accessor: "priority" },
+            { header: "Status", accessor: "status" },
+            { header: "Assigned Officer", accessor: "assigned_to" },
+            { header: "Created At", accessor: "created_at" },
+          ],
+          data: filteredTickets.map((t) => ({
+            ticket_id: t.ticket_id || `TKT-${t.id}`,
+            subject: t.subject,
+            department: t.department || "General",
+            priority: t.priority || "Medium",
+            status: t.status || "Open",
+            assigned_to: t.assigned_to || "Unassigned",
+            created_at: t.created_at ? new Date(t.created_at).toLocaleDateString() : "Recent",
+          })),
+        },
+        {
+          title: "Category & Departmental Distribution",
+          subtitle: "Volume and percentage share per ministry/department",
+          columns: [
+            { header: "Department / MDA", accessor: "name" },
+            { header: "Share of Total Tickets", accessor: "value" },
+          ],
+          data: categoryDistributionData.map((c) => ({
+            name: c.name,
+            value: `${c.value}%`,
+          })),
+        },
+        {
+          title: "Agent Performance & Resolution Audits",
+          subtitle: "Case handling, resolution time, and citizen satisfaction ratings across support agents",
+          columns: [
+            { header: "Agent Name", accessor: "name" },
+            { header: "Tickets Handled", accessor: "tickets" },
+            { header: "Avg Response Time", accessor: "avgResponse" },
+            { header: "Satisfaction (out of 5)", accessor: "satisfaction" },
+          ],
+          data: agentPerformanceData.map((a) => ({
+            name: a.name,
+            tickets: a.tickets,
+            avgResponse: `${a.avgResponse} hrs`,
+            satisfaction: `${a.satisfaction} / 5.0`,
+          })),
+        },
+        {
+          title: "Monthly Inflow & Resolution Volume",
+          subtitle: "Historical monthly trend of incoming requests vs cases closed",
+          columns: [
+            { header: "Month", accessor: "date" },
+            { header: "New Tickets", accessor: "New Tickets" },
+            { header: "Resolved Tickets", accessor: "Resolved Tickets" },
+          ],
+          data: ticketVolumeData,
+        },
+      ],
+    })
+  }
+
   return (
     <SupportTicketsShell
       title="Support Ticket Reports"
       description="Monitor SLA compliance, ticket volumes, and agent performance trends."
       stats={stats}
-      actions={<ExportButtons />}
+      actions={
+        <ExportButtons
+          onPrint={handlePrintReport}
+          onExportCSV={handleExportCSV}
+          onExportPDF={handlePrintReport}
+        />
+      }
     >
       <Card className="border border-gray-200 shadow-lg rounded-xl overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">

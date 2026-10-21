@@ -290,3 +290,89 @@ html {
     @apply text-black dark:text-white;
   }
 }
+
+/* Print optimization to present clean data tables instead of UI screenshots */
+@media print {
+  /* Hide sidebars, navigation bars, headers, floating menus, action buttons */
+  nav,
+  aside,
+  header,
+  footer,
+  .no-print,
+  button,
+  input,
+  select,
+  [role="navigation"],
+  [data-radix-popper-content-wrapper],
+  .quick-nav-grid {
+    display: none !important;
+  }
+
+  /* Expand full width, force white background and sharp black text */
+  html,
+  body,
+  main,
+  #__next,
+  .container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+  }
+
+  /* Reset card shadows and borders for clean paper layout */
+  .card,
+  [class*="rounded-"],
+  [class*="shadow"] {
+    box-shadow: none !important;
+    border: 1px solid #d1d5db !important;
+    background: #ffffff !important;
+    page-break-inside: avoid;
+  }
+
+  /* Table styling for high-legibility print */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 11px !important;
+    page-break-inside: auto;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  th {
+    background-color: #f3f4f6 !important;
+    color: #111827 !important;
+    border: 1px solid #d1d5db !important;
+    padding: 6px 8px !important;
+    font-weight: 700 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  td {
+    border: 1px solid #e5e7eb !important;
+    padding: 6px 8px !important;
+    color: #1f2937 !important;
+    word-break: break-word;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+  }
+
+  /* Remove backdrop filters, animations, and transitions */
+  * {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}
+

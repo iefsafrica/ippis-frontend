@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ExternalLink,
   Sparkles,
+  Printer,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -77,11 +78,15 @@ export function AnalyticsHeader({
   description,
   badgeText = "Enterprise Module Analytics",
   onRefresh,
+  onPrint,
+  onExport,
 }: {
   moduleName: string
   description: string
   badgeText?: string
   onRefresh?: () => void
+  onPrint?: () => void
+  onExport?: () => void
 }) {
   const [period, setPeriod] = useState("30d")
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -90,6 +95,24 @@ export function AnalyticsHeader({
     setIsRefreshing(true)
     if (onRefresh) onRefresh()
     setTimeout(() => setIsRefreshing(false), 600)
+  }
+
+  const handlePrintClick = () => {
+    if (onPrint) {
+      onPrint()
+    } else if (typeof window !== "undefined") {
+      window.print()
+    }
+  }
+
+  const handleExportClick = () => {
+    if (onExport) {
+      onExport()
+    } else if (onPrint) {
+      onPrint()
+    } else if (typeof window !== "undefined") {
+      window.print()
+    }
   }
 
   return (
@@ -135,10 +158,20 @@ export function AnalyticsHeader({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => {
-            if (typeof window !== "undefined") window.print()
-          }}
+          onClick={handlePrintClick}
+          className="h-9 px-3 gap-1.5 text-xs text-slate-700 bg-white border-slate-200 hover:bg-slate-50 font-medium"
+          title="Print formal report document with tabular data"
+        >
+          <Printer className="h-3.5 w-3.5 text-slate-600" />
+          Print Data
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportClick}
           className="h-9 px-3 gap-1.5 text-xs text-emerald-800 border-emerald-300 bg-emerald-50 hover:bg-emerald-100 font-semibold"
+          title="Export report document"
         >
           <Download className="h-3.5 w-3.5 text-emerald-700" />
           Export Report

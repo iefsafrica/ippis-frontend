@@ -1,16 +1,38 @@
 import { saveAs } from "file-saver"
 
-interface ExportColumn {
+export interface ExportColumn {
   header: string
   accessor: string
 }
 
-interface ExportOptions {
+export interface ExportOptions {
   title: string
   filename: string
   columns: ExportColumn[]
   logo?: string
   organization?: string
+}
+
+export interface ReportSummaryStat {
+  label: string
+  value: string | number
+  subtitle?: string
+}
+
+export interface ReportTableSection {
+  title: string
+  subtitle?: string
+  columns: { header: string; accessor: string }[]
+  data: any[]
+}
+
+export interface MultiSectionPrintOptions {
+  title: string
+  subtitle?: string
+  organization?: string
+  period?: string
+  summaryStats?: ReportSummaryStat[]
+  sections: ReportTableSection[]
 }
 
 class ExportService {
@@ -477,6 +499,267 @@ class ExportService {
       }, 2000)
     } catch (error) {
       console.error('Print error:', error)
+      throw new Error('Failed to open print dialog')
+    }
+  }
+
+  // Print multi-section structured data report
+  public static printMultiSectionReport(options: MultiSectionPrintOptions): void {
+    try {
+      const {
+        title,
+        subtitle,
+        organization = "Federal Republic of Nigeria — Integrated Personnel and Payroll Information System (IPPIS)",
+        period = "Live System Intelligence",
+        summaryStats = [],
+        sections = [],
+      } = options
+
+      const statsHtml = summaryStats.length > 0 ? `
+        <div class="stats-grid">
+          ${summaryStats.map(stat => `
+            <div class="stat-card">
+              <div class="stat-label">${this.sanitizeHTML(stat.label)}</div>
+              <div class="stat-value">${this.sanitizeHTML(String(stat.value))}</div>
+              ${stat.subtitle ? `<div class="stat-sub">${this.sanitizeHTML(stat.subtitle)}</div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      ` : ''
+
+      const sectionsHtml = sections.map(section => {
+        const ths = section.columns.map(col => `<th>${this.sanitizeHTML(col.header)}</th>`).join('')
+        const trs = section.data.length > 0
+          ? section.data.map((item, idx) => {
+              const tds = section.columns.map(col => {
+                const val = this.getNestedValue(item, col.accessor)
+                return `<td>${this.sanitizeHTML(String(val ?? ''))}</td>`
+              }).join('')
+              return `<tr class="${idx % 2 === 0 ? 'even-row' : 'odd-row'}">${tds}</tr>`
+            }).join('')
+          : `<tr><td colspan="${section.columns.length}" style="text-align:center; padding:16px; color:#6b7280;">No records available for this section</td></tr>`
+
+        return `
+          <div class="section">
+            <div class="section-header">
+              <h3 class="section-title">${this.sanitizeHTML(section.title)}</h3>
+              ${section.subtitle ? `<p class="section-sub">${this.sanitizeHTML(section.subtitle)}</p>` : ''}
+            </div>
+            <table>
+              <thead><tr>${ths}</tr></thead>
+              <tbody>${trs}</tbody>
+            </table>
+          </div>
+        `
+      }).join('')
+
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <title>${this.sanitizeHTML(title)}</title>
+            <style>
+              * { box-sizing: border-box; margin: 0; padding: 0; }
+              @page { size: A4; margin: 12mm 15mm; }
+              @media print {
+                body { margin: 0; padding: 0; background: #fff; color: #111; }
+                .no-print { display: none !important; }
+              }
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                color: #1f2937;
+                background: #ffffff;
+                padding: 24px;
+                line-height: 1.5;
+              }
+              .no-print-bar {
+                margin-bottom: 20px;
+                display: flex;
+                gap: 10px;
+                padding: 10px 14px;
+                background: #f3f4f6;
+                border-radius: 6px;
+                align-items: center;
+                justify-content: space-between;
+              }
+              .btn-print {
+                background: #008751;
+                color: white;
+                border: none;
+                padding: 8px 18px;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+                border-radius: 4px;
+              }
+              .btn-close {
+                background: #e5e7eb;
+                color: #374151;
+                border: none;
+                padding: 8px 14px;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+                border-radius: 4px;
+              }
+              .header {
+                border-bottom: 3px solid #008751;
+                padding-bottom: 12px;
+                margin-bottom: 18px;
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-end;
+              }
+              .org-name {
+                font-size: 11px;
+                font-weight: 700;
+                color: #008751;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+              }
+              .doc-title {
+                font-size: 20px;
+                font-weight: 800;
+                color: #111827;
+                margin-top: 4px;
+              }
+              .meta-block {
+                text-align: right;
+                font-size: 11px;
+                color: #6b7280;
+                line-height: 1.4;
+              }
+              .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 10px;
+                margin-bottom: 22px;
+              }
+              .stat-card {
+                border: 1px solid #e5e7eb;
+                border-radius: 6px;
+                padding: 10px 12px;
+                background: #f9fafb;
+              }
+              .stat-label {
+                font-size: 10px;
+                font-weight: 700;
+                color: #4b5563;
+                text-transform: uppercase;
+                letter-spacing: 0.03em;
+              }
+              .stat-value {
+                font-size: 19px;
+                font-weight: 800;
+                color: #111827;
+                margin-top: 2px;
+              }
+              .stat-sub {
+                font-size: 10px;
+                color: #6b7280;
+                margin-top: 2px;
+              }
+              .section {
+                margin-bottom: 22px;
+                page-break-inside: avoid;
+              }
+              .section-header {
+                margin-bottom: 8px;
+              }
+              .section-title {
+                font-size: 13px;
+                font-weight: 700;
+                color: #111827;
+                text-transform: uppercase;
+                letter-spacing: 0.03em;
+              }
+              .section-sub {
+                font-size: 11px;
+                color: #6b7280;
+              }
+              table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 11px;
+                margin-top: 6px;
+              }
+              th {
+                background: #f3f4f6;
+                color: #374151;
+                font-weight: 700;
+                text-align: left;
+                padding: 7px 9px;
+                border: 1px solid #d1d5db;
+                white-space: nowrap;
+              }
+              td {
+                padding: 6px 9px;
+                border: 1px solid #e5e7eb;
+                color: #1f2937;
+              }
+              .even-row { background: #fafafa; }
+              .odd-row { background: #ffffff; }
+              .footer {
+                margin-top: 28px;
+                border-top: 1px solid #e5e7eb;
+                padding-top: 10px;
+                font-size: 10px;
+                color: #9ca3af;
+                display: flex;
+                justify-content: space-between;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="no-print-bar no-print">
+              <span style="font-size: 13px; color: #374151;">Previewing formal data report. Use the button to print or save as PDF.</span>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn-print" onclick="window.print()">Print Report / Save PDF</button>
+                <button class="btn-close" onclick="window.close()">Close</button>
+              </div>
+            </div>
+
+            <div class="header">
+              <div>
+                <div class="org-name">${this.sanitizeHTML(organization)}</div>
+                <h1 class="doc-title">${this.sanitizeHTML(title)}</h1>
+                ${subtitle ? `<div style="font-size: 12px; color: #4b5563; margin-top: 2px;">${this.sanitizeHTML(subtitle)}</div>` : ''}
+              </div>
+              <div class="meta-block">
+                <div><strong>Report Period:</strong> ${this.sanitizeHTML(period)}</div>
+                <div><strong>Generated:</strong> ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                <div><strong>System:</strong> IPPIS Central Desk</div>
+              </div>
+            </div>
+
+            ${statsHtml}
+            ${sectionsHtml}
+
+            <div class="footer">
+              <span>Federal Republic of Nigeria — Office of the Head of the Civil Service of the Federation</span>
+              <span>Official IPPIS Data Document</span>
+            </div>
+          </body>
+        </html>
+      `
+
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const printWindow = window.open(url, '_blank')
+      if (!printWindow) {
+        throw new Error('Could not open print window')
+      }
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print()
+        }, 400)
+      }
+      setTimeout(() => {
+        URL.revokeObjectURL(url)
+      }, 3000)
+    } catch (error) {
+      console.error('Print multi-section error:', error)
       throw new Error('Failed to open print dialog')
     }
   }

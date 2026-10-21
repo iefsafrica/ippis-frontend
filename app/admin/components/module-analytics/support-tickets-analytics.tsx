@@ -35,6 +35,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { useGetSupportTickets } from "@/services/hooks/supportTickets"
 import type { SupportTicket } from "@/types/supportTickets"
+import ExportService from "@/app/admin/services/export-service"
 
 const PALETTE = ["#ef4444", "#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ec4899", "#14b8a6", "#6366f1"]
 
@@ -232,11 +233,76 @@ export function SupportTicketsAnalytics() {
     },
   ]
 
+  const handlePrintAnalytics = () => {
+    ExportService.printMultiSectionReport({
+      title: "Support Desk & Civil Service Inquiries Intelligence Report",
+      subtitle: "Official Summary of Service Desk Throughput, Inquiries Taxonomy, and Active Priority Escalations",
+      organization: "Federal Republic of Nigeria — Integrated Personnel and Payroll Information System (IPPIS)",
+      period: "Live Operational Cycle",
+      summaryStats: [
+        { label: "Total Inquiries", value: total.toLocaleString(), subtitle: "Active system records" },
+        { label: "SLA Compliance", value: complianceRate, subtitle: `${resolvedCount} resolved` },
+        { label: "MTTR Turnaround", value: mttrString, subtitle: "Mean resolution time" },
+        { label: "Urgent Escalations", value: String(criticalEscalations.length), subtitle: criticalEscalations.length > 0 ? "Requires action" : "All resolved" },
+      ],
+      sections: [
+        {
+          title: "Priority Triage & Active Escalations Desk",
+          subtitle: "Urgent and high-priority employee inquiries requiring immediate resolution",
+          columns: [
+            { header: "Ticket ID", accessor: "ticketId" },
+            { header: "Subject Summary", accessor: "subject" },
+            { header: "Officer Name", accessor: "employee" },
+            { header: "MDA / Facility", accessor: "mda" },
+            { header: "Priority", accessor: "priority" },
+            { header: "Assigned Desk", accessor: "assignedTo" },
+            { header: "Status", accessor: "status" },
+            { header: "SLA / Due Date", accessor: "slaRemaining" },
+          ],
+          data: criticalEscalations.map((t) => ({
+            ticketId: t.ticket_id || `TKT-${t.id}`,
+            subject: t.subject,
+            employee: t.created_by || "Civil Servant",
+            mda: t.department || "General Administration",
+            priority: t.priority || "Normal",
+            assignedTo: t.assigned_to || "Support Desk",
+            status: t.status || "Open",
+            slaRemaining: t.due_date ? `Due: ${new Date(t.due_date).toLocaleDateString()}` : "Within SLA",
+          })),
+        },
+        {
+          title: "Inquiry Subject Taxonomy & Departmental Distribution",
+          subtitle: "Classification of employee requests across operational domains",
+          columns: [
+            { header: "MDA / Inquiry Category", accessor: "name" },
+            { header: "Percentage Share", accessor: "percentage" },
+          ],
+          data: categoryBreakdown.map((c) => ({
+            name: c.name,
+            percentage: `${c.value}%`,
+          })),
+        },
+        {
+          title: "Weekly Inflow vs Resolution Throughput",
+          subtitle: "Comparison of weekly logged requests versus successfully resolved cases",
+          columns: [
+            { header: "Period", accessor: "week" },
+            { header: "Inflow (Logged)", accessor: "received" },
+            { header: "Outflow (Resolved)", accessor: "resolved" },
+          ],
+          data: ticketTrends,
+        },
+      ],
+    })
+  }
+
   return (
     <div className="space-y-6">
       <AnalyticsHeader
         moduleName="Support Tickets"
         description="Monitor civil servant service desk throughput, triage critical payroll & verification inquiries, and maintain high SLA compliance."
+        onPrint={handlePrintAnalytics}
+        onExport={handlePrintAnalytics}
       />
 
       <AnalyticsKpiGrid kpis={kpis} />

@@ -16,7 +16,7 @@ import { SupportTicketList } from "./components/support-ticket-list"
 import { useCreateSupportTicket, useDeleteSupportTicket, useGetSupportTickets, useUpdateSupportTicket } from "@/services/hooks/supportTickets"
 import ExportService from "@/app/admin/services/export-service"
 import { toast } from "sonner"
-import { Download, Plus } from "lucide-react"
+import { Download, Plus, Printer } from "lucide-react"
 import type { SupportTicket } from "@/types/supportTickets"
 
 const STATUS_OPTIONS = [
@@ -240,6 +240,26 @@ export default function AllTicketsContent() {
     toast.success("Export queued successfully")
   }
 
+  const handlePrint = () => {
+    const columns = [
+      { header: "Ticket ID", accessor: "ticket_id" },
+      { header: "Subject", accessor: "subject" },
+      { header: "Status", accessor: "status" },
+      { header: "Priority", accessor: "priority" },
+      { header: "Department", accessor: "department" },
+      { header: "Created By", accessor: "created_by" },
+      { header: "Assigned To", accessor: "assigned_to" },
+      { header: "Due Date", accessor: "due_date" },
+    ]
+
+    ExportService.printData(filteredTickets, {
+      title: "All Support Tickets Registry",
+      filename: "all_support_tickets",
+      columns,
+      organization: "Federal Republic of Nigeria — Integrated Personnel and Payroll Information System (IPPIS)",
+    })
+  }
+
   return (
     <SupportTicketsShell
       title="All Support Tickets"
@@ -278,6 +298,10 @@ export default function AllTicketsContent() {
                <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
                  <Download className="h-4 w-4" />
                  Export
+               </Button>
+               <Button variant="outline" size="sm" className="gap-2" onClick={handlePrint} title="Print structured tickets data">
+                 <Printer className="h-4 w-4" />
+                 Print Data
                </Button>
                <Button className="gap-2 bg-[#008751] hover:bg-[#007545]" size="sm" onClick={handleOpenAdd}>
                  <Plus className="h-4 w-4" />
