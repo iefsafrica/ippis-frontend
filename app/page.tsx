@@ -2,9 +2,10 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { CheckCircle, Ticket } from "lucide-react"
+import { CheckCircle, Ticket, Megaphone, BookOpen } from "lucide-react"
 import MobileNav from "./mobile-nav"
 import NewsSection from "./news-section"
+import KnowledgeBaseSection from "./knowledge-base-section"
 import TimelineSection from "./timeline-section"
 import FaqSection from "./faq-section"
 import TicketSection from "./ticket-section"
@@ -41,23 +42,29 @@ export default function Home() {
               <span className="text-xl font-bold text-gray-900">IPPIS</span>
             </Link>
           </div>
-          <nav className="hidden md:flex items-center gap-6">
-            <Link href="/" className="text-sm font-medium text-gray-900 hover:text-primary">
+          <nav className="hidden md:flex items-center gap-5">
+            <Link href="/" className="text-sm font-medium text-gray-900 hover:text-emerald-700">
               Home
             </Link>
-            <Link href="#features" className="text-sm font-medium text-gray-900 hover:text-primary">
+            <Link href="#features" className="text-sm font-medium text-gray-900 hover:text-emerald-700">
               Features
             </Link>
-            <Link href="#benefits" className="text-sm font-medium text-gray-900 hover:text-primary">
+            <Link href="#benefits" className="text-sm font-medium text-gray-900 hover:text-emerald-700">
               Benefits
             </Link>
-            <Link href="#testimonials" className="text-sm font-medium text-gray-900 hover:text-primary">
-              Testimonials
+            <Link href="#announcements" className="text-sm font-medium text-gray-900 hover:text-emerald-700 flex items-center gap-1">
+              <Megaphone className="h-3.5 w-3.5 text-emerald-600" />
+              Announcements
             </Link>
-            <Link href="#tickets" className="text-sm font-medium text-green-700 hover:text-green-800 font-semibold">
+            <Link href="#knowledge-base" className="text-sm font-medium text-gray-900 hover:text-emerald-700 flex items-center gap-1">
+              <BookOpen className="h-3.5 w-3.5 text-emerald-600" />
+              Knowledge Base
+            </Link>
+            <Link href="#tickets" className="text-sm font-medium text-green-700 hover:text-green-800 font-semibold flex items-center gap-1">
+              <Ticket className="h-3.5 w-3.5" />
               Support Tickets
             </Link>
-            <Link href="#contact" className="text-sm font-medium text-gray-900 hover:text-primary">
+            <Link href="#contact" className="text-sm font-medium text-gray-900 hover:text-emerald-700">
               Contact
             </Link>
           </nav>
@@ -84,20 +91,27 @@ export default function Home() {
                     Integrated Personnel and Payroll Information System
                   </h1>
                   <p className="max-w-[600px] text-gray-700 md:text-xl">
-                    A centralized database system for managing government employee information and payroll processing.
+                    A centralized database system for managing government employee information, biometric verification, and automated payroll processing.
                   </p>
                 </div>
-                <div className="flex flex-col gap-2 min-[400px]:flex-row">
+                <div className="flex flex-wrap gap-2">
                   <Link href="/register">
-                    <Button className="bg-green-600 hover:bg-green-700 text-white">Register Now</Button>
+                    <Button className="bg-green-600 hover:bg-green-700 text-white shadow-xs">Register Now</Button>
                   </Link>
-                  <Link href="/track">
-                    <Button variant="outline" className="text-gray-900 border-gray-300 hover:bg-gray-100">
-                      Track Application
+                  <Link href="#announcements">
+                    <Button variant="outline" className="text-gray-800 border-gray-300 bg-white hover:bg-gray-100 flex items-center gap-1.5 shadow-xs">
+                      <Megaphone className="h-4 w-4 text-emerald-700" />
+                      Announcements
+                    </Button>
+                  </Link>
+                  <Link href="#knowledge-base">
+                    <Button variant="outline" className="text-gray-800 border-gray-300 bg-white hover:bg-gray-100 flex items-center gap-1.5 shadow-xs">
+                      <BookOpen className="h-4 w-4 text-emerald-700" />
+                      Knowledge Base
                     </Button>
                   </Link>
                   <Link href="#tickets">
-                    <Button variant="outline" className="text-green-800 border-green-300 bg-white hover:bg-green-50 flex items-center gap-1.5 shadow-sm">
+                    <Button variant="outline" className="text-green-800 border-green-300 bg-white hover:bg-green-50 flex items-center gap-1.5 shadow-xs font-semibold">
                       <Ticket className="h-4 w-4 text-green-700" />
                       Support Tickets
                     </Button>
@@ -272,6 +286,7 @@ export default function Home() {
 
         <TimelineSection />
         <NewsSection />
+        <KnowledgeBaseSection />
         <FaqSection />
         <TicketSection />
 
@@ -357,10 +372,16 @@ export default function Home() {
               <span className="text-xl font-bold text-gray-900">IPPIS</span>
             </Link>
             <p className="text-sm text-gray-700">
-              &copy; 2023 Office of the Accountant-General of the Federation. All rights reserved.
+              &copy; {new Date().getFullYear()} Office of the Accountant-General of the Federation. All rights reserved.
             </p>
           </div>
-          <div className="flex flex-col gap-2 md:flex-row md:gap-4">
+          <div className="flex flex-col gap-2 md:flex-row md:gap-4 flex-wrap">
+            <Link href="#announcements" className="text-sm text-gray-700 hover:text-emerald-700 hover:underline">
+              Announcements
+            </Link>
+            <Link href="/knowledge-base" className="text-sm text-gray-700 hover:text-emerald-700 hover:underline">
+              Knowledge Base
+            </Link>
             <Link href="#tickets" className="text-sm text-green-800 hover:text-green-900 font-medium hover:underline">
               Support Tickets
             </Link>

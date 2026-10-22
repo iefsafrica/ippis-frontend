@@ -55,6 +55,22 @@ export default function MobileNav() {
                   Benefits
                 </Link>
                 <Link
+                  href="#announcements"
+                  className="text-lg font-medium py-2 border-b border-gray-100 text-gray-900 hover:text-emerald-700 flex items-center justify-between"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <span>Announcements</span>
+                  <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-semibold">Circulars</span>
+                </Link>
+                <Link
+                  href="/knowledge-base"
+                  className="text-lg font-medium py-2 border-b border-gray-100 text-gray-900 hover:text-emerald-700 flex items-center justify-between"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <span>Knowledge Base</span>
+                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-semibold">Guides</span>
+                </Link>
+                <Link
                   href="#testimonials"
                   className="text-lg font-medium py-2 border-b border-gray-100 text-gray-900 hover:text-green-600"
                   onClick={() => setIsOpen(false)}
@@ -63,10 +79,11 @@ export default function MobileNav() {
                 </Link>
                 <Link
                   href="#tickets"
-                  className="text-lg font-medium py-2 border-b border-gray-100 text-green-700 font-semibold hover:text-green-800"
+                  className="text-lg font-medium py-2 border-b border-gray-100 text-green-700 font-semibold hover:text-green-800 flex items-center justify-between"
                   onClick={() => setIsOpen(false)}
                 >
-                  Support Tickets
+                  <span>Support Tickets</span>
+                  <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-semibold">Help</span>
                 </Link>
                 <Link
                   href="#contact"
