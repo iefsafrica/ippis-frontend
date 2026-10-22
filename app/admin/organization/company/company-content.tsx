@@ -101,6 +101,7 @@ export default function CompanyContent() {
       name: company.name || "",
       email: company.email || "",
       phone: company.phone || "",
+      status: company.status || "active",
     })
     setShowEditDialog(true)
   }

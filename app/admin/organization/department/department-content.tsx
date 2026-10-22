@@ -98,6 +98,7 @@ export default function DepartmentContent() {
     setSelectedDepartment(department)
     setForm({
       name: department.name || "",
+      status: department.status || "active",
     })
     setShowEditDialog(true)
   }
@@ -166,11 +167,12 @@ export default function DepartmentContent() {
     if (!selectedDepartment) return
 
     const payload: UpdateDepartmentPayload = {
+      id: selectedDepartment.id,
       status: statusValue,
     }
 
     try {
-      await updateDepartmentMutation.mutateAsync({ id: selectedDepartment.id, ...payload })
+      await updateDepartmentMutation.mutateAsync(payload)
       toast.success("Department status updated successfully")
       setShowStatusDialog(false)
     } catch (err) {

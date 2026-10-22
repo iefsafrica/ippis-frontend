@@ -143,6 +143,7 @@ export default function CompanyPolicyContent() {
       content: policy.content || "",
       publish_date: isoToInputDateTime(policy.publish_date),
       expiry_date: isoToInputDateTime(policy.expiry_date),
+      status: policy.status || "draft",
     })
     setShowEditDialog(true)
   }

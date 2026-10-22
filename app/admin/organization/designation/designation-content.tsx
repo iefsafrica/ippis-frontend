@@ -119,6 +119,7 @@ export default function DesignationContent() {
       company_code: designation.company_code || "",
       title: designation.title || "",
       description: designation.description || "",
+      status: designation.status || "active",
     })
     setShowEditDialog(true)
   }

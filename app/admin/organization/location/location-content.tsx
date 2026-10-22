@@ -111,6 +111,7 @@ export default function LocationContent() {
       city: location.city || "",
       state: location.state || "",
       country: location.country || "",
+      status: location.status || "active",
     })
     setShowEditDialog(true)
   }
