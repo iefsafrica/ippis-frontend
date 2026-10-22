@@ -74,6 +74,7 @@ export function UsersContent() {
   const [statusFilter, setStatusFilter] = useState<UserStatus | "all">("all")
   const [mdaFilter, setMdaFilter] = useState("all")
   const [deptFilter, setDeptFilter] = useState("all")
+  const [approvalRoleFilter, setApprovalRoleFilter] = useState("all")
 
   // Modals state
   const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -127,6 +128,23 @@ export function UsersContent() {
     }
   }, [mdaFilter])
 
+  // Client-side filter for approval roles
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => {
+      if (approvalRoleFilter === "all") return true
+      if (approvalRoleFilter === "approval_and_reviewer") {
+        return u.approval_role === "approval_and_reviewer"
+      }
+      if (approvalRoleFilter === "final_reviewer") {
+        return u.approval_role === "final_reviewer"
+      }
+      if (approvalRoleFilter === "none") {
+        return !u.approval_role || u.approval_role === "none"
+      }
+      return true
+    })
+  }, [users, approvalRoleFilter])
+
   // Metric stats
   const metrics = useMemo(() => {
     const total = users.length
@@ -142,7 +160,7 @@ export function UsersContent() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedUserIds(users.map((u) => u.id))
+      setSelectedUserIds(filteredUsers.map((u) => u.id))
     } else {
       setSelectedUserIds([])
     }
@@ -202,14 +220,15 @@ export function UsersContent() {
   }
 
   const handleExportCsv = () => {
-    const headers = ["ID", "Username", "Email", "FullName", "StaffID", "Status", "Roles", "MDA", "Scope"]
-    const rows = users.map((u) => [
+    const headers = ["ID", "Username", "Email", "FullName", "StaffID", "Status", "ApprovalRole", "Roles", "MDA", "Scope"]
+    const rows = filteredUsers.map((u) => [
       u.id,
       u.username,
       u.email,
       `"${u.full_name}"`,
       u.staff_id,
       u.status,
+      `"${u.approval_role || "none"}"`,
       `"${u.roles.map((r) => r.name).join(", ")}"`,
       `"${u.mda_name || ""}"`,
       u.scope_level,
@@ -355,10 +374,10 @@ export function UsersContent() {
             />
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full lg:w-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 w-full lg:w-auto">
             {/* Role Filter */}
             <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="w-full sm:w-[150px] text-xs">
+              <SelectTrigger className="w-full text-xs">
                 <SelectValue placeholder="Role" />
               </SelectTrigger>
               <SelectContent>
@@ -371,9 +390,22 @@ export function UsersContent() {
               </SelectContent>
             </Select>
 
+            {/* Workflow Authority Filter */}
+            <Select value={approvalRoleFilter} onValueChange={setApprovalRoleFilter}>
+              <SelectTrigger className="w-full text-xs">
+                <SelectValue placeholder="Approval Authority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Workflow Roles</SelectItem>
+                <SelectItem value="approval_and_reviewer">Approval & Reviewer</SelectItem>
+                <SelectItem value="final_reviewer">Final Reviewer</SelectItem>
+                <SelectItem value="none">Standard / None</SelectItem>
+              </SelectContent>
+            </Select>
+
             {/* Status Filter */}
             <Select value={statusFilter} onValueChange={(val: any) => setStatusFilter(val)}>
-              <SelectTrigger className="w-full sm:w-[130px] text-xs">
+              <SelectTrigger className="w-full text-xs">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -387,7 +419,7 @@ export function UsersContent() {
 
             {/* MDA Filter */}
             <Select value={mdaFilter} onValueChange={setMdaFilter}>
-              <SelectTrigger className="w-full sm:w-[160px] text-xs">
+              <SelectTrigger className="w-full text-xs">
                 <SelectValue placeholder="MDA Scope" />
               </SelectTrigger>
               <SelectContent>
@@ -406,7 +438,7 @@ export function UsersContent() {
               onValueChange={setDeptFilter}
               disabled={mdaFilter === "all" || departments.length === 0}
             >
-              <SelectTrigger className="w-full sm:w-[150px] text-xs">
+              <SelectTrigger className="w-full text-xs">
                 <SelectValue placeholder={mdaFilter === "all" ? "Select MDA first" : "All Depts"} />
               </SelectTrigger>
               <SelectContent>
@@ -477,13 +509,13 @@ export function UsersContent() {
               <tr>
                 <th className="p-3.5 text-left w-10">
                   <Checkbox
-                    checked={selectedUserIds.length === users.length && users.length > 0}
+                    checked={selectedUserIds.length === filteredUsers.length && filteredUsers.length > 0}
                     onCheckedChange={(c) => handleSelectAll(!!c)}
                   />
                 </th>
                 <th className="p-3.5 text-left">User / Staff ID</th>
                 <th className="p-3.5 text-left">Official Contact</th>
-                <th className="p-3.5 text-left">Assigned Roles (USR04)</th>
+                <th className="p-3.5 text-left">Assigned Roles & Authority (USR04)</th>
                 <th className="p-3.5 text-left">MDA & Department Scope (USR05)</th>
                 <th className="p-3.5 text-left">Status (USR06)</th>
                 <th className="p-3.5 text-left">Last Active</th>
@@ -491,7 +523,7 @@ export function UsersContent() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {users.map((user) => {
+              {filteredUsers.map((user) => {
                 const isSelected = selectedUserIds.includes(user.id)
                 return (
                   <tr
@@ -534,9 +566,25 @@ export function UsersContent() {
                       <div className="text-[11px] text-gray-500">{user.phone || "—"}</div>
                     </td>
 
-                    {/* Roles (USR04) */}
+                    {/* Roles & Authority (USR04) */}
                     <td className="p-3.5">
-                      <div className="flex items-center gap-1 flex-wrap max-w-[220px]">
+                      <div className="flex items-center gap-1 flex-wrap max-w-[240px]">
+                        {user.approval_role === "approval_and_reviewer" && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-blue-50 text-blue-700 border-blue-300 font-semibold"
+                          >
+                            Approval & Reviewer
+                          </Badge>
+                        )}
+                        {user.approval_role === "final_reviewer" && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-purple-50 text-purple-700 border-purple-300 font-semibold"
+                          >
+                            Final Reviewer
+                          </Badge>
+                        )}
                         {user.roles.map((role) => (
                           <Badge
                             key={role.id}

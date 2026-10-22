@@ -82,15 +82,27 @@ export function EffectiveAccessDrawer({
               </div>
             </div>
             <div className="flex flex-col items-end gap-1">
-              <Badge
-                className={
-                  user.status === "active"
-                    ? "bg-emerald-100 text-emerald-800 border-none font-semibold text-[10px]"
-                    : "bg-red-100 text-red-800 border-none font-semibold text-[10px]"
-                }
-              >
-                {user.status.toUpperCase()}
-              </Badge>
+              <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                {user.approval_role === "approval_and_reviewer" && (
+                  <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-300 font-medium">
+                    Approval & Reviewer
+                  </Badge>
+                )}
+                {user.approval_role === "final_reviewer" && (
+                  <Badge variant="outline" className="text-[10px] bg-purple-50 text-purple-700 border-purple-300 font-medium">
+                    Final Reviewer
+                  </Badge>
+                )}
+                <Badge
+                  className={
+                    user.status === "active"
+                      ? "bg-emerald-100 text-emerald-800 border-none font-semibold text-[10px]"
+                      : "bg-red-100 text-red-800 border-none font-semibold text-[10px]"
+                  }
+                >
+                  {user.status.toUpperCase()}
+                </Badge>
+              </div>
               <span className="text-[10px] text-gray-500 capitalize">{user.scope_level.replace(/_/g, " ")}</span>
             </div>
           </div>

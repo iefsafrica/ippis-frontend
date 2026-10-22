@@ -5,6 +5,8 @@ export type UserStatus = "active" | "suspended" | "deactivated" | "pending"
 
 export type DataScopeLevel = "all_mdas" | "assigned_mda" | "department" | "sub_unit"
 
+export type ApprovalRole = "approval_and_reviewer" | "final_reviewer" | "none"
+
 export interface UserAccount {
   id: string | number
   username: string
@@ -20,6 +22,8 @@ export interface UserAccount {
   department_id?: string | number
   department_name?: string
   scope_level: DataScopeLevel
+  approval_role?: ApprovalRole | string
+  reviewer_role?: ApprovalRole | string
   direct_permissions?: Permission[]
   effective_permissions?: Permission[]
   accessible_modules?: string[]
@@ -41,6 +45,8 @@ export interface CreateUserRequest {
   department_id?: string | number
   department_name?: string
   scope_level: DataScopeLevel
+  approval_role?: ApprovalRole | string
+  reviewer_role?: ApprovalRole | string
   status: UserStatus
   notes?: string
 }
@@ -58,6 +64,8 @@ export interface UpdateUserRequest {
   department_id?: string | number
   department_name?: string
   scope_level?: DataScopeLevel
+  approval_role?: ApprovalRole | string
+  reviewer_role?: ApprovalRole | string
   status?: UserStatus
   password?: string
   reason: string // USR09: Sensitive account changes require a reason
@@ -164,6 +172,7 @@ export interface UserFilterParams {
   status?: UserStatus | "all"
   mda_id?: string | number | "all"
   department_id?: string | number | "all"
+  approval_role?: ApprovalRole | "all" | string
   page?: number
   limit?: number
 }

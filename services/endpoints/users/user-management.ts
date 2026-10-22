@@ -1,5 +1,6 @@
 import api from "@/services/axios"
 import type {
+  ApprovalRole,
   AuditEvent,
   BulkRoleActionRequest,
   BulkRoleOutcomeReport,
@@ -101,6 +102,16 @@ export const normalizeUserAccount = (raw: any): UserAccount => {
     ? (rawStatus as UserStatus)
     : "active"
 
+  const rawApprovalRole = raw.approval_role || raw.reviewer_role
+  let approvalRole: ApprovalRole = "none"
+  if (rawApprovalRole === "approval_and_reviewer" || rawApprovalRole === "final_reviewer" || rawApprovalRole === "none") {
+    approvalRole = rawApprovalRole
+  } else if (rolesList.some((r) => r.name.toLowerCase().includes("final reviewer") || r.name.toLowerCase().includes("superadmin") || r.name.toLowerCase().includes("super administrator"))) {
+    approvalRole = "final_reviewer"
+  } else if (rolesList.some((r) => r.name.toLowerCase().includes("approver") || r.name.toLowerCase().includes("reviewer"))) {
+    approvalRole = "approval_and_reviewer"
+  }
+
   return {
     id: raw.id,
     username: raw.username || "",
@@ -116,6 +127,8 @@ export const normalizeUserAccount = (raw: any): UserAccount => {
     department_id: raw.department_id ?? undefined,
     department_name: raw.department_name || "",
     scope_level: raw.scope_level || "assigned_mda",
+    approval_role: approvalRole,
+    reviewer_role: approvalRole,
     accessible_modules: Array.isArray(raw.accessible_modules) ? raw.accessible_modules : [],
     effective_permissions: Array.isArray(raw.effective_permissions) ? raw.effective_permissions : undefined,
     last_login: raw.last_login || undefined,
@@ -300,10 +313,14 @@ export const createUserAccount = async (payload: CreateUserRequest): Promise<Use
       scope_level: payload.scope_level,
       status: payload.status,
       notes: payload.notes,
+      approval_role: payload.approval_role,
     })
 
     const data = res.data?.data || res.data?.user || res.data
-    const createdUser = normalizeUserAccount(data)
+    const createdUser = normalizeUserAccount({
+      ...data,
+      approval_role: data?.approval_role || payload.approval_role,
+    })
 
     // Update local cache
     if (typeof window !== "undefined") {
@@ -344,10 +361,14 @@ export const updateUserAccount = async (payload: UpdateUserRequest): Promise<Use
       status: payload.status,
       password: payload.password,
       reason: payload.reason,
+      approval_role: payload.approval_role,
     })
 
     const data = res.data?.data || res.data?.user || res.data
-    const updatedUser = normalizeUserAccount(data)
+    const updatedUser = normalizeUserAccount({
+      ...data,
+      approval_role: data?.approval_role || payload.approval_role,
+    })
 
     // Sync cache
     if (typeof window !== "undefined") {

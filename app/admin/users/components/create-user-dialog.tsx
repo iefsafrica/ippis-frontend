@@ -31,7 +31,7 @@ import {
 } from "@/services/endpoints/users/user-management"
 import type { CreateUserRequest, DataScopeLevel, UserAccount, UserStatus } from "@/types/user-management"
 import type { Role } from "@/types/roles"
-import { KeyRound, RefreshCw, Shield, UserPlus, Building2, Briefcase } from "lucide-react"
+import { KeyRound, RefreshCw, Shield, ShieldCheck, UserPlus, Building2, Briefcase } from "lucide-react"
 
 interface CreateUserDialogProps {
   open: boolean
@@ -58,6 +58,7 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: CreateUserDi
     department_id: undefined,
     department_name: "",
     scope_level: "assigned_mda",
+    approval_role: "none",
     status: "active",
     notes: "",
   })
@@ -316,11 +317,61 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: CreateUserDi
             </div>
           </div>
 
-          {/* Section 3: MDA & Department Scope (USR05) */}
+          {/* Section 3: Workflow Approval & Reviewer Authority */}
+          <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                3. Workflow Approval & Reviewer Authority
+              </div>
+              <Badge variant="outline" className="text-[10px] text-emerald-800 bg-emerald-50 border-emerald-200">
+                Workflow Role
+              </Badge>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="approval_role" className="text-xs font-semibold text-gray-700">
+                Approval / Reviewer Designation <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={formData.approval_role || "none"}
+                onValueChange={(val) => setFormData({ ...formData, approval_role: val })}
+              >
+                <SelectTrigger id="approval_role" className="bg-white">
+                  <SelectValue placeholder="Select if user will be Approval and Reviewer, or Final Reviewer" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="approval_and_reviewer">
+                    <div className="flex flex-col py-0.5 text-left">
+                      <span className="font-semibold text-gray-900">Approval and Reviewer</span>
+                      <span className="text-[11px] text-gray-500">First-level review, compliance verification, and initial endorsement</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="final_reviewer">
+                    <div className="flex flex-col py-0.5 text-left">
+                      <span className="font-semibold text-gray-900">Final Reviewer</span>
+                      <span className="text-[11px] text-gray-500">Conclusive audit sign-off, executive validation, and final disbursement authorization</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="none">
+                    <div className="flex flex-col py-0.5 text-left">
+                      <span className="font-semibold text-gray-900">None / Standard User</span>
+                      <span className="text-[11px] text-gray-500">Standard operational access without workflow approval authority</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-gray-500">
+                Select if the user will be an <strong>Approval and Reviewer</strong> or <strong>Final Reviewer</strong> in administrative approval workflows.
+              </p>
+            </div>
+          </div>
+
+          {/* Section 4: MDA & Department Scope (USR05) */}
           <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
               <Building2 className="h-4 w-4 text-emerald-600" />
-              3. Authorised MDA & Department Scope (USR05)
+              4. Authorised MDA & Department Scope (USR05)
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -380,7 +431,7 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: CreateUserDi
             </div>
           </div>
 
-          {/* Section 4: Initial Status & Authorisation Note (USR01, USR06, USR09) */}
+          {/* Section 5: Initial Status & Authorisation Note (USR01, USR06, USR09) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-gray-700">Initial Account Status</Label>
