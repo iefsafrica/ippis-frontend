@@ -39,7 +39,9 @@ api.interceptors.request.use(
   (config) => {
     const cookieToken = Cookies.get("token") || Cookies.get("ippis_token");
     const storedToken =
-      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      typeof window !== "undefined"
+        ? localStorage.getItem("token") || localStorage.getItem("ippis_token")
+        : null;
     const token = cookieToken || storedToken;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -59,19 +61,23 @@ api.interceptors.response.use(
 
     // If 401 Unauthorized occurs on protected calls (not during login attempts)
     if (status === 401 && !url.includes("/auth/login")) {
-      Cookies.remove("token", { path: "/" });
-      Cookies.remove("ippis_token", { path: "/" });
+      const path = typeof window !== "undefined" ? window.location.pathname : "";
+      const isProtectedPage = path.startsWith("/admin") || path.startsWith("/portal") || path.startsWith("/employee");
 
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("token");
-        localStorage.removeItem("ippis_token");
-        localStorage.removeItem("ippis_user");
+      if (isProtectedPage) {
+        Cookies.remove("token", { path: "/" });
+        Cookies.remove("ippis_token", { path: "/" });
 
-        const path = window.location.pathname;
-        const isAuthPage = path.startsWith("/admin/login") || path.startsWith("/auth/login");
-        if (!isAuthPage && path.startsWith("/admin") && !isRedirectingToLogin) {
-          isRedirectingToLogin = true;
-          window.location.href = `/admin/login?expired=1&redirect=${encodeURIComponent(path)}`;
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("token");
+          localStorage.removeItem("ippis_token");
+          localStorage.removeItem("ippis_user");
+
+          const isAuthPage = path.startsWith("/admin/login") || path.startsWith("/auth/login");
+          if (!isAuthPage && !isRedirectingToLogin) {
+            isRedirectingToLogin = true;
+            window.location.href = `/admin/login?expired=1&redirect=${encodeURIComponent(path)}`;
+          }
         }
       }
     }

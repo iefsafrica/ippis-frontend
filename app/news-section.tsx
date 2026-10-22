@@ -1,165 +1,84 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useMemo } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { CalendarDays, Bell, ArrowRight, ShieldAlert, FileText, Megaphone, CheckCircle2, Download, Printer } from "lucide-react"
-import { getAnnouncements } from "@/services/endpoints/organizations/announcement/announcement"
+import {
+  CalendarDays,
+  Bell,
+  ArrowRight,
+  ShieldAlert,
+  FileText,
+  Megaphone,
+  CheckCircle2,
+  Printer,
+  RefreshCw,
+  Building2,
+  Users,
+} from "lucide-react"
+import { useGetAnnouncements } from "@/services/hooks/organizations/announcement/useAnnouncement"
 import type { Announcement } from "@/types/organizations/announcement/announcement-management"
 
-interface DisplayAnnouncement {
-  id: string | number
-  title: string
-  content: string
-  summary: string
-  category: "Circular" | "Notice" | "Payroll" | "System Update"
-  refNumber?: string
-  date: string
-  author: string
-  priority?: "urgent" | "normal"
-}
-
-const FALLBACK_ANNOUNCEMENTS: DisplayAnnouncement[] = [
-  {
-    id: "ann-01",
-    title: "Mandatory IPPIS Personnel Physical Verification & Biometric Re-Validation Exercise 2026",
-    summary:
-      "All federal employees across Ministries, Departments, and Agencies (MDAs) are notified of the upcoming biometric capture and nominal roll audit schedule.",
-    content: `
-### FEDERAL REPUBLIC OF NIGERIA
-**Office of the Head of the Civil Service of the Federation (OHCSF)**
-**Circular Ref:** OHCSF/IPPIS/CIR/2026/VOL.IV/118
-**Date:** October 15, 2026
-
-#### 1.0 Objective
-In alignment with the Federal Government's public service reform agenda, notice is hereby given of the **Mandatory IPPIS Physical Biometric Re-Validation Exercise**. This exercise aims to clean up the federal nominal roll, eliminate ghost worker occurrences, and synchronize civil service records with the National Identity Management Commission (NIMC).
-
-#### 2.0 Scope & Venue
-The verification exercise will be conducted in phases across the six geopolitical zones and the Federal Capital Territory (FCT). Verification centers have been established at Federal Secretariats and designated state liaison offices.
-
-#### 3.0 Mandatory Required Documentation
-Every federal officer is required to report in person with originals and certified true copies of:
-- First Appointment Letter and Confirmation of Appointment Letter
-- Last Promotion Letter or Gazette entry
-- Valid National Identity Number (NIN) Slip
-- Highest Academic and Professional Certificates
-- Official MDA Staff Identity Card
-- Bank Statement containing salary history for the preceding 6 months
-
-#### 4.0 Compliance Deadline
-Officers who fail to participate within their scheduled MDA window will have their monthly salary disbursements suspended on the IPPIS ledger until comprehensive biometric validation is completed.
-    `,
-    category: "Circular",
-    refNumber: "OHCSF/IPPIS/CIR/2026/VOL.IV/118",
-    date: "October 15, 2026",
-    author: "Office of the Head of the Civil Service of the Federation",
-    priority: "urgent",
-  },
-  {
-    id: "ann-02",
-    title: "Monthly Payroll Processing Cut-Off Dates & Nominal Roll Submission Schedule",
-    summary:
-      "The Office of the Accountant-General issues crucial timelines for MDA desk officers regarding variance uploads, allowance inputs, and monthly payroll sign-offs.",
-    content: `
-### FEDERAL REPUBLIC OF NIGERIA
-**Office of the Accountant-General of the Federation (OAGF)**
-**Treasury Operations Circular:** OAGF/IPPIS/PAY/2026/09
-**Date:** October 10, 2026
-
-#### 1.0 Attention: All Directors of Finance and Accounts (DFAs)
-All Accounting Officers, Directors of Finance and Accounts, and Heads of Payroll Units in Federal MDAs are urged to adhere strictly to the monthly payroll computation calendar.
-
-#### 2.0 Timelines for Processing:
-- **10th of every month:** Deadline for submission of nominal roll changes, new appointments, and inter-cadre transfers.
-- **15th of every month:** Cut-off for statutory deduction amendments, cooperative contributions, and tax adjustments.
-- **18th of every month:** Closure of variance validation window and commencement of Central Payroll simulation runs.
-- **22nd of every month:** Final Reviewer sign-off and dispatch of payment instructions to the Central Bank of Nigeria (CBN).
-
-#### 3.0 Strict Adherence
-Submissions received after the 15th will automatically roll over to the subsequent billing cycle. No manual adjustments outside the IPPIS centralized application will be entertained.
-    `,
-    category: "Payroll",
-    refNumber: "OAGF/IPPIS/PAY/2026/09",
-    date: "October 10, 2026",
-    author: "Office of the Accountant-General of the Federation",
-    priority: "normal",
-  },
-  {
-    id: "ann-03",
-    title: "Enhanced Employee Self-Service (ESS) Portal: Electronic Payslip & Tax Clearance",
-    summary:
-      "Civil servants can now generate authenticated digital payslips with QR security verification and request automated tax compliance statements directly online.",
-    content: `
-### INTEGRATED PERSONNEL AND PAYROLL INFORMATION SYSTEM
-**Department of Technical Operations and Information Security**
-**Release Notice:** IPPIS-ESS-v4.2
-**Date:** September 28, 2026
-
-#### 1.0 Overview of New Capabilities
-The IPPIS technical team has successfully deployed an upgraded Self-Service module featuring:
-1. **Cryptographically Signed Payslips:** Every generated payslip now incorporates a tamper-evident QR verification code recognized by commercial banks and mortgage institutions.
-2. **Tax Clearance & Annual Deduction Summaries:** Seamlessly export annual PAYE statements directly to your state internal revenue service.
-3. **Automated Ticket Submission:** Report salary discrepancies, uncredited allowances, or loan deduction overages with instant tracking ID generation.
-
-#### 2.0 How to Access
-Login using your official staff credentials at the **Employee Portal** button on the top right navigation bar.
-    `,
-    category: "System Update",
-    refNumber: "IPPIS/TECH/2026/REL-4.2",
-    date: "September 28, 2026",
-    author: "IPPIS Central ICT Operations",
-    priority: "normal",
-  },
-]
-
 export default function NewsSection() {
-  const [announcements, setAnnouncements] = useState<DisplayAnnouncement[]>(FALLBACK_ANNOUNCEMENTS)
-  const [selectedAnnouncement, setSelectedAnnouncement] = useState<DisplayAnnouncement | null>(null)
+  const { data, isLoading, isError, refetch, isFetching } = useGetAnnouncements()
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string>("All")
 
-  useEffect(() => {
-    getAnnouncements()
-      .then((res) => {
-        if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
-          const mapped: DisplayAnnouncement[] = res.data.map((item: Announcement, idx: number) => ({
-            id: item.id || `live-${idx}`,
-            title: item.title,
-            summary: item.content?.slice(0, 160) + "..." || "Official notification for federal employees.",
-            content: item.content || "No detailed content provided.",
-            category: (item.audience?.includes("Payroll") ? "Payroll" : "Notice") as any,
-            date: item.publish_date ? new Date(item.publish_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Recent",
-            author: item.company_code || "Federal Government of Nigeria",
-            priority: item.status === "published" ? "normal" : "urgent",
-          }))
-          setAnnouncements([...mapped, ...FALLBACK_ANNOUNCEMENTS])
-        }
-      })
-      .catch(() => {
-        // Fallback already pre-seeded
-      })
-  }, [])
+  const announcements: Announcement[] = useMemo(() => {
+    if (data?.data && Array.isArray(data.data)) {
+      return data.data
+    }
+    if (Array.isArray(data)) {
+      return data
+    }
+    return []
+  }, [data])
 
-  const categories = ["All", "Circular", "Payroll", "Notice", "System Update"]
+  const categories = useMemo(() => {
+    const cats = new Set<string>()
+    cats.add("All")
+    announcements.forEach((a) => {
+      const cat = a.audience || a.status
+      if (cat) cats.add(cat)
+    })
+    return Array.from(cats)
+  }, [announcements])
 
   const filteredAnnouncements = useMemo(() => {
     if (selectedCategory === "All") return announcements
-    return announcements.filter((a) => a.category.toLowerCase() === selectedCategory.toLowerCase())
+    return announcements.filter((a) => {
+      const cat = (a.audience || a.status || "").toLowerCase()
+      return cat === selectedCategory.toLowerCase()
+    })
   }, [announcements, selectedCategory])
 
-  const getCategoryBadge = (category: string) => {
-    switch (category.toLowerCase()) {
-      case "circular":
-        return <Badge className="bg-red-100 text-red-800 border-red-200">Official Circular</Badge>
-      case "payroll":
-        return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">Payroll Calendar</Badge>
-      case "system update":
-        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Portal Update</Badge>
-      default:
-        return <Badge className="bg-gray-100 text-gray-800 border-gray-200">{category}</Badge>
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return "Recent"
+    try {
+      const d = new Date(dateStr)
+      if (isNaN(d.getTime())) return dateStr
+      return d.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    } catch {
+      return dateStr
     }
+  }
+
+  const getStatusBadge = (status?: string) => {
+    const s = status?.toLowerCase()
+    if (s === "published") {
+      return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">Published</Badge>
+    }
+    if (s === "urgent") {
+      return <Badge className="bg-rose-100 text-rose-800 border-rose-200">Urgent</Badge>
+    }
+    return <Badge className="bg-blue-100 text-blue-800 border-blue-200">{status || "Notice"}</Badge>
   }
 
   const handlePrint = () => {
@@ -178,134 +97,216 @@ export default function NewsSection() {
             <h2 className="text-3xl font-bold tracking-tighter md:text-4xl text-gray-900">
               Latest IPPIS Announcements & Circulars
             </h2>
-            <p className="max-w-[800px] text-gray-600 md:text-lg">
-              Official circulars, nominal roll verification schedules, and policy updates issued by the Office of the Head of the Civil Service of the Federation and the Office of the Accountant-General.
+            <p className="max-w-[750px] text-gray-600 md:text-lg">
+              Official communiqués, payroll timelines, and critical directives published for federal civil servants and MDA desk officers.
             </p>
           </div>
 
-          {/* Category Filter Pills */}
-          <div className="flex items-center gap-2 flex-wrap justify-center pt-2">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`text-xs px-3.5 py-1.5 rounded-full transition-all font-medium ${
-                  selectedCategory === cat
-                    ? "bg-[#008751] text-white shadow-xs"
-                    : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
-                }`}
-              >
-                {cat}
-              </button>
+          {/* Dynamic Category Filter Pills */}
+          {categories.length > 1 && (
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-2 pb-4">
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-3.5 py-1.5 text-xs md:text-sm rounded-full font-medium transition-all ${
+                    selectedCategory === category
+                      ? "bg-emerald-700 text-white shadow-sm"
+                      : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-100"
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Loading State */}
+        {isLoading && (
+          <div className="mx-auto grid max-w-6xl gap-6 md:grid-cols-2 lg:grid-cols-3 pt-8">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="animate-pulse border border-gray-200 bg-white">
+                <CardHeader className="space-y-3 pb-3">
+                  <div className="h-4 w-24 bg-gray-200 rounded"></div>
+                  <div className="h-6 w-3/4 bg-gray-200 rounded"></div>
+                </CardHeader>
+                <CardContent className="space-y-2 pb-4">
+                  <div className="h-3 w-full bg-gray-200 rounded"></div>
+                  <div className="h-3 w-5/6 bg-gray-200 rounded"></div>
+                  <div className="h-3 w-2/3 bg-gray-200 rounded"></div>
+                </CardContent>
+                <CardFooter className="pt-2 border-t">
+                  <div className="h-4 w-28 bg-gray-200 rounded"></div>
+                </CardFooter>
+              </Card>
             ))}
           </div>
-        </div>
+        )}
+
+        {/* Error State */}
+        {!isLoading && isError && (
+          <div className="mx-auto max-w-md pt-8 text-center">
+            <Card className="border-red-200 bg-red-50/50 p-6">
+              <ShieldAlert className="h-10 w-10 text-red-500 mx-auto mb-3" />
+              <h3 className="text-base font-semibold text-gray-900 mb-1">Unable to Load Announcements</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                We encountered an issue fetching announcements from the server.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="gap-2 border-red-200 hover:bg-red-100"
+              >
+                <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+                Retry
+              </Button>
+            </Card>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && !isError && filteredAnnouncements.length === 0 && (
+          <div className="mx-auto max-w-md pt-8 text-center">
+            <Card className="border border-dashed border-gray-300 bg-white p-8">
+              <Megaphone className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <h3 className="text-base font-semibold text-gray-900 mb-1">No Announcements Published</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                {selectedCategory !== "All"
+                  ? `There are no announcements currently available under "${selectedCategory}".`
+                  : "There are currently no active public bulletins or notices. Please check back later."}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+                Refresh Feed
+              </Button>
+            </Card>
+          </div>
+        )}
 
         {/* Announcements Grid */}
-        <div className="mx-auto grid max-w-6xl gap-6 py-10 md:grid-cols-2 lg:grid-cols-3">
-          {filteredAnnouncements.slice(0, 6).map((ann) => (
-            <Card
-              key={ann.id}
-              className="flex flex-col justify-between border-gray-200 hover:border-emerald-400 hover:shadow-md transition-all bg-white"
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  {getCategoryBadge(ann.category)}
-                  <div className="flex items-center text-xs text-gray-500 font-mono">
-                    <CalendarDays className="mr-1 h-3.5 w-3.5 text-gray-400" />
-                    <span>{ann.date}</span>
+        {!isLoading && !isError && filteredAnnouncements.length > 0 && (
+          <div className="mx-auto grid max-w-6xl gap-6 md:grid-cols-2 lg:grid-cols-3 pt-6">
+            {filteredAnnouncements.map((announcement, index) => (
+              <Card
+                key={announcement.id || index}
+                className="flex flex-col justify-between border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow"
+              >
+                <CardHeader className="space-y-2 pb-3">
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <CalendarDays className="h-3.5 w-3.5 text-gray-400" />
+                      {formatDate(announcement.publish_date || announcement.created_at)}
+                    </span>
+                    {getStatusBadge(announcement.status)}
                   </div>
-                </div>
-                <CardTitle className="text-base font-bold text-gray-900 line-clamp-2 leading-snug">
-                  {ann.title}
-                </CardTitle>
-                {ann.refNumber && (
-                  <span className="text-[11px] font-mono text-gray-400 block pt-0.5">
-                    Ref: {ann.refNumber}
-                  </span>
-                )}
-              </CardHeader>
-              <CardContent className="pb-4 text-xs text-gray-600 leading-relaxed">
-                <p className="line-clamp-3">{ann.summary}</p>
-                <div className="mt-3 pt-3 border-t text-[11px] text-gray-500 flex items-center gap-1.5">
-                  <FileText className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                  <span className="truncate">{ann.author}</span>
-                </div>
-              </CardContent>
-              <CardFooter className="pt-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedAnnouncement(ann)}
-                  className="w-full border-emerald-600 text-[#008751] hover:bg-emerald-50 hover:text-emerald-800 text-xs flex items-center justify-center gap-1.5 font-semibold"
-                >
-                  Read Full Notice
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+                  <CardTitle className="text-lg font-bold text-gray-900 line-clamp-2 hover:text-emerald-700 transition-colors">
+                    {announcement.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 pb-4">
+                  <p className="text-sm text-gray-600 line-clamp-3">
+                    {announcement.content}
+                  </p>
+                  {(announcement.audience || announcement.company_code) && (
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 pt-1">
+                      {announcement.audience && (
+                        <span className="inline-flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded text-gray-700">
+                          <Users className="h-3 w-3 text-gray-500" />
+                          {announcement.audience}
+                        </span>
+                      )}
+                      {announcement.company_code && (
+                        <span className="inline-flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded text-gray-700">
+                          <Building2 className="h-3 w-3 text-gray-500" />
+                          {announcement.company_code}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter className="pt-3 border-t bg-gray-50/50 flex items-center justify-between">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedAnnouncement(announcement)}
+                    className="text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 px-2 text-xs font-semibold gap-1"
+                  >
+                    Read Full Notice
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
 
-        {/* View All & Bottom Actions */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
+        {/* View All Announcements Button */}
+        <div className="mt-12 flex justify-center">
           <Link href="/announcements">
-            <Button className="bg-[#008751] hover:bg-[#007545] text-white text-xs px-6 font-semibold shadow-xs">
-              View All Announcements Archive
-            </Button>
-          </Link>
-          <Link href="#knowledge-base">
-            <Button variant="outline" className="border-gray-300 text-gray-700 text-xs px-6">
-              Browse Knowledge Base FAQs
+            <Button variant="outline" className="gap-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50 font-medium">
+              <Megaphone className="h-4 w-4" />
+              View All Official Announcements & Circulars
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* Full Announcement View Modal */}
-      <Dialog open={!!selectedAnnouncement} onOpenChange={(open) => !open && setSelectedAnnouncement(null)}>
-        {selectedAnnouncement && (
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <div className="flex items-center gap-2 mb-1">
-                {getCategoryBadge(selectedAnnouncement.category)}
-                <span className="text-xs text-gray-500 font-mono">{selectedAnnouncement.date}</span>
-              </div>
-              <DialogTitle className="text-lg font-bold text-gray-900 leading-snug">
-                {selectedAnnouncement.title}
-              </DialogTitle>
-              {selectedAnnouncement.refNumber && (
-                <DialogDescription className="font-mono text-xs text-emerald-700">
-                  Official Gazette / Reference: {selectedAnnouncement.refNumber}
-                </DialogDescription>
-              )}
-            </DialogHeader>
+      {/* Reader Modal */}
+      <Dialog open={Boolean(selectedAnnouncement)} onOpenChange={(open) => !open && setSelectedAnnouncement(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          {selectedAnnouncement && (
+            <>
+              <DialogHeader className="space-y-3 border-b pb-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  {getStatusBadge(selectedAnnouncement.status)}
+                  {selectedAnnouncement.audience && (
+                    <Badge variant="outline" className="border-gray-300 text-gray-700">
+                      Audience: {selectedAnnouncement.audience}
+                    </Badge>
+                  )}
+                </div>
+                <DialogTitle className="text-xl md:text-2xl font-bold text-gray-900 leading-snug">
+                  {selectedAnnouncement.title}
+                </DialogTitle>
+                <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+                  <span className="flex items-center gap-1">
+                    <CalendarDays className="h-3.5 w-3.5 text-gray-400" />
+                    Published: {formatDate(selectedAnnouncement.publish_date || selectedAnnouncement.created_at)}
+                  </span>
+                  {selectedAnnouncement.company_code && (
+                    <span className="flex items-center gap-1 font-medium text-gray-700">
+                      <Building2 className="h-3.5 w-3.5 text-gray-400" />
+                      MDA: {selectedAnnouncement.company_code}
+                    </span>
+                  )}
+                </div>
+              </DialogHeader>
 
-            <div className="space-y-4 py-2 border-t border-b my-2">
-              <div className="p-3 bg-gray-50 rounded-lg text-xs space-y-1">
-                <div className="font-semibold text-gray-800">Issuing Authority:</div>
-                <div className="text-gray-600">{selectedAnnouncement.author}</div>
-              </div>
-
-              <div className="prose prose-sm max-w-none text-xs text-gray-700 leading-relaxed whitespace-pre-line">
+              <div className="py-4 text-sm text-gray-800 leading-relaxed whitespace-pre-line space-y-3">
                 {selectedAnnouncement.content}
               </div>
-            </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" size="sm" onClick={handlePrint} className="flex items-center gap-1.5 text-xs">
-                <Printer className="h-3.5 w-3.5" /> Print Notice
-              </Button>
-              <Button
-                size="sm"
-                className="bg-[#008751] hover:bg-[#007545] text-white text-xs"
-                onClick={() => setSelectedAnnouncement(null)}
-              >
-                Close Notice
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        )}
+              <DialogFooter className="flex sm:justify-between items-center border-t pt-4 gap-2">
+                <Button variant="outline" size="sm" onClick={handlePrint} className="gap-1.5 text-xs">
+                  <Printer className="h-3.5 w-3.5" />
+                  Print Notice
+                </Button>
+                <Button size="sm" onClick={() => setSelectedAnnouncement(null)} className="bg-emerald-700 hover:bg-emerald-800">
+                  Close
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
       </Dialog>
     </section>
   )

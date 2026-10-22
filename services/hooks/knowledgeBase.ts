@@ -25,7 +25,7 @@ export const useGetKnowledgeBaseArticles = () => {
     queryKey: [KNOWLEDGE_BASE_ARTICLES],
     queryFn: getKnowledgeBaseArticles,
     staleTime: 1000 * 60 * 5,
-    cacheTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 10,
   })
 }
 

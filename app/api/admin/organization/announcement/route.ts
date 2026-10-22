@@ -13,7 +13,14 @@ async function proxyRequest(request: Request, method: string) {
   const targetUrl = `${API_BASE_URL}${TARGET_PATH}${query ? `?${query}` : ""}`;
 
   const headers = new Headers();
-  const authorization = request.headers.get("authorization");
+  let authorization = request.headers.get("authorization");
+  if (!authorization) {
+    const cookieHeader = request.headers.get("cookie") || "";
+    const match = cookieHeader.match(/(?:^|;\s*)(?:ippis_token|token)=([^;]+)/);
+    if (match && match[1]) {
+      authorization = `Bearer ${decodeURIComponent(match[1])}`;
+    }
+  }
   const contentType = request.headers.get("content-type");
 
   if (authorization) headers.set("authorization", authorization);
@@ -23,22 +30,41 @@ async function proxyRequest(request: Request, method: string) {
   const hasBody = method === "POST" || method === "PUT" || method === "PATCH";
   const body = hasBody ? await request.text() : undefined;
 
-  const response = await fetch(targetUrl, {
-    method,
-    headers,
-    body,
-    cache: "no-store",
-  });
+  try {
+    const response = await fetch(targetUrl, {
+      method,
+      headers,
+      body,
+      cache: "no-store",
+    });
 
-  const text = await response.text();
-  const responseType = response.headers.get("content-type") || "application/json";
+    // If unauthenticated public user is fetching announcements via GET, handle 401 gracefully
+    if (method === "GET" && response.status === 401 && !authorization) {
+      return NextResponse.json({
+        success: true,
+        data: [],
+        message: "No announcements accessible without authentication",
+      });
+    }
 
-  return new NextResponse(text, {
-    status: response.status,
-    headers: {
-      "content-type": responseType,
-    },
-  });
+    const text = await response.text();
+    const responseType = response.headers.get("content-type") || "application/json";
+
+    return new NextResponse(text, {
+      status: response.status,
+      headers: {
+        "content-type": responseType,
+      },
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || "Failed to communicate with announcement service",
+      },
+      { status: 502 }
+    );
+  }
 }
 
 export async function GET(request: Request) {

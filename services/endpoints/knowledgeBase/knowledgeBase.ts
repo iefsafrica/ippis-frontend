@@ -11,7 +11,21 @@ import type {
 const KNOWLEDGE_BASE_ENDPOINT = "/knowledge_base"
 
 export const getKnowledgeBaseArticles = async (): Promise<GetKnowledgeBaseArticlesResponse> => {
-  return get<GetKnowledgeBaseArticlesResponse>(KNOWLEDGE_BASE_ENDPOINT)
+  try {
+    return await get<GetKnowledgeBaseArticlesResponse>(KNOWLEDGE_BASE_ENDPOINT)
+  } catch (err: any) {
+    if (typeof window !== "undefined") {
+      try {
+        const res = await fetch("/api/knowledge_base")
+        if (res.ok) {
+          return await res.json()
+        }
+      } catch {
+        // continue to throw original error
+      }
+    }
+    throw err
+  }
 }
 
 export const createKnowledgeBaseArticle = async (

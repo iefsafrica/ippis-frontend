@@ -9,12 +9,18 @@ import {
   UpdateAnnouncementPayload,
   UpdateAnnouncementResponse,
 } from "@/types/organizations/announcement/announcement-management";
+import Cookies from "js-cookie";
 
 const ANNOUNCEMENT_BASE_URL = "/api/admin/organization/announcement";
 
 const getAuthHeaders = () => {
   const headers: Record<string, string> = {};
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const cookieToken = Cookies.get("token") || Cookies.get("ippis_token");
+  const storedToken =
+    typeof window !== "undefined"
+      ? localStorage.getItem("token") || localStorage.getItem("ippis_token")
+      : null;
+  const token = cookieToken || storedToken;
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
