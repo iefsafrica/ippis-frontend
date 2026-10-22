@@ -41,6 +41,7 @@ import { useGetLocations } from "@/services/hooks/organizations/location/useLoca
 import { useGetDesignations } from "@/services/hooks/organizations/designation/useDesignation"
 import { useGetAnnouncements } from "@/services/hooks/organizations/announcement/useAnnouncement"
 import { useGetCompanyPolicies } from "@/services/hooks/organizations/company-policy/useCompanyPolicy"
+import { MdaEmployeesDirectory } from "@/app/admin/organization/components/mda-employees-directory"
 
 export function OrganizationAnalytics() {
   const [mounted, setMounted] = useState(false)
@@ -516,6 +517,9 @@ export function OrganizationAnalytics() {
           </div>
         )}
       </AnalyticsChartCard>
+
+      {/* Active & Pending Employees Filtered by MDA / Company */}
+      <MdaEmployeesDirectory />
 
       {/* Quick Navigation Links */}
       <QuickNavGrid links={quickLinks} title="Organization Sub-Modules & Operations" />
