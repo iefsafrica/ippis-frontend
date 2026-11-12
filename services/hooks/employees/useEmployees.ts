@@ -7,6 +7,7 @@ import {
   importEmployees,
   getRecentEmployees,
   registerEmployee,
+  getEmployeeAnalytics,
 } from "@/services/endpoints/employees/employees";
 import { QUERY_KEYS } from "@/services/constants/employees";
 import {
@@ -19,11 +20,22 @@ import {
   EmployeeRegistrationPayload,
   EmployeeRegistrationResponse,
 } from "@/types/employees/employee-management";
+import {
+  EmployeeAnalyticsData,
+  EmployeeAnalyticsParams,
+} from "@/types/employees/analytics";
 
 export const useEmployeesList = (page: number = 1) => {
   return useQuery<EmployeesData, Error>({
     queryKey: [QUERY_KEYS.EMPLOYEES_LIST, page],
     queryFn: () => getEmployeesList(page),
+  });
+};
+
+export const useEmployeeAnalytics = (params?: EmployeeAnalyticsParams) => {
+  return useQuery<EmployeeAnalyticsData, Error>({
+    queryKey: [QUERY_KEYS.EMPLOYEE_ANALYTICS, params],
+    queryFn: () => getEmployeeAnalytics(params),
   });
 };
 
