@@ -27,15 +27,59 @@ export const getEmployeesList = async (page: number = 1): Promise<EmployeesData>
 export const getEmployeeAnalytics = async (
   params?: EmployeeAnalyticsParams
 ): Promise<EmployeeAnalyticsData> => {
-  const res = await get<EmployeeAnalyticsResponse | EmployeeAnalyticsData>(
-    "/admin/employees/analytics",
-    params
-  );
-  // Handle both { success: true, data: { ... } } and direct { ... } responses
-  if (res && "data" in res && res.data && "kpis" in (res.data as any)) {
-    return res.data;
+  // 1. First attempt Next.js API route (/api/admin/employees/analytics), which proxies backend and enriches
+  if (typeof window !== "undefined") {
+    try {
+      const searchParams = new URLSearchParams();
+      if (params) {
+        Object.entries(params).forEach(([key, val]) => {
+          if (val != null) searchParams.append(key, String(val));
+        });
+      }
+      const queryString = searchParams.toString();
+      const url = `/api/admin/employees/analytics${queryString ? `?${queryString}` : ""}`;
+
+      const token =
+        localStorage.getItem("token") ||
+        localStorage.getItem("ippis_token") ||
+        "";
+
+      const res = await fetch(url, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const data = json?.data || json;
+        if (data && (data.kpis || data.grade_distribution)) {
+          return data as EmployeeAnalyticsData;
+        }
+      }
+    } catch {
+      // Fall through to direct axios get
+    }
   }
-  return res as EmployeeAnalyticsData;
+
+  // 2. Direct backend fallback via Axios
+  try {
+    const res = await get<EmployeeAnalyticsResponse | EmployeeAnalyticsData>(
+      "/admin/employees/analytics",
+      params
+    );
+    if (res && "data" in res && res.data && "kpis" in (res.data as any)) {
+      return res.data;
+    }
+    if (res && "kpis" in (res as any)) {
+      return res as EmployeeAnalyticsData;
+    }
+  } catch {
+    // If both failed, re-attempt client route
+  }
+
+  throw new Error("Unable to load employee analytics data");
 };
 
 export const getRecentEmployees = async (): Promise<RecentEmployeesData> => {
