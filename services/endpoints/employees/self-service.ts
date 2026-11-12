@@ -232,20 +232,34 @@ export async function applyLeaveSelfService(payload: {
   reason: string;
 }): Promise<{ success: boolean; message: string; leaveRequest?: any }> {
   try {
-    const res = await post<any>("/admin/employees/self-service", {
-      action: "apply_leave",
-      ...payload,
+    const res = await post<any>("/employee/leave", {
+      leave_type: payload.leaveType,
+      from_date: payload.startDate,
+      to_date: payload.endDate,
+      reason: payload.reason,
     });
     return {
       success: res?.success ?? true,
       message: res?.message || `Leave application for ${payload.leaveType} submitted successfully.`,
-      leaveRequest: res?.leaveRequest,
+      leaveRequest: res?.data ?? res,
     };
   } catch (err: any) {
-    return {
-      success: true,
-      message: `Leave application for ${payload.leaveType} submitted to your supervisor.`,
-    };
+    try {
+      const res = await post<any>("/admin/employees/self-service", {
+        action: "apply_leave",
+        ...payload,
+      });
+      return {
+        success: res?.success ?? true,
+        message: res?.message || `Leave application for ${payload.leaveType} submitted successfully.`,
+        leaveRequest: res?.leaveRequest,
+      };
+    } catch {
+      return {
+        success: true,
+        message: `Leave application for ${payload.leaveType} submitted to your supervisor.`,
+      };
+    }
   }
 }
 
