@@ -1,6 +1,7 @@
 
 
 import { get, post } from "@/services/axios";
+import Cookies from "js-cookie";
 import {
   EmployeesResponse,
   EmployeesData,
@@ -40,6 +41,8 @@ export const getEmployeeAnalytics = async (
       const url = `/api/admin/employees/analytics${queryString ? `?${queryString}` : ""}`;
 
       const token =
+        Cookies.get("token") ||
+        Cookies.get("ippis_token") ||
         localStorage.getItem("token") ||
         localStorage.getItem("ippis_token") ||
         "";
