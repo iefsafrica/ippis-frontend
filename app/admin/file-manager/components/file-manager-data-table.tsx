@@ -260,14 +260,14 @@ export function FileManagerDataTable({
         ) : null}
       </div>
 
-      <div className="rounded-md border bg-white">
+      <div className="rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-slate-50/90 dark:bg-slate-900/90 border-b border-slate-200/80">
               {columns.map((column) => (
                 <TableHead
                   key={column.key}
-                  className={`whitespace-nowrap ${column.width ? column.width : ""}`}
+                  className={`whitespace-nowrap py-3.5 px-4 font-semibold text-slate-700 dark:text-slate-200 text-[11px] uppercase tracking-wider ${column.width ? column.width : ""}`}
                 >
                   <div className="flex items-center gap-1">
                     {column.label}
@@ -387,9 +387,13 @@ export function FileManagerDataTable({
               return (
                 <Button
                   key={page}
-                  variant="outline"
+                  variant={page === currentPage ? "default" : "outline"}
                   size="sm"
-                  className={page === currentPage ? "bg-green-300" : ""}
+                  className={`h-8 min-w-[32px] px-2 text-xs font-semibold rounded-lg ${
+                    page === currentPage
+                      ? "bg-[#008751] hover:bg-[#007647] text-white border-transparent"
+                      : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                  }`}
                   onClick={() => setCurrentPage(page)}
                 >
                   {page}

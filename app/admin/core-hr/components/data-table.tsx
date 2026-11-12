@@ -1,218 +1,3 @@
-// "use client"
-
-// import type React from "react"
-// import { useState } from "react"
-
-// import { Button } from "@/components/ui/button"
-// import { Input } from "@/components/ui/input"
-// import {
-//   Table,
-//   TableBody,
-//   TableCell,
-//   TableHead,
-//   TableHeader,
-//   TableRow,
-// } from "@/components/ui/table"
-
-// import { Search, Plus } from "lucide-react"
-// import { Pagination } from "@/app/admin/components/pagination"
-// import { DataExportMenu } from "@/app/admin/components/data-export-menu"
-// import { AdvancedSearch } from "@/app/admin/components/advanced-search"
-
-// interface DataTableProps {
-//   title: string
-//   columns: {
-//     key: string
-//     label: string
-//     sortable?: boolean
-//     render?: (value: any, row: any) => React.ReactNode
-//   }[]
-//   data: any[]
-//   searchFields: Array<{
-//     name: string
-//     label: string
-//     type: "text" | "select" | "date"
-//     options?: Array<{ value: string; label: string }>
-//   }>
-//   onAdd: () => void
-// }
-
-// export function DataTable({
-//   title,
-//   columns,
-//   data,
-//   searchFields,
-//   onAdd,
-// }: DataTableProps) {
-//   const [searchTerm, setSearchTerm] = useState("")
-//   const [currentPage, setCurrentPage] = useState(1)
-//   const [itemsPerPage] = useState(10)
-//   const [sortColumn, setSortColumn] = useState<string | null>(null)
-//   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
-
-//   // Filter data
-//   const filteredData = data.filter((item) => {
-//     if (!searchTerm) return true
-
-//     return Object.values(item).some(
-//       (value) =>
-//         value &&
-//         value.toString().toLowerCase().includes(searchTerm.toLowerCase()),
-//     )
-//   })
-
-//   // Sort data
-//   const sortedData = sortColumn
-//     ? [...filteredData].sort((a, b) => {
-//         const aValue = a[sortColumn]
-//         const bValue = b[sortColumn]
-
-//         if (aValue < bValue) return sortDirection === "asc" ? -1 : 1
-//         if (aValue > bValue) return sortDirection === "asc" ? 1 : -1
-//         return 0
-//       })
-//     : filteredData
-
-//   // Pagination
-//   const indexOfLastItem = currentPage * itemsPerPage
-//   const indexOfFirstItem = indexOfLastItem - itemsPerPage
-//   const currentItems = sortedData.slice(indexOfFirstItem, indexOfLastItem)
-//   const totalPages = Math.ceil(sortedData.length / itemsPerPage)
-
-//   const handleSort = (column: string) => {
-//     if (sortColumn === column) {
-//       setSortDirection(sortDirection === "asc" ? "desc" : "asc")
-//     } else {
-//       setSortColumn(column)
-//       setSortDirection("asc")
-//     }
-//   }
-
-//   const handleAdvancedSearch = (params: any) => {
-//     console.log("Advanced search params:", params)
-//   }
-
-//   const handleExportPDF = () => {
-//     console.log("Exporting to PDF")
-//   }
-
-//   const handleExportCSV = () => {
-//     console.log("Exporting to CSV")
-//   }
-
-//   const handlePrint = () => {
-//     window.print()
-//   }
-
-//   return (
-//     <div className="space-y-4">
-//       {/* Top controls */}
-//       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-//         <div className="relative w-full sm:w-64">
-//           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-//           <Input
-//             type="search"
-//             placeholder={`Search ${title.toLowerCase()}...`}
-//             className="pl-8"
-//             value={searchTerm}
-//             onChange={(e) => setSearchTerm(e.target.value)}
-//           />
-//         </div>
-
-//         <div className="flex flex-wrap items-center gap-2">
-//           <AdvancedSearch
-//             onSearch={handleAdvancedSearch}
-//             fields={searchFields}
-//             title={title}
-//           />
-
-//           <DataExportMenu
-//             onExportPDF={handleExportPDF}
-//             onExportCSV={handleExportCSV}
-//             onPrint={handlePrint}
-//             title={title}
-//           />
-
-//           <Button
-//             onClick={onAdd}
-//             className="gap-1 bg-green-600 hover:bg-green-700"
-//           >
-//             <Plus className="h-4 w-4" />
-//             Add New
-//           </Button>
-//         </div>
-//       </div>
-
-//       {/* Table */}
-//       <div className="rounded-md border bg-white">
-//         <Table>
-//           <TableHeader>
-//             <TableRow>
-//               {columns.map((column) => (
-//                 <TableHead key={column.key} className="whitespace-nowrap">
-//                   <div className="flex items-center gap-1">
-//                     {column.label}
-//                     {column.sortable && (
-//                       <button
-//                         onClick={() => handleSort(column.key)}
-//                         className="p-1 hover:bg-gray-100 rounded"
-//                       >
-//                         {sortColumn === column.key
-//                           ? sortDirection === "asc"
-//                             ? "↑"
-//                             : "↓"
-//                           : "↕"}
-//                       </button>
-//                     )}
-//                   </div>
-//                 </TableHead>
-//               ))}
-//             </TableRow>
-//           </TableHeader>
-
-//           <TableBody>
-//             {currentItems.length === 0 ? (
-//               <TableRow>
-//                 <TableCell
-//                   colSpan={columns.length}
-//                   className="text-center py-8 text-gray-500"
-//                 >
-//                   No records found
-//                 </TableCell>
-//               </TableRow>
-//             ) : (
-//               currentItems.map((row) => (
-//                 <TableRow key={row.id}>
-//                   {columns.map((column) => (
-//                     <TableCell key={`${row.id}-${column.key}`}>
-//                       {column.render
-//                         ? column.render(row[column.key], row)
-//                         : row[column.key]}
-//                     </TableCell>
-//                   ))}
-//                 </TableRow>
-//               ))
-//             )}
-//           </TableBody>
-//         </Table>
-//       </div>
-
-//       {/* Pagination */}
-//       {totalPages > 1 && (
-//         <div className="flex justify-center mt-4">
-//           <Pagination
-//             currentPage={currentPage}
-//             totalPages={totalPages}
-//             onPageChange={setCurrentPage}
-//           />
-//         </div>
-//       )}
-//     </div>
-//   )
-// }
-
-
-
 "use client"
 
 import type React from "react"
@@ -228,7 +13,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Search, Plus, ChevronLeft, ChevronRight, Loader2, Download } from "lucide-react"
+import {
+  Search,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Download,
+  ArrowUpDown,
+  ChevronUp,
+  ChevronDown,
+  Inbox,
+} from "lucide-react"
 import { AdvancedSearch } from "@/app/admin/components/advanced-search"
 import ExportService from "@/app/admin/services/export-service"
 import { toast } from "sonner"
@@ -269,7 +65,7 @@ export function DataTable({
   data,
   searchFields,
   onAdd,
-  itemsPerPage = 1000, // Display 1000 items per page
+  itemsPerPage = 1000,
   defaultSortColumn,
   defaultSortDirection = "asc",
   extraSearchControls,
@@ -290,11 +86,11 @@ export function DataTable({
   const [sortColumn, setSortColumn] = useState<string | null>(defaultSortColumn ?? null)
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">(defaultSortDirection)
   const [isLoading, setIsLoading] = useState(true)
-  // Simulate loading state (remove in production)
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false)
-    }, 300)
+    }, 200)
     return () => clearTimeout(timer)
   }, [])
 
@@ -307,25 +103,18 @@ export function DataTable({
         : Object.values(item).some(
             (value) =>
               value &&
-              value.toString().toLowerCase().includes(normalizedSearchTerm),
+              value.toString().toLowerCase().includes(normalizedSearchTerm)
           )
 
-      const matchesAdvancedSearch = Object.entries(advancedSearchParams).every(([key, rawValue]) => {
-        const queryValue = rawValue?.toString().toLowerCase().trim()
-        if (!queryValue) return true
-
-        const itemValue = item?.[key]
-        if (itemValue == null) return false
-
-        if (typeof itemValue === "string" && /^\d{4}-\d{2}-\d{2}$/.test(queryValue)) {
-          const dateCandidate = itemValue.slice(0, 10)
-          return dateCandidate === queryValue
+      const matchesAdvanced = Object.entries(advancedSearchParams).every(
+        ([key, value]) => {
+          if (!value) return true
+          const itemValue = item[key]?.toString().toLowerCase() || ""
+          return itemValue.includes(value.toLowerCase())
         }
+      )
 
-        return itemValue.toString().toLowerCase().includes(queryValue)
-      })
-
-      return matchesSearch && matchesAdvancedSearch
+      return matchesSearch && matchesAdvanced
     })
   }, [data, searchTerm, advancedSearchParams])
 
@@ -334,117 +123,116 @@ export function DataTable({
     if (!sortColumn) return filteredData
 
     return [...filteredData].sort((a, b) => {
-      const aValue = a[sortColumn]
-      const bValue = b[sortColumn]
+      const aVal = a[sortColumn]
+      const bVal = b[sortColumn]
 
-      // Handle null/undefined values
-      if (aValue == null) return sortDirection === "asc" ? -1 : 1
-      if (bValue == null) return sortDirection === "asc" ? 1 : -1
+      if (aVal === null || aVal === undefined) return 1
+      if (bVal === null || bVal === undefined) return -1
 
-      // Handle different types
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortDirection === "asc" 
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue)
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return sortDirection === "asc" ? aVal - bVal : bVal - aVal
       }
 
-      if (aValue < bValue) return sortDirection === "asc" ? -1 : 1
-      if (aValue > bValue) return sortDirection === "asc" ? 1 : -1
-      return 0
+      const aStr = aVal.toString().toLowerCase()
+      const bStr = bVal.toString().toLowerCase()
+
+      if (sortDirection === "asc") {
+        return aStr.localeCompare(bStr)
+      } else {
+        return bStr.localeCompare(aStr)
+      }
     })
   }, [filteredData, sortColumn, sortDirection])
 
-  // Calculate pagination values
+  // Pagination
   const totalItems = sortedData.length
-  const totalPages = Math.ceil(totalItems / itemsPerPage)
-  const indexOfLastItem = currentPage * itemsPerPage
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage))
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems)
+  const currentItems = sortedData.slice(startIndex, endIndex)
 
-  // Get current items
-  const currentItems = useMemo(() => {
-    return sortedData.slice(indexOfFirstItem, indexOfLastItem)
-  }, [sortedData, indexOfFirstItem, indexOfLastItem])
-
-  const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
-    } else {
-      setSortColumn(column)
-      setSortDirection(defaultSortDirection)
-    }
-    // Reset to first page when sorting
-    setCurrentPage(1)
-  }
-
-  const handleAdvancedSearch = (params: any) => {
-    setAdvancedSearchParams(params || {})
-    // Reset to first page after search
-    setCurrentPage(1)
-  }
-
-    const performExport = (type: 'pdf' | 'csv' | 'print') => {
-      try {
-        const exportColumns = columns.map((col) => ({
-          header: col.label,
-          accessor: col.key,
-        }))
-
-        const exportOptions = {
-          title: normalizedTitle,
-          filename: `${exportFilenameTitle}_export`,
-          columns: exportColumns,
-        }
-
-        if (type === 'pdf') {
-          ExportService.exportToPDF(sortedData, exportOptions)
-          toast.success("PDF export opened in new window. Use your browser's print dialog to save as PDF!")
-        } else if (type === 'csv') {
-          ExportService.exportToCSV(sortedData, exportOptions)
-          toast.success("CSV export downloaded successfully!")
-        } else if (type === 'print') {
-          ExportService.printData(sortedData, exportOptions)
-          toast.success("Print dialog opened!")
-        }
-      } catch (error) {
-        toast.error("Export failed. Please try again.")
-        console.error("Export error:", error)
+  const handleSort = (columnKey: string) => {
+    if (sortColumn === columnKey) {
+      if (sortDirection === "asc") {
+        setSortDirection("desc")
+      } else {
+        setSortColumn(null)
       }
+    } else {
+      setSortColumn(columnKey)
+      setSortDirection("asc")
+    }
+  }
+
+  const handleAdvancedSearch = (params: Record<string, string>) => {
+    setAdvancedSearchParams(params)
+    setCurrentPage(1)
+  }
+
+  const performExport = (type: "excel" | "pdf" | "csv" | "print") => {
+    const exportColumns = columns.map((col) => ({
+      key: col.key,
+      title: col.label,
+    }))
+
+    const exportOptions = {
+      filename: `${exportFilenameTitle}_Export_${new Date().toISOString().split("T")[0]}`,
+      title: `${normalizedTitle} Report`,
+      description: `Official administrative register export generated on ${new Date().toLocaleDateString()}`,
+      columns: exportColumns,
+      orientation: "landscape" as const,
+      data: sortedData,
     }
 
-    const handleExport = () => performExport('csv')
+    try {
+      if (type === "excel") {
+        ExportService.exportToExcel(sortedData, exportOptions)
+        toast.success("Excel export downloaded successfully!")
+      } else if (type === "pdf") {
+        ExportService.exportToPDF(sortedData, exportOptions)
+        toast.success("PDF export opened in new window.")
+      } else if (type === "csv") {
+        ExportService.exportToCSV(sortedData, exportOptions)
+        toast.success("CSV export downloaded successfully!")
+      } else if (type === "print") {
+        ExportService.printData(sortedData, exportOptions)
+        toast.success("Print dialog opened!")
+      }
+    } catch (error) {
+      toast.error("Export failed. Please try again.")
+      console.error("Export error:", error)
+    }
+  }
 
+  const handleExport = () => performExport("csv")
 
-
-  // Reset to page 1 when search term changes
   useEffect(() => {
     setCurrentPage(1)
   }, [searchTerm, advancedSearchParams])
 
-
-
   return (
-    <div className="space-y-4 px-0 sm:px-4 py-4">
+    <div className="space-y-4 px-0 py-2">
       {/* Top controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               type="search"
               placeholder={`Search ${normalizedTitleLower}...`}
-              className="pl-8"
+              className="pl-9 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-lg focus:ring-1 focus:ring-[#008751] focus:border-[#008751] text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           {extraSearchControls && (
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               {extraSearchControls}
             </div>
           )}
         </div>
 
-        <div className="flex w-full sm:w-auto flex-wrap items-center justify-end gap-2 sm:gap-3">
+        <div className="flex w-full sm:w-auto flex-wrap items-center justify-end gap-2">
           <AdvancedSearch
             onSearch={handleAdvancedSearch}
             fields={searchFields}
@@ -455,9 +243,9 @@ export function DataTable({
             variant="outline"
             onClick={onExport ?? handleExport}
             type="button"
-            className={`${buttonHoverEnhancements} gap-1 w-full sm:w-auto`}
+            className={`${buttonHoverEnhancements} gap-1.5 border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 w-full sm:w-auto rounded-lg shadow-2xs font-medium`}
           >
-            <Download className="h-4 w-4" />
+            <Download className="h-4 w-4 text-slate-500" />
             {exportLabel ?? "Export"}
           </Button>
 
@@ -473,15 +261,16 @@ export function DataTable({
                     {addButtonExtra}
                     <Button
                       onClick={onAdd}
-                      className={cn("gap-1 bg-green-600 hover:bg-green-700", addButtonClassName)}
+                      className={cn(
+                        "gap-1.5 bg-[#008751] hover:bg-[#007647] text-white font-semibold rounded-lg shadow-xs hover:shadow transition-all",
+                        addButtonClassName
+                      )}
                       {...restAddButtonProps}
                       disabled={buttonDisabled}
                     >
                       {addButtonLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                       <Plus className="h-4 w-4" />
-                      {addButtonLoading
-                        ? "Processing..."
-                        : addButtonLabel ?? "Add New"}
+                      {addButtonLoading ? "Processing..." : addButtonLabel ?? "Add New"}
                     </Button>
                   </>
                 )
@@ -491,93 +280,146 @@ export function DataTable({
         </div>
       </div>
 
-      {/* Data list */}
-      <div className="rounded-lg border bg-white shadow-sm">
+      {/* Modern Card Table Wrapper */}
+      <div className="rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs overflow-hidden">
         <div
-          className="w-full overflow-x-auto overflow-y-hidden overscroll-x-contain pb-1"
+          className="w-full overflow-x-auto overflow-y-hidden custom-scrollbar"
           style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}
         >
-        <Table className={cn("min-w-[980px] table-auto", tableClassName)}>
-          <TableHeader>
-            <TableRow className="bg-gray-50/50">
-              {columns.map((column) => (
-                <TableHead key={column.key} className="whitespace-nowrap py-3 hover:bg-gray-100/80 transition-colors">
-                  <div className="flex items-center gap-1">
-                    {column.label}
-                    {column.sortable && (
-                      <button
-                        onClick={() => handleSort(column.key)}
-                        className="p-1 hover:bg-gray-100 rounded transition-colors"
-                        aria-label={`Sort by ${column.label}`}
-                      >
-                        {sortColumn === column.key ? (
-                          sortDirection === "asc" ? (
-                            <span className="text-blue-600">↑</span>
+          <Table className={cn("min-w-[980px] table-auto", tableClassName)}>
+            <TableHeader>
+              <TableRow className="bg-slate-50/90 dark:bg-slate-900/90 border-b border-slate-200/80">
+                {columns.map((column) => (
+                  <TableHead
+                    key={column.key}
+                    className="whitespace-nowrap py-3.5 px-4 font-semibold text-slate-700 dark:text-slate-200 text-[11px] uppercase tracking-wider select-none"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>{column.label}</span>
+                      {column.sortable && (
+                        <button
+                          onClick={() => handleSort(column.key)}
+                          className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded transition-colors"
+                          aria-label={`Sort by ${column.label}`}
+                        >
+                          {sortColumn === column.key ? (
+                            sortDirection === "asc" ? (
+                              <ChevronUp className="h-3.5 w-3.5 text-[#008751]" />
+                            ) : (
+                              <ChevronDown className="h-3.5 w-3.5 text-[#008751]" />
+                            )
                           ) : (
-                            <span className="text-blue-600">↓</span>
-                          )
-                        ) : (
-                          <span className="text-gray-400">↕</span>
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-
-          <TableBody>
-            {isLoading ? (
-              // Loading skeleton
-              Array.from({ length: 5 }).map((_, index) => (
-                <TableRow key={`skeleton-${index}`} className="hover:bg-gray-50/50">
-                  {columns.map((column, colIndex) => (
-                    <TableCell key={`skeleton-${index}-${colIndex}`} className="py-3">
-                      <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : currentItems.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="text-center py-12 text-gray-500"
-                >
-                  <div className="flex flex-col items-center justify-center">
-                    <div className="text-lg font-medium mb-2">No records found</div>
-                    <div className="text-sm text-gray-400">
-                      Try adjusting your search or filter
+                            <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                          )}
+                        </button>
+                      )}
                     </div>
-                  </div>
-                </TableCell>
+                  </TableHead>
+                ))}
               </TableRow>
-            ) : (
-              currentItems.map((row, index) => (
-                <TableRow key={row.id || index} className="hover:bg-gray-50/50 transition-colors">
-                  {columns.map((column) => (
-                    <TableCell key={`${row.id || index}-${column.key}`} className="py-3 whitespace-nowrap">
-                      {column.render
-                        ? column.render(row[column.key], row)
-                        : row[column.key]}
-                    </TableCell>
-                  ))}
+            </TableHeader>
+
+            <TableBody>
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <TableRow key={`skeleton-${index}`}>
+                    {columns.map((_, colIndex) => (
+                      <TableCell key={`skeleton-${index}-${colIndex}`} className="py-4 px-4">
+                        <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded animate-pulse w-3/4"></div>
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : currentItems.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="text-center py-16 text-slate-500"
+                  >
+                    <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
+                      <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
+                        <Inbox className="w-6 h-6 text-slate-400" />
+                      </div>
+                      <div className="text-base font-semibold text-slate-800 dark:text-slate-200 mb-1">
+                        No records found
+                      </div>
+                      <p className="text-xs text-slate-500 mb-3">
+                        {searchTerm
+                          ? `No results matching "${searchTerm}". Try a different keyword.`
+                          : "There are no entries currently in this register."}
+                      </p>
+                      {searchTerm && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSearchTerm("")}
+                          className="text-xs text-[#008751] hover:text-[#007647]"
+                        >
+                          Clear search
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
                 </TableRow>
-              ))
+              ) : (
+                currentItems.map((row, index) => (
+                  <TableRow
+                    key={row.id || index}
+                    className="hover:bg-emerald-50/20 dark:hover:bg-slate-800/50 transition-colors"
+                  >
+                    {columns.map((column) => (
+                      <TableCell
+                        key={`${row.id || index}-${column.key}`}
+                        className="py-3.5 px-4 whitespace-nowrap text-slate-700 dark:text-slate-300 text-sm font-normal"
+                      >
+                        {column.render
+                          ? column.render(row[column.key], row)
+                          : row[column.key] ?? "—"}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Footer info & pagination */}
+        {totalItems > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-xs text-slate-500 gap-2">
+            <div>
+              Showing <span className="font-semibold text-slate-700 dark:text-slate-200">{startIndex + 1}</span> to{" "}
+              <span className="font-semibold text-slate-700 dark:text-slate-200">{endIndex}</span> of{" "}
+              <span className="font-semibold text-slate-700 dark:text-slate-200">{totalItems}</span> {normalizedTitleLower}
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="h-8 px-2 text-xs"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5 mr-1" /> Prev
+                </Button>
+                <span className="px-2 font-medium text-slate-700 dark:text-slate-300">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-8 px-2 text-xs"
+                >
+                  Next <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </div>
             )}
-          </TableBody>
-        </Table>
-        </div>
+          </div>
+        )}
       </div>
-
-      {/* Display total items */}
-      {totalItems > 0 && (
-        <div className="text-sm text-gray-600 px-1 py-3">
-          Showing {totalItems} {normalizedTitleLower}
-        </div>
-      )}
-
     </div>
   )
 }

@@ -3,62 +3,65 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-  --border: 214, 214, 214;
-  --input: 220, 220, 220;
-  --ring: 212, 212, 212;
-  --background: 255, 255, 255;
-  --foreground: 0, 0, 0; /* Pure black text for better contrast */
+  --foreground-rgb: 15, 23, 42;
+  --background-start-rgb: 248, 250, 252;
+  --background-end-rgb: 248, 250, 252;
+  --border: 226, 232, 240; /* slate-200 */
+  --input: 226, 232, 240;
+  --ring: 0, 135, 81; /* IPPIS Green (#008751) */
+  --background: 248, 250, 252; /* slate-50 */
+  --foreground: 15, 23, 42; /* slate-900 */
   --primary: 0, 135, 81; /* IPPIS logo green (#008751) */
   --primary-foreground: 255, 255, 255;
   --secondary: 200, 16, 46; /* Nigerian red */
   --secondary-foreground: 255, 255, 255;
-  --destructive: 239, 68, 68;
+  --destructive: 225, 29, 72; /* rose-600 */
   --destructive-foreground: 255, 255, 255;
-  --muted: 245, 245, 245;
-  --muted-foreground: 0, 0, 0; /* Black muted text */
-  --accent: 245, 245, 245;
-  --accent-foreground: 0, 0, 0; /* Black accent text */
+  --muted: 241, 245, 249; /* slate-100 */
+  --muted-foreground: 100, 116, 139; /* slate-500 */
+  --accent: 241, 245, 249;
+  --accent-foreground: 15, 23, 42;
   --popover: 255, 255, 255;
-  --popover-foreground: 0, 0, 0; /* Black popover text */
+  --popover-foreground: 15, 23, 42;
   --card: 255, 255, 255;
-  --card-foreground: 0, 0, 0; /* Black card text */
-  --radius: 0.5rem;
+  --card-foreground: 15, 23, 42;
+  --radius: 0.625rem;
 }
 
 .dark {
-  --foreground-rgb: 255, 255, 255;
-  --background-start-rgb: 0, 0, 0;
-  --background-end-rgb: 0, 0, 0;
-  --border: 64, 64, 64;
-  --input: 64, 64, 64;
-  --ring: 64, 64, 64;
-  --background: 10, 10, 10;
-  --foreground: 255, 255, 255; /* Pure white text for dark mode */
-  --primary: 0, 155, 91; /* Brighter Nigerian green for dark mode */
+  --foreground-rgb: 248, 250, 252;
+  --background-start-rgb: 15, 23, 42;
+  --background-end-rgb: 15, 23, 42;
+  --border: 51, 65, 85; /* slate-700 */
+  --input: 51, 65, 85;
+  --ring: 16, 185, 129; /* emerald-500 */
+  --background: 15, 23, 42; /* slate-900 */
+  --foreground: 248, 250, 252;
+  --primary: 0, 155, 91;
   --primary-foreground: 255, 255, 255;
-  --secondary: 220, 36, 66; /* Brighter Nigerian red for dark mode */
+  --secondary: 220, 36, 66;
   --secondary-foreground: 255, 255, 255;
-  --destructive: 255, 88, 88; /* Brighter destructive */
+  --destructive: 244, 63, 94;
   --destructive-foreground: 255, 255, 255;
-  --muted: 30, 30, 30;
-  --muted-foreground: 255, 255, 255; /* White muted text */
-  --accent: 30, 30, 30;
-  --accent-foreground: 255, 255, 255; /* White accent text */
-  --popover: 20, 20, 20;
-  --popover-foreground: 255, 255, 255; /* White popover text */
-  --card: 20, 20, 20;
-  --card-foreground: 255, 255, 255; /* White card text */
+  --muted: 30, 41, 59; /* slate-800 */
+  --muted-foreground: 148, 163, 184; /* slate-400 */
+  --accent: 30, 41, 59;
+  --accent-foreground: 248, 250, 252;
+  --popover: 30, 41, 59;
+  --popover-foreground: 248, 250, 252;
+  --card: 30, 41, 59;
+  --card-foreground: 248, 250, 252;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(to bottom, transparent, rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
-  text-size-adjust: 100%; /* Standard property */
-  -webkit-text-size-adjust: 100%; /* Vendor prefix with correct value */
-  -moz-text-size-adjust: 100%; /* Vendor prefix with correct value */
+  background-color: rgb(var(--background-start-rgb));
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 html,
@@ -180,48 +183,46 @@ html {
     @apply bg-background text-foreground;
   }
 
-  /* Improve text contrast */
+  /* Civil Service institutional typography */
   h1,
   h2,
   h3,
   h4,
   h5,
   h6 {
-    @apply text-black dark:text-white font-bold;
+    @apply text-slate-900 dark:text-slate-100 font-bold tracking-tight;
   }
 
-  p,
-  span,
-  div {
-    @apply text-black dark:text-white;
+  p {
+    @apply text-slate-700 dark:text-slate-300;
   }
 
   a {
-    @apply text-black hover:text-primary dark:text-white dark:hover:text-primary font-medium;
+    @apply text-slate-900 hover:text-primary dark:text-slate-100 dark:hover:text-primary font-medium transition-colors;
   }
 
   /* Improve sidebar text contrast */
   .sidebar-item {
-    @apply text-black font-bold;
+    @apply text-slate-700 font-medium;
   }
 
   .sidebar-item-active {
-    @apply text-green-800 font-bold;
+    @apply text-[#008751] font-semibold;
   }
 
   .sidebar-icon {
-    @apply text-black;
+    @apply text-slate-500;
   }
 
   .sidebar-icon-active {
-    @apply text-green-800;
+    @apply text-[#008751];
   }
 
   /* Improve form input text contrast */
   input,
   textarea,
   select {
-    @apply text-black dark:text-white font-medium;
+    @apply text-slate-900 dark:text-slate-100 font-normal focus:ring-1 focus:ring-[#008751] focus:border-[#008751];
   }
 
   /* Improve button text contrast */
@@ -229,19 +230,36 @@ html {
     @apply font-medium;
   }
 
-  /* Improve table text contrast */
+  /* Modern institutional table headers and cells */
   table th {
-    @apply text-black dark:text-white font-bold;
+    @apply text-slate-700 dark:text-slate-300 font-semibold;
   }
 
   table td {
-    @apply text-black dark:text-white;
+    @apply text-slate-700 dark:text-slate-300;
   }
+}
+
+/* Custom scrollbars and table utilities */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 /* Additional utility classes for text contrast */
 .text-high-contrast {
-  @apply text-black dark:text-white font-bold;
+  @apply text-slate-900 dark:text-white font-bold;
 }
 
 .text-medium-contrast {

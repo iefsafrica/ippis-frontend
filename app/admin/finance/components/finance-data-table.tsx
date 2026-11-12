@@ -587,7 +587,7 @@ export function FinanceDataTable({
             {showAddButton ? (
               <Button
                 onClick={onAdd}
-                className="gap-1 bg-green-600 hover:bg-green-700"
+                className="gap-1.5 bg-[#008751] hover:bg-[#007647] text-white font-semibold rounded-lg shadow-xs hover:shadow transition-all"
               >
                 <Plus className="h-4 w-4" />
                 Add New
@@ -603,7 +603,7 @@ export function FinanceDataTable({
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+              className="h-6 px-2 text-xs text-[#008751] hover:text-[#007647]"
               onClick={clearAllFilters}
             >
               Clear all filters
@@ -612,12 +612,14 @@ export function FinanceDataTable({
         )}
       </div>
 
-      <div className="rounded-md border bg-white">
+      <div className="rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-slate-50/90 dark:bg-slate-900/90 border-b border-slate-200/80">
               {columns.map((column) => (
                 <TableHead
+                  key={column.key}
+                  className={`whitespace-nowrap py-3.5 px-4 font-semibold text-slate-700 dark:text-slate-200 text-[11px] uppercase tracking-wider ${column.width ? column.width : ""}`}
                   key={column.key}
                   className={`whitespace-nowrap ${
                     column.width ? column.width : ""
@@ -783,9 +785,13 @@ export function FinanceDataTable({
               return (
                 <Button
                   key={page}
-                  variant="outline"
+                  variant={page === currentPage ? "default" : "outline"}
                   size="sm"
-                  className={page === currentPage ? "bg-green-300" : ""}
+                  className={`h-8 min-w-[32px] px-2 text-xs font-semibold rounded-lg ${
+                    page === currentPage
+                      ? "bg-[#008751] hover:bg-[#007647] text-white border-transparent"
+                      : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                  }`}
                   onClick={() => handlePageChange(page)}
                 >
                   {page}

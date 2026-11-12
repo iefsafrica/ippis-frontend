@@ -440,7 +440,7 @@ export function EnhancedDataTable({
             </DropdownMenu>
 
             {addButtonExtra}
-            <Button onClick={onAdd} className="w-full gap-1 bg-green-600 hover:bg-green-700 sm:w-auto">
+            <Button onClick={onAdd} className="w-full gap-1.5 bg-[#008751] hover:bg-[#007647] text-white font-semibold rounded-lg shadow-xs hover:shadow transition-all sm:w-auto">
               <Plus className="h-4 w-4" />
               Add New
             </Button>
@@ -454,7 +454,7 @@ export function EnhancedDataTable({
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+              className="h-6 px-2 text-xs text-[#008751] hover:text-[#007647]"
               onClick={clearAllFilters}
             >
               Clear all filters
@@ -466,51 +466,59 @@ export function EnhancedDataTable({
 
       {!hideSummaryCards && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <p className="text-sm font-medium text-gray-500">Total {title}</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">{data.length}</p>
+          <div className="rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
+            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Total {title}</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">{data.length}</p>
           </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <p className="text-sm font-medium text-gray-500">Filtered</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">{sortedData.length}</p>
+          <div className="rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
+            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Filtered</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">{sortedData.length}</p>
           </div>
           {hasStatusField && topStatusEntries.length > 0 ? (
             topStatusEntries.map(([status, count]) => (
-              <div key={status} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                <p className="text-sm font-medium text-gray-500">{toTitle(status)}</p>
-                <p className="mt-1 text-2xl font-bold text-gray-900">{count}</p>
+              <div key={status} className="rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
+                <p className="text-xs font-medium uppercase tracking-wider text-slate-500">{toTitle(status)}</p>
+                <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">{count}</p>
               </div>
             ))
           ) : (
-            <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-              <p className="text-sm font-medium text-gray-500">Selected</p>
-              <p className="mt-1 text-2xl font-bold text-gray-900">{selectedRows.length}</p>
+            <div className="rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
+              <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Selected</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">{selectedRows.length}</p>
             </div>
           )}
         </div>
       )}
 
-      <div className="w-full overflow-x-auto rounded-md border bg-white [-webkit-overflow-scrolling:touch]">
+      <div className="w-full overflow-x-auto rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs custom-scrollbar">
         <Table className="min-w-[980px]">
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-slate-50/90 dark:bg-slate-900/90 border-b border-slate-200/80">
               {columns.map((column) => (
-                <TableHead key={column.key} className={`whitespace-nowrap ${column.width ? column.width : ""}`}>
-                  <div className="flex items-center gap-1">
-                    {column.label}
+                <TableHead key={column.key} className={`whitespace-nowrap py-3.5 px-4 font-semibold text-slate-700 dark:text-slate-200 text-[11px] uppercase tracking-wider ${column.width ? column.width : ""}`}>
+                  <div className="flex items-center gap-1.5">
+                    <span>{column.label}</span>
                     {column.sortable && (
                       <button
                         onClick={() => handleSort(column.key)}
-                        className="p-1 hover:bg-gray-100 rounded"
+                        className="p-1 hover:bg-slate-200/60 rounded text-slate-400 hover:text-slate-700 transition-colors"
                         aria-label={`Sort by ${column.label}`}
                       >
-                        {sortColumn === column.key ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}
+                        {sortColumn === column.key ? (
+                          sortDirection === "asc" ? (
+                            <ChevronDown className="h-3.5 w-3.5 text-[#008751] rotate-180" />
+                          ) : (
+                            <ChevronDown className="h-3.5 w-3.5 text-[#008751]" />
+                          )
+                        ) : (
+                          <span className="text-slate-400 text-xs">↕</span>
+                        )}
                       </button>
                     )}
                   </div>
                 </TableHead>
               ))}
-              {!hideActions && <TableHead className="text-right">Actions</TableHead>}
+              {!hideActions && <TableHead className="text-right py-3.5 px-4 font-semibold text-slate-700 dark:text-slate-200 text-[11px] uppercase tracking-wider">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -519,30 +527,33 @@ export function EnhancedDataTable({
                 <TableRow key={`loading-${index}`}>
                   {columns.map((column, colIndex) => (
                     <TableCell key={`loading-cell-${index}-${colIndex}`}>
-                      <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4" />
+                      <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded animate-pulse w-3/4" />
                     </TableCell>
                   ))}
                   <TableCell>
-                    <div className="h-8 bg-gray-200 rounded animate-pulse w-20 ml-auto" />
+                    <div className="h-8 bg-slate-100 dark:bg-slate-800 rounded animate-pulse w-20 ml-auto" />
                   </TableCell>
                 </TableRow>
               ))
             ) : currentItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length + 1} className="text-center py-8 text-gray-500">
-                  No records found
+                <TableCell colSpan={columns.length + 1} className="text-center py-12 text-slate-500">
+                  <div className="flex flex-col items-center justify-center">
+                    <p className="font-medium text-slate-700 dark:text-slate-300">No records found</p>
+                    <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or search keywords</p>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
               currentItems.map((row) => (
-                <TableRow key={row.id} className="group">
+                <TableRow key={row.id} className="group hover:bg-emerald-50/20 dark:hover:bg-slate-800/50 transition-colors">
                   {columns.map((column) => (
-                    <TableCell key={`${row.id}-${column.key}`}>
+                    <TableCell key={`${row.id}-${column.key}`} className="py-3.5 px-4 whitespace-nowrap text-slate-700 dark:text-slate-300 text-sm">
                       {column.render ? column.render(row[column.key], row) : row[column.key]}
                     </TableCell>
                   ))}
                   {!hideActions && (
-                    <TableCell className="text-right">
+                    <TableCell className="text-right py-3.5 px-4">
                       {renderRowActions ? (
                         renderRowActions(row)
                       ) : (
