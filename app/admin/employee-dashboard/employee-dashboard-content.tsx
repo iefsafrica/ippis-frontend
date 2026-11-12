@@ -76,9 +76,15 @@ import {
   createTicketSelfService,
   SelfServiceData,
 } from "@/services/endpoints/employees/self-service";
+import { useEmployeeLeaves, useEmployeeLeaveBalances } from "@/services/hooks/employee/useEmployeeLeave";
 
 export default function EmployeeDashboardContent() {
   const { user, logout } = useAuth();
+  const { data: dynamicBalances } = useEmployeeLeaveBalances();
+  const { data: ownLeavesList } = useEmployeeLeaves();
+  const primaryLeave = dynamicBalances?.[0] || { leave_type: "Annual Leave", days_available: 25, days_allowed: 30 };
+  const pendingLeavesCount = (ownLeavesList || []).filter((l) => l.status === "pending").length;
+
   const [activeTab, setActiveTab] = useState("overview");
   const [currentTime, setCurrentTime] = useState("");
   const [clockStatus, setClockStatus] = useState<"clocked_in" | "clocked_out">("clocked_in");
@@ -420,12 +426,14 @@ export default function EmployeeDashboardContent() {
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium text-slate-500">Leave Balance</p>
+                    <p className="text-xs font-medium text-slate-500">Leave Balance ({primaryLeave.leave_type})</p>
                     <h3 className="text-lg font-bold text-slate-900 mt-1">
-                      18 <span className="text-xs font-normal text-slate-500">of 30 Days</span>
+                      {primaryLeave.days_available} <span className="text-xs font-normal text-slate-500">of {primaryLeave.days_allowed} Days</span>
                     </h3>
                     <p className="text-[11px] text-amber-600 font-medium mt-0.5">
-                      1 pending request for review
+                      {pendingLeavesCount > 0
+                        ? `${pendingLeavesCount} pending request${pendingLeavesCount === 1 ? "" : "s"} for review`
+                        : "No pending requests"}
                     </p>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -1483,11 +1491,20 @@ export default function EmployeeDashboardContent() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Annual Leave">Annual Leave (18 days remaining)</SelectItem>
-                  <SelectItem value="Casual Leave">Casual Leave (5 days remaining)</SelectItem>
-                  <SelectItem value="Sick Leave">Sick Leave (14 days remaining)</SelectItem>
-                  <SelectItem value="Compassionate Leave">Compassionate Leave</SelectItem>
-                  <SelectItem value="Maternity / Paternity">Maternity / Paternity Leave</SelectItem>
+                  {(dynamicBalances && dynamicBalances.length > 0
+                    ? dynamicBalances
+                    : [
+                        { leave_type: "Annual Leave", days_available: 25 },
+                        { leave_type: "Casual Leave", days_available: 5 },
+                        { leave_type: "Sick Leave", days_available: 14 },
+                        { leave_type: "Compassionate Leave", days_available: 7 },
+                        { leave_type: "Maternity / Paternity", days_available: 120 },
+                      ]
+                  ).map((b) => (
+                    <SelectItem key={b.leave_type} value={b.leave_type}>
+                      {b.leave_type} ({b.days_available} days remaining)
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

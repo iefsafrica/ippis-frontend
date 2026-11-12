@@ -1,3 +1,9 @@
+export interface MonthlyTrendItem {
+  month: string;
+  employees: number;
+  documents: number;
+}
+
 export interface DashboardStats {
   totalEmployees: number;
   activeEmployees: number;
@@ -5,6 +11,7 @@ export interface DashboardStats {
   pendingDocuments: number;
   verifiedDocuments: number;
   rejectedDocuments: number;
+  monthlyTrends?: MonthlyTrendItem[];
 }
 
 export interface DashboardStatsResponse {
