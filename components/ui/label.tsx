@@ -7,7 +7,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const labelVariants = cva(
-  "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+  "text-[13px] font-semibold leading-none text-slate-700 dark:text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
 )
 
 const wrapAsterisks = (child: React.ReactNode, childIndex: number) => {
@@ -22,7 +22,7 @@ const wrapAsterisks = (child: React.ReactNode, childIndex: number) => {
         <React.Fragment key={`label-part-${childIndex}-${index}`}>
           {segment}
           {index < parts.length - 1 && (
-            <span className="text-red-500" key={`asterisk-${childIndex}-${index}`}>
+            <span className="text-rose-500 font-bold ml-0.5" key={`asterisk-${childIndex}-${index}`}>
               *
             </span>
           )}

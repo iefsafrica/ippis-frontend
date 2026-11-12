@@ -265,19 +265,21 @@ export function FormDialog({
   return (
     <Dialog open={controlledOpen} onOpenChange={handleOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[640px]">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className="text-xl font-bold text-slate-900 dark:text-slate-100">
+            {title}
+          </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-2 gap-4 py-4">{fields.map(renderField)}</div>
-          <DialogFooter>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">{fields.map(renderField)}</div>
+          <DialogFooter className="pt-4 border-t border-slate-100 dark:border-slate-800">
             <DialogClose asChild>
-              <Button type="button" variant="outline">
+              <Button type="button" variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50">
                 {cancelLabel}
               </Button>
             </DialogClose>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting} className="bg-[#008751] hover:bg-[#007647] text-white font-semibold shadow-xs">
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {submitLabel}
             </Button>

@@ -20,11 +20,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns"
 import { CalendarIcon, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { MdaSelect } from "@/components/mda-select"
 
 export type FinanceFormField = {
   name: string
   label: string
-  type: "text" | "email" | "password" | "number" | "date" | "select" | "textarea" | "currency"
+  type: "text" | "email" | "password" | "number" | "date" | "select" | "textarea" | "currency" | "mda"
   placeholder?: string
   required?: boolean
   options?: { label: string; value: string }[]
@@ -52,6 +53,7 @@ interface FinanceFormDialogProps {
   isOpen?: boolean
   onOpenChange?: (open: boolean) => void
   currencySymbol?: string
+  includeMdaSelect?: boolean
 }
 
 export function FinanceFormDialog({
@@ -65,6 +67,7 @@ export function FinanceFormDialog({
   isOpen,
   onOpenChange,
   currencySymbol = "₦",
+  includeMdaSelect = true,
 }: FinanceFormDialogProps) {
   const [formValues, setFormValues] = useState<Record<string, any>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -92,10 +95,26 @@ export function FinanceFormDialog({
     }
   }
 
+  const fieldsWithMda = React.useMemo(() => {
+    if (includeMdaSelect && !fields.some((f) => f.name === "company_id")) {
+      return [
+        {
+          name: "company_id",
+          label: "Assigned MDA",
+          type: "mda" as const,
+          width: "full" as const,
+          helpText: "Select which MDA this record belongs to. If unselected, defaults to your MDA.",
+        },
+        ...fields,
+      ]
+    }
+    return fields
+  }, [fields, includeMdaSelect])
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
 
-    fields.forEach((field) => {
+    fieldsWithMda.forEach((field) => {
       const value = formValues[field.name]
 
       if (field.required && (value === undefined || value === null || value === "")) {
@@ -242,6 +261,15 @@ export function FinanceFormDialog({
             </Popover>
           )}
 
+          {field.type === "mda" && (
+            <MdaSelect
+              value={value}
+              onChange={(val) => handleChange(field.name, val)}
+              label={field.label}
+              required={field.required}
+            />
+          )}
+
           {field.helpText && <p className="text-sm text-muted-foreground">{field.helpText}</p>}
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
@@ -252,19 +280,21 @@ export function FinanceFormDialog({
   return (
     <Dialog open={controlledOpen} onOpenChange={handleOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[640px]">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className="text-xl font-bold text-slate-900 dark:text-slate-100">
+            {title}
+          </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-2 gap-4 py-4">{fields.map(renderField)}</div>
-          <DialogFooter>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">{fieldsWithMda.map(renderField)}</div>
+          <DialogFooter className="pt-4 border-t border-slate-100 dark:border-slate-800">
             <DialogClose asChild>
-              <Button type="button" variant="outline">
+              <Button type="button" variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50">
                 {cancelLabel}
               </Button>
             </DialogClose>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting} className="bg-[#008751] hover:bg-[#007647] text-white font-semibold shadow-xs">
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {submitLabel}
             </Button>

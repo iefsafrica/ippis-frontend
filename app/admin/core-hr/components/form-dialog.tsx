@@ -95,24 +95,24 @@ export function FormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[600px] w-full max-h-[calc(100vh-4rem)] overflow-y-auto py-4 gap-2.5">
+      <DialogContent className="max-w-[640px] w-full max-h-[calc(100vh-3rem)] overflow-y-auto custom-scrollbar">
         <DialogHeader>
-          <DialogTitle>
-            {isEdit ? `Edit ${title}` : `Add New ${title}`}
+          <DialogTitle className="text-xl font-bold text-slate-900 dark:text-slate-100">
+            {isEdit ? `Update ${title}` : `Add New ${title}`}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6 pb-32">
-          <div className="grid lg:gap-2 gap-4 lg:py-2 py-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
             {fields.map((field) => (
               <div
                 key={field.name}
-                className="grid grid-cols-4 items-center gap-4"
+                className={field.type === 'textarea' ? 'sm:col-span-2 space-y-2' : 'space-y-2'}
               >
-                <Label htmlFor={field.name} className="text-right">
+                <Label htmlFor={field.name}>
                   {field.label}{' '}
-                  {field.required && <span className="text-red-500">*</span>}
+                  {field.required && <span className="text-rose-500">*</span>}
                 </Label>
-                <div className="col-span-3">
+                <div>
                   {field.type === 'textarea' ? (
                     <Textarea
                       id={field.name}
@@ -120,7 +120,7 @@ export function FormDialog({
                       value={formData[field.name] || ''}
                       onChange={(e) => handleChange(field.name, e.target.value)}
                       required={field.required}
-                      className="min-h-[50px] resize-none"
+                      className="min-h-[80px]"
                     />
                   ) : field.type === 'select' ? (
                     <Select
@@ -149,7 +149,6 @@ export function FormDialog({
                       value={formData[field.name] || ''}
                       onChange={(e) => handleChange(field.name, e.target.value)}
                       required={field.required}
-                      className="lg:h-9"
                     />
                   ) : field.type === 'number' ? (
                     <Input
@@ -159,7 +158,6 @@ export function FormDialog({
                       value={formData[field.name] || ''}
                       onChange={(e) => handleChange(field.name, e.target.value)}
                       required={field.required}
-                      className="lg:h-9"
                     />
                   ) : (
                     <Input
@@ -169,23 +167,27 @@ export function FormDialog({
                       value={formData[field.name] || ''}
                       onChange={(e) => handleChange(field.name, e.target.value)}
                       required={field.required}
-                      className="lg:h-9"
                     />
                   )}
                 </div>
               </div>
             ))}
           </div>
-          <DialogFooter className="sticky bottom-0 z-10 mt-4 flex items-center justify-end gap-3 border-t border-gray-200 bg-white/90 px-6 py-4 backdrop-blur-md">
+          <DialogFooter className="pt-4 border-t border-slate-100 dark:border-slate-800 gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              className="border-slate-200 text-slate-700 hover:bg-slate-50"
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : isEdit ? 'Update' : 'Save'}
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-[#008751] hover:bg-[#007647] text-white font-semibold shadow-xs"
+            >
+              {isSubmitting ? 'Saving...' : isEdit ? 'Save Changes' : 'Save Record'}
             </Button>
           </DialogFooter>
         </form>

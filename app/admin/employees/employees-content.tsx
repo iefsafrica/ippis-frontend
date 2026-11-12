@@ -2252,106 +2252,119 @@ export default function EmployeesContent() {
 
       {/* Edit Employee Dialog - UI Only */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold flex items-center gap-2">
-              <Edit className="h-5 w-5" />
-              Edit Employee
-            </DialogTitle>
-            <DialogDescription>
-              Update the details for {selectedEmployee?.name}
-            </DialogDescription>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#008751]/10 text-[#008751]">
+                <Edit className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold text-slate-900">
+                  Update Personnel Record
+                </DialogTitle>
+                <DialogDescription className="text-slate-500 mt-0.5">
+                  Modify civil service record details for <span className="font-semibold text-slate-700">{selectedEmployee?.name}</span>
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
           {selectedEmployee && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 py-2">
+              <div className="rounded-xl border border-slate-200/80 bg-slate-50/40 p-4 space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#008751] flex items-center gap-2">
+                  <User className="h-4 w-4" /> Core Bio-Data & Role
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-firstname">
+                      First Name *
+                    </Label>
+                    <Input
+                      id="edit-firstname"
+                      defaultValue={selectedEmployee.metadata?.FirstName || ""}
+                      placeholder="Enter first name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-surname">
+                      Surname *
+                    </Label>
+                    <Input
+                      id="edit-surname"
+                      defaultValue={selectedEmployee.metadata?.Surname || ""}
+                      placeholder="Enter surname"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="edit-firstname" className="text-sm font-medium">
-                    First Name <span className="text-red-500">*</span>
+                  <Label htmlFor="edit-email">
+                    Official Email *
                   </Label>
                   <Input
-                    id="edit-firstname"
-                    defaultValue={selectedEmployee.metadata?.FirstName || ""}
-                    placeholder="Enter first name"
+                    id="edit-email"
+                    type="email"
+                    defaultValue={selectedEmployee.email}
+                    placeholder="Enter email address"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-surname" className="text-sm font-medium">
-                    Surname <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="edit-surname"
-                    defaultValue={selectedEmployee.metadata?.Surname || ""}
-                    placeholder="Enter surname"
-                  />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-department">
+                      Department *
+                    </Label>
+                    <Select defaultValue={selectedEmployee.department}>
+                      <SelectTrigger className={buttonHoverEnhancements}>
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Finance">Finance</SelectItem>
+                        <SelectItem value="HR">HR</SelectItem>
+                        <SelectItem value="IT">IT</SelectItem>
+                        <SelectItem value="Operations">Operations</SelectItem>
+                        <SelectItem value="Legal">Legal</SelectItem>
+                        <SelectItem value="Marketing">Marketing</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-position">
+                      Position / Rank *
+                    </Label>
+                    <Input
+                      id="edit-position"
+                      defaultValue={selectedEmployee.position}
+                      placeholder="Enter position"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="edit-email" className="text-sm font-medium">
-                  Email <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="edit-email"
-                  type="email"
-                  defaultValue={selectedEmployee.email}
-                  placeholder="Enter email address"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-department" className="text-sm font-medium">
-                    Department <span className="text-red-500">*</span>
+                  <Label htmlFor="edit-status">
+                    Verification Status *
                   </Label>
-                  <Select defaultValue={selectedEmployee.department}>
-                  <SelectTrigger className={buttonHoverEnhancements}>
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
+                  <Select defaultValue={selectedEmployee.status}>
+                    <SelectTrigger className={buttonHoverEnhancements}>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Finance">Finance</SelectItem>
-                      <SelectItem value="HR">HR</SelectItem>
-                      <SelectItem value="IT">IT</SelectItem>
-                      <SelectItem value="Operations">Operations</SelectItem>
-                      <SelectItem value="Legal">Legal</SelectItem>
-                      <SelectItem value="Marketing">Marketing</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-position" className="text-sm font-medium">
-                    Position <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="edit-position"
-                    defaultValue={selectedEmployee.position}
-                    placeholder="Enter position"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit-status" className="text-sm font-medium">
-                  Status <span className="text-red-500">*</span>
-                </Label>
-                <Select defaultValue={selectedEmployee.status}>
-                  <SelectTrigger className={buttonHoverEnhancements}>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
 
               {/* Additional Metadata Fields */}
-              <div className="border-t pt-4 mt-4">
-                <h4 className="font-medium text-gray-900 mb-4">Additional Information</h4>
-                <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-xl border border-slate-200/80 bg-slate-50/40 p-4 space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#008751] flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" /> Contact & Banking Information
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="edit-phone" className="text-sm font-medium">
+                    <Label htmlFor="edit-phone">
                       Phone Number
                     </Label>
                     <Input
@@ -2361,12 +2374,12 @@ export default function EmployeesContent() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="edit-gender" className="text-sm font-medium">
+                    <Label htmlFor="edit-gender">
                       Gender
                     </Label>
                     <Select defaultValue={selectedEmployee.metadata?.Gender || ""}>
-                    <SelectTrigger className={buttonHoverEnhancements}>
-                    <SelectValue placeholder="Select gender" />
+                      <SelectTrigger className={buttonHoverEnhancements}>
+                        <SelectValue placeholder="Select gender" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Male">Male</SelectItem>
@@ -2377,8 +2390,8 @@ export default function EmployeesContent() {
                   </div>
                 </div>
 
-                <div className="space-y-2 mt-4">
-                  <Label htmlFor="edit-address" className="text-sm font-medium">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-address">
                     Residential Address
                   </Label>
                   <Input
@@ -2388,9 +2401,9 @@ export default function EmployeesContent() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="edit-bank" className="text-sm font-medium">
+                    <Label htmlFor="edit-bank">
                       Bank Name
                     </Label>
                     <Input
@@ -2400,7 +2413,7 @@ export default function EmployeesContent() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="edit-account" className="text-sm font-medium">
+                    <Label htmlFor="edit-account">
                       Account Number
                     </Label>
                     <Input
@@ -2413,19 +2426,19 @@ export default function EmployeesContent() {
               </div>
             </div>
           )}
-          <DialogFooter className="pt-4 border-t">
-            <div className="flex gap-2 w-full justify-between">
+          <DialogFooter className="pt-4 border-t border-slate-100">
+            <div className="flex gap-2.5 w-full justify-end">
               <Button
                 variant="outline"
                 onClick={() => setShowEditDialog(false)}
-                className={buttonHoverEnhancements}
+                className="border-slate-200 text-slate-700 hover:bg-slate-50"
               >
                 Cancel
               </Button>
               <Button
-                className={`${buttonHoverEnhancements} bg-blue-600 hover:bg-blue-700`}
+                className="bg-[#008751] hover:bg-[#007647] text-white font-semibold shadow-xs"
               >
-                Update Employee
+                Save Changes
               </Button>
             </div>
           </DialogFooter>
@@ -2436,16 +2449,39 @@ export default function EmployeesContent() {
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="sm:max-w-[960px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">
-              Add New Employee
-            </DialogTitle>
-            <DialogDescription>
-              Fill in the employee details expected by the backend payload.
-            </DialogDescription>
+            <div className="flex items-start gap-3.5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#008751]/10 text-[#008751] border border-[#008751]/20 shadow-2xs">
+                <Plus className="h-5 w-5" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <DialogTitle className="text-xl font-bold text-slate-900">
+                    Add New Employee
+                  </DialogTitle>
+                  <Badge variant="ippis" className="text-[10px] uppercase tracking-wider py-0">
+                    Nominal Roll Enrolment
+                  </Badge>
+                </div>
+                <DialogDescription className="text-slate-500">
+                  Complete the official civil servant bio-data, employment appointment record, grade cadre, and pension details.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleAddEmployee(); }}>
-            <div className="grid gap-4 md:grid-cols-2">
+          <form className="space-y-6 pt-1" onSubmit={(e) => { e.preventDefault(); handleAddEmployee(); }}>
+            <Card className="border-slate-200/90 shadow-2xs overflow-hidden">
+              <div className="bg-slate-50/80 border-b border-slate-100 px-6 py-3.5 flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-[#008751]/10 text-[#008751]">
+                  <User className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Personal Bio-Data & Next of Kin</h3>
+                  <p className="text-xs text-slate-500">Official identity, contact information, origin, and emergency next of kin</p>
+                </div>
+              </div>
+              <CardContent className="pt-5">
+                <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="firstname">{requiredLabel("First Name")}</Label>
                 <Input id="firstname" placeholder="Enter first name" value={newEmployee.firstname} onChange={(e) => updateEmployeeField("firstname", e.target.value)} className={addEmployeeFieldClassName("firstname")} />
@@ -2638,11 +2674,21 @@ export default function EmployeesContent() {
                 <Input id="next_of_kin_address" placeholder="Enter next of kin address" value={newEmployee.next_of_kin_address} onChange={(e) => updateEmployeeField("next_of_kin_address", e.target.value)} className={addEmployeeFieldClassName("next_of_kin_address")} />
                 {renderFieldError("next_of_kin_address")}
               </div>
-            </div>
+                </div>
+              </CardContent>
+            </Card>
 
-            <Card className="border-green-200">
-              <CardContent className="pt-6">
-                <h3 className="text-lg font-semibold mb-4">Employment Record</h3>
+            <Card className="border-slate-200/90 shadow-2xs overflow-hidden">
+              <div className="bg-slate-50/80 border-b border-slate-100 px-6 py-3.5 flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-[#008751]/10 text-[#008751]">
+                  <Briefcase className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Employment Record</h3>
+                  <p className="text-xs text-slate-500">Service identification numbers, MDA organization, and appointment type</p>
+                </div>
+              </div>
+              <CardContent className="pt-5">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="employment_id_no">{requiredLabel("Employment ID No")}</Label>
@@ -2747,9 +2793,17 @@ export default function EmployeesContent() {
               </CardContent>
             </Card>
 
-            <Card className="border-green-200">
-              <CardContent className="pt-6">
-                <h3 className="text-lg font-semibold mb-4">Employment Details</h3>
+            <Card className="border-slate-200/90 shadow-2xs overflow-hidden">
+              <div className="bg-slate-50/80 border-b border-slate-100 px-6 py-3.5 flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-[#008751]/10 text-[#008751]">
+                  <Building className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Employment & Grade Details</h3>
+                  <p className="text-xs text-slate-500">Posting location, statutory appointment date, salary structure, grade level, and step</p>
+                </div>
+              </div>
+              <CardContent className="pt-5">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="work_location">{requiredLabel("Work Location")}</Label>
@@ -2881,9 +2935,17 @@ export default function EmployeesContent() {
               </CardContent>
             </Card>
 
-            <Card className="border-green-200">
-              <CardContent className="pt-6">
-                <h3 className="text-lg font-semibold mb-4">Banking and Pension Information</h3>
+            <Card className="border-slate-200/90 shadow-2xs overflow-hidden">
+              <div className="bg-slate-50/80 border-b border-slate-100 px-6 py-3.5 flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-[#008751]/10 text-[#008751]">
+                  <CreditCard className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Banking & Pension Information</h3>
+                  <p className="text-xs text-slate-500">Salary disbursement NUBAN account and Pension Fund Administrator (PFA) details</p>
+                </div>
+              </div>
+              <CardContent className="pt-5">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="bank_name">{requiredLabel("Bank Name")}</Label>
@@ -2988,9 +3050,17 @@ export default function EmployeesContent() {
               </CardContent>
             </Card>
 
-            <Card className="border-green-200">
-              <CardContent className="pt-6">
-                <h3 className="text-lg font-semibold mb-4">Educational Background and Certifications</h3>
+            <Card className="border-slate-200/90 shadow-2xs overflow-hidden">
+              <div className="bg-slate-50/80 border-b border-slate-100 px-6 py-3.5 flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-[#008751]/10 text-[#008751]">
+                  <GraduationCap className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Educational Background & Certifications</h3>
+                  <p className="text-xs text-slate-500">Academic degrees, NYSC discharge, and professional civil service qualifications</p>
+                </div>
+              </div>
+              <CardContent className="pt-5">
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="educational_background">{requiredLabel("Educational Background")}</Label>
@@ -3021,24 +3091,24 @@ export default function EmployeesContent() {
               </CardContent>
             </Card>
 
-            <DialogFooter className="border-t pt-4">
+            <DialogFooter className="border-t border-slate-100 pt-4 gap-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setShowAddDialog(false)}
-                className={buttonHoverEnhancements}
+                className="border-slate-200 text-slate-700 hover:bg-slate-50"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={addEmployeeMutation.isPending}
-                className={`${buttonHoverEnhancements} bg-green-700 hover:bg-green-800 hover:!bg-green-800`}
+                className="bg-[#008751] hover:bg-[#007647] text-white font-semibold shadow-xs"
               >
                 {addEmployeeMutation.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                {addEmployeeMutation.isPending ? "Adding..." : "Add Employee"}
+                {addEmployeeMutation.isPending ? "Enrolling Employee..." : "Add Employee"}
               </Button>
             </DialogFooter>
           </form>

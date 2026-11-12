@@ -79,21 +79,30 @@ export function DetailsDialog({ title, fields, data, open, onOpenChange, onEdit 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>{title} Details</DialogTitle>
+          <DialogTitle className="text-xl font-bold text-slate-900 dark:text-slate-100">{title} Details</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 py-2">
           {fields.map((field) => (
-            <div key={field.key} className="grid grid-cols-4 items-start gap-4">
-              <div className="text-sm font-medium text-right text-gray-500">{field.label}</div>
-              <div className="col-span-3">{renderFieldValue(field)}</div>
+            <div
+              key={field.key}
+              className={
+                field.type === "longText"
+                  ? "sm:col-span-2 rounded-lg border border-slate-100 bg-slate-50/60 p-3.5 space-y-1"
+                  : "rounded-lg border border-slate-100 bg-slate-50/60 p-3.5 space-y-1"
+              }
+            >
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{field.label}</div>
+              <div className="text-sm font-medium text-slate-900">{renderFieldValue(field)}</div>
             </div>
           ))}
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="pt-4 border-t border-slate-100 gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-slate-200 text-slate-700">
             Close
           </Button>
-          <Button onClick={onEdit}>Edit</Button>
+          <Button onClick={onEdit} className="bg-[#008751] hover:bg-[#007647] text-white font-semibold shadow-xs">
+            Edit Record
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
