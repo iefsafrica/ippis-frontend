@@ -174,3 +174,4 @@ export const cancelLeave = async (id: number | string): Promise<{ success: boole
 
   return del<{ success: boolean; message: string }>(`/employee/leave?id=${encodeURIComponent(id)}`);
 };
+
