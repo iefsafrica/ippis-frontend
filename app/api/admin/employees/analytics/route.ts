@@ -219,7 +219,7 @@ function calculateRetirementDate(dobString?: string, apptString?: string): {
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const mdaId = searchParams.get("mda_id");
+  const mdaId = searchParams.get("mda_id") || searchParams.get("company_id");
   const deptId = searchParams.get("department_id");
   const retirementMonths = parseInt(searchParams.get("retirement_months") || "12", 10) || 12;
 
@@ -288,12 +288,35 @@ export async function GET(req: NextRequest) {
     // Ignore fetch errors and work with whatever was collected
   }
 
+  // Filter raw employees by MDA / Company ID or Department ID if provided
+  if (mdaId) {
+    rawEmployees = rawEmployees.filter((emp: any) => {
+      const meta = parseMetadata(emp.metadata);
+      return (
+        String(emp.company_id || "") === String(mdaId) ||
+        String(meta.company_id || "") === String(mdaId) ||
+        String(emp.mda_id || "") === String(mdaId)
+      );
+    });
+  }
+
+  if (deptId) {
+    rawEmployees = rawEmployees.filter((emp: any) => {
+      const meta = parseMetadata(emp.metadata);
+      return (
+        String(emp.department_id || "") === String(deptId) ||
+        String(meta.department_id || "") === String(deptId)
+      );
+    });
+  }
+
   if (dashboardStats && typeof dashboardStats.pendingEmployees === "number") {
     pendingCount = dashboardStats.pendingEmployees;
   }
 
-  const totalEmployees =
-    (dashboardStats && typeof dashboardStats.totalEmployees === "number" && dashboardStats.totalEmployees > 0)
+  const totalEmployees = mdaId || deptId
+    ? Math.max(rawEmployees.length, 1)
+    : (dashboardStats && typeof dashboardStats.totalEmployees === "number" && dashboardStats.totalEmployees > 0)
       ? dashboardStats.totalEmployees
       : Math.max(rawEmployees.length, 1);
 
