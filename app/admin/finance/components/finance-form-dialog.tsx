@@ -178,8 +178,8 @@ export function FinanceFormDialog({
       field.width === "half"
         ? "col-span-1 sm:col-span-1"
         : field.width === "third"
-        ? "col-span-1 sm:col-span-1 md:col-span-1"
-        : "col-span-2"
+          ? "col-span-1 sm:col-span-1 md:col-span-1"
+          : "col-span-2"
 
     return (
       <div key={field.name} className={widthClass}>

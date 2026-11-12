@@ -190,11 +190,11 @@ export default function EmployeesContent() {
   const router = useRouter();
 
   // Use React Query hooks for employees data
-  const { 
-    data: employeesData, 
-    isLoading, 
+  const {
+    data: employeesData,
+    isLoading,
     error,
-    refetch 
+    refetch
   } = useEmployeesList(currentPage);
 
   // Use the add employee mutation
@@ -553,20 +553,20 @@ export default function EmployeesContent() {
             profession: "",
             maritalstatus: "",
             title: "",
-    next_of_kin_name: "",
-    next_of_kin_relationship: "",
-    next_of_kin_phone_number: "",
-    next_of_kin_address: "",
-    employment_id_no: "",
-    service_no: "",
-    file_no: "",
-    rank_position: "",
-    organization: "",
-    employment_type: "",
-    probation_period: "",
-    work_location: "",
-    date_of_first_appointment: "",
-    grade_level: "",
+            next_of_kin_name: "",
+            next_of_kin_relationship: "",
+            next_of_kin_phone_number: "",
+            next_of_kin_address: "",
+            employment_id_no: "",
+            service_no: "",
+            file_no: "",
+            rank_position: "",
+            organization: "",
+            employment_type: "",
+            probation_period: "",
+            work_location: "",
+            date_of_first_appointment: "",
+            grade_level: "",
             salary_structure: "",
             step: "",
             cadre: "",
@@ -714,8 +714,8 @@ export default function EmployeesContent() {
       const matchesSearchTerm = !searchTerm.trim()
         ? true
         : [employee.name, employee.email, employee.department, employee.position, employee.registration_id]
-            .filter(Boolean)
-            .some((value) => value!.toString().toLowerCase().includes(searchTerm.toLowerCase()));
+          .filter(Boolean)
+          .some((value) => value!.toString().toLowerCase().includes(searchTerm.toLowerCase()));
 
       const matchesStatus = employee.status === statusFilter;
       const matchesDepartment = departmentFilter === "all" || employee.department === departmentFilter;
@@ -771,21 +771,21 @@ export default function EmployeesContent() {
   const generatePayslipData = (employee: Employee): PayslipData => {
     // Extract data from employee metadata or use defaults
     const metadata = employee.metadata || {};
-    
+
     // Earnings data - using actual metadata values when available
     const basicSalary = parseFloat(metadata["Basic Salary"]) || 171690.17;
     const housingAllowance = parseFloat(metadata["Housing Allowance"]) || 50000;
     const transportAllowance = parseFloat(metadata["Transport Allowance"]) || 20000;
     const otherAllowances = parseFloat(metadata["Other Allowances"]) || 21141;
-    
+
     const grossEarnings = basicSalary + housingAllowance + transportAllowance + otherAllowances;
-    
+
     // Deductions data - using actual metadata values when available
     const tax = parseFloat(metadata["Tax"]) || 20377.84;
     const pension = parseFloat(metadata["Pension"]) || 13735.21;
     const nhf = parseFloat(metadata["NHF"]) || 4292.25;
     const unionDues = parseFloat(metadata["Union Dues"]) || 1337.47;
-    
+
     const totalDeductions = tax + pension + nhf + unionDues;
     const netSalary = grossEarnings - totalDeductions;
 
@@ -851,16 +851,16 @@ export default function EmployeesContent() {
     try {
       // Try to get payslip data from API first
       let payslipData = await getPayslipData(selectedEmployee.id);
-      
+
       // If API fails, generate from employee data
       if (!payslipData) {
         payslipData = generatePayslipData(selectedEmployee);
       }
 
       const currentDate = new Date();
-      const monthYear = currentDate.toLocaleDateString('en-US', { 
-        month: 'short', 
-        year: 'numeric' 
+      const monthYear = currentDate.toLocaleDateString('en-US', {
+        month: 'short',
+        year: 'numeric'
       }).toUpperCase();
       const logoUrl = `${window.location.origin}/images/ippis-logo.jpeg`;
 
@@ -1415,7 +1415,7 @@ export default function EmployeesContent() {
     }
   };
 
-  
+
   const exportColumns = [
     { header: "Name", accessor: "name" },
     { header: "Email", accessor: "email" },
@@ -1425,31 +1425,31 @@ export default function EmployeesContent() {
     { header: "Join Date", accessor: "join_date" },
   ];
 
-    const performExport = (type: 'pdf' | 'csv' | 'print') => {
-      try {
-        const exportOptions = {
-          title: "Employees List",
-          filename: "employees-list",
-          columns: exportColumns,
-        };
+  const performExport = (type: 'pdf' | 'csv' | 'print') => {
+    try {
+      const exportOptions = {
+        title: "Employees List",
+        filename: "employees-list",
+        columns: exportColumns,
+      };
 
-        if (type === "pdf") {
-          ExportService.exportToPDF(employees, exportOptions);
-          toast.success("PDF export opened in new window. Use your browser's print dialog to save as PDF!");
-        } else if (type === "csv") {
-          ExportService.exportToCSV(employees, exportOptions);
-          toast.success("CSV file has been generated and downloaded successfully!");
-        } else if (type === "print") {
-          ExportService.printData(employees, exportOptions);
-          toast.success("Print dialog opened!");
-        }
-      } catch (error) {
-        console.error("Export error:", error);
-        toast.error("Export failed. Please try again.");
+      if (type === "pdf") {
+        ExportService.exportToPDF(employees, exportOptions);
+        toast.success("PDF export opened in new window. Use your browser's print dialog to save as PDF!");
+      } else if (type === "csv") {
+        ExportService.exportToCSV(employees, exportOptions);
+        toast.success("CSV file has been generated and downloaded successfully!");
+      } else if (type === "print") {
+        ExportService.printData(employees, exportOptions);
+        toast.success("Print dialog opened!");
       }
-    };
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Export failed. Please try again.");
+    }
+  };
 
-    const handleExportList = () => performExport("csv");
+  const handleExportList = () => performExport("csv");
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -1678,12 +1678,12 @@ export default function EmployeesContent() {
     {
       key: "name",
       label: "Employee",
-    render: (_value: string, employee: Employee) => (
-      <div className="flex flex-col">
-        <span className="font-medium text-gray-900">{employee.name}</span>
-        <span className="text-sm text-muted-foreground">{employee.email}</span>
-      </div>
-    ),
+      render: (_value: string, employee: Employee) => (
+        <div className="flex flex-col">
+          <span className="font-medium text-gray-900">{employee.name}</span>
+          <span className="text-sm text-muted-foreground">{employee.email}</span>
+        </div>
+      ),
     },
     {
       key: "department",
@@ -1831,7 +1831,7 @@ export default function EmployeesContent() {
               />
             </div>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-                <div className="w-full sm:w-[180px]">
+              <div className="w-full sm:w-[180px]">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className={`${buttonHoverEnhancements} border border-gray-300 rounded`} >
                     <div className="flex items-center gap-2">
@@ -1846,7 +1846,7 @@ export default function EmployeesContent() {
                   </SelectContent>
                 </Select>
               </div>
-                <div className="w-full sm:w-[180px]">
+              <div className="w-full sm:w-[180px]">
                 <Select
                   value={departmentFilter}
                   onValueChange={setDepartmentFilter}
@@ -1891,17 +1891,17 @@ export default function EmployeesContent() {
             hideFooterControls
           />
 
-         <div className="mt-5 flex h-fit w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-  {paginationInfo.totalPages > 0 && (
-    <div className="mt-2 flex items-center justify-end sm:mt-0">
-      <Pagination
-        currentPage={paginationInfo.page}
-        totalPages={paginationInfo.totalPages}
-        onPageChange={handlePageChange}
-      />
-    </div>
-  )}
-</div>
+          <div className="mt-5 flex h-fit w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {paginationInfo.totalPages > 0 && (
+              <div className="mt-2 flex items-center justify-end sm:mt-0">
+                <Pagination
+                  currentPage={paginationInfo.page}
+                  totalPages={paginationInfo.totalPages}
+                  onPageChange={handlePageChange}
+                />
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -2482,198 +2482,198 @@ export default function EmployeesContent() {
               </div>
               <CardContent className="pt-5">
                 <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="firstname">{requiredLabel("First Name")}</Label>
-                <Input id="firstname" placeholder="Enter first name" value={newEmployee.firstname} onChange={(e) => updateEmployeeField("firstname", e.target.value)} className={addEmployeeFieldClassName("firstname")} />
-                {renderFieldError("firstname")}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="surname">{requiredLabel("Surname")}</Label>
-                <Input id="surname" placeholder="Enter surname" value={newEmployee.surname} onChange={(e) => updateEmployeeField("surname", e.target.value)} className={addEmployeeFieldClassName("surname")} />
-                {renderFieldError("surname")}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="middlename">{requiredLabel("Middle Name")}</Label>
-                <Input id="middlename" placeholder="Enter middle name" value={newEmployee.middlename} onChange={(e) => updateEmployeeField("middlename", e.target.value)} className={addEmployeeFieldClassName("middlename")} />
-                {renderFieldError("middlename")}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="title">{requiredLabel("Title")}</Label>
-                <Select value={newEmployee.title} onValueChange={(value) => updateEmployeeField("title", value)}>
-                  <SelectTrigger id="title" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("title")}`}>
-                    <SelectValue placeholder="Select title" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Mr">Mr</SelectItem>
-                    <SelectItem value="Mrs">Mrs</SelectItem>
-                    <SelectItem value="Miss">Miss</SelectItem>
-                    <SelectItem value="Dr">Dr</SelectItem>
-                    <SelectItem value="Prof">Prof</SelectItem>
-                    <SelectItem value="Engr">Engr</SelectItem>
-                  </SelectContent>
-                </Select>
-                {renderFieldError("title")}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">{requiredLabel("Email")}</Label>
-                <Input id="email" type="email" placeholder="Enter email address" value={newEmployee.email} onChange={(e) => updateEmployeeField("email", e.target.value)} className={addEmployeeFieldClassName("email")} />
-                {renderFieldError("email")}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="telephoneno">{requiredLabel("Telephone Number")}</Label>
-                <Input id="telephoneno" placeholder="Enter phone number" value={newEmployee.telephoneno} onChange={(e) => updateEmployeeField("telephoneno", e.target.value)} className={addEmployeeFieldClassName("telephoneno")} />
-                {renderFieldError("telephoneno")}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="birthdate">{requiredLabel("Birthdate")}</Label>
-                <DatePicker
-                  value={newEmployee.birthdate ? new Date(newEmployee.birthdate) : undefined}
-                  onValueChange={(date) =>
-                    updateEmployeeField("birthdate", date ? date.toISOString().split("T")[0] : "")
-                  }
-                  placeholder="Select birthdate"
-                  className={`w-full ${addEmployeeFieldClassName("birthdate")}`}
-                />
-                {renderFieldError("birthdate")}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="nin">{requiredLabel("NIN")}</Label>
-                <Input id="nin" placeholder="Enter NIN" value={newEmployee.nin} onChange={(e) => updateEmployeeField("nin", e.target.value)} className={addEmployeeFieldClassName("nin")} />
-                {renderFieldError("nin")}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="gender">{requiredLabel("Gender")}</Label>
-                <Select value={newEmployee.gender} onValueChange={(value) => updateEmployeeField("gender", value)}>
-                  <SelectTrigger id="gender" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("gender")}`}>
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Male">Male</SelectItem>
-                    <SelectItem value="Female">Female</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-                {renderFieldError("gender")}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="maritalstatus">{requiredLabel("Marital Status")}</Label>
-                <Select value={newEmployee.maritalstatus} onValueChange={(value) => updateEmployeeField("maritalstatus", value)}>
-                  <SelectTrigger id="maritalstatus" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("maritalstatus")}`}>
-                    <SelectValue placeholder="Select marital status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Single">Single</SelectItem>
-                    <SelectItem value="Married">Married</SelectItem>
-                    <SelectItem value="Divorced">Divorced</SelectItem>
-                    <SelectItem value="Widowed">Widowed</SelectItem>
-                  </SelectContent>
-                </Select>
-                {renderFieldError("maritalstatus")}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="department">{requiredLabel("Department")}</Label>
-                <Select value={newEmployee.department} onValueChange={(value) => updateEmployeeField("department", value)}>
-                  <SelectTrigger id="department" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("department")}`}>
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Finance">Finance</SelectItem>
-                    <SelectItem value="HR">HR</SelectItem>
-                    <SelectItem value="IT">IT</SelectItem>
-                    <SelectItem value="Operations">Operations</SelectItem>
-                    <SelectItem value="Legal">Legal</SelectItem>
-                    <SelectItem value="Marketing">Marketing</SelectItem>
-                  </SelectContent>
-                </Select>
-                {renderFieldError("department")}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="position">{requiredLabel("Position")}</Label>
-                <Input id="position" placeholder="Enter position" value={newEmployee.position} onChange={(e) => updateEmployeeField("position", e.target.value)} className={addEmployeeFieldClassName("position")} />
-                {renderFieldError("position")}
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="state_of_origin">{requiredLabel("State of Origin")}</Label>
-                <Select value={newEmployee.state_of_origin} onValueChange={(value) => updateEmployeeField("state_of_origin", value)}>
-                  <SelectTrigger id="state_of_origin" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("state_of_origin")}`}>
-                    <SelectValue placeholder="Select state of origin" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {nigerianStates.map((state) => (
-                      <SelectItem key={state} value={state}>
-                        {state}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {renderFieldError("state_of_origin")}
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="residence_address">{requiredLabel("Residential Address")}</Label>
-                <Input id="residence_address" placeholder="Enter residential address" value={newEmployee.residence_address} onChange={(e) => updateEmployeeField("residence_address", e.target.value)} className={addEmployeeFieldClassName("residence_address")} />
-                {renderFieldError("residence_address")}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="residence_state">{requiredLabel("State of Residence")}</Label>
-                <Select value={newEmployee.residence_state} onValueChange={updateResidenceState}>
-                  <SelectTrigger id="residence_state" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("residence_state")}`}>
-                    <SelectValue placeholder="Select state" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {nigerianStates.map((state) => (
-                      <SelectItem key={state} value={state}>
-                        {state}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {renderFieldError("residence_state")}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="residence_lga">{requiredLabel("LGA")}</Label>
-                <Select
-                  value={newEmployee.residence_lga}
-                  onValueChange={(value) => updateEmployeeField("residence_lga", value)}
-                  disabled={!newEmployee.residence_state}
-                >
-                  <SelectTrigger id="residence_lga" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("residence_lga")}`}>
-                    <SelectValue placeholder={newEmployee.residence_state ? "Select LGA" : "Select state first"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableResidenceLgas.map((lga) => (
-                      <SelectItem key={lga} value={lga}>
-                        {lga}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {renderFieldError("residence_lga")}
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="profession">{requiredLabel("Profession")}</Label>
-                <Input id="profession" placeholder="Enter profession" value={newEmployee.profession} onChange={(e) => updateEmployeeField("profession", e.target.value)} className={addEmployeeFieldClassName("profession")} />
-                {renderFieldError("profession")}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="next_of_kin_name">{requiredLabel("Next of Kin Name")}</Label>
-                <Input id="next_of_kin_name" placeholder="Enter next of kin name" value={newEmployee.next_of_kin_name} onChange={(e) => updateEmployeeField("next_of_kin_name", e.target.value)} className={addEmployeeFieldClassName("next_of_kin_name")} />
-                {renderFieldError("next_of_kin_name")}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="next_of_kin_relationship">{requiredLabel("Next of Kin Relationship")}</Label>
-                <Input id="next_of_kin_relationship" placeholder="Enter relationship" value={newEmployee.next_of_kin_relationship} onChange={(e) => updateEmployeeField("next_of_kin_relationship", e.target.value)} className={addEmployeeFieldClassName("next_of_kin_relationship")} />
-                {renderFieldError("next_of_kin_relationship")}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="next_of_kin_phone_number">{requiredLabel("Next of Kin Phone")}</Label>
-                <Input id="next_of_kin_phone_number" placeholder="Enter next of kin phone number" value={newEmployee.next_of_kin_phone_number} onChange={(e) => updateEmployeeField("next_of_kin_phone_number", e.target.value)} className={addEmployeeFieldClassName("next_of_kin_phone_number")} />
-                {renderFieldError("next_of_kin_phone_number")}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="next_of_kin_address">{requiredLabel("Next of Kin Address")}</Label>
-                <Input id="next_of_kin_address" placeholder="Enter next of kin address" value={newEmployee.next_of_kin_address} onChange={(e) => updateEmployeeField("next_of_kin_address", e.target.value)} className={addEmployeeFieldClassName("next_of_kin_address")} />
-                {renderFieldError("next_of_kin_address")}
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="firstname">{requiredLabel("First Name")}</Label>
+                    <Input id="firstname" placeholder="Enter first name" value={newEmployee.firstname} onChange={(e) => updateEmployeeField("firstname", e.target.value)} className={addEmployeeFieldClassName("firstname")} />
+                    {renderFieldError("firstname")}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="surname">{requiredLabel("Surname")}</Label>
+                    <Input id="surname" placeholder="Enter surname" value={newEmployee.surname} onChange={(e) => updateEmployeeField("surname", e.target.value)} className={addEmployeeFieldClassName("surname")} />
+                    {renderFieldError("surname")}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="middlename">{requiredLabel("Middle Name")}</Label>
+                    <Input id="middlename" placeholder="Enter middle name" value={newEmployee.middlename} onChange={(e) => updateEmployeeField("middlename", e.target.value)} className={addEmployeeFieldClassName("middlename")} />
+                    {renderFieldError("middlename")}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="title">{requiredLabel("Title")}</Label>
+                    <Select value={newEmployee.title} onValueChange={(value) => updateEmployeeField("title", value)}>
+                      <SelectTrigger id="title" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("title")}`}>
+                        <SelectValue placeholder="Select title" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Mr">Mr</SelectItem>
+                        <SelectItem value="Mrs">Mrs</SelectItem>
+                        <SelectItem value="Miss">Miss</SelectItem>
+                        <SelectItem value="Dr">Dr</SelectItem>
+                        <SelectItem value="Prof">Prof</SelectItem>
+                        <SelectItem value="Engr">Engr</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {renderFieldError("title")}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">{requiredLabel("Email")}</Label>
+                    <Input id="email" type="email" placeholder="Enter email address" value={newEmployee.email} onChange={(e) => updateEmployeeField("email", e.target.value)} className={addEmployeeFieldClassName("email")} />
+                    {renderFieldError("email")}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="telephoneno">{requiredLabel("Telephone Number")}</Label>
+                    <Input id="telephoneno" placeholder="Enter phone number" value={newEmployee.telephoneno} onChange={(e) => updateEmployeeField("telephoneno", e.target.value)} className={addEmployeeFieldClassName("telephoneno")} />
+                    {renderFieldError("telephoneno")}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="birthdate">{requiredLabel("Birthdate")}</Label>
+                    <DatePicker
+                      value={newEmployee.birthdate ? new Date(newEmployee.birthdate) : undefined}
+                      onValueChange={(date) =>
+                        updateEmployeeField("birthdate", date ? date.toISOString().split("T")[0] : "")
+                      }
+                      placeholder="Select birthdate"
+                      className={`w-full ${addEmployeeFieldClassName("birthdate")}`}
+                    />
+                    {renderFieldError("birthdate")}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="nin">{requiredLabel("NIN")}</Label>
+                    <Input id="nin" placeholder="Enter NIN" value={newEmployee.nin} onChange={(e) => updateEmployeeField("nin", e.target.value)} className={addEmployeeFieldClassName("nin")} />
+                    {renderFieldError("nin")}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">{requiredLabel("Gender")}</Label>
+                    <Select value={newEmployee.gender} onValueChange={(value) => updateEmployeeField("gender", value)}>
+                      <SelectTrigger id="gender" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("gender")}`}>
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {renderFieldError("gender")}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="maritalstatus">{requiredLabel("Marital Status")}</Label>
+                    <Select value={newEmployee.maritalstatus} onValueChange={(value) => updateEmployeeField("maritalstatus", value)}>
+                      <SelectTrigger id="maritalstatus" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("maritalstatus")}`}>
+                        <SelectValue placeholder="Select marital status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Single">Single</SelectItem>
+                        <SelectItem value="Married">Married</SelectItem>
+                        <SelectItem value="Divorced">Divorced</SelectItem>
+                        <SelectItem value="Widowed">Widowed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {renderFieldError("maritalstatus")}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="department">{requiredLabel("Department")}</Label>
+                    <Select value={newEmployee.department} onValueChange={(value) => updateEmployeeField("department", value)}>
+                      <SelectTrigger id="department" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("department")}`}>
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Finance">Finance</SelectItem>
+                        <SelectItem value="HR">HR</SelectItem>
+                        <SelectItem value="IT">IT</SelectItem>
+                        <SelectItem value="Operations">Operations</SelectItem>
+                        <SelectItem value="Legal">Legal</SelectItem>
+                        <SelectItem value="Marketing">Marketing</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {renderFieldError("department")}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="position">{requiredLabel("Position")}</Label>
+                    <Input id="position" placeholder="Enter position" value={newEmployee.position} onChange={(e) => updateEmployeeField("position", e.target.value)} className={addEmployeeFieldClassName("position")} />
+                    {renderFieldError("position")}
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="state_of_origin">{requiredLabel("State of Origin")}</Label>
+                    <Select value={newEmployee.state_of_origin} onValueChange={(value) => updateEmployeeField("state_of_origin", value)}>
+                      <SelectTrigger id="state_of_origin" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("state_of_origin")}`}>
+                        <SelectValue placeholder="Select state of origin" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {nigerianStates.map((state) => (
+                          <SelectItem key={state} value={state}>
+                            {state}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {renderFieldError("state_of_origin")}
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="residence_address">{requiredLabel("Residential Address")}</Label>
+                    <Input id="residence_address" placeholder="Enter residential address" value={newEmployee.residence_address} onChange={(e) => updateEmployeeField("residence_address", e.target.value)} className={addEmployeeFieldClassName("residence_address")} />
+                    {renderFieldError("residence_address")}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="residence_state">{requiredLabel("State of Residence")}</Label>
+                    <Select value={newEmployee.residence_state} onValueChange={updateResidenceState}>
+                      <SelectTrigger id="residence_state" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("residence_state")}`}>
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {nigerianStates.map((state) => (
+                          <SelectItem key={state} value={state}>
+                            {state}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {renderFieldError("residence_state")}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="residence_lga">{requiredLabel("LGA")}</Label>
+                    <Select
+                      value={newEmployee.residence_lga}
+                      onValueChange={(value) => updateEmployeeField("residence_lga", value)}
+                      disabled={!newEmployee.residence_state}
+                    >
+                      <SelectTrigger id="residence_lga" className={`${buttonHoverEnhancements} ${addEmployeeFieldClassName("residence_lga")}`}>
+                        <SelectValue placeholder={newEmployee.residence_state ? "Select LGA" : "Select state first"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableResidenceLgas.map((lga) => (
+                          <SelectItem key={lga} value={lga}>
+                            {lga}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {renderFieldError("residence_lga")}
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="profession">{requiredLabel("Profession")}</Label>
+                    <Input id="profession" placeholder="Enter profession" value={newEmployee.profession} onChange={(e) => updateEmployeeField("profession", e.target.value)} className={addEmployeeFieldClassName("profession")} />
+                    {renderFieldError("profession")}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="next_of_kin_name">{requiredLabel("Next of Kin Name")}</Label>
+                    <Input id="next_of_kin_name" placeholder="Enter next of kin name" value={newEmployee.next_of_kin_name} onChange={(e) => updateEmployeeField("next_of_kin_name", e.target.value)} className={addEmployeeFieldClassName("next_of_kin_name")} />
+                    {renderFieldError("next_of_kin_name")}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="next_of_kin_relationship">{requiredLabel("Next of Kin Relationship")}</Label>
+                    <Input id="next_of_kin_relationship" placeholder="Enter relationship" value={newEmployee.next_of_kin_relationship} onChange={(e) => updateEmployeeField("next_of_kin_relationship", e.target.value)} className={addEmployeeFieldClassName("next_of_kin_relationship")} />
+                    {renderFieldError("next_of_kin_relationship")}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="next_of_kin_phone_number">{requiredLabel("Next of Kin Phone")}</Label>
+                    <Input id="next_of_kin_phone_number" placeholder="Enter next of kin phone number" value={newEmployee.next_of_kin_phone_number} onChange={(e) => updateEmployeeField("next_of_kin_phone_number", e.target.value)} className={addEmployeeFieldClassName("next_of_kin_phone_number")} />
+                    {renderFieldError("next_of_kin_phone_number")}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="next_of_kin_address">{requiredLabel("Next of Kin Address")}</Label>
+                    <Input id="next_of_kin_address" placeholder="Enter next of kin address" value={newEmployee.next_of_kin_address} onChange={(e) => updateEmployeeField("next_of_kin_address", e.target.value)} className={addEmployeeFieldClassName("next_of_kin_address")} />
+                    {renderFieldError("next_of_kin_address")}
+                  </div>
                 </div>
               </CardContent>
             </Card>
