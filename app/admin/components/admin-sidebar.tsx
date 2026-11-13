@@ -1005,29 +1005,6 @@ export function AdminSidebar() {
         </TooltipProvider>
       </nav>
 
-      {!collapsed && (
-        <div className="mx-3 mt-3 rounded-2xl bg-gradient-to-br from-[#062415] via-[#0B3B22] to-[#04180E] p-4 text-white shadow-sm">
-          <div className="flex items-center gap-2.5 mb-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/15 text-xs font-bold text-emerald-300">
-              IP
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-white leading-tight">IPPIS Portal</p>
-              <p className="text-[10px] text-emerald-200/80">Civil Service Suite</p>
-            </div>
-          </div>
-          <p className="text-[11px] leading-relaxed text-emerald-100/75 mb-3">
-            Unified payroll, HR, and personnel records management.
-          </p>
-          <Link
-            href="/admin/help"
-            className="inline-flex w-full items-center justify-center rounded-full bg-[#10B981] hover:bg-[#059669] px-3 py-1.5 text-xs font-semibold text-white transition-colors"
-          >
-            Support Center
-          </Link>
-        </div>
-      )}
-
       <div className="px-3 space-y-1 mt-3 pt-3 border-t border-slate-100">
         <TooltipProvider delayDuration={0}>
           <Tooltip delayDuration={collapsed ? 100 : 1000000}>
