@@ -151,7 +151,7 @@ export function AdminHeader() {
             <NotificationsDropdown />
           </div>
 
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-11 rounded-full bg-white border border-slate-200/60 shadow-xs flex items-center gap-2.5 pl-1.5 pr-3 hover:bg-slate-50">
                 <Avatar className="h-8 w-8 border border-[#0B4628]/20">
@@ -188,9 +188,8 @@ export function AdminHeader() {
               </div>
 
               <DropdownMenuItem
-                onSelect={(e) => {
-                  e.preventDefault()
-                  setShowProfileDialog(true)
+                onSelect={() => {
+                  setTimeout(() => setShowProfileDialog(true), 0)
                 }}
                 className="text-gray-700 font-medium rounded-md cursor-pointer flex items-center h-9 px-2 py-1.5 my-1 hover:bg-[#008751]/5 hover:text-[#008751]"
               >
@@ -198,9 +197,8 @@ export function AdminHeader() {
                 Profile
               </DropdownMenuItem>
               <DropdownMenuItem
-                onSelect={(e) => {
-                  e.preventDefault()
-                  setShowPasswordDialog(true)
+                onSelect={() => {
+                  setTimeout(() => setShowPasswordDialog(true), 0)
                 }}
                 className="text-gray-700 font-medium rounded-md cursor-pointer flex items-center h-9 px-2 py-1.5 my-1 hover:bg-[#008751]/5 hover:text-[#008751]"
               >

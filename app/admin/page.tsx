@@ -8,7 +8,6 @@ import EmployeeDashboardContent from "./employee-dashboard/employee-dashboard-co
 import AdminLoading from "./loading";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
-import Providers from "../providers";
 
 function ErrorBoundaryComponent({ children }: { children: React.ReactNode }) {
   const [hasError, setHasError] = useState(false);
@@ -97,18 +96,16 @@ export default function AdminDashboardPage() {
     !roleLower.includes("head");
 
   return (
-    <Providers>
-      <ErrorBoundaryComponent>
-        <Suspense fallback={<AdminLoading />}>
-          {isApplicant ? (
-            <ApplicationStatusPage />
-          ) : isPureEmployee ? (
-            <EmployeeDashboardContent />
-          ) : (
-            <DashboardContent />
-          )}
-        </Suspense>
-      </ErrorBoundaryComponent>
-    </Providers>
+    <ErrorBoundaryComponent>
+      <Suspense fallback={<AdminLoading />}>
+        {isApplicant ? (
+          <ApplicationStatusPage />
+        ) : isPureEmployee ? (
+          <EmployeeDashboardContent />
+        ) : (
+          <DashboardContent />
+        )}
+      </Suspense>
+    </ErrorBoundaryComponent>
   );
 }
