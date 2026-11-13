@@ -34,6 +34,8 @@ import {
   Package,
   FolderOpen,
   Building2,
+  KeyRound,
+  GitMerge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -278,6 +280,14 @@ export function AdminSidebar() {
           title: "Company Policy",
           href: "/admin/organization/company-policy",
         },
+        {
+          title: "Access Reviews",
+          href: "/admin/organization/access-reviews",
+        },
+        {
+          title: "Restructure MDAs",
+          href: "/admin/organization/restructure",
+        },
       ],
       comingSoon: false,
     },
@@ -508,6 +518,10 @@ export function AdminSidebar() {
           title: "Payment History",
           href: "/admin/payroll/payment-history",
         },
+        {
+          title: "Monthly Payroll Runs",
+          href: "/admin/payroll/runs",
+        },
       ],
       comingSoon: false,
     },
@@ -696,6 +710,11 @@ export function AdminSidebar() {
       icon: Shield,
     },
     {
+      title: "Temporary Access",
+      href: "/admin/access-requests",
+      icon: KeyRound,
+    },
+    {
       title: "Settings",
       href: "/admin/settings",
       icon: Settings,
@@ -802,8 +821,13 @@ export function AdminSidebar() {
       });
 
   const sidebarContent = (
-    <div className="flex-1 min-h-0 py-5 flex flex-col bg-white">
-      <nav className="flex-1 min-h-0 overflow-y-auto px-3 space-y-0.5 pr-1">
+    <div className="flex-1 min-h-0 py-4 flex flex-col bg-white">
+      {!collapsed && (
+        <div className="px-5 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          Menu
+        </div>
+      )}
+      <nav className="flex-1 min-h-0 overflow-y-auto px-3 space-y-1 pr-2 custom-scrollbar">
         <TooltipProvider delayDuration={0}>
           {visibleNavItems.map((item) => {
             const isActive = item.isDropdown
@@ -815,14 +839,14 @@ export function AdminSidebar() {
               <div key={item.title}>
                 <Tooltip delayDuration={collapsed ? 100 : 1000000}>
                   <TooltipTrigger asChild>
-                    {item.isDropdown ? (  
+                    {item.isDropdown ? (
                       <button
                         onClick={item.toggle}
                         className={cn(
-                          "flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm font-medium transition-all",
+                          "flex items-center justify-between w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
                           isActive
-                            ? "bg-[#008751]/10 text-[#008751] font-semibold"
-                            : "text-gray-700 hover:bg-[#008751]/5 hover:text-[#008751]"
+                            ? "bg-[#0B4628] text-white font-semibold shadow-sm"
+                            : "text-slate-600 hover:bg-slate-100/80 hover:text-[#0B4628]"
                         )}
                       >
                         {item.toggleOnly ? (
@@ -830,8 +854,8 @@ export function AdminSidebar() {
                             <div className="flex items-center w-full">
                               <item.icon
                                 className={cn(
-                                  "h-5 w-5",
-                                  isActive ? "text-[#008751]" : "text-gray-500"
+                                  "h-5 w-5 shrink-0",
+                                  isActive ? "text-white" : "text-slate-400"
                                 )}
                               />
                               {!collapsed && (
@@ -843,15 +867,15 @@ export function AdminSidebar() {
                               (item.isOpen ? (
                                 <ChevronUp
                                   className={cn(
-                                    "h-4 w-4",
-                                    isActive ? "text-[#008751]" : "text-gray-500"
+                                    "h-4 w-4 shrink-0",
+                                    isActive ? "text-white/90" : "text-slate-400"
                                   )}
                                 />
                               ) : (
                                 <ChevronDown
                                   className={cn(
-                                    "h-4 w-4",
-                                    isActive ? "text-[#008751]" : "text-gray-500"
+                                    "h-4 w-4 shrink-0",
+                                    isActive ? "text-white/90" : "text-slate-400"
                                   )}
                                 />
                               ))}
@@ -864,8 +888,8 @@ export function AdminSidebar() {
                             <div className="flex items-center w-full">
                               <item.icon
                                 className={cn(
-                                  "h-5 w-5",
-                                  isActive ? "text-[#008751]" : "text-gray-500"
+                                  "h-5 w-5 shrink-0",
+                                  isActive ? "text-white" : "text-slate-400"
                                 )}
                               />
                               {!collapsed && (
@@ -877,15 +901,15 @@ export function AdminSidebar() {
                               (item.isOpen ? (
                                 <ChevronUp
                                   className={cn(
-                                    "h-4 w-4",
-                                    isActive ? "text-[#008751]" : "text-gray-500"
+                                    "h-4 w-4 shrink-0",
+                                    isActive ? "text-white/90" : "text-slate-400"
                                   )}
                                 />
                               ) : (
                                 <ChevronDown
                                   className={cn(
-                                    "h-4 w-4",
-                                    isActive ? "text-[#008751]" : "text-gray-500"
+                                    "h-4 w-4 shrink-0",
+                                    isActive ? "text-white/90" : "text-slate-400"
                                   )}
                                 />
                               ))}
@@ -896,16 +920,16 @@ export function AdminSidebar() {
                       <Link
                         href={item.href!}
                         className={cn(
-                          "flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all",
+                          "flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
                           isActive
-                            ? "bg-[#008751]/10 text-[#008751] font-semibold"
-                            : "text-gray-700 hover:bg-gray-100 hover:text-[#008751]"
+                            ? "bg-[#0B4628] text-white font-semibold shadow-sm"
+                            : "text-slate-600 hover:bg-slate-100/80 hover:text-[#0B4628]"
                         )}
                       >
                         <item.icon
                           className={cn(
-                            "h-5 w-5",
-                            isActive ? "text-[#008751]" : "text-gray-500"
+                            "h-5 w-5 shrink-0",
+                            isActive ? "text-white" : "text-slate-400"
                           )}
                         />
                         {!collapsed && (
@@ -943,7 +967,7 @@ export function AdminSidebar() {
 
                 {/* Render sub-items if this is a dropdown and it's open */}
                 {item.isDropdown && item.isOpen && !collapsed && (
-                  <div className="ml-9 mt-1 space-y-1 border-l-2 border-gray-100 pl-2">
+                  <div className="ml-9 mt-1 space-y-1 border-l-2 border-slate-100 pl-2">
                     {item.subItems?.map((subItem) => {
                       const isSubItemActive = pathname === subItem.href;
                       const isSubItemComingSoon = isComingSoon(subItem.href);
@@ -953,10 +977,10 @@ export function AdminSidebar() {
                           key={subItem.title}
                           href={subItem.href}
                           className={cn(
-                            "flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                            "flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
                             isSubItemActive
-                              ? "bg-[#008751]/5 text-[#008751] font-semibold"
-                              : "text-gray-600 hover:bg-[#008751]/5 hover:text-[#008751]"
+                              ? "bg-[#0B4628]/10 text-[#0B4628] font-semibold"
+                              : "text-slate-600 hover:bg-slate-100/80 hover:text-[#0B4628]"
                           )}
                         >
                           <div className="flex items-center justify-between w-full">
@@ -981,15 +1005,38 @@ export function AdminSidebar() {
         </TooltipProvider>
       </nav>
 
-      <div className="px-3 space-y-1 mt-4 pt-3 border-t border-gray-100">
+      {!collapsed && (
+        <div className="mx-3 mt-3 rounded-2xl bg-gradient-to-br from-[#062415] via-[#0B3B22] to-[#04180E] p-4 text-white shadow-sm">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/15 text-xs font-bold text-emerald-300">
+              IP
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-white leading-tight">IPPIS Portal</p>
+              <p className="text-[10px] text-emerald-200/80">Civil Service Suite</p>
+            </div>
+          </div>
+          <p className="text-[11px] leading-relaxed text-emerald-100/75 mb-3">
+            Unified payroll, HR, and personnel records management.
+          </p>
+          <Link
+            href="/admin/help"
+            className="inline-flex w-full items-center justify-center rounded-full bg-[#10B981] hover:bg-[#059669] px-3 py-1.5 text-xs font-semibold text-white transition-colors"
+          >
+            Support Center
+          </Link>
+        </div>
+      )}
+
+      <div className="px-3 space-y-1 mt-3 pt-3 border-t border-slate-100">
         <TooltipProvider delayDuration={0}>
           <Tooltip delayDuration={collapsed ? 100 : 1000000}>
             <TooltipTrigger asChild>
               <Link
                 href="/admin/logout"
-                className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 transition-all"
+                className="flex items-center px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 transition-all"
               >
-                <LogOut className="h-5 w-5 text-gray-500" />
+                <LogOut className="h-5 w-5 text-slate-400" />
                 {!collapsed && <span className="ml-3">Logout</span>}
               </Link>
             </TooltipTrigger>
@@ -1006,8 +1053,8 @@ export function AdminSidebar() {
         <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
           <SheetContent side="left" className="p-0 w-[85vw] max-w-[320px]">
             <div className="flex flex-col h-full bg-white overflow-hidden">
-              <div className="p-4 border-b border-gray-100 flex items-center justify-start">
-                <div className="relative h-8 w-8 overflow-hidden rounded-full bg-[#008751] flex items-center justify-center">
+              <div className="p-4 border-b border-slate-100 flex items-center justify-start">
+                <div className="relative h-9 w-9 overflow-hidden rounded-xl bg-[#0B4628] flex items-center justify-center shadow-xs">
                   <Image
                     src="/images/ippis-logo.jpeg"
                     alt="IPPIS Logo"
@@ -1015,7 +1062,7 @@ export function AdminSidebar() {
                     className="object-contain"
                   />
                 </div>
-                <span className="ml-2 font-bold text-lg text-gray-900">
+                <span className="ml-2.5 font-bold text-lg text-slate-900 tracking-tight">
                   IPPIS Admin
                 </span>
               </div>
@@ -1026,18 +1073,18 @@ export function AdminSidebar() {
       ) : (
         <aside
           className={cn(
-            "bg-white border-r border-gray-100 flex flex-col transition-all duration-300 ease-in-out hidden md:flex sticky top-0 h-screen",
-            collapsed ? "w-[70px]" : "w-[260px]"
+            "bg-white border border-slate-200/70 shadow-sm flex flex-col transition-all duration-300 ease-in-out hidden md:flex sticky top-3 md:my-3 md:ml-3 md:h-[calc(100vh-1.5rem)] rounded-2xl overflow-hidden",
+            collapsed ? "w-[74px]" : "w-[260px]"
           )}
         >
-          <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
             <div
               className={cn(
                 "flex items-center",
                 collapsed ? "justify-center w-full" : "justify-start"
               )}
             >
-              <div className="relative h-8 w-8 overflow-hidden rounded-full bg-[#008751] flex items-center justify-center">
+              <div className="relative h-9 w-9 overflow-hidden rounded-xl bg-[#0B4628] flex items-center justify-center shadow-xs">
                 <Image
                   src="/images/ippis-logo.jpeg"
                   alt="IPPIS Logo"
@@ -1046,7 +1093,7 @@ export function AdminSidebar() {
                 />
               </div>
               {!collapsed && (
-                <span className="ml-2 font-bold text-lg text-gray-900">
+                <span className="ml-2.5 font-bold text-lg text-slate-900 tracking-tight">
                   IPPIS Admin
                 </span>
               )}
@@ -1055,7 +1102,7 @@ export function AdminSidebar() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-gray-500 hover:text-[#008751] hover:bg-[#008751]/5"
+                className="h-8 w-8 rounded-full text-slate-500 hover:text-[#0B4628] hover:bg-slate-100"
                 onClick={() => setCollapsed(true)}
                 aria-label="Collapse sidebar"
               >
@@ -1066,7 +1113,7 @@ export function AdminSidebar() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 mt-2 text-gray-500 hover:text-[#008751] hover:bg-[#008751]/5"
+                className="h-8 w-8 mt-2 rounded-full text-slate-500 hover:text-[#0B4628] hover:bg-slate-100"
                 onClick={() => setCollapsed(false)}
                 aria-label="Expand sidebar"
               >

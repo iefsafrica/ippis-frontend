@@ -81,50 +81,56 @@ export function AdminHeader() {
 
   return (
     <header
-      className={`bg-white sticky top-0 z-30 transition-all duration-200 ${
-        scrolled ? "border-b border-gray-200 shadow-sm" : "border-b border-gray-100"
+      className={`sticky top-0 z-30 transition-all duration-200 ${
+        scrolled
+          ? "bg-[#ECEEF0]/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs"
+          : "bg-[#ECEEF0]/90 backdrop-blur-sm"
       }`}
     >
-      <div className="px-3 sm:px-6 lg:px-8 flex h-16 items-center justify-between gap-2">
+      <div className="px-3 sm:px-6 lg:px-8 flex h-20 items-center justify-between gap-2">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {isMobile && (
             <Button
               variant="ghost"
               size="icon"
-              className="mr-1 text-gray-500 hover:text-[#008751] hover:bg-[#008751]/5"
+              className="mr-1 h-10 w-10 rounded-full bg-white shadow-xs text-slate-600 hover:text-[#0B4628] hover:bg-white"
               onClick={toggleSidebar}
             >
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle sidebar</span>
             </Button>
           )}
-          <div className="relative h-9 w-9 overflow-hidden rounded-full bg-[#008751] flex items-center justify-center">
-            <Image src="/images/ippis-logo.jpeg" alt="IPPIS Logo" fill className="object-contain" />
-          </div>
           {pathname !== "/admin" && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => router.back()}
-              className="h-8 px-2 text-gray-600 hover:text-[#008751] hover:bg-[#008751]/5 flex-shrink-0"
+              className="h-9 px-3 rounded-full bg-white shadow-xs border border-slate-200/70 text-slate-700 hover:text-[#0B4628] hover:bg-slate-50 flex-shrink-0"
             >
               <ArrowLeft className="h-4 w-4 sm:mr-1" />
-              <span className="hidden sm:inline">Back</span>
+              <span className="hidden sm:inline text-xs font-semibold">Back</span>
             </Button>
           )}
           <div className="flex flex-col min-w-0">
-            <h1 className="text-base sm:text-lg font-bold text-gray-900 leading-tight truncate">{getPageTitle()}</h1>
-            <p className="text-xs text-gray-500 hidden sm:block">Integrated Personnel and Payroll Information System</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 leading-tight truncate">{getPageTitle()}</h1>
+            <p className="text-xs text-slate-500 hidden sm:block">
+              {new Date().toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
           {showSearch ? (
             <div className="relative w-40 sm:w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <Input
                 type="search"
                 placeholder="Search..."
-                className="w-full bg-gray-50 border-gray-200 pl-8 focus-visible:ring-[#008751] text-gray-900 rounded-full"
+                className="w-full h-10 bg-white border-slate-200/80 pl-9 focus-visible:ring-[#0B4628] text-slate-900 rounded-full shadow-xs"
                 autoFocus
                 onBlur={() => setShowSearch(false)}
               />
@@ -134,30 +140,32 @@ export function AdminHeader() {
               variant="ghost"
               size="icon"
               onClick={() => setShowSearch(true)}
-              className="text-gray-500 hover:text-[#008751] hover:bg-[#008751]/5 rounded-full"
+              className="h-10 w-10 rounded-full bg-white border border-slate-200/60 shadow-xs text-slate-600 hover:text-[#0B4628] hover:bg-white"
             >
-              <Search className="h-5 w-5" />
+              <Search className="h-4.5 w-4.5" />
               <span className="sr-only">Search</span>
             </Button>
           )}
 
-          <NotificationsDropdown />
+          <div className="h-10 w-10 rounded-full bg-white border border-slate-200/60 shadow-xs flex items-center justify-center">
+            <NotificationsDropdown />
+          </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="rounded-full flex items-center gap-2 px-2 hover:bg-[#008751]/5">
-                <Avatar className="h-8 w-8 border-2 border-[#008751]/10">
+              <Button variant="ghost" className="h-11 rounded-full bg-white border border-slate-200/60 shadow-xs flex items-center gap-2.5 pl-1.5 pr-3 hover:bg-slate-50">
+                <Avatar className="h-8 w-8 border border-[#0B4628]/20">
                   <AvatarImage
-                    src={`https://ui-avatars.com/api/?name=${user?.name || "User"}&background=008751&color=fff`}
+                    src={`https://ui-avatars.com/api/?name=${user?.name || "User"}&background=0B4628&color=fff`}
                     alt={user?.name || "User"}
                   />
-                  <AvatarFallback className="bg-[#008751]/10 text-[#008751]">{getUserInitials()}</AvatarFallback>
+                  <AvatarFallback className="bg-[#0B4628]/10 text-[#0B4628] font-semibold">{getUserInitials()}</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col items-start text-left hidden sm:flex">
-                  <span className="text-sm font-medium text-gray-900">{user?.name || "User"}</span>
-                  <span className="text-xs text-gray-500">Administrator</span>
+                  <span className="text-xs font-bold text-slate-900 leading-tight">{user?.name || "User"}</span>
+                  <span className="text-[11px] text-slate-500 leading-tight">{user?.role || "Admin Officer"}</span>
                 </div>
-                <ChevronDown className="h-4 w-4 text-gray-500 hidden sm:block" />
+                <ChevronDown className="h-3.5 w-3.5 text-slate-400 hidden sm:block" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 p-2 bg-white">
