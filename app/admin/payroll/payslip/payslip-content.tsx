@@ -297,7 +297,7 @@ export function PayslipContent() {
             title="Payslip Records"
             columns={payslipColumns}
             data={payslips}
-            onAdd={() => {}}
+            onAdd={() => setSelectedTab("generate")}
             onEdit={() => {}}
             onDelete={() => {}}
             onView={handleViewPayslip}
