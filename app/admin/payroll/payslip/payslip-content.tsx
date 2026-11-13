@@ -27,6 +27,7 @@ import { MdaSelect } from "@/components/mda-select"
 import { cn } from "@/lib/utils"
 import { downloadPayslipPdf } from "../payroll-payslip/payslip-pdf"
 import { useGetDepartments } from "@/services/hooks/organizations/department/useDepartment"
+import { useEmployeesList } from "@/services/hooks/employees/useEmployees"
 import {
   useGeneratePayslips,
   usePayslipDetails,
@@ -73,12 +74,33 @@ function normalizeLineItems(
   return []
 }
 
+const MONTH_OPTIONS = [
+  { value: 1, label: "January" },
+  { value: 2, label: "February" },
+  { value: 3, label: "March" },
+  { value: 4, label: "April" },
+  { value: 5, label: "May" },
+  { value: 6, label: "June" },
+  { value: 7, label: "July" },
+  { value: 8, label: "August" },
+  { value: 9, label: "September" },
+  { value: 10, label: "October" },
+  { value: 11, label: "November" },
+  { value: 12, label: "December" },
+]
+
 export function PayslipContent() {
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const yearOptions = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1]
+
   const [selectedTab, setSelectedTab] = useState("generate")
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
-  const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date())
+  const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1)
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear)
+  const [paymentDate, setPaymentDate] = useState<Date | undefined>(now)
   const [selectedMdaId, setSelectedMdaId] = useState<string>("all")
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("all")
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all")
   const [showPayslipPreview, setShowPayslipPreview] = useState(false)
   const [selectedPayslipId, setSelectedPayslipId] = useState<string | null>(null)
   const [showGenerateConfirmation, setShowGenerateConfirmation] = useState(false)
@@ -90,6 +112,35 @@ export function PayslipContent() {
     const raw = (departmentsRes as any)?.data?.departments || (departmentsRes as any)?.data || []
     return Array.isArray(raw) ? raw : []
   }, [departmentsRes])
+
+  const { data: employeesRes } = useEmployeesList(1)
+  const filteredEmployees = useMemo(() => {
+    const list = employeesRes?.employees || []
+    return list.filter((emp: any) => {
+      if (selectedMdaId && selectedMdaId !== "all") {
+        const empMda = String(
+          emp.company_id ?? emp.mda_id ?? emp.metadata?.company_id ?? emp.metadata?.mda_id ?? ""
+        )
+        if (empMda && empMda !== String(selectedMdaId)) return false
+      }
+      if (selectedDepartmentId && selectedDepartmentId !== "all") {
+        const empDeptId = String(emp.department_id ?? emp.metadata?.department_id ?? "")
+        const deptObj = departments.find((d: any) => String(d.id) === String(selectedDepartmentId))
+        const deptName = String(deptObj?.name || "").toLowerCase()
+        const empDeptName = String(emp.department || "").toLowerCase()
+        if (empDeptId) {
+          if (empDeptId !== String(selectedDepartmentId)) return false
+        } else if (deptName && empDeptName && empDeptName !== deptName) {
+          return false
+        }
+      }
+      return true
+    })
+  }, [employeesRes?.employees, selectedMdaId, selectedDepartmentId, departments])
+
+  const selectedPeriodLabel = `${
+    MONTH_OPTIONS.find((m) => m.value === selectedMonth)?.label || selectedMonth
+  } ${selectedYear}`
 
   const {
     data: payslipsRes,
@@ -142,18 +193,18 @@ export function PayslipContent() {
   const generateMutation = useGeneratePayslips()
 
   const buildGeneratePayload = (dryRun: boolean) => {
-    const targetDate = selectedDate || new Date()
-    const month = targetDate.getMonth() + 1
-    const year = targetDate.getFullYear()
-    const period = format(targetDate, "yyyy-MM")
+    const period = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`
 
     return {
-      month,
-      year,
+      month: selectedMonth,
+      year: selectedYear,
       period,
       ...(selectedMdaId && selectedMdaId !== "all" ? { mdaId: selectedMdaId } : {}),
       ...(selectedDepartmentId && selectedDepartmentId !== "all"
         ? { departmentId: selectedDepartmentId }
+        : {}),
+      ...(selectedEmployeeId && selectedEmployeeId !== "all"
+        ? { employeeId: selectedEmployeeId }
         : {}),
       ...(paymentDate ? { paymentDate: format(paymentDate, "yyyy-MM-dd") } : {}),
       dryRun,
@@ -388,26 +439,43 @@ export function PayslipContent() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="month">Pay Period (Month / Year)</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="month"
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !selectedDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {selectedDate ? format(selectedDate, "MMMM yyyy") : <span>Select month</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus />
-                    </PopoverContent>
-                  </Popover>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="pay-month">Month</Label>
+                    <Select
+                      value={String(selectedMonth)}
+                      onValueChange={(val) => setSelectedMonth(Number(val))}
+                    >
+                      <SelectTrigger id="pay-month">
+                        <SelectValue placeholder="Select month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MONTH_OPTIONS.map((m) => (
+                          <SelectItem key={m.value} value={String(m.value)}>
+                            {m.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pay-year">Year</Label>
+                    <Select
+                      value={String(selectedYear)}
+                      onValueChange={(val) => setSelectedYear(Number(val))}
+                    >
+                      <SelectTrigger id="pay-year">
+                        <SelectValue placeholder="Select year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {yearOptions.map((y) => (
+                          <SelectItem key={y} value={String(y)}>
+                            {y}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -436,14 +504,23 @@ export function PayslipContent() {
                   <Label>MDA / Organization (Optional)</Label>
                   <MdaSelect
                     value={selectedMdaId === "all" ? "" : selectedMdaId}
-                    onValueChange={(val) => setSelectedMdaId(val || "all")}
+                    onValueChange={(val) => {
+                      setSelectedMdaId(val || "all")
+                      setSelectedEmployeeId("all")
+                    }}
                     placeholder="All MDAs"
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="department">Department (Optional)</Label>
-                  <Select value={selectedDepartmentId} onValueChange={setSelectedDepartmentId}>
+                  <Select
+                    value={selectedDepartmentId}
+                    onValueChange={(val) => {
+                      setSelectedDepartmentId(val)
+                      setSelectedEmployeeId("all")
+                    }}
+                  >
                     <SelectTrigger id="department">
                       <SelectValue placeholder="All Departments" />
                     </SelectTrigger>
@@ -452,6 +529,26 @@ export function PayslipContent() {
                       {departments.map((dept: any) => (
                         <SelectItem key={dept.id} value={String(dept.id)}>
                           {dept.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="employee">Employee (Optional — leave as All for batch generation)</Label>
+                  <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+                    <SelectTrigger id="employee">
+                      <SelectValue placeholder="All Eligible Employees" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        All Eligible Employees ({filteredEmployees.length})
+                      </SelectItem>
+                      {filteredEmployees.map((emp: any) => (
+                        <SelectItem key={emp.id} value={String(emp.id)}>
+                          {emp.name} {emp.registration_id ? `(${emp.registration_id})` : `(${emp.id})`}
+                          {emp.department ? ` — ${emp.department}` : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -490,17 +587,15 @@ export function PayslipContent() {
 
       {/* Generate Confirmation Dialog (with Live Dry-Run Preview) */}
       <Dialog open={showGenerateConfirmation} onOpenChange={setShowGenerateConfirmation}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Confirm Payslip Generation</DialogTitle>
           </DialogHeader>
-          <div className="py-3 space-y-3">
+          <div className="py-2 space-y-3">
             <p className="text-sm text-slate-700">
               Generate payslips for{" "}
-              <span className="font-semibold">
-                {selectedDate ? format(selectedDate, "MMMM yyyy") : "the selected period"}
-              </span>
-              ?
+              <span className="font-semibold">{selectedPeriodLabel}</span>
+              {selectedEmployeeId !== "all" ? " (selected employee)" : ""}?
             </p>
 
             {generateMutation.isPending && !dryRunResult ? (
