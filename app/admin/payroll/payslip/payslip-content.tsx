@@ -1,6 +1,16 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
+import { format } from "date-fns"
+import { toast } from "sonner"
+import {
+  CalendarIcon,
+  Download,
+  FileText,
+  Loader2,
+  Printer,
+  RefreshCw,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -8,214 +18,280 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { EnhancedDataTable } from "@/app/admin/components/enhanced-data-table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { format } from "date-fns"
-import { CalendarIcon, Download, FileText, Printer } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { cn } from "@/lib/utils"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
+import { MdaSelect } from "@/components/mda-select"
+import { cn } from "@/lib/utils"
 import { downloadPayslipPdf } from "../payroll-payslip/payslip-pdf"
+import { useGetDepartments } from "@/services/hooks/organizations/department/useDepartment"
+import {
+  useGeneratePayslips,
+  usePayslipDetails,
+  usePayslips,
+} from "@/services/hooks/payroll/usePayslips"
+import type {
+  PayslipDetailLineItem,
+  PayslipRecord,
+} from "@/services/endpoints/payroll/payslips"
 
-// Mock data for employees
-const employees = [
-  { id: "EMP-001", name: "John Doe", position: "Software Engineer", department: "Engineering" },
-  { id: "EMP-002", name: "Jane Smith", position: "HR Manager", department: "Human Resources" },
-  { id: "EMP-003", name: "Michael Johnson", position: "Financial Analyst", department: "Finance" },
-  { id: "EMP-004", name: "Emily Davis", position: "Marketing Specialist", department: "Marketing" },
-  { id: "EMP-005", name: "Robert Wilson", position: "Product Manager", department: "Product" },
-]
+function formatCurrency(value: unknown) {
+  const num = Number(value ?? 0)
+  if (Number.isNaN(num)) return "₦0.00"
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 2,
+  }).format(num)
+}
 
-// Mock data for payslips
-const payslips = [
-  {
-    id: "PS-001",
-    employeeId: "EMP-001",
-    employeeName: "John Doe",
-    department: "Engineering",
-    position: "Software Engineer",
-    month: "May 2023",
-    generatedDate: "2023-05-31T10:00:00Z",
-    status: "Generated",
-  },
-  {
-    id: "PS-002",
-    employeeId: "EMP-002",
-    employeeName: "Jane Smith",
-    department: "Human Resources",
-    position: "HR Manager",
-    month: "May 2023",
-    generatedDate: "2023-05-31T10:05:00Z",
-    status: "Generated",
-  },
-  {
-    id: "PS-003",
-    employeeId: "EMP-003",
-    employeeName: "Michael Johnson",
-    department: "Finance",
-    position: "Financial Analyst",
-    month: "May 2023",
-    generatedDate: "2023-05-31T10:10:00Z",
-    status: "Generated",
-  },
-  {
-    id: "PS-004",
-    employeeId: "EMP-004",
-    employeeName: "Emily Davis",
-    department: "Marketing",
-    position: "Marketing Specialist",
-    month: "May 2023",
-    generatedDate: "2023-05-31T10:15:00Z",
-    status: "Generated",
-  },
-  {
-    id: "PS-005",
-    employeeId: "EMP-005",
-    employeeName: "Robert Wilson",
-    department: "Product",
-    position: "Product Manager",
-    month: "May 2023",
-    generatedDate: "2023-05-31T10:20:00Z",
-    status: "Generated",
-  },
-  {
-    id: "PS-006",
-    employeeId: "EMP-001",
-    employeeName: "John Doe",
-    department: "Engineering",
-    position: "Software Engineer",
-    month: "June 2023",
-    generatedDate: "2023-06-30T09:00:00Z",
-    status: "Generated",
-  },
-  {
-    id: "PS-007",
-    employeeId: "EMP-002",
-    employeeName: "Jane Smith",
-    department: "Human Resources",
-    position: "HR Manager",
-    month: "June 2023",
-    generatedDate: "2023-06-30T09:05:00Z",
-    status: "Generated",
-  },
-]
+function formatSafeDate(value?: string | null, fallback = "N/A") {
+  if (!value) return fallback
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return String(value)
+  return format(d, "PPP")
+}
 
-// Mock payslip details
-const payslipDetails = {
-  id: "PS-001",
-  employeeId: "EMP-001",
-  employeeName: "John Doe",
-  department: "Engineering",
-  position: "Software Engineer",
-  month: "May 2023",
-  generatedDate: "2023-05-31T10:00:00Z",
-  payPeriod: "May 1, 2023 - May 31, 2023",
-  basicSalary: 5000.0,
-  earnings: [
-    { type: "Basic Salary", amount: 5000.0 },
-    { type: "House Rent Allowance", amount: 500.0 },
-    { type: "Medical Allowance", amount: 300.0 },
-    { type: "Travel Allowance", amount: 200.0 },
-    { type: "Dearness Allowance", amount: 100.0 },
-  ],
-  deductions: [
-    { type: "Provident Fund", amount: 250.0 },
-    { type: "Income Tax", amount: 500.0 },
-    { type: "Health Insurance", amount: 100.0 },
-    { type: "Loan Deduction", amount: 200.0 },
-  ],
-  totalEarnings: 6100.0,
-  totalDeductions: 1050.0,
-  netPay: 5050.0,
-  bankName: "National Bank",
-  accountNumber: "XXXX-XXXX-XXXX-1234",
-  paymentMethod: "Bank Transfer",
-  status: "Paid",
+function normalizeLineItems(
+  items?: PayslipDetailLineItem[] | Record<string, number> | null
+): Array<{ label: string; amount: number }> {
+  if (!items) return []
+  if (Array.isArray(items)) {
+    return items.map((item) => ({
+      label: item.label || item.type || item.name || item.code || "Item",
+      amount: Number(item.amount ?? 0),
+    }))
+  }
+  if (typeof items === "object") {
+    return Object.entries(items).map(([key, val]) => ({
+      label: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      amount: Number(val ?? 0),
+    }))
+  }
+  return []
 }
 
 export function PayslipContent() {
   const [selectedTab, setSelectedTab] = useState("generate")
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
+  const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date())
+  const [selectedMdaId, setSelectedMdaId] = useState<string>("all")
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("all")
   const [showPayslipPreview, setShowPayslipPreview] = useState(false)
+  const [selectedPayslipId, setSelectedPayslipId] = useState<string | null>(null)
   const [showGenerateConfirmation, setShowGenerateConfirmation] = useState(false)
+  const [dryRunResult, setDryRunResult] = useState<any>(null)
   const payslipPreviewRef = useRef<HTMLDivElement>(null)
 
-  const payslipPdfPayload = {
-    payment_id: payslipDetails.id,
-    employee_id: payslipDetails.employeeId,
-    employee_name: payslipDetails.employeeName,
-    department: payslipDetails.department,
-    position: payslipDetails.position,
-    month: payslipDetails.month,
-    created_at: payslipDetails.generatedDate,
-    payment_date: payslipDetails.generatedDate,
-    amount: payslipDetails.totalEarnings,
-    deduction_amount: payslipDetails.totalDeductions,
-    bank_name: payslipDetails.bankName,
-    account: payslipDetails.accountNumber,
+  const { data: departmentsRes } = useGetDepartments()
+  const departments = useMemo(() => {
+    const raw = (departmentsRes as any)?.data?.departments || (departmentsRes as any)?.data || []
+    return Array.isArray(raw) ? raw : []
+  }, [departmentsRes])
+
+  const {
+    data: payslipsRes,
+    isLoading: payslipsLoading,
+    refetch: refetchPayslips,
+  } = usePayslips({ limit: 100 })
+
+  const payslips: PayslipRecord[] = useMemo(() => {
+    const raw =
+      (payslipsRes as any)?.data?.payslips ||
+      (payslipsRes as any)?.payslips ||
+      (payslipsRes as any)?.data ||
+      []
+    if (!Array.isArray(raw)) return []
+    return raw.map((item: any) => ({
+      ...item,
+      id: item.reference || item.payment_id || item.payslip_number || item.id,
+      rawId: item.id,
+      employeeName:
+        item.employeeName ||
+        item.employee_name ||
+        item.employee?.full_name ||
+        item.employee?.name ||
+        "Employee",
+      department:
+        item.department ||
+        item.department_name ||
+        item.employee?.department ||
+        "General",
+      month:
+        item.period ||
+        (item.month && item.year ? `${item.month}/${item.year}` : item.month) ||
+        "N/A",
+      generatedDate:
+        item.payment_date ||
+        item.generated_date ||
+        item.created_at ||
+        new Date().toISOString(),
+      net_pay: Number(item.net_pay ?? item.netPay ?? 0),
+      gross_pay: Number(item.gross_pay ?? item.total_earnings ?? 0),
+      status: item.status || "Generated",
+    }))
+  }, [payslipsRes])
+
+  const { data: detailData, isLoading: detailLoading } = usePayslipDetails(
+    selectedPayslipId,
+    showPayslipPreview
+  )
+
+  const generateMutation = useGeneratePayslips()
+
+  const buildGeneratePayload = (dryRun: boolean) => {
+    const targetDate = selectedDate || new Date()
+    const month = targetDate.getMonth() + 1
+    const year = targetDate.getFullYear()
+    const period = format(targetDate, "yyyy-MM")
+
+    return {
+      month,
+      year,
+      period,
+      ...(selectedMdaId && selectedMdaId !== "all" ? { mdaId: selectedMdaId } : {}),
+      ...(selectedDepartmentId && selectedDepartmentId !== "all"
+        ? { departmentId: selectedDepartmentId }
+        : {}),
+      ...(paymentDate ? { paymentDate: format(paymentDate, "yyyy-MM-dd") } : {}),
+      dryRun,
+    }
   }
 
-  // Columns for payslip table
-  const payslipColumns = [
-    { key: "id", label: "Payslip ID", sortable: true },
-    { key: "employeeName", label: "Employee", sortable: true },
-    { key: "department", label: "Department", sortable: true },
-    { key: "month", label: "Month", sortable: true },
-    {
-      key: "generatedDate",
-      label: "Generated Date",
-      sortable: true,
-      render: (value: string) => format(new Date(value), "PPP"),
-    },
-    {
-      key: "status",
-      label: "Status",
-      sortable: true,
-      render: (value: string) => {
-        const color = value === "Generated" ? "green" : "yellow"
-        return <Badge className={`bg-${color}-100 text-${color}-800`}>{value}</Badge>
-      },
-    },
-  ]
+  const handleOpenGenerateModal = async () => {
+    setDryRunResult(null)
+    setShowGenerateConfirmation(true)
+    try {
+      const preview = await generateMutation.mutateAsync(buildGeneratePayload(true))
+      setDryRunResult(preview?.data || preview)
+    } catch {
+      // Non-blocking: user can still inspect or trigger generation
+    }
+  }
 
-  // Filter options for payslip table
-  const filterOptions = [
-    {
-      id: "month",
-      label: "Month",
-      type: "select" as const,
-      options: [
-        { value: "May 2023", label: "May 2023" },
-        { value: "June 2023", label: "June 2023" },
-        { value: "July 2023", label: "July 2023" },
-      ],
-    },
-    {
-      id: "department",
-      label: "Department",
-      type: "select" as const,
-      options: [
-        { value: "Engineering", label: "Engineering" },
-        { value: "Human Resources", label: "Human Resources" },
-        { value: "Finance", label: "Finance" },
-        { value: "Marketing", label: "Marketing" },
-        { value: "Product", label: "Product" },
-      ],
-    },
-  ]
+  const handleGeneratePayslips = async () => {
+    try {
+      const res = await generateMutation.mutateAsync(buildGeneratePayload(false))
+      const summary = res?.data || res || {}
+      const generatedCount =
+        summary.generatedCount ?? summary.generated ?? summary.created ?? summary.count ?? 0
+      const skippedCount = summary.skippedCount ?? summary.skipped?.length ?? 0
 
-  const handleGeneratePayslips = () => {
-    setShowGenerateConfirmation(false)
-    alert("Payslips generated successfully!")
+      toast.success(
+        res?.message ||
+          `Payslips generated (${generatedCount} created${
+            skippedCount ? `, ${skippedCount} skipped` : ""
+          }).`
+      )
+      setShowGenerateConfirmation(false)
+      setDryRunResult(null)
+      await refetchPayslips()
+      setSelectedTab("history")
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to generate payslips")
+    }
   }
 
   const handleViewPayslip = (id: string) => {
+    setSelectedPayslipId(String(id))
     setShowPayslipPreview(true)
   }
 
+  const normalizedDetail = useMemo(() => {
+    const d: any = detailData || {}
+    const emp = d.employee || {}
+    const bank = d.banking || {}
+    const summary = d.summary || {}
+    const earnings = normalizeLineItems(d.earnings)
+    const deductions = normalizeLineItems(d.deductions)
+
+    const totalEarnings = Number(
+      summary.gross_pay ??
+        summary.total_earnings ??
+        d.gross_pay ??
+        earnings.reduce((sum, item) => sum + item.amount, 0)
+    )
+    const totalDeductions = Number(
+      summary.total_deductions ??
+        d.total_deductions ??
+        deductions.reduce((sum, item) => sum + item.amount, 0)
+    )
+    const netPay = Number(
+      summary.net_pay ?? d.net_pay ?? Math.max(0, totalEarnings - totalDeductions)
+    )
+
+    return {
+      id: d.reference || d.payment_id || d.id || selectedPayslipId || "N/A",
+      employeeId: emp.ippis_number || emp.id || d.ippis_number || d.employee_id || "N/A",
+      legacyId: emp.legacy_id || d.legacy_id,
+      employeeName: emp.full_name || emp.name || d.employee_name || "Employee",
+      mda: emp.mda || d.mda || "N/A",
+      department: emp.department || d.department || "N/A",
+      position: emp.position || emp.cadre || d.position || "Civil Officer",
+      gradeStep:
+        emp.grade_level || emp.step
+          ? `${emp.grade_level || "-"} / Step ${emp.step || "-"}`
+          : undefined,
+      salaryStructure: emp.salary_structure,
+      location: emp.location,
+      taxState: emp.tax_state,
+      period: d.period || (d.month && d.year ? `${d.month}/${d.year}` : "N/A"),
+      generatedDate: d.payment_date || d.generated_date || d.created_at || new Date().toISOString(),
+      bankName: bank.bank_name || d.bank_name || "N/A",
+      accountNumber: bank.account_number || d.account_number || "N/A",
+      pfa: bank.pfa,
+      rsaPin: bank.rsa_pin,
+      paymentMethod: bank.payment_method || "Bank Transfer",
+      earnings,
+      deductions,
+      totalEarnings,
+      totalDeductions,
+      netPay,
+      ytdPaid: summary.ytd_paid,
+      ytdTax: summary.ytd_tax,
+      ytdPension: summary.ytd_pension,
+    }
+  }, [detailData, selectedPayslipId])
+
   const handleDownloadPayslipPdf = () => {
     if (typeof window === "undefined") return
-    void downloadPayslipPdf(payslipPdfPayload, payslipPreviewRef.current)
+    const payload = {
+      payment_id: String(normalizedDetail.id),
+      employee_id: String(normalizedDetail.employeeId),
+      employee_name: normalizedDetail.employeeName,
+      department: normalizedDetail.department,
+      position: normalizedDetail.position,
+      month: String(normalizedDetail.period),
+      created_at: normalizedDetail.generatedDate,
+      payment_date: normalizedDetail.generatedDate,
+      amount: normalizedDetail.totalEarnings,
+      deduction_amount: normalizedDetail.totalDeductions,
+      bank_name: normalizedDetail.bankName,
+      account: normalizedDetail.accountNumber,
+    }
+    void downloadPayslipPdf(payload, payslipPreviewRef.current)
+  }
+
+  const handleDownloadPayslipCsv = () => {
+    if (typeof window === "undefined") return
+    const rows = [
+      ["Section", "Description", "Amount"],
+      ...normalizedDetail.earnings.map((e) => ["Earning", e.label, String(e.amount)]),
+      ...normalizedDetail.deductions.map((d) => ["Deduction", d.label, String(d.amount)]),
+      ["Summary", "Gross Pay", String(normalizedDetail.totalEarnings)],
+      ["Summary", "Total Deductions", String(normalizedDetail.totalDeductions)],
+      ["Summary", "Net Pay", String(normalizedDetail.netPay)],
+    ]
+    const csv = rows.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(",")).join("\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `payslip-${normalizedDetail.id}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   const handlePrintPayslip = () => {
@@ -224,6 +300,59 @@ export function PayslipContent() {
     }
   }
 
+  const payslipColumns = [
+    { key: "id", label: "Payslip ID", sortable: true },
+    { key: "employeeName", label: "Employee", sortable: true },
+    { key: "department", label: "Department", sortable: true },
+    { key: "month", label: "Period", sortable: true },
+    {
+      key: "net_pay",
+      label: "Net Pay",
+      sortable: true,
+      render: (value: number) => (
+        <span className="font-semibold text-slate-900">{formatCurrency(value)}</span>
+      ),
+    },
+    {
+      key: "generatedDate",
+      label: "Payment Date",
+      sortable: true,
+      render: (value: string) => formatSafeDate(value),
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      render: (value: string) => {
+        const lower = String(value || "").toLowerCase()
+        const isSuccess = lower === "paid" || lower === "generated" || lower === "approved"
+        return (
+          <Badge
+            className={
+              isSuccess
+                ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
+                : "bg-amber-100 text-amber-800 hover:bg-amber-100"
+            }
+          >
+            {value || "Generated"}
+          </Badge>
+        )
+      },
+    },
+  ]
+
+  const filterOptions = [
+    {
+      id: "department",
+      label: "Department",
+      type: "select" as const,
+      options: departments.map((dept: any) => ({
+        value: dept.name || String(dept.id),
+        label: dept.name || `Department #${dept.id}`,
+      })),
+    },
+  ]
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -231,25 +360,36 @@ export function PayslipContent() {
           <h2 className="text-2xl font-bold tracking-tight">Payslip Management</h2>
           <p className="text-muted-foreground">Generate and manage employee payslips</p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => refetchPayslips()}
+          disabled={payslipsLoading}
+          className="rounded-full bg-white"
+        >
+          <RefreshCw className={cn("mr-2 h-3.5 w-3.5", payslipsLoading && "animate-spin")} />
+          Refresh History
+        </Button>
       </div>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="generate">Generate Payslips</TabsTrigger>
-          <TabsTrigger value="history">Payslip History</TabsTrigger>
+          <TabsTrigger value="history">Payslip History ({payslips.length})</TabsTrigger>
         </TabsList>
+
         <TabsContent value="generate" className="space-y-4">
-          <Card>
+          <Card className="rounded-2xl border-slate-200/70 shadow-2xs">
             <CardHeader>
               <CardTitle>Generate Payslips</CardTitle>
               <CardDescription>
-                Generate payslips for all employees or a specific department for a selected month.
+                Generate payslips for eligible employees based on their active status, MDA/department scope, and payment records.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="month">Month</Label>
+                  <Label htmlFor="month">Pay Period (Month / Year)</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -257,7 +397,7 @@ export function PayslipContent() {
                         variant="outline"
                         className={cn(
                           "w-full justify-start text-left font-normal",
-                          !selectedDate && "text-muted-foreground",
+                          !selectedDate && "text-muted-foreground"
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -269,63 +409,144 @@ export function PayslipContent() {
                     </PopoverContent>
                   </Popover>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="payment-date">Payment Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="payment-date"
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !paymentDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {paymentDate ? format(paymentDate, "PPP") : <span>Select payment date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={paymentDate} onSelect={setPaymentDate} initialFocus />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>MDA / Organization (Optional)</Label>
+                  <MdaSelect
+                    value={selectedMdaId === "all" ? "" : selectedMdaId}
+                    onValueChange={(val) => setSelectedMdaId(val || "all")}
+                    placeholder="All MDAs"
+                  />
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="department">Department (Optional)</Label>
-                  <Select>
+                  <Select value={selectedDepartmentId} onValueChange={setSelectedDepartmentId}>
                     <SelectTrigger id="department">
                       <SelectValue placeholder="All Departments" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Departments</SelectItem>
-                      <SelectItem value="engineering">Engineering</SelectItem>
-                      <SelectItem value="hr">Human Resources</SelectItem>
-                      <SelectItem value="finance">Finance</SelectItem>
-                      <SelectItem value="marketing">Marketing</SelectItem>
-                      <SelectItem value="product">Product</SelectItem>
+                      {departments.map((dept: any) => (
+                        <SelectItem key={dept.id} value={String(dept.id)}>
+                          {dept.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-              <Button onClick={() => setShowGenerateConfirmation(true)} className="mt-4">
-                Generate Payslips
-              </Button>
+
+              <div className="pt-2">
+                <Button
+                  onClick={handleOpenGenerateModal}
+                  disabled={generateMutation.isPending}
+                  className="bg-[#0B4628] hover:bg-[#08351E] text-white"
+                >
+                  {generateMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Generate Payslips
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
+
         <TabsContent value="history" className="space-y-4">
           <EnhancedDataTable
             title="Payslip Records"
             columns={payslipColumns}
             data={payslips}
+            isLoading={payslipsLoading}
             onAdd={() => setSelectedTab("generate")}
-            onEdit={() => {}}
-            onDelete={() => {}}
             onView={handleViewPayslip}
             filterOptions={filterOptions}
           />
         </TabsContent>
       </Tabs>
 
-      {/* Generate Confirmation Dialog */}
+      {/* Generate Confirmation Dialog (with Live Dry-Run Preview) */}
       <Dialog open={showGenerateConfirmation} onOpenChange={setShowGenerateConfirmation}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm Payslip Generation</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <p>
-              Are you sure you want to generate payslips for{" "}
-              {selectedDate ? format(selectedDate, "MMMM yyyy") : "the selected month"}?
+          <div className="py-3 space-y-3">
+            <p className="text-sm text-slate-700">
+              Generate payslips for{" "}
+              <span className="font-semibold">
+                {selectedDate ? format(selectedDate, "MMMM yyyy") : "the selected period"}
+              </span>
+              ?
             </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              This will create payslips for all eligible employees based on their payment records.
-            </p>
+
+            {generateMutation.isPending && !dryRunResult ? (
+              <div className="flex items-center gap-2 text-xs text-slate-500 rounded-lg bg-slate-50 p-3">
+                <Loader2 className="h-4 w-4 animate-spin text-[#0B4628]" />
+                Checking eligible employees and duplicate safeguards...
+              </div>
+            ) : dryRunResult ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs space-y-1">
+                <p className="font-semibold text-[#0B4628]">Dry-Run Eligibility Preview</p>
+                <p className="text-slate-700">
+                  Eligible employees:{" "}
+                  <span className="font-bold">
+                    {dryRunResult.eligibleCount ?? dryRunResult.eligible ?? 0}
+                  </span>
+                  {" • "}
+                  Skipped:{" "}
+                  <span className="font-bold">
+                    {dryRunResult.skippedCount ?? dryRunResult.skipped?.length ?? 0}
+                  </span>
+                </p>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                This calculates allowances and statutory deductions (PAYE, pension, NHIS, loans) and prevents duplicate payments for the same period.
+              </p>
+            )}
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowGenerateConfirmation(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowGenerateConfirmation(false)}
+              disabled={generateMutation.isPending}
+            >
               Cancel
             </Button>
-            <Button onClick={handleGeneratePayslips}>Generate Payslips</Button>
+            <Button
+              onClick={handleGeneratePayslips}
+              disabled={generateMutation.isPending}
+              className="bg-[#0B4628] hover:bg-[#08351E] text-white"
+            >
+              {generateMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Confirm & Generate
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -336,122 +557,182 @@ export function PayslipContent() {
           <DialogHeader>
             <DialogTitle>Payslip Preview</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <div ref={payslipPreviewRef} className="border rounded-lg p-6 bg-white">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h3 className="text-xl font-bold">IPPIS Payroll System</h3>
-                  <p className="text-sm text-gray-500">Federal Government of Nigeria</p>
+          <div className="py-2">
+            {detailLoading ? (
+              <div className="space-y-4 p-6 border rounded-lg">
+                <Skeleton className="h-8 w-64" />
+                <div className="grid grid-cols-2 gap-4">
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-24 w-full" />
                 </div>
-                <div className="text-right">
-                  <h4 className="text-lg font-semibold">Payslip</h4>
-                  <p className="text-sm">ID: {payslipDetails.id}</p>
-                  <p className="text-sm">Date: {format(new Date(payslipDetails.generatedDate), "PPP")}</p>
-                </div>
+                <Skeleton className="h-40 w-full" />
               </div>
-
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                  <h5 className="font-semibold mb-2">Employee Details</h5>
-                  <p className="text-sm">ID: {payslipDetails.employeeId}</p>
-                  <p className="text-sm">Name: {payslipDetails.employeeName}</p>
-                  <p className="text-sm">Position: {payslipDetails.position}</p>
-                  <p className="text-sm">Department: {payslipDetails.department}</p>
+            ) : (
+              <div ref={payslipPreviewRef} className="border rounded-xl p-6 bg-white">
+                <div className="flex flex-wrap justify-between items-start gap-4 mb-6 border-b pb-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-[#0B4628]">IPPIS Payroll System</h3>
+                    <p className="text-sm text-gray-500">Federal Government of Nigeria</p>
+                  </div>
+                  <div className="text-right">
+                    <h4 className="text-lg font-semibold">Official Payslip</h4>
+                    <p className="text-sm font-mono">Ref: {normalizedDetail.id}</p>
+                    <p className="text-sm text-gray-600">
+                      Date: {formatSafeDate(normalizedDetail.generatedDate)}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h5 className="font-semibold mb-2">Payment Details</h5>
-                  <p className="text-sm">Pay Period: {payslipDetails.payPeriod}</p>
-                  <p className="text-sm">Payment Method: {payslipDetails.paymentMethod}</p>
-                  <p className="text-sm">Bank: {payslipDetails.bankName}</p>
-                  <p className="text-sm">Account: {payslipDetails.accountNumber}</p>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                  <h5 className="font-semibold mb-2">Earnings</h5>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Description</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {payslipDetails.earnings.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{item.type}</TableCell>
-                          <TableCell className="text-right">${item.amount.toFixed(2)}</TableCell>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div className="space-y-1 text-sm">
+                    <h5 className="font-semibold text-slate-900 mb-2">Employee Details</h5>
+                    <p><span className="text-slate-500">IPPIS / ID:</span> {normalizedDetail.employeeId}</p>
+                    {normalizedDetail.legacyId && (
+                      <p><span className="text-slate-500">Legacy ID:</span> {normalizedDetail.legacyId}</p>
+                    )}
+                    <p><span className="text-slate-500">Name:</span> {normalizedDetail.employeeName}</p>
+                    <p><span className="text-slate-500">MDA:</span> {normalizedDetail.mda}</p>
+                    <p><span className="text-slate-500">Department:</span> {normalizedDetail.department}</p>
+                    <p><span className="text-slate-500">Position / Cadre:</span> {normalizedDetail.position}</p>
+                    {normalizedDetail.gradeStep && (
+                      <p><span className="text-slate-500">Grade / Step:</span> {normalizedDetail.gradeStep}</p>
+                    )}
+                    {normalizedDetail.salaryStructure && (
+                      <p><span className="text-slate-500">Structure:</span> {normalizedDetail.salaryStructure}</p>
+                    )}
+                    {(normalizedDetail.location || normalizedDetail.taxState) && (
+                      <p>
+                        <span className="text-slate-500">Location / Tax State:</span>{" "}
+                        {[normalizedDetail.location, normalizedDetail.taxState].filter(Boolean).join(" • ")}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1 text-sm">
+                    <h5 className="font-semibold text-slate-900 mb-2">Payment & Banking Details</h5>
+                    <p><span className="text-slate-500">Pay Period:</span> {normalizedDetail.period}</p>
+                    <p><span className="text-slate-500">Payment Method:</span> {normalizedDetail.paymentMethod}</p>
+                    <p><span className="text-slate-500">Bank:</span> {normalizedDetail.bankName}</p>
+                    <p><span className="text-slate-500">Account Number:</span> {normalizedDetail.accountNumber}</p>
+                    {normalizedDetail.pfa && (
+                      <p><span className="text-slate-500">PFA:</span> {normalizedDetail.pfa}</p>
+                    )}
+                    {normalizedDetail.rsaPin && (
+                      <p><span className="text-slate-500">RSA PIN:</span> {normalizedDetail.rsaPin}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div>
+                    <h5 className="font-semibold mb-2">Earnings</h5>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Description</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
                         </TableRow>
-                      ))}
-                      <TableRow>
-                        <TableCell className="font-semibold">Total Earnings</TableCell>
-                        <TableCell className="text-right font-semibold">
-                          ${payslipDetails.totalEarnings.toFixed(2)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
-                <div>
-                  <h5 className="font-semibold mb-2">Deductions</h5>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Description</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {payslipDetails.deductions.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{item.type}</TableCell>
-                          <TableCell className="text-right">${item.amount.toFixed(2)}</TableCell>
+                      </TableHeader>
+                      <TableBody>
+                        {normalizedDetail.earnings.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={2} className="text-center text-xs text-slate-400">
+                              No itemized earnings returned
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          normalizedDetail.earnings.map((item, index) => (
+                            <TableRow key={index}>
+                              <TableCell>{item.label}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                        <TableRow>
+                          <TableCell className="font-semibold">Gross Earnings</TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {formatCurrency(normalizedDetail.totalEarnings)}
+                          </TableCell>
                         </TableRow>
-                      ))}
-                      <TableRow>
-                        <TableCell className="font-semibold">Total Deductions</TableCell>
-                        <TableCell className="text-right font-semibold">
-                          ${payslipDetails.totalDeductions.toFixed(2)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
+                      </TableBody>
+                    </Table>
+                  </div>
 
-              <div className="border-t pt-4">
-                <div className="flex justify-between items-center">
-                  <h5 className="text-lg font-bold">Net Pay</h5>
-                  <p className="text-lg font-bold">${payslipDetails.netPay.toFixed(2)}</p>
+                  <div>
+                    <h5 className="font-semibold mb-2">Deductions</h5>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Description</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {normalizedDetail.deductions.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={2} className="text-center text-xs text-slate-400">
+                              No itemized deductions returned
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          normalizedDetail.deductions.map((item, index) => (
+                            <TableRow key={index}>
+                              <TableCell>{item.label}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                        <TableRow>
+                          <TableCell className="font-semibold">Total Deductions</TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {formatCurrency(normalizedDetail.totalDeductions)}
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
-              </div>
 
-              <div className="mt-8 grid grid-cols-2 gap-4">
-                <div className="border-t pt-4">
-                  <p className="text-sm">Employee Signature</p>
+                <div className="border-t pt-4 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <h5 className="text-lg font-bold">Net Pay</h5>
+                    <p className="text-lg font-bold text-[#0B4628]">
+                      {formatCurrency(normalizedDetail.netPay)}
+                    </p>
+                  </div>
+                  {(normalizedDetail.ytdPaid !== undefined ||
+                    normalizedDetail.ytdTax !== undefined ||
+                    normalizedDetail.ytdPension !== undefined) && (
+                    <div className="flex flex-wrap gap-4 text-xs text-slate-500 pt-1">
+                      {normalizedDetail.ytdPaid !== undefined && (
+                        <span>YTD Paid: {formatCurrency(normalizedDetail.ytdPaid)}</span>
+                      )}
+                      {normalizedDetail.ytdTax !== undefined && (
+                        <span>YTD Tax: {formatCurrency(normalizedDetail.ytdTax)}</span>
+                      )}
+                      {normalizedDetail.ytdPension !== undefined && (
+                        <span>YTD Pension: {formatCurrency(normalizedDetail.ytdPension)}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="border-t pt-4">
-                  <p className="text-sm">Authorized Signature</p>
-                </div>
-              </div>
 
-              <div className="mt-8 text-center text-xs text-gray-500">
-                <p>This is a computer-generated document and does not require a physical signature.</p>
-                <p>For any queries regarding this payslip, please contact the HR department.</p>
+                <div className="mt-8 text-center text-xs text-gray-500">
+                  <p>This is a computer-generated document and does not require a physical signature.</p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" className="gap-1" onClick={handlePrintPayslip}>
+            <Button variant="outline" className="gap-1" onClick={handlePrintPayslip} disabled={detailLoading}>
               <Printer className="h-4 w-4" />
               Print
             </Button>
-            <Button variant="outline" className="gap-1" onClick={handleDownloadPayslipPdf}>
+            <Button variant="outline" className="gap-1" onClick={handleDownloadPayslipPdf} disabled={detailLoading}>
               <Download className="h-4 w-4" />
               Download PDF
             </Button>
-            <Button variant="outline" className="gap-1">
+            <Button variant="outline" className="gap-1" onClick={handleDownloadPayslipCsv} disabled={detailLoading}>
               <FileText className="h-4 w-4" />
               Download CSV
             </Button>
