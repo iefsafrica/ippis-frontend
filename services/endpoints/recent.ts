@@ -20,6 +20,7 @@ export const getRecentActivities = async (
     try {
       const token = getAuthToken();
       const res = await fetch(`/api/admin/dashboard/recent?type=${encodeURIComponent(type)}`, {
+        cache: "no-store",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),

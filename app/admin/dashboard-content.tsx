@@ -418,20 +418,19 @@ export default function DashboardContent() {
                     idx === 0
                       ? `${totalEmployeesCount > 0 ? activeRatio : 0}% Active`
                       : idx === 1
-                      ? `${activeRatio}%`
-                      : idx === 2
-                      ? `${pendingEmpRatio}%`
-                      : `${verifiedDocRatio}%`;
+                        ? `${activeRatio}%`
+                        : idx === 2
+                          ? `${pendingEmpRatio}%`
+                          : `${verifiedDocRatio}%`;
                   const isWarning = idx === 2 && pendingEmployeesCount > 0;
 
                   return (
                     <div
                       key={stat.label}
-                      className={`relative overflow-hidden rounded-2xl p-5 flex flex-col justify-between transition-all duration-200 ${
-                        isHero
+                      className={`relative overflow-hidden rounded-2xl p-5 flex flex-col justify-between transition-all duration-200 ${isHero
                           ? "bg-[#0B4628] text-white shadow-md shadow-[#0B4628]/15"
                           : "bg-white text-slate-900 border border-slate-200/70 shadow-2xs hover:shadow-sm"
-                      }`}
+                        }`}
                     >
                       {isHero && (
                         <div
@@ -441,22 +440,20 @@ export default function DashboardContent() {
                       )}
                       <div className="flex items-start justify-between gap-3">
                         <div
-                          className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-                            isHero
+                          className={`flex h-10 w-10 items-center justify-center rounded-xl ${isHero
                               ? "bg-white/15 text-white"
                               : "bg-slate-100 text-[#0B4628]"
-                          }`}
+                            }`}
                         >
                           <stat.icon className="h-5 w-5" />
                         </div>
                         <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                            isHero
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${isHero
                               ? "bg-[#22C55E] text-white"
                               : isWarning
-                              ? "bg-rose-500 text-white"
-                              : "bg-[#22C55E] text-white"
-                          }`}
+                                ? "bg-rose-500 text-white"
+                                : "bg-[#22C55E] text-white"
+                            }`}
                         >
                           {badgeValue}
                         </span>
@@ -464,32 +461,28 @@ export default function DashboardContent() {
 
                       <div className="mt-5">
                         <p
-                          className={`text-xs font-medium ${
-                            isHero ? "text-emerald-100/85" : "text-slate-500"
-                          }`}
+                          className={`text-xs font-medium ${isHero ? "text-emerald-100/85" : "text-slate-500"
+                            }`}
                         >
                           {stat.label}
                         </p>
                         <div className="mt-1.5 flex items-baseline justify-between gap-3">
                           {statsLoading ? (
                             <Skeleton
-                              className={`h-8 w-24 ${
-                                isHero ? "bg-white/20" : "bg-slate-200"
-                              }`}
+                              className={`h-8 w-24 ${isHero ? "bg-white/20" : "bg-slate-200"
+                                }`}
                             />
                           ) : (
                             <span
-                              className={`text-3xl font-bold tracking-tight tabular-nums ${
-                                isHero ? "text-white" : "text-slate-900"
-                              }`}
+                              className={`text-3xl font-bold tracking-tight tabular-nums ${isHero ? "text-white" : "text-slate-900"
+                                }`}
                             >
                               {stat.value.toLocaleString()}
                             </span>
                           )}
                           <span
-                            className={`text-[11px] leading-tight text-right max-w-[125px] ${
-                              isHero ? "text-emerald-100/75" : "text-slate-400"
-                            }`}
+                            className={`text-[11px] leading-tight text-right max-w-[125px] ${isHero ? "text-emerald-100/75" : "text-slate-400"
+                              }`}
                           >
                             {stat.description}
                           </span>
@@ -749,7 +742,7 @@ export default function DashboardContent() {
                 </div>
                 <Tabs
                   className="w-full sm:w-auto"
-                  defaultValue={employeeTab}
+                  value={employeeTab}
                   onValueChange={(value) => {
                     if (value === "recent" || value === "pending") {
                       setEmployeeTab(value)
@@ -828,7 +821,7 @@ export default function DashboardContent() {
             </div>
             <Tabs
               className="w-full sm:w-auto"
-              defaultValue={activityTab}
+              value={activityTab}
               onValueChange={(value) => {
                 if (value === "recent" || value === "pending") {
                   setActivityTab(value)
@@ -1035,8 +1028,8 @@ export function RecentEmployeesTable({
                   {employee.position || "Civil Officer"}
                 </TableCell>
                 <TableCell>
-                  <Badge 
-                    variant={getStatusVariant(employee.status)} 
+                  <Badge
+                    variant={getStatusVariant(employee.status)}
                     className="text-xs font-medium capitalize"
                   >
                     {employee.status || "active"}
@@ -1051,7 +1044,7 @@ export function RecentEmployeesTable({
                 <TableCell>
                   <div className="flex items-center space-x-1 text-sm">
                     <Key className="h-3 w-3 text-slate-400 flex-shrink-0" />
-                    <span 
+                    <span
                       className="text-slate-600 font-mono text-xs"
                       title={employee.registration_id || "Not assigned"}
                     >
@@ -1065,5 +1058,12 @@ export function RecentEmployeesTable({
         </Table>
       </div>
     </div>
+  )
+}
+            ))}
+          </TableBody >
+        </Table >
+      </div >
+    </div >
   )
 }
