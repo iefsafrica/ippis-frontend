@@ -1060,10 +1060,3 @@ export function RecentEmployeesTable({
     </div>
   )
 }
-            ))}
-          </TableBody >
-        </Table >
-      </div >
-    </div >
-  )
-}
