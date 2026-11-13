@@ -95,9 +95,9 @@ export function AdminSidebar() {
         prev[section]
           ? prev
           : {
-              ...prev,
-              [section]: true,
-            }
+            ...prev,
+            [section]: true,
+          }
       );
     }
   }, [pathname]);
@@ -710,11 +710,6 @@ export function AdminSidebar() {
       icon: Shield,
     },
     {
-      title: "Temporary Access",
-      href: "/admin/access-requests",
-      icon: KeyRound,
-    },
-    {
       title: "Settings",
       href: "/admin/settings",
       icon: Settings,
@@ -809,8 +804,8 @@ export function AdminSidebar() {
   const visibleNavItems = isApplicant
     ? applicantNavItems
     : isPureEmployee
-    ? employeeNavItems
-    : navItems.filter((item) => {
+      ? employeeNavItems
+      : navItems.filter((item) => {
         if (item.href === "/admin") return true; // Dashboard is always accessible
         if (isSuper) return true; // Super Administrator sees all modules
         return (
@@ -832,7 +827,7 @@ export function AdminSidebar() {
           {visibleNavItems.map((item) => {
             const isActive = item.isDropdown
               ? item.subItems?.some((subItem) => pathname === subItem.href) ||
-                activeSection === item.section
+              activeSection === item.section
               : pathname === item.href;
 
             return (
