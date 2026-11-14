@@ -139,16 +139,27 @@ export function MonthlyAttendancesContent() {
     return Array.from(map.values())
   }, [attendanceRecords, department])
 
+  const [employeeSearch, setEmployeeSearch] = useState("")
+  const filteredAggregatedData = useMemo(() => {
+    const query = employeeSearch.trim().toLowerCase()
+    if (!query) return aggregatedData
+    return aggregatedData.filter(
+      (item) =>
+        (item.employeeName || "").toLowerCase().includes(query) ||
+        (item.employeeCode || "").toLowerCase().includes(query)
+    )
+  }, [aggregatedData, employeeSearch])
+
   const itemsPerPage = 5
-  const totalItems = aggregatedData.length
+  const totalItems = filteredAggregatedData.length
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage))
   const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1
   const endIndex = Math.min(currentPage * itemsPerPage, totalItems)
-  const pagedData = aggregatedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+  const pagedData = filteredAggregatedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [aggregatedData.length])
+  }, [filteredAggregatedData.length])
 
   const handleSearch = () => {
     const { start, end, label } = getMonthRange(Number(month), Number(year))
@@ -250,6 +261,15 @@ export function MonthlyAttendancesContent() {
                 max={2030}
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
+                className="transition-colors duration-150 hover:bg-[#f3fdf4]"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium mb-1">Employee Name</label>
+              <Input
+                value={employeeSearch}
+                onChange={(e) => setEmployeeSearch(e.target.value)}
+                placeholder="Search by employee name or ID..."
                 className="transition-colors duration-150 hover:bg-[#f3fdf4]"
               />
             </div>

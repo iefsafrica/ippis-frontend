@@ -44,6 +44,7 @@ export function UpdateAttendancesContent() {
     attendance_date: formatIsoDate(defaultDate),
   })
   const [attendanceData, setAttendanceData] = useState<EditableAttendanceRow[]>([])
+  const [employeeSearch, setEmployeeSearch] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   const [pendingChanges, setPendingChanges] = useState<PendingChangesMap>({})
   const originalRecordsRef = useRef<Record<number, EditableAttendanceRow>>({})
@@ -78,6 +79,14 @@ export function UpdateAttendancesContent() {
   }, [attendancesQuery.data])
 
   const hasPendingChanges = Object.keys(pendingChanges).length > 0
+  const filteredAttendanceData = attendanceData.filter((item) => {
+    const query = employeeSearch.trim().toLowerCase()
+    if (!query) return true
+    return (
+      (item.name || "").toLowerCase().includes(query) ||
+      (item.employeeId || "").toLowerCase().includes(query)
+    )
+  })
 
   const updateRowField = <K extends keyof EditableAttendanceRow>(id: number, field: K, value: EditableAttendanceRow[K]) => {
     setAttendanceData((prev) =>
@@ -234,6 +243,15 @@ export function UpdateAttendancesContent() {
               <DatePicker value={date} onValueChange={setDate} className="w-full" />
             </div>
             <div className="flex-1">
+              <label className="block text-sm font-medium mb-1">Employee Name</label>
+              <Input
+                value={employeeSearch}
+                onChange={(e) => setEmployeeSearch(e.target.value)}
+                placeholder="Search by employee name or ID..."
+                className="w-full"
+              />
+            </div>
+            <div className="flex-1">
             <label className="block text-sm font-medium mb-1">Department</label>
             <CustomSelect value={department} onValueChange={setDepartment}>
               <CustomSelectTrigger className="w-full">
@@ -311,14 +329,14 @@ export function UpdateAttendancesContent() {
                       ))}
                     </TableRow>
                   ))
-                ) : attendanceData.length === 0 ? (
+                ) : filteredAttendanceData.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                       No records found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  attendanceData.map((item) => (
+                  filteredAttendanceData.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>{item.employeeId}</TableCell>
                       <TableCell>{item.name}</TableCell>

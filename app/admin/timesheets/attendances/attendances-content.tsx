@@ -125,7 +125,8 @@ export function AttendancesContent() {
 
   const searchFields = useMemo(
     () => [
-      { name: "name", label: "Name", type: "text" },
+      { name: "name", label: "Employee Name", type: "text" },
+      { name: "employeeId", label: "Employee ID", type: "text" },
       {
         name: "department",
         label: "Department",

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import { format, subDays } from "date-fns"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Download, Search } from "lucide-react"
@@ -39,11 +40,21 @@ export function DateWiseAttendancesContent() {
   const [startDate, setStartDate] = useState(() => subDays(new Date(), 6))
   const [endDate, setEndDate] = useState(() => new Date())
   const [department, setDepartment] = useState("ALL")
+  const [employeeSearch, setEmployeeSearch] = useState("")
   const [filters, setFilters] = useState<AttendanceFilterParams | undefined>()
   const [rangeLabel, setRangeLabel] = useState("Last 7 days")
   const attendancesQuery = useAttendances(filters)
   const isLoading = attendancesQuery.isFetching
-  const attendanceData = attendancesQuery.data ?? []
+  const rawAttendanceData = attendancesQuery.data ?? []
+  const attendanceData = useMemo(() => {
+    const query = employeeSearch.trim().toLowerCase()
+    if (!query) return rawAttendanceData
+    return rawAttendanceData.filter(
+      (item) =>
+        (item.employee_name || "").toLowerCase().includes(query) ||
+        (item.employee_code || "").toLowerCase().includes(query)
+    )
+  }, [rawAttendanceData, employeeSearch])
 
   const handleSearch = () => {
     if (!startDate || !endDate) {
@@ -141,6 +152,18 @@ export function DateWiseAttendancesContent() {
                 onValueChange={(value) => value && setEndDate(value)}
                 className="w-full"
               />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium mb-1">Employee Name</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  value={employeeSearch}
+                  onChange={(e) => setEmployeeSearch(e.target.value)}
+                  placeholder="Search by employee name or ID..."
+                  className="pl-9"
+                />
+              </div>
             </div>
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">Department</label>
