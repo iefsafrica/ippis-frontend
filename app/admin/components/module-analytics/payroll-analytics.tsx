@@ -14,6 +14,7 @@ import {
   Clock,
   ArrowUpRight,
   ShieldCheck,
+  Upload,
 } from "lucide-react"
 import {
   ResponsiveContainer,
@@ -39,6 +40,7 @@ import {
   QuickNavGrid,
   KpiItem,
 } from "./analytics-ui"
+import { DeductionsCsvUploadDialog } from "@/app/admin/payroll/components/deductions-csv-upload-dialog"
 
 const monthlyTrendData = [
   { month: "May", gross: 4.12, net: 3.52, deductions: 0.60 },
@@ -101,6 +103,7 @@ const recentPayrollBatches = [
 
 export function PayrollAnalytics() {
   const [mounted, setMounted] = useState(false)
+  const [showDeductionsUpload, setShowDeductionsUpload] = useState(false)
   useEffect(() => setMounted(true), [])
 
   const kpis: KpiItem[] = [
@@ -168,11 +171,22 @@ export function PayrollAnalytics() {
 
   return (
     <div className="space-y-6">
-      <AnalyticsHeader
-        moduleName="Payroll & Compensation"
-        description="Monitor federal payroll disbursements, statutory deductions, bank verifications, and salary trends across ministries."
-        badgeText="Payroll Intelligence"
-      />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex-1">
+          <AnalyticsHeader
+            moduleName="Payroll & Compensation"
+            description="Monitor federal payroll disbursements, statutory deductions, bank verifications, and salary trends across ministries."
+            badgeText="Payroll Intelligence"
+          />
+        </div>
+        <Button
+          onClick={() => setShowDeductionsUpload(true)}
+          className="rounded-full bg-[#0B4628] hover:bg-[#08351E] text-white shadow-sm shrink-0"
+        >
+          <Upload className="mr-2 h-4 w-4" />
+          Upload Deductions CSV
+        </Button>
+      </div>
 
       <AnalyticsKpiGrid items={kpis} />
 
@@ -313,6 +327,11 @@ export function PayrollAnalytics() {
 
       {/* Quick Navigation Links */}
       <QuickNavGrid links={quickLinks} title="Payroll Operations & Sub-Modules" />
+
+      <DeductionsCsvUploadDialog
+        open={showDeductionsUpload}
+        onOpenChange={setShowDeductionsUpload}
+      />
     </div>
   )
 }

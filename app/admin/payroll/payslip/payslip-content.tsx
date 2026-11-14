@@ -10,6 +10,7 @@ import {
   Loader2,
   Printer,
   RefreshCw,
+  Upload,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,6 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { MdaSelect } from "@/components/mda-select"
 import { cn } from "@/lib/utils"
 import { downloadPayslipPdf } from "../payroll-payslip/payslip-pdf"
+import { DeductionsCsvUploadDialog } from "../components/deductions-csv-upload-dialog"
 import { useGetDepartments } from "@/services/hooks/organizations/department/useDepartment"
 import { useEmployeesList } from "@/services/hooks/employees/useEmployees"
 import {
@@ -104,6 +106,7 @@ export function PayslipContent() {
   const [showPayslipPreview, setShowPayslipPreview] = useState(false)
   const [selectedPayslipId, setSelectedPayslipId] = useState<string | null>(null)
   const [showGenerateConfirmation, setShowGenerateConfirmation] = useState(false)
+  const [showDeductionsUpload, setShowDeductionsUpload] = useState(false)
   const [dryRunResult, setDryRunResult] = useState<any>(null)
   const payslipPreviewRef = useRef<HTMLDivElement>(null)
 
@@ -411,16 +414,27 @@ export function PayslipContent() {
           <h2 className="text-2xl font-bold tracking-tight">Payslip Management</h2>
           <p className="text-muted-foreground">Generate and manage employee payslips</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetchPayslips()}
-          disabled={payslipsLoading}
-          className="rounded-full bg-white"
-        >
-          <RefreshCw className={cn("mr-2 h-3.5 w-3.5", payslipsLoading && "animate-spin")} />
-          Refresh History
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowDeductionsUpload(true)}
+            className="rounded-full bg-white"
+          >
+            <Upload className="mr-2 h-3.5 w-3.5" />
+            Upload Deductions CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetchPayslips()}
+            disabled={payslipsLoading}
+            className="rounded-full bg-white"
+          >
+            <RefreshCw className={cn("mr-2 h-3.5 w-3.5", payslipsLoading && "animate-spin")} />
+            Refresh History
+          </Button>
+        </div>
       </div>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
@@ -834,6 +848,12 @@ export function PayslipContent() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <DeductionsCsvUploadDialog
+        open={showDeductionsUpload}
+        onOpenChange={setShowDeductionsUpload}
+        onSuccess={() => refetchPayslips()}
+      />
     </div>
   )
 }
