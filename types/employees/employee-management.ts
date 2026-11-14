@@ -238,3 +238,100 @@ export interface EmployeeRegistrationResponse {
   message: string;
   data?: Record<string, unknown>;
 }
+
+export interface UpdateEmployeePayload {
+  firstname?: string;
+  surname?: string;
+  middlename?: string;
+  name?: string;
+  email?: string;
+  department?: string;
+  position?: string;
+  status?: string;
+  telephoneno?: string;
+  gender?: string;
+  birthdate?: string;
+  date_of_birth?: string;
+  residence_address?: string;
+  state_of_origin?: string;
+  mda?: string;
+  grade_level?: string;
+  step?: string;
+  cadre?: string;
+  bank_name?: string;
+  account_number?: string;
+  reason?: string;
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface UpdateEmployeeResponse {
+  success: boolean;
+  message?: string;
+  data: Employee;
+}
+
+export interface EmployeeHistoryChange {
+  field: string;
+  label?: string;
+  old_value?: unknown;
+  new_value?: unknown;
+  oldValue?: unknown;
+  newValue?: unknown;
+}
+
+export interface EmployeeHistoryActor {
+  id?: string;
+  name?: string;
+  email?: string;
+  role?: string;
+}
+
+export interface EmployeeHistoryEntry {
+  id: string;
+  employee_id?: string;
+  action?: string;
+  changed_by?: EmployeeHistoryActor | string | null;
+  updated_by?: EmployeeHistoryActor | string | null;
+  actor?: EmployeeHistoryActor | string | null;
+  actor_name?: string;
+  reason?: string | null;
+  changes?:
+    | EmployeeHistoryChange[]
+    | Record<
+        string,
+        {
+          old?: unknown;
+          new?: unknown;
+          old_value?: unknown;
+          new_value?: unknown;
+          label?: string;
+        }
+      >;
+  created_at?: string;
+  updated_at?: string;
+  timestamp?: string;
+}
+
+export interface EmployeeHistoryData {
+  history: EmployeeHistoryEntry[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface EmployeeHistoryResponse {
+  success: boolean;
+  data:
+    | EmployeeHistoryData
+    | {
+        items?: EmployeeHistoryEntry[];
+        logs?: EmployeeHistoryEntry[];
+        history?: EmployeeHistoryEntry[];
+        pagination?: EmployeeHistoryData["pagination"];
+      }
+    | EmployeeHistoryEntry[];
+}

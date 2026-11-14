@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useRef } from "react"
+import { useMemo, useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation";
 import type { AxiosError } from "axios";
 import { Button } from "@/components/ui/button"
@@ -43,7 +43,10 @@ import {
   X,
   XCircle,
   RefreshCw,
+  History,
+  Lock,
 } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Pagination } from "../components/pagination"
 import { toast } from "sonner"
 import {
@@ -60,9 +63,10 @@ import { AdvancedSearch } from "../components/advanced-search"
 import ExportService from "../services/export-service"
 import { EnhancedDataTable } from "@/app/admin/components/enhanced-data-table"
 import { Employee } from "@/types/employees/employee-management"
-import { useEmployeesList, useAddEmployee } from "@/services/hooks/employees/useEmployees"
+import { useEmployeesList, useAddEmployee, useEmployeeById, useUpdateEmployee } from "@/services/hooks/employees/useEmployees"
 import { AddEmployeePayload } from "@/types/employees/employee-management"
 import { buttonHoverEnhancements } from "./button-hover"
+import { EmployeeHistoryTimeline } from "./employee-history-timeline"
 import { downloadEmployeeDetailsPdf } from "./employee-details-pdf"
 import { nigerianStates, getLgasByState } from "@/app/register/nigeria-data"
 import {
@@ -135,6 +139,86 @@ export default function EmployeesContent() {
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [viewDialogTab, setViewDialogTab] = useState<"details" | "history">("details");
+  const [editDialogTab, setEditDialogTab] = useState<"edit" | "history">("edit");
+  const [editForm, setEditForm] = useState({
+    firstname: "",
+    surname: "",
+    middlename: "",
+    email: "",
+    department: "",
+    position: "",
+    status: "active",
+    birthdate: "",
+    telephoneno: "",
+    gender: "",
+    residence_address: "",
+    bank_name: "",
+    account_number: "",
+    reason: "",
+  });
+
+  const { data: employeeDetailData } = useEmployeeById(
+    selectedEmployee?.id,
+    Boolean(selectedEmployee?.id) && (showViewDialog || showEditDialog)
+  );
+  const updateEmployeeMutation = useUpdateEmployee();
+
+  const activeDetailEmployee = employeeDetailData ?? selectedEmployee;
+  const isActiveEmployeeForDob =
+    (activeDetailEmployee?.status || "").toLowerCase() === "active";
+
+  useEffect(() => {
+    if (!showEditDialog || !activeDetailEmployee) return;
+    const meta = activeDetailEmployee.metadata || {};
+    const nameParts = (activeDetailEmployee.name || "").trim().split(/\s+/);
+    const fallbackFirst = nameParts[0] || "";
+    const fallbackSurname = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+
+    const rawBirthdate =
+      activeDetailEmployee.birthdate ||
+      (meta["Date of Birth"] as string) ||
+      (meta.birthdate as string) ||
+      "";
+    const normalizedBirthdate =
+      rawBirthdate && /^\d{4}-\d{2}-\d{2}/.test(rawBirthdate)
+        ? rawBirthdate.slice(0, 10)
+        : rawBirthdate && !Number.isNaN(new Date(rawBirthdate).getTime())
+          ? new Date(rawBirthdate).toISOString().slice(0, 10)
+          : "";
+
+    setEditForm({
+      firstname:
+        activeDetailEmployee.firstname ||
+        activeDetailEmployee.first_name ||
+        activeDetailEmployee.firstName ||
+        (meta.FirstName as string) ||
+        fallbackFirst,
+      surname:
+        activeDetailEmployee.surname ||
+        activeDetailEmployee.last_name ||
+        activeDetailEmployee.lastName ||
+        (meta.Surname as string) ||
+        fallbackSurname,
+      middlename:
+        activeDetailEmployee.middlename || (meta.MiddleName as string) || "",
+      email: activeDetailEmployee.email || "",
+      department: activeDetailEmployee.department || "",
+      position: activeDetailEmployee.position || "",
+      status: activeDetailEmployee.status || "active",
+      birthdate: normalizedBirthdate,
+      telephoneno:
+        activeDetailEmployee.telephoneno || (meta["Phone Number"] as string) || "",
+      gender: activeDetailEmployee.gender || (meta.Gender as string) || "",
+      residence_address:
+        activeDetailEmployee.residence_address ||
+        (meta["Residential Address"] as string) ||
+        "",
+      bank_name: (meta["Bank Name"] as string) || "",
+      account_number: (meta["Account Number"] as string) || "",
+      reason: "",
+    });
+  }, [showEditDialog, activeDetailEmployee]);
 
   const [newEmployee, setNewEmployee] = useState<AddEmployeePayload>({
     firstname: "",
@@ -688,13 +772,69 @@ export default function EmployeesContent() {
   // Handle view employee details
   const handleView = (employee: Employee) => {
     setSelectedEmployee(employee);
+    setViewDialogTab("details");
     setShowViewDialog(true);
   };
 
-  // Handle edit employee - just opens the modal
+  // Handle edit employee - opens the modal
   const handleEdit = (employee: Employee) => {
     setSelectedEmployee(employee);
+    setEditDialogTab("edit");
     setShowEditDialog(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedEmployee) return;
+
+    const fullName = [editForm.firstname, editForm.middlename, editForm.surname]
+      .filter((part) => part && part.trim())
+      .join(" ")
+      .trim();
+
+    const payload: Record<string, unknown> = {
+      firstname: editForm.firstname.trim(),
+      surname: editForm.surname.trim(),
+      middlename: editForm.middlename.trim() || undefined,
+      name: fullName || selectedEmployee.name,
+      email: editForm.email.trim(),
+      department: editForm.department,
+      position: editForm.position.trim(),
+      status: editForm.status,
+      telephoneno: editForm.telephoneno.trim() || undefined,
+      gender: editForm.gender || undefined,
+      residence_address: editForm.residence_address.trim() || undefined,
+      bank_name: editForm.bank_name.trim() || undefined,
+      account_number: editForm.account_number.trim() || undefined,
+      reason: editForm.reason.trim() || undefined,
+    };
+
+    // Only allow updating Date of Birth if the employee is NOT active
+    if (!isActiveEmployeeForDob && editForm.birthdate) {
+      payload.birthdate = editForm.birthdate;
+    }
+
+    try {
+      const response = await updateEmployeeMutation.mutateAsync({
+        id: selectedEmployee.id,
+        payload,
+      });
+
+      if (response?.data) {
+        setSelectedEmployee(response.data);
+      }
+
+      toast.success("Employee Updated", {
+        description: `${fullName || selectedEmployee.name} has been updated and logged in history.`,
+      });
+      setShowEditDialog(false);
+    } catch (error) {
+      const axiosErr = error as AxiosError<{ message?: string; error?: string }>;
+      const message =
+        axiosErr?.response?.data?.message ||
+        axiosErr?.response?.data?.error ||
+        (error instanceof Error ? error.message : "Failed to update employee record.");
+      toast.error("Update Failed", { description: message });
+    }
   };
 
   // Handle delete employee
@@ -2066,7 +2206,20 @@ export default function EmployeesContent() {
 
           {selectedEmployee && (
             <div className="px-8 py-6 max-h-[70vh] overflow-y-auto">
-              <div className="space-y-8">
+              <Tabs
+                value={viewDialogTab}
+                onValueChange={(v) => setViewDialogTab(v as "details" | "history")}
+                className="space-y-4"
+              >
+                <TabsList className="grid w-full grid-cols-2 max-w-xs">
+                  <TabsTrigger value="details">Profile Details</TabsTrigger>
+                  <TabsTrigger value="history" className="gap-1.5">
+                    <History className="h-3.5 w-3.5" />
+                    Update History
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="details" className="space-y-8 mt-0">
                 <div className="space-y-4">
                   <h3 className="text-sm font-medium text-gray-900 uppercase tracking-wide">Employee Information</h3>
 
@@ -2214,7 +2367,15 @@ export default function EmployeesContent() {
                     </div>
                   </div>
                 </div>
-              </div>
+                </TabsContent>
+
+                <TabsContent value="history" className="mt-0">
+                  <EmployeeHistoryTimeline
+                    employeeId={selectedEmployee.id}
+                    enabled={showViewDialog && viewDialogTab === "history"}
+                  />
+                </TabsContent>
+              </Tabs>
             </div>
           )}
           <DialogFooter className="px-8 py-5 border-t border-gray-200 bg-gray-50">
@@ -2227,6 +2388,19 @@ export default function EmployeesContent() {
                 >
                   Close
                 </Button>
+                {selectedEmployee && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowViewDialog(false);
+                      handleEdit(selectedEmployee);
+                    }}
+                    className={`${buttonHoverEnhancements} border-emerald-600 text-emerald-700 hover:bg-emerald-50`}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Record
+                  </Button>
+                )}
               </div>
               <div className="flex items-center space-x-3">
                 <Button
@@ -2250,9 +2424,9 @@ export default function EmployeesContent() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Employee Dialog - UI Only */}
+      {/* Edit Employee Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#008751]/10 text-[#008751]">
@@ -2263,185 +2437,288 @@ export default function EmployeesContent() {
                   Update Personnel Record
                 </DialogTitle>
                 <DialogDescription className="text-slate-500 mt-0.5">
-                  Modify civil service record details for <span className="font-semibold text-slate-700">{selectedEmployee?.name}</span>
+                  Modify civil service record details for{" "}
+                  <span className="font-semibold text-slate-700">
+                    {activeDetailEmployee?.name || selectedEmployee?.name}
+                  </span>
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
           {selectedEmployee && (
-            <div className="grid gap-4 py-2">
-              <div className="rounded-xl border border-slate-200/80 bg-slate-50/40 p-4 space-y-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-[#008751] flex items-center gap-2">
-                  <User className="h-4 w-4" /> Core Bio-Data & Role
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-firstname">
-                      First Name *
-                    </Label>
-                    <Input
-                      id="edit-firstname"
-                      defaultValue={selectedEmployee.metadata?.FirstName || ""}
-                      placeholder="Enter first name"
-                    />
+            <Tabs
+              value={editDialogTab}
+              onValueChange={(v) => setEditDialogTab(v as "edit" | "history")}
+              className="space-y-4"
+            >
+              <TabsList className="grid w-full grid-cols-2 max-w-xs">
+                <TabsTrigger value="edit">Edit Record</TabsTrigger>
+                <TabsTrigger value="history" className="gap-1.5">
+                  <History className="h-3.5 w-3.5" />
+                  Update History
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="edit" className="mt-0 space-y-4">
+                <div className="grid gap-4 py-1">
+                  <div className="rounded-xl border border-slate-200/80 bg-slate-50/40 p-4 space-y-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#008751] flex items-center gap-2">
+                      <User className="h-4 w-4" /> Core Bio-Data & Role
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-firstname">First Name *</Label>
+                        <Input
+                          id="edit-firstname"
+                          value={editForm.firstname}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({ ...prev, firstname: e.target.value }))
+                          }
+                          placeholder="Enter first name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-middlename">Middle Name</Label>
+                        <Input
+                          id="edit-middlename"
+                          value={editForm.middlename}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({ ...prev, middlename: e.target.value }))
+                          }
+                          placeholder="Enter middle name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-surname">Surname *</Label>
+                        <Input
+                          id="edit-surname"
+                          value={editForm.surname}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({ ...prev, surname: e.target.value }))
+                          }
+                          placeholder="Enter surname"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-email">Official Email *</Label>
+                        <Input
+                          id="edit-email"
+                          type="email"
+                          value={editForm.email}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({ ...prev, email: e.target.value }))
+                          }
+                          placeholder="Enter email address"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <Label htmlFor="edit-birthdate">Date of Birth</Label>
+                          {isActiveEmployeeForDob && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200">
+                              <Lock className="h-3 w-3" /> Locked (Active)
+                            </span>
+                          )}
+                        </div>
+                        <Input
+                          id="edit-birthdate"
+                          type="date"
+                          value={editForm.birthdate}
+                          disabled={isActiveEmployeeForDob}
+                          onChange={(e) => {
+                            if (isActiveEmployeeForDob) return;
+                            setEditForm((prev) => ({ ...prev, birthdate: e.target.value }));
+                          }}
+                          className={
+                            isActiveEmployeeForDob
+                              ? "bg-slate-100 text-slate-500 cursor-not-allowed"
+                              : ""
+                          }
+                        />
+                        {isActiveEmployeeForDob && (
+                          <p className="text-[11px] text-amber-700">
+                            Date of birth cannot be modified for an active employee.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-department">Department *</Label>
+                        <Input
+                          id="edit-department"
+                          value={editForm.department}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({ ...prev, department: e.target.value }))
+                          }
+                          placeholder="Enter department"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-position">Position / Rank *</Label>
+                        <Input
+                          id="edit-position"
+                          value={editForm.position}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({ ...prev, position: e.target.value }))
+                          }
+                          placeholder="Enter position"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-status">Verification Status *</Label>
+                      <Select
+                        value={editForm.status}
+                        onValueChange={(value) =>
+                          setEditForm((prev) => ({ ...prev, status: value }))
+                        }
+                      >
+                        <SelectTrigger className={buttonHoverEnhancements}>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="inactive">Inactive</SelectItem>
+                          <SelectItem value="pending">Pending</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-surname">
-                      Surname *
-                    </Label>
-                    <Input
-                      id="edit-surname"
-                      defaultValue={selectedEmployee.metadata?.Surname || ""}
-                      placeholder="Enter surname"
-                    />
+
+                  {/* Additional Metadata Fields */}
+                  <div className="rounded-xl border border-slate-200/80 bg-slate-50/40 p-4 space-y-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#008751] flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" /> Contact & Banking Information
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-phone">Phone Number</Label>
+                        <Input
+                          id="edit-phone"
+                          value={editForm.telephoneno}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({ ...prev, telephoneno: e.target.value }))
+                          }
+                          placeholder="Enter phone number"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-gender">Gender</Label>
+                        <Select
+                          value={editForm.gender}
+                          onValueChange={(value) =>
+                            setEditForm((prev) => ({ ...prev, gender: value }))
+                          }
+                        >
+                          <SelectTrigger className={buttonHoverEnhancements}>
+                            <SelectValue placeholder="Select gender" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Male">Male</SelectItem>
+                            <SelectItem value="Female">Female</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-address">Residential Address</Label>
+                      <Input
+                        id="edit-address"
+                        value={editForm.residence_address}
+                        onChange={(e) =>
+                          setEditForm((prev) => ({ ...prev, residence_address: e.target.value }))
+                        }
+                        placeholder="Enter residential address"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-bank">Bank Name</Label>
+                        <Input
+                          id="edit-bank"
+                          value={editForm.bank_name}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({ ...prev, bank_name: e.target.value }))
+                          }
+                          placeholder="Enter bank name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-account">Account Number</Label>
+                        <Input
+                          id="edit-account"
+                          value={editForm.account_number}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({ ...prev, account_number: e.target.value }))
+                          }
+                          placeholder="Enter account number"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-reason">Reason for Update (Audit Note)</Label>
+                      <Textarea
+                        id="edit-reason"
+                        rows={2}
+                        value={editForm.reason}
+                        onChange={(e) =>
+                          setEditForm((prev) => ({ ...prev, reason: e.target.value }))
+                        }
+                        placeholder="Optional note explaining why this record is being updated..."
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-email">
-                    Official Email *
-                  </Label>
-                  <Input
-                    id="edit-email"
-                    type="email"
-                    defaultValue={selectedEmployee.email}
-                    placeholder="Enter email address"
-                  />
-                </div>
+                <DialogFooter className="pt-4 border-t border-slate-100">
+                  <div className="flex gap-2.5 w-full justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowEditDialog(false)}
+                      disabled={updateEmployeeMutation.isPending}
+                      className="border-slate-200 text-slate-700 hover:bg-slate-50"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleSaveEdit}
+                      disabled={updateEmployeeMutation.isPending}
+                      className="bg-[#008751] hover:bg-[#007647] text-white font-semibold shadow-xs"
+                    >
+                      {updateEmployeeMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save Changes"
+                      )}
+                    </Button>
+                  </div>
+                </DialogFooter>
+              </TabsContent>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-department">
-                      Department *
-                    </Label>
-                    <Select defaultValue={selectedEmployee.department}>
-                      <SelectTrigger className={buttonHoverEnhancements}>
-                        <SelectValue placeholder="Select department" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Finance">Finance</SelectItem>
-                        <SelectItem value="HR">HR</SelectItem>
-                        <SelectItem value="IT">IT</SelectItem>
-                        <SelectItem value="Operations">Operations</SelectItem>
-                        <SelectItem value="Legal">Legal</SelectItem>
-                        <SelectItem value="Marketing">Marketing</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-position">
-                      Position / Rank *
-                    </Label>
-                    <Input
-                      id="edit-position"
-                      defaultValue={selectedEmployee.position}
-                      placeholder="Enter position"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="edit-status">
-                    Verification Status *
-                  </Label>
-                  <Select defaultValue={selectedEmployee.status}>
-                    <SelectTrigger className={buttonHoverEnhancements}>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Additional Metadata Fields */}
-              <div className="rounded-xl border border-slate-200/80 bg-slate-50/40 p-4 space-y-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-[#008751] flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" /> Contact & Banking Information
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-phone">
-                      Phone Number
-                    </Label>
-                    <Input
-                      id="edit-phone"
-                      defaultValue={selectedEmployee.metadata?.["Phone Number"] || ""}
-                      placeholder="Enter phone number"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-gender">
-                      Gender
-                    </Label>
-                    <Select defaultValue={selectedEmployee.metadata?.Gender || ""}>
-                      <SelectTrigger className={buttonHoverEnhancements}>
-                        <SelectValue placeholder="Select gender" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Male">Male</SelectItem>
-                        <SelectItem value="Female">Female</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="edit-address">
-                    Residential Address
-                  </Label>
-                  <Input
-                    id="edit-address"
-                    defaultValue={selectedEmployee.metadata?.["Residential Address"] || ""}
-                    placeholder="Enter residential address"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-bank">
-                      Bank Name
-                    </Label>
-                    <Input
-                      id="edit-bank"
-                      defaultValue={selectedEmployee.metadata?.["Bank Name"] || ""}
-                      placeholder="Enter bank name"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-account">
-                      Account Number
-                    </Label>
-                    <Input
-                      id="edit-account"
-                      defaultValue={selectedEmployee.metadata?.["Account Number"] || ""}
-                      placeholder="Enter account number"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+              <TabsContent value="history" className="mt-0">
+                <EmployeeHistoryTimeline
+                  employeeId={selectedEmployee.id}
+                  enabled={showEditDialog && editDialogTab === "history"}
+                />
+              </TabsContent>
+            </Tabs>
           )}
-          <DialogFooter className="pt-4 border-t border-slate-100">
-            <div className="flex gap-2.5 w-full justify-end">
-              <Button
-                variant="outline"
-                onClick={() => setShowEditDialog(false)}
-                className="border-slate-200 text-slate-700 hover:bg-slate-50"
-              >
-                Cancel
-              </Button>
-              <Button
-                className="bg-[#008751] hover:bg-[#007647] text-white font-semibold shadow-xs"
-              >
-                Save Changes
-              </Button>
-            </div>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
