@@ -14,9 +14,19 @@ async function proxyRequest(request: Request, method: string) {
 
   const headers = new Headers();
   const authorization = request.headers.get("authorization");
+  const cookie = request.headers.get("cookie");
   const contentType = request.headers.get("content-type");
 
-  if (authorization) headers.set("authorization", authorization);
+  if (authorization) {
+    headers.set("authorization", authorization);
+  } else if (cookie) {
+    const match = cookie.match(/(?:^|;\s*)(?:token|ippis_token)=([^;]+)/);
+    if (match && match[1]) {
+      headers.set("authorization", `Bearer ${decodeURIComponent(match[1])}`);
+    }
+  }
+
+  if (cookie) headers.set("cookie", cookie);
   if (contentType) headers.set("content-type", contentType);
   headers.set("accept", "application/json");
 
