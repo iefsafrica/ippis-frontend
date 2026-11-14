@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, User, FileText, Building, Hash, Briefcase, Clock, X, CheckCircle, XCircle, LogOut } from "lucide-react"
+import { Calendar, User, FileText, Building, Hash, Briefcase, Clock, X, CheckCircle, XCircle, LogOut, Mail } from "lucide-react"
 import type { Termination } from "@/types/hr-core/terminations"
 import { format } from "date-fns"
 
@@ -21,6 +21,7 @@ interface ViewTerminationDialogProps {
   termination: Termination
   onEdit: () => void
   onDelete: () => void
+  onSendEmail?: () => void
 }
 
 export function ViewTerminationDialog({ 
@@ -28,7 +29,8 @@ export function ViewTerminationDialog({
   onClose, 
   termination, 
   onEdit,
-  onDelete
+  onDelete,
+  onSendEmail
 }: ViewTerminationDialogProps) {
   const [showFullReason, setShowFullReason] = useState(false)
 
@@ -317,7 +319,18 @@ export function ViewTerminationDialog({
               </Button>
             </div>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-3">
+              {onSendEmail && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onSendEmail}
+                  className="border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Send Official Email
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="destructive"

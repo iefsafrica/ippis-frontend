@@ -21,6 +21,7 @@ import { StatusChangeDialog } from "../components/status-change-dialog"
 import { AddTerminationDialog } from "./AddTerminationDialog"
 import { EditTerminationDialog } from "./EditTerminationDialog"
 import { ViewTerminationDialog } from "./ViewTerminationDialog"
+import { SendTerminationEmailDialog } from "./SendTerminationEmailDialog"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import {
   Tooltip,
@@ -28,7 +29,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Loader2, User, Building, Calendar, FileText, Hash, Eye, Edit, Trash2, XCircle, RefreshCw, AlertCircle } from "lucide-react"
+import { Loader2, User, Building, Calendar, FileText, Hash, Eye, Edit, Trash2, XCircle, RefreshCw, AlertCircle, Mail } from "lucide-react"
 import { format } from "date-fns"
 
 const terminationSearchFields = [
@@ -98,6 +99,7 @@ export function TerminationsContent() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
+  const [isSendEmailDialogOpen, setIsSendEmailDialogOpen] = useState(false)
   const [currentTermination, setCurrentTermination] = useState<Termination | null>(null)
   const [statusValue, setStatusValue] = useState("active")
   
@@ -156,6 +158,16 @@ export function TerminationsContent() {
       setCurrentTermination(termination)
       setStatusValue(termination.status || "active")
       setIsStatusDialogOpen(true)
+    } else {
+      toast.error("Termination not found")
+    }
+  }
+
+  const handleOpenSendEmailDialog = (id: number) => {
+    const termination = terminations.find((t: Termination) => t.id === id)
+    if (termination) {
+      setCurrentTermination(termination)
+      setIsSendEmailDialogOpen(true)
     } else {
       toast.error("Termination not found")
     }
@@ -510,6 +522,15 @@ export function TerminationsContent() {
           <Button
             variant="outline"
             size="icon"
+            onClick={() => handleOpenSendEmailDialog(row.id)}
+            title="Send Official Termination Email"
+            className="text-emerald-700 hover:text-emerald-900"
+          >
+            <Mail className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
             onClick={() => handleOpenStatusDialog(row.id)}
             title="Change Status"
             className="text-amber-600 hover:text-amber-800"
@@ -822,8 +843,21 @@ export function TerminationsContent() {
             setIsViewDialogOpen(false)
             setIsDeleteDialogOpen(true)
           }}
+          onSendEmail={() => {
+            setIsViewDialogOpen(false)
+            setIsSendEmailDialogOpen(true)
+          }}
         />
       )}
+
+      <SendTerminationEmailDialog
+        isOpen={isSendEmailDialogOpen}
+        onClose={() => {
+          setIsSendEmailDialogOpen(false)
+          setCurrentTermination(null)
+        }}
+        termination={currentTermination}
+      />
 
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmationDialog

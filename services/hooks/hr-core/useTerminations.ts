@@ -5,8 +5,10 @@ import {
   getTerminationsByEmployee,
   createTermination,
   updateTermination,
-  deleteTermination
+  deleteTermination,
+  sendTerminationEmail
 } from "@/services/endpoints/hr-core/terminations";
+import { QUERY_KEYS as EMPLOYEE_QUERY_KEYS } from "@/services/constants/employees";
 import {
   CREATE_TERMINATION,
   GET_TERMINATIONS,
@@ -20,7 +22,9 @@ import {
   CreateTerminationResponse,
   UpdateTerminationRequest,
   UpdateTerminationResponse,
-  DeleteTerminationResponse
+  DeleteTerminationResponse,
+  SendTerminationEmailRequest,
+  SendTerminationEmailResponse
 } from "@/types/hr-core/terminations";
 
 export const useGetTerminations = () => {
@@ -57,6 +61,7 @@ export const useCreateTermination = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [GET_TERMINATIONS] });
       queryClient.invalidateQueries({ queryKey: [GET_TERMINATIONS_BY_EMPLOYEE] });
+      queryClient.invalidateQueries({ queryKey: [EMPLOYEE_QUERY_KEYS.EMPLOYEES_LIST] });
     },
   });
 };
@@ -84,6 +89,13 @@ export const useDeleteTermination = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [GET_TERMINATIONS] });
       queryClient.invalidateQueries({ queryKey: [GET_TERMINATIONS_BY_EMPLOYEE] });
+      queryClient.invalidateQueries({ queryKey: [EMPLOYEE_QUERY_KEYS.EMPLOYEES_LIST] });
     },
+  });
+};
+
+export const useSendTerminationEmail = () => {
+  return useMutation<SendTerminationEmailResponse, Error, SendTerminationEmailRequest>({
+    mutationFn: sendTerminationEmail,
   });
 };

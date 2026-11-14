@@ -2587,8 +2587,16 @@ export default function EmployeesContent() {
                           <SelectItem value="active">Active</SelectItem>
                           <SelectItem value="inactive">Inactive</SelectItem>
                           <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="suspended">Suspended</SelectItem>
+                          <SelectItem value="terminated">Terminated</SelectItem>
                         </SelectContent>
                       </Select>
+                      {editForm.status?.toLowerCase() === "terminated" &&
+                        (activeDetailEmployee?.status || "").toLowerCase() !== "terminated" && (
+                          <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5">
+                            Saving this status change to Terminated will automatically dispatch an official IPPIS termination notification email to the employee.
+                          </p>
+                        )}
                     </div>
                   </div>
 

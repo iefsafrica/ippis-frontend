@@ -60,3 +60,24 @@ export interface DeleteTerminationResponse {
   success: boolean;
   message: string;
 }
+
+export interface SendTerminationEmailRequest {
+  employee_id: string;
+  termination_type: string;
+  termination_date: string;
+  termination_reason: string;
+  notice_period?: string;
+  custom_recipient_email?: string;
+}
+
+export interface SendTerminationEmailResponse {
+  success: boolean;
+  message: string;
+  data?: {
+    employeeId: string;
+    recipient: string;
+    terminationType: string;
+    terminationDate: string;
+    messageId?: string;
+  };
+}

@@ -7,6 +7,8 @@ import {
   UpdateTerminationRequest,
   UpdateTerminationResponse,
   DeleteTerminationResponse,
+  SendTerminationEmailRequest,
+  SendTerminationEmailResponse,
   Termination
 } from "@/types/hr-core/terminations";
 
@@ -40,5 +42,15 @@ export const updateTermination = async (id: number, payload: UpdateTerminationRe
 
 export const deleteTermination = async (id: number): Promise<DeleteTerminationResponse> => {
   const response = await del<DeleteTerminationResponse>(`/admin/hr/terminations?id=${id}`);
+  return response;
+};
+
+export const sendTerminationEmail = async (
+  payload: SendTerminationEmailRequest
+): Promise<SendTerminationEmailResponse> => {
+  const response = await post<SendTerminationEmailResponse>(
+    "/admin/hr/terminations/send-email",
+    payload
+  );
   return response;
 };
