@@ -677,7 +677,18 @@ export function PayslipContent() {
                 <Skeleton className="h-40 w-full" />
               </div>
             ) : (
-              <div ref={payslipPreviewRef} className="border rounded-xl p-6 bg-white">
+              <div ref={payslipPreviewRef} className="relative overflow-hidden border rounded-xl p-6 bg-white">
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none select-none absolute inset-0 flex items-center justify-center z-0"
+                >
+                  <img
+                    src="/images/coat-of-arms.png"
+                    alt=""
+                    className="w-[340px] max-w-[70%] object-contain opacity-[0.08]"
+                  />
+                </div>
+                <div className="relative z-10">
                 <div className="flex flex-wrap justify-between items-start gap-4 mb-6 border-b pb-4">
                   <div>
                     <h3 className="text-xl font-bold text-[#0B4628]">IPPIS Payroll System</h3>
@@ -828,6 +839,7 @@ export function PayslipContent() {
 
                 <div className="mt-8 text-center text-xs text-gray-500">
                   <p>This is a computer-generated document and does not require a physical signature.</p>
+                </div>
                 </div>
               </div>
             )}

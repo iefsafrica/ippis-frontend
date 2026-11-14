@@ -165,10 +165,15 @@ export function PayslipDialog({ payment, open, onClose }: PayslipDialogProps) {
         className="w-full max-w-[860px] px-2 py-6 sm:px-4 sm:py-6 overflow-hidden"
       >
         <div className="relative mx-auto w-full max-w-[860px] max-h-[calc(100vh-2rem)] overflow-y-auto rounded-[26px] border border-slate-200 bg-white px-10 pb-10 pt-12 shadow-[0_25px_45px_rgba(15,23,42,0.25)]">
-          <div className="pointer-events-none absolute inset-4 flex items-center justify-center">
-            <span className="text-[90px] font-black uppercase tracking-[0.9em] text-slate-200 leading-none opacity-20 -rotate-12">
-              CONFIDENTIAL
-            </span>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none select-none absolute inset-0 flex items-center justify-center"
+          >
+            <img
+              src="/images/coat-of-arms.png"
+              alt=""
+              className="w-[360px] max-w-[70%] object-contain opacity-[0.08]"
+            />
           </div>
           <div className="relative space-y-10 text-slate-700">
             <header className="space-y-1 text-center">
