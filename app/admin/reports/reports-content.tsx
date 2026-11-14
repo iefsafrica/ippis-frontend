@@ -29,7 +29,6 @@ import {
   type OverviewStats,
   type DepartmentStats,
   type EmployeeGrowthData,
-  type PayrollStats,
 } from "../services/real-reports-service"
 import { getEmployeesList } from "@/services/endpoints/employees/employees"
 import { getPendingEmployees, getDocuments } from "@/services/endpoints/employees/pendingEmployees"
@@ -442,10 +441,6 @@ export function ReportsContent() {
       setError("Failed to export report data. Please try again.")
     }
   }
-
-  const payrollBreakdown = payrollStats?.departmentBreakdown ?? []
-  const sortedPayrollBreakdown = [...payrollBreakdown].sort((a, b) => b.amount - a.amount)
-  const topPayrollDepartment = sortedPayrollBreakdown[0] ?? null
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
