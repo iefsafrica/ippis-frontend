@@ -4,7 +4,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { formatDistanceToNow } from "date-fns"
-import { Bell, FileText, UserPlus, AlertTriangle, Info, Check, ShieldAlert } from "lucide-react"
+import { Bell, FileText, UserPlus, AlertTriangle, Info, Check, ShieldAlert, CheckCircle2, Wallet } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { NotificationItemData } from "@/types/notifications"
 
@@ -49,12 +49,18 @@ export function NotificationItem({ notification, onRead, onCloseDropdown }: Noti
     switch (notification.type?.toLowerCase()) {
       case "registration":
         return <UserPlus className="h-5 w-5 text-[#008751]" />
+      case "approval":
+        return <CheckCircle2 className="h-5 w-5 text-emerald-700" />
+      case "payroll":
+        return <Wallet className="h-5 w-5 text-emerald-700" />
       case "document":
         return <FileText className="h-5 w-5 text-[#2563EB]" />
+      case "warning":
       case "alert":
         return <AlertTriangle className="h-5 w-5 text-amber-600" />
       case "security":
         return <ShieldAlert className="h-5 w-5 text-rose-600" />
+      case "info":
       case "system":
         return <Info className="h-5 w-5 text-[#7C3AED]" />
       default:
@@ -65,13 +71,17 @@ export function NotificationItem({ notification, onRead, onCloseDropdown }: Noti
   const getIconWrapperClass = () => {
     switch (notification.type?.toLowerCase()) {
       case "registration":
+      case "approval":
+      case "payroll":
         return "bg-[#D8F3E5]"
       case "document":
         return "bg-[#EBF3FF]"
+      case "warning":
       case "alert":
         return "bg-amber-100"
       case "security":
         return "bg-rose-100"
+      case "info":
       case "system":
         return "bg-[#E9F7F2]"
       default:
