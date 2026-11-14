@@ -9,13 +9,18 @@ import {
   PieChart as LucidePieChart,
   LineChart,
   Loader2,
+  Printer,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { MdaSelect } from "@/components/mda-select"
 import { format, subMonths } from "date-fns"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
@@ -49,6 +54,18 @@ const departmentMatches = (employeeDepartment: string | undefined | null, select
   if (selected === "hr") return current === "human resources"
   if (selected === "it") return current === "information technology"
   return false
+}
+
+const mdaMatches = (employee: any, selectedMda: string) => {
+  if (!selectedMda || selectedMda === "all") return true
+  const empMdaId = String(
+    employee?.company_id ??
+      employee?.mda_id ??
+      employee?.metadata?.company_id ??
+      employee?.metadata?.mda_id ??
+      ""
+  ).trim()
+  return empMdaId === String(selectedMda).trim()
 }
 
 const getMonthLabels = (startDate: Date, endDate: Date) => {
@@ -106,6 +123,7 @@ export function ReportsContent() {
   const [startDate, setStartDate] = useState<Date>(subMonths(new Date(), 12))
   const [endDate, setEndDate] = useState<Date>(new Date())
   const [selectedDepartment, setSelectedDepartment] = useState<string>("all")
+  const [selectedMda, setSelectedMda] = useState<string>("all")
   const [activeTab, setActiveTab] = useState<string>("overview")
 
   const [loading, setLoading] = useState<boolean>(true)
@@ -114,7 +132,7 @@ export function ReportsContent() {
   const [overviewStats, setOverviewStats] = useState<OverviewStats | null>(null)
   const [departmentStats, setDepartmentStats] = useState<DepartmentStats[] | null>(null)
   const [employeeGrowthData, setEmployeeGrowthData] = useState<EmployeeGrowthData | null>(null)
-  const [payrollStats, setPayrollStats] = useState<PayrollStats | null>(null)
+  const [scopedEmployeesList, setScopedEmployeesList] = useState<any[]>([])
 
   // Load data based on active tab and filters
   useEffect(() => {
@@ -138,11 +156,19 @@ export function ReportsContent() {
             ])
 
             const employeesInScope = allEmployees.filter((employee) => {
-              return departmentMatches(employee.department, selectedDepartment)
+              return (
+                departmentMatches(employee.department, selectedDepartment) &&
+                mdaMatches(employee, selectedMda)
+              )
             })
 
+            setScopedEmployeesList(employeesInScope)
+
             const pendingInScope = allPendingEmployees.filter((employee) => {
-              return departmentMatches(employee.department, selectedDepartment)
+              return (
+                departmentMatches(employee.department, selectedDepartment) &&
+                mdaMatches(employee, selectedMda)
+              )
             })
 
             const currentYear = new Date().getFullYear()
@@ -235,8 +261,12 @@ export function ReportsContent() {
           case "employees":
             const employeesForTab = await getEmployeesForAllPages()
             const scopedEmployeesForTab = employeesForTab.filter((employee) => {
-              return departmentMatches(employee.department, selectedDepartment)
+              return (
+                departmentMatches(employee.department, selectedDepartment) &&
+                mdaMatches(employee, selectedMda)
+              )
             })
+            setScopedEmployeesList(scopedEmployeesForTab)
 
             const labelsForTab = getMonthLabels(startDate, endDate)
             const trendDataForTab = labelsForTab.map((label) => {
@@ -281,7 +311,98 @@ export function ReportsContent() {
     }
 
     loadData()
-  }, [activeTab, startDate, endDate, selectedDepartment])
+  }, [activeTab, startDate, endDate, selectedDepartment, selectedMda])
+
+  const handlePrintEmployeesByMda = () => {
+    if (typeof window === "undefined") return
+    const printWin = window.open("", "_blank", "width=1024,height=768")
+    if (!printWin) return
+
+    const mdaLabel =
+      selectedMda === "all"
+        ? "All MDAs"
+        : scopedEmployeesList[0]?.mda_name ||
+          scopedEmployeesList[0]?.company_name ||
+          scopedEmployeesList[0]?.metadata?.mda_name ||
+          `MDA #${selectedMda}`
+
+    const deptLabel = selectedDepartment === "all" ? "All Departments" : selectedDepartment
+
+    const rowsHtml =
+      scopedEmployeesList.length === 0
+        ? `<tr><td colspan="7" style="text-align:center;padding:24px;color:#64748b;">No employees match the selected MDA / Department filters.</td></tr>`
+        : scopedEmployeesList
+            .map((emp: any, idx: number) => {
+              const id = emp.registration_id || emp.ippis_number || emp.employee_id || emp.id || "-"
+              const mda = emp.mda_name || emp.company_name || emp.metadata?.mda_name || mdaLabel
+              const joinDate = emp.join_date ? format(new Date(emp.join_date), "dd MMM yyyy") : "-"
+              return `
+                <tr>
+                  <td>${idx + 1}</td>
+                  <td>${String(id)}</td>
+                  <td><strong>${emp.name || "Unknown"}</strong><br/><span style="color:#64748b;font-size:11px;">${emp.email || ""}</span></td>
+                  <td>${mda}</td>
+                  <td>${emp.department || "General"}</td>
+                  <td>${emp.position || "Civil Officer"}</td>
+                  <td style="text-transform:capitalize;">${emp.status || "active"}</td>
+                  <td>${joinDate}</td>
+                </tr>
+              `
+            })
+            .join("")
+
+    printWin.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Employee Report - ${mdaLabel}</title>
+          <style>
+            body { font-family: Arial, sans-serif; color: #0f172a; padding: 28px; }
+            .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #0B4628; padding-bottom: 14px; margin-bottom: 18px; }
+            .header-left { display: flex; align-items: center; gap: 14px; }
+            .header img { height: 56px; width: auto; }
+            h1 { margin: 0; font-size: 20px; color: #0B4628; }
+            .meta { font-size: 12px; color: #475569; margin-top: 4px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
+            th { background: #0B4628; color: #fff; text-align: left; padding: 8px 10px; }
+            td { border-bottom: 1px solid #e2e8f0; padding: 8px 10px; vertical-align: top; }
+            tr:nth-child(even) td { background: #f8fafc; }
+            @media print { body { padding: 12px; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="header-left">
+              <img src="${window.location.origin}/images/coat-of-arms.png" alt="Coat of Arms" />
+              <div>
+                <h1>IPPIS Employee Nominal Roll Report</h1>
+                <div class="meta">MDA: <strong>${mdaLabel}</strong> &bull; Department: <strong>${deptLabel}</strong> &bull; Total Employees: <strong>${scopedEmployeesList.length}</strong></div>
+              </div>
+            </div>
+            <div class="meta">Printed: ${format(new Date(), "dd MMM yyyy HH:mm")}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>ID / IPPIS</th>
+                <th>Employee</th>
+                <th>MDA</th>
+                <th>Department</th>
+                <th>Position</th>
+                <th>Status</th>
+                <th>Join Date</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </body>
+      </html>
+    `)
+    printWin.document.close()
+    printWin.focus()
+    setTimeout(() => printWin.print(), 300)
+  }
 
   // Handle exporting data
   const handleExportData = async () => {
@@ -340,17 +461,36 @@ export function ReportsContent() {
             <p className="text-gray-600 mt-1">Insights and trends across employees and departments.</p>
           </div>
         </div>
-        <Button
-          onClick={handleExportData}
-          disabled={loading}
-          className={`${buttonHoverEnhancements} bg-emerald-600 text-white shadow-sm hover:bg-emerald-800 hover:!bg-emerald-800`}
-        >
-          <Download className="mr-2 h-4 w-4" />
-          Export Data
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handlePrintEmployeesByMda}
+            disabled={loading}
+            className={`${buttonHoverEnhancements} bg-white border-emerald-200 text-[#0B4628] hover:bg-emerald-50`}
+          >
+            <Printer className="mr-2 h-4 w-4" />
+            Print by MDA
+          </Button>
+          <Button
+            onClick={handleExportData}
+            disabled={loading}
+            className={`${buttonHoverEnhancements} bg-emerald-600 text-white shadow-sm hover:bg-emerald-800 hover:!bg-emerald-800`}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export Data
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-4">
+        <div className="w-[220px]">
+          <MdaSelect
+            value={selectedMda === "all" ? "" : selectedMda}
+            onValueChange={(val) => setSelectedMda(val || "all")}
+            placeholder="All MDAs"
+          />
+        </div>
+
         <Select
           value={selectedDepartment}
           onValueChange={setSelectedDepartment}
@@ -395,6 +535,7 @@ export function ReportsContent() {
             setStartDate(subMonths(new Date(), 12));
             setEndDate(new Date());
             setSelectedDepartment("all");
+            setSelectedMda("all");
           }}
           className={buttonHoverEnhancements}
         >
@@ -615,19 +756,69 @@ export function ReportsContent() {
             </div>
           ) : (
             <Card className="rounded-xl border border-gray-200 bg-white shadow-sm transition-colors hover:border-emerald-200">
-              <CardHeader>
-                <CardTitle>Employee Demographics</CardTitle>
-                <CardDescription>
-                  Age, gender, and location distribution
-                </CardDescription>
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-[#0B4628]" />
+                    Employee Roster by MDA ({scopedEmployeesList.length})
+                  </CardTitle>
+                  <CardDescription>
+                    Filter by MDA or Department above, then print or export the employee list.
+                  </CardDescription>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={handlePrintEmployeesByMda}
+                  className="bg-[#0B4628] hover:bg-[#08351E] text-white"
+                >
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print Employees ({scopedEmployeesList.length})
+                </Button>
               </CardHeader>
               <CardContent>
-                <div className="h-[400px] w-full flex items-center justify-center rounded-lg border border-gray-200 bg-muted/20 transition-colors hover:border-emerald-200">
-                  <BarChart className="h-16 w-16 text-muted" />
-                  <span className="ml-2 text-muted">
-                    Employee Demographics Chart
-                  </span>
-                </div>
+                {scopedEmployeesList.length === 0 ? (
+                  <div className="py-12 text-center text-sm text-slate-500">
+                    No employees found for the selected MDA / Department filters.
+                  </div>
+                ) : (
+                  <div className="rounded-lg border overflow-x-auto">
+                    <Table>
+                      <TableHeader className="bg-slate-50">
+                        <TableRow>
+                          <TableHead>ID / IPPIS</TableHead>
+                          <TableHead>Employee</TableHead>
+                          <TableHead>Department</TableHead>
+                          <TableHead>Position</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Join Date</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {scopedEmployeesList.slice(0, 50).map((emp: any) => (
+                          <TableRow key={emp.id}>
+                            <TableCell className="font-mono text-xs">
+                              {emp.registration_id || emp.ippis_number || emp.id}
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium text-slate-900">{emp.name}</div>
+                              <div className="text-xs text-slate-500">{emp.email}</div>
+                            </TableCell>
+                            <TableCell>{emp.department || "General"}</TableCell>
+                            <TableCell>{emp.position || "Civil Officer"}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="capitalize">
+                                {emp.status || "active"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-slate-600">
+                              {emp.join_date ? format(new Date(emp.join_date), "dd MMM yyyy") : "—"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
