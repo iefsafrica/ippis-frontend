@@ -1,17 +1,27 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import {
   CalendarIcon,
   Download,
   Filter,
   BarChart,
-  PieChart as LucidePieChart,
-  LineChart,
   Loader2,
   Printer,
   Users,
 } from "lucide-react";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -117,7 +127,19 @@ const getPendingForAllPages = async () => {
 
   return [...firstEmployees, ...remaining.flatMap((page) => page.data?.employees ?? [])]
 }
+const DEPARTMENT_CHART_COLORS = [
+  "#0B4628",
+  "#10B981",
+  "#34D399",
+  "#065F46",
+  "#3B82F6",
+  "#8B5CF6",
+  "#F59E0B",
+  "#64748B",
+]
+
 export function ReportsContent() {
+  const [mounted, setMounted] = useState(false)
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [startDate, setStartDate] = useState<Date>(subMonths(new Date(), 12))
   const [endDate, setEndDate] = useState<Date>(new Date())
@@ -132,6 +154,29 @@ export function ReportsContent() {
   const [departmentStats, setDepartmentStats] = useState<DepartmentStats[] | null>(null)
   const [employeeGrowthData, setEmployeeGrowthData] = useState<EmployeeGrowthData | null>(null)
   const [scopedEmployeesList, setScopedEmployeesList] = useState<any[]>([])
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const growthChartSeries = useMemo(() => {
+    if (!employeeGrowthData?.labels?.length) return []
+    const seriesData = employeeGrowthData.datasets?.[0]?.data ?? []
+    return employeeGrowthData.labels.map((label, index) => ({
+      month: label,
+      employees: Number(seriesData[index] ?? 0),
+    }))
+  }, [employeeGrowthData])
+
+  const departmentChartData = useMemo(() => {
+    if (!departmentStats?.length) return []
+    return departmentStats.map((dept, index) => ({
+      name: dept.name || "Unassigned",
+      count: Number(dept.count ?? 0),
+      percentage: Number(dept.percentage ?? 0),
+      color: DEPARTMENT_CHART_COLORS[index % DEPARTMENT_CHART_COLORS.length],
+    }))
+  }, [departmentStats])
 
   // Load data based on active tab and filters
   useEffect(() => {
@@ -704,16 +749,56 @@ export function ReportsContent() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pl-2">
-                    {employeeGrowthData ? (
-                      <div className="h-[300px] w-full flex items-center justify-center rounded-lg border border-gray-200 bg-muted/20 transition-colors hover:border-emerald-200">
-                        <LineChart className="h-16 w-16 text-muted" />
-                        <span className="ml-2 text-muted">
-                          Employee Growth Chart
-                        </span>
+                    {mounted && growthChartSeries.length > 0 ? (
+                      <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart
+                            data={growthChartSeries}
+                            margin={{ top: 12, right: 16, left: 0, bottom: 4 }}
+                          >
+                            <defs>
+                              <linearGradient id="employeeGrowthFill" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#10B981" stopOpacity={0.32} />
+                                <stop offset="95%" stopColor="#10B981" stopOpacity={0.02} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                            <XAxis
+                              dataKey="month"
+                              tick={{ fill: "#64748B", fontSize: 12 }}
+                              axisLine={{ stroke: "#E5E7EB" }}
+                              tickLine={false}
+                            />
+                            <YAxis
+                              allowDecimals={false}
+                              tick={{ fill: "#64748B", fontSize: 12 }}
+                              axisLine={false}
+                              tickLine={false}
+                              width={40}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "#FFFFFF",
+                                borderColor: "#D1FAE5",
+                                borderRadius: "10px",
+                                boxShadow: "0 4px 12px rgba(11, 70, 40, 0.08)",
+                              }}
+                              formatter={(value: number) => [value.toLocaleString(), "Employees"]}
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="employees"
+                              stroke="#0B4628"
+                              strokeWidth={2.5}
+                              fill="url(#employeeGrowthFill)"
+                              activeDot={{ r: 5, fill: "#0B4628", stroke: "#FFFFFF", strokeWidth: 2 }}
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
                       </div>
                     ) : (
-                      <div className="h-[300px] w-full flex items-center justify-center">
-                        <span className="text-muted">No data available</span>
+                      <div className="h-[300px] w-full flex items-center justify-center rounded-lg border border-dashed border-gray-200 bg-muted/10">
+                        <span className="text-sm text-muted-foreground">No employee growth data available</span>
                       </div>
                     )}
                   </CardContent>
@@ -724,16 +809,65 @@ export function ReportsContent() {
                     <CardDescription>Employees by department</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {departmentStats && departmentStats.length > 0 ? (
-                      <div className="h-[300px] w-full flex items-center justify-center rounded-lg border border-gray-200 bg-muted/20 transition-colors hover:border-emerald-200">
-                        <LucidePieChart className="h-16 w-16 text-muted" />
-                        <span className="ml-2 text-muted">
-                          Department Distribution Chart
-                        </span>
+                    {mounted && departmentChartData.length > 0 ? (
+                      <div className="flex flex-col gap-3">
+                        <div className="h-[220px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={departmentChartData}
+                                dataKey="count"
+                                nameKey="name"
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={52}
+                                outerRadius={84}
+                                paddingAngle={2}
+                              >
+                                {departmentChartData.map((entry) => (
+                                  <Cell key={entry.name} fill={entry.color} />
+                                ))}
+                              </Pie>
+                              <Tooltip
+                                contentStyle={{
+                                  backgroundColor: "#FFFFFF",
+                                  borderColor: "#D1FAE5",
+                                  borderRadius: "10px",
+                                  boxShadow: "0 4px 12px rgba(11, 70, 40, 0.08)",
+                                }}
+                                formatter={(value: number, name: string, item: any) => [
+                                  `${value.toLocaleString()} (${item?.payload?.percentage ?? 0}%)`,
+                                  name,
+                                ]}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div className="max-h-[72px] space-y-1.5 overflow-y-auto pr-1">
+                          {departmentChartData.map((entry) => (
+                            <div
+                              key={entry.name}
+                              className="flex items-center justify-between text-xs text-slate-600"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span
+                                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                                  style={{ backgroundColor: entry.color }}
+                                />
+                                <span className="truncate font-medium text-slate-700">
+                                  {entry.name}
+                                </span>
+                              </div>
+                              <span className="ml-2 shrink-0 tabular-nums text-slate-500">
+                                {entry.count.toLocaleString()} ({entry.percentage}%)
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ) : (
-                      <div className="h-[300px] w-full flex items-center justify-center">
-                        <span className="text-muted">No data available</span>
+                      <div className="h-[300px] w-full flex items-center justify-center rounded-lg border border-dashed border-gray-200 bg-muted/10">
+                        <span className="text-sm text-muted-foreground">No department distribution data available</span>
                       </div>
                     )}
                   </CardContent>
