@@ -271,11 +271,6 @@ export function ReportsContent() {
               })),
             )
             break
-
-          case "payroll":
-            const payroll = await ReportsService.getPayrollStats(filters)
-            setPayrollStats(payroll)
-            break
         }
       } catch (err) {
         console.error("Error loading report data:", err)
@@ -299,9 +294,6 @@ export function ReportsContent() {
           break
         case "employees":
           reportType = "employees"
-          break
-        case "payroll":
-          reportType = "payroll"
           break
       }
 
@@ -345,7 +337,7 @@ export function ReportsContent() {
             <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
               Reports & Analytics
             </h1>
-            <p className="text-gray-600 mt-1">Insights and trends across employees and payroll.</p>
+            <p className="text-gray-600 mt-1">Insights and trends across employees and departments.</p>
           </div>
         </div>
         <Button
@@ -425,7 +417,7 @@ export function ReportsContent() {
         onValueChange={setActiveTab}
         className="w-full"
       >
-        <TabsList className="flex w-full max-w-[480px] items-center justify-between gap-2 rounded-full border border-emerald-200 bg-white p-1 text-center shadow-sm">
+        <TabsList className="flex w-full max-w-[360px] items-center justify-between gap-2 rounded-full border border-emerald-200 bg-white p-1 text-center shadow-sm">
           <TabsTrigger
             value="overview"
             className="flex-1 rounded-full border border-emerald-200 bg-white px-5 py-2 text-sm font-semibold text-emerald-900 transition-colors data-[state=active]:border-transparent data-[state=active]:bg-emerald-700 data-[state=active]:text-white data-[state=active]:shadow-md"
@@ -437,12 +429,6 @@ export function ReportsContent() {
             className="flex-1 rounded-full border border-emerald-200 bg-white px-5 py-2 text-sm font-semibold text-emerald-900 transition-colors data-[state=active]:border-transparent data-[state=active]:bg-emerald-700 data-[state=active]:text-white data-[state=active]:shadow-md"
           >
             Employees
-          </TabsTrigger>
-          <TabsTrigger
-            value="payroll"
-            className="flex-1 rounded-full border border-emerald-200 bg-white px-5 py-2 text-sm font-semibold text-emerald-900 transition-colors data-[state=active]:border-transparent data-[state=active]:bg-emerald-700 data-[state=active]:text-white data-[state=active]:shadow-md"
-          >
-            Payroll
           </TabsTrigger>
         </TabsList>
 
@@ -647,120 +633,6 @@ export function ReportsContent() {
           )}
         </TabsContent>
 
-        <TabsContent value="payroll" className="space-y-4">
-          {loading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2">Loading payroll data...</span>
-            </div>
-          ) : payrollStats ? (
-            <Card className="rounded-xl border border-gray-200 bg-white shadow-sm transition-colors hover:border-emerald-200">
-              <CardHeader>
-                <CardTitle>Payroll Analysis</CardTitle>
-                <CardDescription>
-                  Salary totals, averages, and department breakdowns for the selected filters.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-emerald-50 to-white p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Total payroll</p>
-                    <p className="mt-1 text-2xl font-semibold text-gray-900">
-                      {formatCurrency(payrollStats.totalSalary)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">All employees within the selected filters</p>
-                  </div>
-                  <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-indigo-50 to-white p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Average salary</p>
-                    <p className="mt-1 text-2xl font-semibold text-gray-900">
-                      {formatCurrency(payrollStats.averageSalary)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Across all payroll records</p>
-                  </div>
-                  <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-slate-50 to-white p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Top department</p>
-                    {topPayrollDepartment ? (
-                      <>
-                        <p className="mt-1 text-lg font-semibold text-slate-900">
-                          {topPayrollDepartment.department}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatCurrency(topPayrollDepartment.amount)} ·{" "}
-                          {Number.isFinite(topPayrollDepartment.percentage)
-                            ? `${topPayrollDepartment.percentage.toFixed(1)}% of payroll`
-                            : "Percentage unavailable"}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="mt-1 text-sm text-muted-foreground">No department data yet</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <div className="rounded-2xl border border-gray-200 bg-muted/40 p-6">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-600">Payroll trend</p>
-                        <p className="text-xs text-muted-foreground">Visual summary</p>
-                      </div>
-                      <BarChart className="h-5 w-5 text-emerald-600" />
-                    </div>
-                    <div className="mt-4 flex h-[220px] items-center justify-center rounded-lg border border-dashed border-gray-200 bg-white/70">
-                      <span className="text-sm text-muted-foreground">Payroll Analysis Chart</span>
-                    </div>
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      Data is powered by the filtered employee list and payroll records.
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-gray-200 bg-white p-6">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-slate-700">Department breakdown</p>
-                      <span className="text-xs text-muted-foreground">
-                        {sortedPayrollBreakdown.length} departments
-                      </span>
-                    </div>
-                    <div className="mt-4 space-y-3">
-                      {sortedPayrollBreakdown.length > 0 ? (
-                        sortedPayrollBreakdown.map((department) => (
-                          <div
-                            key={department.department}
-                            className="flex items-center justify-between border-t border-t-gray-100 pt-3 first:border-none first:pt-0"
-                          >
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{department.department}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {Number.isFinite(department.percentage)
-                                  ? `${department.percentage.toFixed(1)}% of payroll`
-                                  : "Percentage unavailable"}
-                              </p>
-                            </div>
-                            <p className="text-sm font-semibold text-emerald-600">
-                              {formatCurrency(department.amount)}
-                            </p>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          No payroll breakdown available for the selected filters.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Alert variant="outline">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>No payroll data</AlertTitle>
-              <AlertDescription>
-                There is no payroll data available for the current filters. Try adjusting the date range or department.
-              </AlertDescription>
-            </Alert>
-          )}
-        </TabsContent>
       </Tabs>
     </div>
   );
