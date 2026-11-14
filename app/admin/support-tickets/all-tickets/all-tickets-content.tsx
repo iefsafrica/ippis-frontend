@@ -21,6 +21,7 @@ import { useCreateSupportTicket, useDeleteSupportTicket, useGetSupportTickets, u
 import { useEmployeesList } from "@/services/hooks/employees/useEmployees"
 import type { GetSupportTicketsResponse, SupportTicket } from "@/types/supportTickets"
 import type { Employee } from "@/types/employees/employee-management"
+import { MdaSelect } from "@/components/mda-select"
 
 const STATUS_OPTIONS = [
   { value: "open", label: "Open" },
@@ -468,6 +469,10 @@ export default function AllTicketsContent() {
             <DialogHeader>
               <DialogTitle>Add Ticket</DialogTitle>
             </DialogHeader>
+            <MdaSelect
+              value={newTicket.company_id}
+              onChange={(val) => setNewTicket((prev) => ({ ...prev, company_id: val }))}
+            />
             <div>
               <Label>Ticket Subject</Label>
               <Input

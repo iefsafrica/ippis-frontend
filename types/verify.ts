@@ -49,6 +49,8 @@ export interface VerifyNinData {
   nok_address?: string
   registration_id?: string
   registrationId?: string
+  registration_token?: string
+  token?: string
   photo?: string
   photo_base64?: string
   photoBase64?: string
@@ -67,6 +69,8 @@ export interface VerifyNinResponse {
   verified?: boolean
   registration_id?: string
   registrationId?: string
+  registration_token?: string
+  token?: string
   data?: VerifyNinData
 }
 

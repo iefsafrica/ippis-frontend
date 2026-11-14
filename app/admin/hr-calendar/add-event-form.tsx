@@ -14,6 +14,7 @@ import { addDays } from "date-fns"
 import { useCreateCalendarEvent, useUpdateCalendarEvent } from "@/services/hooks/calendar/events"
 import { toast } from "sonner"
 import { CustomSelect, CustomSelectContent, CustomSelectItem, CustomSelectTrigger, CustomSelectValue } from "@/components/ui/custom-select"
+import { MdaSelect } from "@/components/mda-select"
 
 const eventFormSchema = z.object({
   title: z.string().min(2, {
@@ -34,6 +35,7 @@ const eventFormSchema = z.object({
   location: z.string().optional(),
   description: z.string().optional(),
   attendees: z.string().optional(),
+  company_id: z.string().optional(),
 })
 
 type EventFormValues = z.infer<typeof eventFormSchema>
@@ -67,6 +69,7 @@ export function AddEventForm({
       location: "",
       description: "",
       attendees: "",
+      company_id: "",
     }
   }, [])
 
@@ -104,6 +107,7 @@ export function AddEventForm({
         attendees: values.attendees
           ? values.attendees.split(",").map((attendee) => attendee.trim()).filter(Boolean)
           : [],
+        company_id: values.company_id ? values.company_id : undefined,
       }
 
       if (mode === "edit" && eventId) {
@@ -129,6 +133,21 @@ export function AddEventForm({
     <Form {...form}>
      {/* @ts-expect-error type issue */}
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+        <FormField
+          control={form.control}
+          name="company_id"
+          render={({ field }) => (
+            <FormItem>
+              <MdaSelect
+                value={field.value}
+                onChange={field.onChange}
+                label="Assigned MDA"
+                placeholder="Shared with all MDAs (leave empty for shared)"
+              />
+            </FormItem>
+          )}
+        />
+
         <FormField
         //@ts-expect-error type issue
           control={form.control}

@@ -17,7 +17,11 @@ export interface User {
   modules?: string[]
   accessible_modules?: string[]
   permissions?: string[]
-  roles?: Array<{ id: number; key?: string; name: string }>
+  roles?: Array<{ id: number; key?: string; name: string; company_id?: number; department_id?: number }>
+  company_id?: string | number
+  department_id?: string | number
+  employee_id?: string | number
+  is_access_admin?: boolean
 }
 
 // Define the AuthContextType
@@ -97,6 +101,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             accessible_modules: modules,
             permissions,
             roles: profile.data.roles || [],
+            company_id: rawUser.company_id || rawUser.companyId || (profile.data.roles?.[0] as any)?.company_id,
+            department_id: rawUser.department_id || rawUser.departmentId || (profile.data.roles?.[0] as any)?.department_id,
+            employee_id: rawUser.employee_id || rawUser.employeeId || rawUser.id,
+            is_access_admin: Boolean(
+              rawUser.is_access_admin ||
+              primaryRoleKey.toLowerCase().includes("access_admin") ||
+              primaryRole.toLowerCase().includes("access admin") ||
+              permissions.includes("access.manage") ||
+              permissions.includes("access:admin") ||
+              primaryRole.toLowerCase().includes("super")
+            ),
           }
           setUser(profileUser)
           setError(null)

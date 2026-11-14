@@ -93,12 +93,35 @@ export function DeductionsCsvUploadDialog({
     }
   }
 
-  const handleDownloadSample = () => {
+  const handleDownloadSample = async () => {
     const period = `${year}-${String(month).padStart(2, "0")}`
+    try {
+      const token =
+        Cookies.get("token") ||
+        Cookies.get("ippis_token") ||
+        (typeof window !== "undefined"
+          ? localStorage.getItem("token") || localStorage.getItem("ippis_token") || ""
+          : "")
+      const res = await fetch("/api/payroll/deductions/import?template=true&format=csv", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (res.ok) {
+        const text = await res.text()
+        const blob = new Blob([text], { type: "text/csv;charset=utf-8;" })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement("a")
+        link.href = url
+        link.download = `deductions-template-${period}.csv`
+        link.click()
+        URL.revokeObjectURL(url)
+        return
+      }
+    } catch {}
+
     const csv = [
       "ippis_number,employee_id,period,income_tax,pension,nhis,loan_deduction,other_deductions",
-      `IPPIS100001,EMP-001,${period},25000,12000,5000,15000,0`,
-      `IPPIS100002,EMP-002,${period},18500,9500,4000,0,2500`,
+      `EMP97133,EMP97133,${period},25000,12000,5000,15000,0`,
+      `EMP54346,EMP54346,${period},18500,9500,4000,0,2500`,
     ].join("\n")
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
@@ -337,3 +360,4 @@ export function DeductionsCsvUploadDialog({
     </Dialog>
   )
 }
+

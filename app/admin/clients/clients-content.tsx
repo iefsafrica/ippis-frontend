@@ -42,6 +42,7 @@ import type { Client, CreateClientRequest } from "@/types/clients"
 import { Eye, Edit, Trash2, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
+import { MdaSelect } from "@/components/mda-select"
 
 const statusBadgeClass = (status?: string) => {
   const normalized = status?.toLowerCase() ?? ""
@@ -349,6 +350,10 @@ export default function ClientsContent() {
               <DialogTitle>Add Client</DialogTitle>
               <DialogDescription>Register a new client organization.</DialogDescription>
             </DialogHeader>
+            <MdaSelect
+              value={newClient.company_id}
+              onChange={(val) => setNewClient((prev) => ({ ...prev, company_id: val }))}
+            />
             <div>
               <Label>Project</Label>
               <Select value={selectedProjectId} onValueChange={handleProjectSelect}>

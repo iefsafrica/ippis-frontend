@@ -120,6 +120,16 @@ export function ViewCalendarEventDialog({ isOpen, onClose, event }: ViewCalendar
                       </div>
                       <p className="text-sm font-medium text-gray-900">{event.department}</p>
                     </div>
+
+                    <div>
+                      <div className="flex items-center mb-2">
+                        <Building className="h-4 w-4 text-gray-500 mr-2" />
+                        <span className="text-xs text-gray-500 font-medium">MDA Scope</span>
+                      </div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {event.company_id ? `MDA #${event.company_id}` : "Shared with all MDAs"}
+                      </p>
+                    </div>
                   </div>
 
                   <div className="space-y-4">

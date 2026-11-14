@@ -10,6 +10,8 @@ export interface Project {
   priority: string
   budget: string
   manager_id: string
+  company_id?: number | string
+  department_id?: number | string
   created_at: string
   updated_at: string
 }
@@ -39,6 +41,8 @@ export interface ProjectCreateRequest {
   priority?: string
   status?: string
   progress?: number
+  company_id?: number | string
+  department_id?: number | string
 }
 
 export interface ProjectUpdateRequest extends Partial<ProjectCreateRequest> {

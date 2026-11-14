@@ -8,6 +8,8 @@ export interface Client {
   status: string
   created_at: string
   updated_at: string
+  company_id?: number | string
+  department_id?: number | string
 }
 
 interface ClientsListData {
@@ -32,6 +34,8 @@ export interface CreateClientRequest {
   email: string
   phone: string
   status: string
+  company_id?: number | string
+  department_id?: number | string
 }
 
 export interface CreateClientResponse {

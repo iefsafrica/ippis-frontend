@@ -9,6 +9,8 @@ export interface FileItem {
   uploaded_by: string | null
   created_at: string
   updated_at: string
+  company_id?: number | string | null
+  department_id?: number | string | null
 }
 
 export interface GetFilesResponse {
@@ -19,6 +21,8 @@ export interface GetFilesResponse {
 export interface UploadFileRequest {
   file: File
   folder_id?: string | null
+  company_id?: string | number | null
+  department_id?: string | number | null
 }
 
 export interface UploadFileResponse {

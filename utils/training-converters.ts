@@ -33,6 +33,8 @@ export interface TrainingFormData {
   description: string
   objectives: string
   materials: string
+  company_id?: number | string
+  department_id?: number | string
 }
 
 const toNumber = (value: number | string | undefined, fallback = 0) => {
@@ -78,6 +80,8 @@ export const transformFormToCreateTraining = (form: TrainingFormData): CreateTra
   participants: toNumber(form.participants),
   cost: toNumber(form.cost).toFixed(2),
   status: form.status,
+  company_id: form.company_id,
+  department_id: form.department_id,
 })
 
 export const transformFormToUpdateTraining = (form: TrainingFormData): UpdateTrainingRequest => ({
@@ -88,4 +92,6 @@ export const transformFormToUpdateTraining = (form: TrainingFormData): UpdateTra
   participants: toNumber(form.participants),
   cost: toNumber(form.cost).toFixed(2),
   status: form.status,
+  company_id: form.company_id,
+  department_id: form.department_id,
 })

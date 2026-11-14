@@ -13,6 +13,8 @@ export interface SupportTicket {
   created_by?: string
   due_date?: string
   progress?: number
+  company_id?: number | string
+  department_id?: number | string
 }
 
 interface SupportTicketListData {
@@ -40,6 +42,8 @@ export interface CreateSupportTicketRequest {
   attachment?: string | null
   due_date?: string
   progress?: number
+  company_id?: number | string
+  department_id?: number | string
 }
 
 export interface CreateSupportTicketResponse {

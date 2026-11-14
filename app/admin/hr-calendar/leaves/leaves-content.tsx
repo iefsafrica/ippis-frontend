@@ -14,6 +14,9 @@ import type { Leave } from "@/types/calendar/leaves"
 import { AddLeaveDialog } from "./add-leave-dialog"
 import { EditLeaveDialog } from "./edit-leave-dialog"
 import { ViewLeaveDialog } from "./view-leave-dialog"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { useAuth } from "@/lib/auth-context"
+import { canApproveLeave, isSelfLeave } from "@/lib/leave-permissions"
 
 const statusBadgeClasses: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -36,6 +39,8 @@ const leaveSearchFields = [
 
 
 export function LeavesContent() {
+  const { user } = useAuth()
+  const userCanApprove = canApproveLeave(user)
   const [currentLeave, setCurrentLeave] = useState<Leave | null>(null)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -98,6 +103,14 @@ export function LeavesContent() {
       toast.error("Leave request not found")
       return
     }
+    if (isSelfLeave(user, leave)) {
+      toast.error("Nobody can approve their own leave.")
+      return
+    }
+    if (!userCanApprove) {
+      toast.error("Leave approval permission required. Department heads and central HR can approve; HR officers cannot.")
+      return
+    }
     setLeaveToUpdateStatus(leave)
     setIsStatusDialogOpen(true)
   }
@@ -126,6 +139,14 @@ export function LeavesContent() {
 
   const handleStatusUpdate = async (status: string) => {
     if (!leaveToUpdateStatus) return
+    if (isSelfLeave(user, leaveToUpdateStatus)) {
+      toast.error("Nobody can approve their own leave.")
+      return
+    }
+    if (!userCanApprove) {
+      toast.error("Leave approval permission required. Department heads and central HR can approve; HR officers cannot.")
+      return
+    }
     try {
       await updateLeaveMutation.mutateAsync({
         id: leaveToUpdateStatus.id,
@@ -187,22 +208,50 @@ export function LeavesContent() {
     {
       key: "actions",
       label: "Actions",
-      render: (_: any, row: Leave) => (
-        <div className="flex justify-end space-x-2">
-          <Button variant="outline" size="icon" onClick={() => handleOpenStatusDialog(row.id)} title="Change Status">
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="icon" onClick={() => handleViewLeave(row.id)} title="View Details">
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="icon" onClick={() => handleEditLeave(row.id)} title="Edit">
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="icon" onClick={() => handleOpenDeleteDialog(row.id)} title="Delete">
-            <Trash2 className="h-4 w-4 text-red-600" />
-          </Button>
-        </div>
-      ),
+      render: (_: any, row: Leave) => {
+        const isSelf = isSelfLeave(user, row)
+        const canChangeStatus = userCanApprove && !isSelf
+        const statusTooltip = isSelf
+          ? "Nobody can approve their own leave"
+          : !userCanApprove
+            ? "Leave approval permission required (Department Heads and Central HR only)"
+            : "Change Status"
+
+        return (
+          <div className="flex justify-end space-x-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleOpenStatusDialog(row.id)}
+                      disabled={!canChangeStatus}
+                      className="disabled:opacity-40 disabled:cursor-not-allowed"
+                      title={statusTooltip}
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">{statusTooltip}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <Button variant="outline" size="icon" onClick={() => handleViewLeave(row.id)} title="View Details">
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => handleEditLeave(row.id)} title="Edit">
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => handleOpenDeleteDialog(row.id)} title="Delete">
+              <Trash2 className="h-4 w-4 text-red-600" />
+            </Button>
+          </div>
+        )
+      },
     },
   ]
 

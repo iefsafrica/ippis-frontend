@@ -447,20 +447,21 @@ const buildSearchResultFromRecord = (
   }
 }
 
-const buildTrackSearchUrls = (method: "id" | "email", value: string) => {
+const buildTrackSearchUrls = (method: "id" | "email", value: string, email?: string) => {
   if (method === "email") {
-    const encodedEmail = encodeURIComponent(value.toLowerCase())
+    const encodedEmail = encodeURIComponent(value.toLowerCase().trim())
     return [`/api/track?email=${encodedEmail}`]
   }
 
   const normalizedVariants = buildRegistrationIdVariants(value)
+  const emailParam = email?.trim() ? `&email=${encodeURIComponent(email.toLowerCase().trim())}` : ""
 
   return normalizedVariants.flatMap((variant) => {
     const encoded = encodeURIComponent(variant)
     return [
-      `/api/track?id=${encoded}`,
-      `/api/track?registration_id=${encoded}`,
-      `/api/track?registrationId=${encoded}`,
+      `/api/track?id=${encoded}${emailParam}`,
+      `/api/track?registration_id=${encoded}${emailParam}`,
+      `/api/track?registrationId=${encoded}${emailParam}`,
     ]
   })
 }
@@ -507,6 +508,7 @@ export default function TrackApplicationPage() {
   const [hasSearched, setHasSearched] = useState(false)
   const [searchMethod, setSearchMethod] = useState<"id" | "email">("id")
   const [searchValue, setSearchValue] = useState(initialId)
+  const [searchEmail, setSearchEmail] = useState("")
   const [searchResult, setSearchResult] = useState<SearchResult | null>(null)
   const [showSlipDialog, setShowSlipDialog] = useState(false)
   const shouldAutoOpenSlip = searchParams.get("slip") === "true" || searchParams.get("print") === "true"
@@ -526,12 +528,22 @@ export default function TrackApplicationPage() {
       return
     }
 
+    const requireEmail = process.env.NEXT_PUBLIC_TRACK_REQUIRE_EMAIL === "true" || process.env.TRACK_REQUIRE_EMAIL === "true"
+    if (activeMethod === "id" && requireEmail && !searchEmail.trim()) {
+      toast({
+        title: "Registered email required",
+        description: "Please enter your registered email address to verify your identity.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsLoading(true)
     setHasSearched(true)
     setSearchResult(null)
 
     try {
-      const urls = buildTrackSearchUrls(activeMethod, value)
+      const urls = buildTrackSearchUrls(activeMethod, value, searchEmail)
       let lastError: string | null = null
       let foundResult: SearchResult | null = null
 
@@ -687,22 +699,42 @@ export default function TrackApplicationPage() {
               </TabsList>
 
               <TabsContent value="id" className="mt-6 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="registration-id" className="text-sm font-medium text-slate-700">
-                    Registration ID
-                  </Label>
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <Input
-                      id="registration-id"
-                      placeholder="e.g. IPPIS 010"
-                      value={searchValue}
-                      onChange={(e) => setSearchValue(e.target.value)}
-                      className="h-11 border-slate-300 bg-white/90 shadow-sm focus-visible:ring-2 focus-visible:ring-emerald-500 sm:flex-1"
-                    />
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="registration-id" className="text-sm font-medium text-slate-700">
+                        Registration ID <span className="text-rose-500">*</span>
+                      </Label>
+                      <Input
+                        id="registration-id"
+                        placeholder="e.g. IPPIS 010"
+                        value={searchValue}
+                        onChange={(e) => setSearchValue(e.target.value)}
+                        className="h-11 border-slate-300 bg-white/90 shadow-sm focus-visible:ring-2 focus-visible:ring-emerald-500"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="registered-email" className="text-sm font-medium text-slate-700">
+                        Registered Email Address <span className="text-rose-500">*</span>
+                      </Label>
+                      <Input
+                        id="registered-email"
+                        type="email"
+                        placeholder="e.g. applicant@example.com"
+                        value={searchEmail}
+                        onChange={(e) => setSearchEmail(e.target.value)}
+                        className="h-11 border-slate-300 bg-white/90 shadow-sm focus-visible:ring-2 focus-visible:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    For privacy and security, providing your registered email is required to access your application status.
+                  </p>
+                  <div className="flex justify-end">
                     <Button
                       onClick={() => void executeSearch(searchValue, "id")}
                       disabled={isLoading || searchValue.trim() === ""}
-                      className="h-11 whitespace-nowrap bg-emerald-600 px-5 font-semibold shadow-sm hover:bg-emerald-700"
+                      className="h-11 whitespace-nowrap bg-emerald-600 px-6 font-semibold shadow-sm hover:bg-emerald-700"
                     >
                       {isLoading ? (
                         <>
@@ -710,7 +742,7 @@ export default function TrackApplicationPage() {
                         </>
                       ) : (
                         <>
-                          <Search className="mr-2 h-4 w-4" /> Send
+                          <Search className="mr-2 h-4 w-4" /> Check Status
                         </>
                       )}
                     </Button>

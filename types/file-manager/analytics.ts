@@ -61,3 +61,4 @@ export interface FileManagerAnalyticsResponse {
   data: FileManagerAnalyticsData;
   message?: string;
 }
+

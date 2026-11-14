@@ -60,7 +60,7 @@ export interface UpdateResignationResponse {
 
 export interface ApproveResignationRequest {
   id: number;
-  approved_by: string;
+  approved_by?: string;
 }
 
 export interface ApproveResignationResponse {
@@ -71,7 +71,7 @@ export interface ApproveResignationResponse {
 
 export interface DisapproveResignationRequest {
   id: number;
-  disapproved_by: string;
+  disapproved_by?: string;
   reason: string;
 }
 

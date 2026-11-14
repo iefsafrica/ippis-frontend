@@ -20,6 +20,14 @@ export const uploadFile = async (payload: UploadFileRequest): Promise<UploadFile
     formData.append("folder_id", payload.folder_id)
   }
 
+  if (payload.company_id) {
+    formData.append("company_id", String(payload.company_id))
+  }
+
+  if (payload.department_id) {
+    formData.append("department_id", String(payload.department_id))
+  }
+
   return post<UploadFileResponse>(FILES_ENDPOINT, formData)
 }
 

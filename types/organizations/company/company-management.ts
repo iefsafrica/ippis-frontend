@@ -3,10 +3,13 @@ export type CompanyStatus = "active" | "inactive" | "pending" | string;
 export interface Company {
   id: number;
   name: string;
+  code?: string;
   email: string;
   phone: string;
   status: CompanyStatus;
   created_at: string;
+  last_reviewed_at?: string;
+  last_review_date?: string;
 }
 
 export interface GetCompaniesResponse {

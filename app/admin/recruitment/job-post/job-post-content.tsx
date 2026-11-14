@@ -17,6 +17,7 @@ import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-di
 import { Eye, Edit, Trash2, Loader2, RefreshCw } from "lucide-react"
 import { buttonHoverEnhancements } from "@/app/admin/employees/button-hover"
 import { toast } from "sonner"
+import { MdaSelect } from "@/components/mda-select"
 import {
   useCreateRecruitmentJob,
   useDeleteRecruitmentJob,
@@ -652,6 +653,10 @@ export function JobPostContent() {
               <TabsTrigger value="requirements">Requirements</TabsTrigger>
             </TabsList>
             <TabsContent value="basic" className="mt-4 space-y-4">
+              <MdaSelect
+                value={addFormValues.company_id}
+                onChange={(val) => setAddFormValues((prev) => ({ ...prev, company_id: val }))}
+              />
               <EnhancedForm
                 fields={jobPostFields.slice(0, 8)}
                 onSubmit={handleAddStepSubmit("basic")}
@@ -697,6 +702,10 @@ export function JobPostContent() {
                 <TabsTrigger value="requirements">Requirements</TabsTrigger>
               </TabsList>
               <TabsContent value="basic" className="mt-4 space-y-4">
+                <MdaSelect
+                  value={editFormValues.company_id ?? selectedJob.company_id}
+                  onChange={(val) => setEditFormValues((prev) => ({ ...prev, company_id: val }))}
+                />
                 <EnhancedForm
                   fields={jobPostEditFields.slice(0, 7)}
                   onSubmit={handleEditStepSubmit("basic")}

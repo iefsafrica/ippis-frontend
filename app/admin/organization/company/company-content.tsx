@@ -9,8 +9,9 @@ import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-di
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DataTable } from "@/app/admin/core-hr/components/data-table"
-import { Building2, Calendar, CheckCircle, CheckCircle2, Clock, Edit, Eye, Hash, Loader2, Mail, Phone, RefreshCw, Trash2, X, XCircle } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Building2, Calendar, CheckCircle, CheckCircle2, Clock, Edit, Eye, Hash, Loader2, Mail, Phone, RefreshCw, ShieldCheck, Trash2, X, XCircle } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { toast } from "sonner"
 import {
   useCreateCompany,
@@ -41,6 +42,7 @@ const companyStatusOptions = [
 ]
 
 export default function CompanyContent() {
+  const router = useRouter()
   const { data, isLoading, error, refetch } = useGetCompanies()
   const createCompanyMutation = useCreateCompany()
   const updateCompanyMutation = useUpdateCompany()
@@ -299,10 +301,57 @@ export default function CompanyContent() {
       },
     },
     {
+      key: "last_reviewed_at",
+      label: "Last Reviewed",
+      sortable: true,
+      render: (value: string | undefined, row: Company) => {
+        const reviewDate = value || row.last_review_date
+        if (!reviewDate) {
+          return (
+            <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700 text-xs">
+              Never reviewed
+            </Badge>
+          )
+        }
+        try {
+          const d = new Date(reviewDate)
+          return (
+            <div className="text-xs">
+              <span className="font-medium text-slate-800">
+                {d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </span>
+              <span className="block text-[11px] text-slate-400">
+                {d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            </div>
+          )
+        } catch {
+          return <span className="text-xs text-slate-500">{reviewDate}</span>
+        }
+      },
+    },
+    {
       key: "actions",
       label: "Actions",
       render: (_: unknown, row: Company) => (
         <div className="flex justify-start space-x-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50"
+                  onClick={() => router.push(`/admin/organization/access-reviews?company_id=${row.id}`)}
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">Start Access Review</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <Button variant="outline" size="icon" onClick={() => openViewDialog(row)}>
             <Eye className="h-4 w-4" />
           </Button>
@@ -363,6 +412,14 @@ export default function CompanyContent() {
           </div>
         </div>
         <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            className="h-10 px-3.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-medium rounded-lg"
+            onClick={() => router.push("/admin/organization/access-reviews")}
+          >
+            <ShieldCheck className="h-4 w-4 mr-1.5" />
+            <span>Access Reviews</span>
+          </Button>
           <Button
             variant="outline"
             className="h-10 px-3.5 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium rounded-lg"

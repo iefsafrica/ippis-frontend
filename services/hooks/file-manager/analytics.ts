@@ -12,3 +12,4 @@ export const useFileManagerAnalytics = (params?: FileManagerAnalyticsParams) => 
     queryFn: () => getFileManagerAnalytics(params),
   });
 };
+

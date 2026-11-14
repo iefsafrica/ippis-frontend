@@ -26,6 +26,8 @@ interface VerificationStepProps {
     nin: string;
     registrationId?: string;
     registration_id?: string;
+    registration_token?: string;
+    registrationToken?: string;
     manualVerification?: boolean;
     verifiedNIN?: VerifyNinData | null;
   }) => void;
@@ -87,6 +89,12 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
         verified: isVerified,
         registration_id: registrationIdFromResponse,
       };
+      const registrationTokenFromResponse =
+        (response as any).registration_token ||
+        (response as any).token ||
+        (response.data as any)?.registration_token ||
+        (response.data as any)?.token ||
+        undefined;
       setVerifiedNIN(verifiedData);
       if (registrationIdFromResponse) {
         console.log("Verification response payload:", JSON.stringify(response, null, 2));
@@ -94,10 +102,15 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
           localStorage.setItem("registration_id", registrationIdFromResponse);
         }
       }
+      if (registrationTokenFromResponse && typeof window !== "undefined") {
+        localStorage.setItem("registration_token", registrationTokenFromResponse);
+      }
       return {
         success: response.success,
         verified: isVerified,
         registrationId: registrationIdFromResponse,
+        registration_token: registrationTokenFromResponse,
+        registrationToken: registrationTokenFromResponse,
         verifiedNIN: verifiedData,
         error: response.error || response.message,
         status: response.status,
@@ -126,7 +139,7 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
       return;
     }
 
-    const { success, error, status, verified, registrationId: registrationIdFromVerify, verifiedNIN } =
+    const { success, error, status, verified, registrationId: registrationIdFromVerify, registration_token: regTokenFromVerify, verifiedNIN } =
       await verifyNIN(nin, initialRegistrationId);
     if (!success) {
       const toastMessage = status ? `${status}: ${error || "NIN verification failed."}` : (error || "NIN verification failed.");
@@ -162,6 +175,7 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
       manualVerification: false,
       registrationId: registrationIdFromVerify,
       registration_id: registrationIdFromVerify,
+      registration_token: regTokenFromVerify,
       verifiedNIN,
     });
     advanceToPersonalInfo?.();

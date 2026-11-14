@@ -4,6 +4,8 @@ export interface RecruitmentJob {
   id: string
   job_title: string
   department: string
+  company_id?: number | string
+  department_id?: number | string
   number_of_positions: number
   posted_date: string
   closing_date: string

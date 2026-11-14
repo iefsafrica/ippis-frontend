@@ -23,6 +23,7 @@ import { toast } from "sonner"
 import { useCreateTraining, useDeleteTraining, useGetTrainings, useUpdateTraining } from "@/services/hooks/trainings"
 import { LocalTraining, TrainingFormData, mapApiTrainingToLocal, transformFormToCreateTraining, transformFormToUpdateTraining } from "@/utils/training-converters"
 import { ViewTrainingDialog } from "./ViewTrainingDialog"
+import { MdaSelect } from "@/components/mda-select"
 
 const trainingSearchFields = [
   { name: "title", label: "Training Title", type: "text" as const },
@@ -666,7 +667,19 @@ export function TrainingListContent() {
               </TabsList>
 
               {TRAINING_TAB_SEQUENCE.map((tab) => (
-                <TabsContent key={tab} value={tab}>
+                <TabsContent key={tab} value={tab} className="space-y-4">
+                  {tab === "basic" && (
+                    <MdaSelect
+                      value={isEditing ? (editFormValues?.company_id ?? (selectedTraining as any)?.company_id) : addFormValues?.company_id}
+                      onChange={(val) => {
+                        if (isEditing) {
+                          setEditFormValues((prev) => ({ ...prev, company_id: val }))
+                        } else {
+                          setAddFormValues((prev) => ({ ...prev, company_id: val }))
+                        }
+                      }}
+                    />
+                  )}
                   <EnhancedForm
                     fields={isEditing ? trainingEditTabFields[tab] : trainingTabFields[tab]}
                     onSubmit={(data) =>

@@ -46,6 +46,23 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Attach continue/registration token for registration steps
+    const regToken =
+      (typeof window !== "undefined" ? localStorage.getItem("registration_token") : null) ||
+      Cookies.get("registration_token");
+    if (regToken && !config.headers["x-registration-token"]) {
+      config.headers["x-registration-token"] = regToken;
+    }
+
+    // Attach registration ID if available
+    const regId =
+      (typeof window !== "undefined" ? localStorage.getItem("registration_id") : null) ||
+      Cookies.get("registration_id");
+    if (regId && !config.headers["x-registration-id"]) {
+      config.headers["x-registration-id"] = regId;
+    }
+
     return config;
   },
   (error) => Promise.reject(error)

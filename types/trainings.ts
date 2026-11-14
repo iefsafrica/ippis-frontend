@@ -16,6 +16,8 @@ export interface Training {
   updated_at: string;
   email?: string;
   phone?: string;
+  company_id?: number | string;
+  department_id?: number | string;
 }
 
 export interface GetTrainingsResponse {
@@ -38,6 +40,8 @@ export interface CreateTrainingRequest {
   status: string;
   email?: string;
   phone?: string;
+  company_id?: number | string;
+  department_id?: number | string;
 }
 
 export interface CreateTrainingResponse {

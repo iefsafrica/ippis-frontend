@@ -12,6 +12,8 @@ export interface CalendarEvent {
   status: string;
   created_at: string;
   updated_at: string;
+  company_id?: number | string | null;
+  department_id?: number | string | null;
 }
 
 export interface LocalCalendarEvent {
@@ -28,6 +30,8 @@ export interface LocalCalendarEvent {
   status: string;
   created_at?: string;
   updated_at?: string;
+  company_id?: number | string | null;
+  department_id?: number | string | null;
 }
 
 export interface GetCalendarEventsResponse {
@@ -45,6 +49,8 @@ export interface CreateCalendarEventRequest {
   location: string;
   description: string;
   attendees: string[];
+  company_id?: number | string | null;
+  department_id?: number | string | null;
 }
 
 export interface CreateCalendarEventResponse {
@@ -58,6 +64,8 @@ export interface UpdateCalendarEventRequest {
   title?: string;
   event_type?: string;
   start_date?: string;
+  company_id?: number | string | null;
+  department_id?: number | string | null;
   end_date?: string;
   all_day?: boolean;
   department?: string;

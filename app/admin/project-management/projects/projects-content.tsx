@@ -16,6 +16,7 @@ import { toast } from "sonner"
 import { DataTable } from "@/app/admin/core-hr/components/data-table"
 import { StatusChangeDialog } from "@/app/admin/core-hr/components/status-change-dialog"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { MdaSelect } from "@/components/mda-select"
 import { useEmployeesList } from "@/services/hooks/employees/useEmployees"
 import {
   useCreateProject,
@@ -228,6 +229,7 @@ export function ProjectsContent() {
     status: "pending",
     budget: "",
     progress: 0,
+    company_id: "",
   })
   const [isViewOpen, setIsViewOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
@@ -410,6 +412,7 @@ export function ProjectsContent() {
       status: "pending",
       budget: "",
       progress: 0,
+      company_id: "",
     })
     setNewProjectStartDate(new Date())
     setNewProjectEndDate(new Date())
@@ -429,6 +432,7 @@ export function ProjectsContent() {
         status: normalizeOption(newProject.status, STATUS_OPTIONS.map((item) => item.value), "pending"),
         budget: newProject.budget,
         progress: newProject.progress,
+        company_id: newProject.company_id || undefined,
       })
       toast.success("Project created")
       setIsAddOpen(false)
@@ -572,6 +576,10 @@ export function ProjectsContent() {
             <DialogHeader>
               <DialogTitle>Add Project</DialogTitle>
             </DialogHeader>
+            <MdaSelect
+              value={newProject.company_id}
+              onChange={(value) => setNewProject((prev) => ({ ...prev, company_id: value }))}
+            />
             <div>
               <Label>Project Name</Label>
               <Input

@@ -18,9 +18,13 @@ const forwardHeaders = (request: Request) => {
   const headers = new Headers();
   const authorization = request.headers.get("authorization");
   const contentType = request.headers.get("content-type");
+  const registrationToken = request.headers.get("x-registration-token");
+  const registrationId = request.headers.get("x-registration-id");
 
   if (authorization) headers.set("authorization", authorization);
   if (contentType) headers.set("content-type", contentType);
+  if (registrationToken) headers.set("x-registration-token", registrationToken);
+  if (registrationId) headers.set("x-registration-id", registrationId);
   headers.set("accept", "application/json");
 
   return headers;

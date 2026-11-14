@@ -23,6 +23,8 @@ import { usePersonalInfo } from "@/services/hooks/register/personal-info";
 import { useEmploymentInfo } from "@/services/hooks/register/employment-info";
 import { useRegistrationDocuments } from "@/services/hooks/register/documents";
 import { registerEmployee } from "@/services/endpoints/employees/employees";
+import { requestResumeLink } from "@/services/endpoints/register/resume-link";
+import { KeyRound, Mail, ExternalLink, ShieldCheck } from "lucide-react";
 
 let registrationInitPromise: Promise<string | null> | null = null;
 let registrationInitCachedId: string | null = null;
@@ -78,6 +80,21 @@ export default function RegisterForm() {
   const [initialized, setInitialized] = useState(false);
   const [initRegistrationId, setInitRegistrationId] = useState<string | null>(null);
   const registrationIdResolvers = useRef<Array<(id: string) => void>>([]);
+
+  const [registrationToken, setRegistrationToken] = useState("");
+  const [showResumeModal, setShowResumeModal] = useState(false);
+  const [resumeEmail, setResumeEmail] = useState("");
+  const [resumeRegistrationId, setResumeRegistrationId] = useState("");
+  const [isSendingResumeLink, setIsSendingResumeLink] = useState(false);
+
+  const adoptRegistrationToken = (token: string) => {
+    if (!token) return;
+    setRegistrationToken(token);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("registration_token", token);
+    }
+    console.log("Adopted registration_token:", token.substring(0, 8) + "...");
+  };
 
   const adoptRegistrationId = (id: string) => {
     setRegistrationId(id);
@@ -193,6 +210,12 @@ export default function RegisterForm() {
         setRegistrationIdConfirmed(true);
       }
 
+      const storedToken = localStorage.getItem("registration_token");
+      if (storedToken) {
+        console.log("Restored registration_token from localStorage");
+        adoptRegistrationToken(storedToken);
+      }
+
       hasLoadedStoredRegistrationIdRef.current = true;
     }, []);
 
@@ -261,6 +284,16 @@ export default function RegisterForm() {
       }));
     }
   }, [registrationIdConfirmed, registrationId, manualRegistrationIdInput]);
+
+  useEffect(() => {
+    const urlToken = searchParams.get("token") || searchParams.get("registration_token");
+    if (urlToken) {
+      adoptRegistrationToken(urlToken);
+      toast.success("Loaded secure continue link", {
+        description: "Your session token is verified for registration.",
+      });
+    }
+  }, [searchParams]);
 
   const normalizeVerifiedNinData = useCallback(
     (data: any, fallbackNin: string) => {
@@ -521,6 +554,16 @@ export default function RegisterForm() {
       verificationData.registration_id ||
       "";
 
+    const incomingToken =
+      verificationData.registrationToken ||
+      verificationData.registration_token ||
+      verificationData.token ||
+      "";
+
+    if (incomingToken) {
+      adoptRegistrationToken(incomingToken);
+    }
+
     if (incomingVerificationId) {
       adoptRegistrationId(incomingVerificationId);
       console.log("Verification step yielded registration_id:", incomingVerificationId);
@@ -598,8 +641,25 @@ export default function RegisterForm() {
       console.log("Submitting personal info with registration_id:", regId);
       console.log("Personal info payload", { registration_id: regId, ...personalData });
 
-      const payload = { registration_id: regId, ...personalData };
+      const currentToken =
+        registrationToken ||
+        (typeof window !== "undefined" ? localStorage.getItem("registration_token") : null);
+
+      const payload = {
+        registration_id: regId,
+        ...(currentToken ? { registration_token: currentToken, token: currentToken } : {}),
+        ...personalData,
+      };
       const data = await personalInfoMutation.mutateAsync(payload);
+
+      const returnedToken =
+        (data as any)?.registration_token ||
+        (data as any)?.token ||
+        (data as any)?.data?.registration_token ||
+        (data as any)?.data?.token;
+      if (returnedToken) {
+        adoptRegistrationToken(returnedToken);
+      }
 
       if (data.success) {
         setFormData((prev) => ({
@@ -633,8 +693,25 @@ export default function RegisterForm() {
       const regId = await ensureRegistrationId();
       console.log("Submitting employment info with registration_id:", regId);
       console.log("Employment info payload", { registration_id: regId, ...employmentData });
-      const payload = { registration_id: regId, ...employmentData };
+
+      const currentToken =
+        registrationToken ||
+        (typeof window !== "undefined" ? localStorage.getItem("registration_token") : null);
+
+      const payload = {
+        registration_id: regId,
+        ...(currentToken ? { registration_token: currentToken, token: currentToken } : {}),
+        ...employmentData,
+      };
       const data = await employmentInfoMutation.mutateAsync(payload);
+
+      const returnedToken =
+        (data as any)?.registration_token ||
+        (data as any)?.token ||
+        (data as any)?.data?.registration_token;
+      if (returnedToken) {
+        adoptRegistrationToken(returnedToken);
+      }
 
       if (data.success) {
         setFormData((prev) => ({
@@ -714,6 +791,13 @@ export default function RegisterForm() {
 
       formData.append("registration_id", regId);
       formData.append("status", "pending");
+      const currentToken =
+        registrationToken ||
+        (typeof window !== "undefined" ? localStorage.getItem("registration_token") : null);
+      if (currentToken) {
+        formData.append("registration_token", currentToken);
+        formData.append("token", currentToken);
+      }
 
       const mapping: Array<[string, string]> = [
         ["appointmentLetter", "appointment_letter_path"],
@@ -812,9 +896,14 @@ export default function RegisterForm() {
         declaration: finalData.declaration,
       }));
 
+      const currentToken =
+        registrationToken ||
+        (typeof window !== "undefined" ? localStorage.getItem("registration_token") : null);
+
       const payload = {
         registration_id: canonicalId,
         registrationId: canonicalId,
+        ...(currentToken ? { registration_token: currentToken, token: currentToken } : {}),
         declaration: finalData.declaration,
         nin: formData.nin,
         bvn: formData.bvn,
@@ -1115,7 +1204,126 @@ export default function RegisterForm() {
         </DialogContent>
       </Dialog>
 
+      {/* Resume Application / Continue Link Dialog */}
+      <Dialog open={showResumeModal} onOpenChange={setShowResumeModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-emerald-600" />
+              Resume Your Application
+            </DialogTitle>
+            <DialogDescription>
+              For security, knowing an IPPIS number or NIN is no longer enough to modify an application.
+              Enter your email to receive your private, verified continue link.
+            </DialogDescription>
+          </DialogHeader>
+          {resumeLinkSent ? (
+            <div className="space-y-4 py-2">
+              <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 text-center">
+                <ShieldCheck className="h-10 w-10 text-emerald-600 mx-auto mb-2" />
+                <h4 className="font-semibold text-emerald-900">Check Your Email</h4>
+                <p className="text-xs text-emerald-700 mt-1">
+                  If an application exists for <strong className="font-medium text-emerald-900">{resumeEmail}</strong>, a private continue link has been dispatched. Click the link in the email to resume securely.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setShowResumeModal(false);
+                  setResumeLinkSent(false);
+                }}
+              >
+                Close
+              </Button>
+            </div>
+          ) : (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!resumeEmail.trim()) {
+                  toast.error("Please enter your email address.");
+                  return;
+                }
+                setIsSendingResumeLink(true);
+                try {
+                  const res = await requestResumeLink({
+                    email: resumeEmail.trim(),
+                    registration_id: resumeRegistrationId.trim() || undefined,
+                  });
+                  setResumeLinkSent(true);
+                  toast.success(res.message || "Continue link sent to your email!");
+                } catch (err: any) {
+                  const msg = err.response?.data?.message || err.message || "Failed to send continue link.";
+                  toast.error(msg);
+                } finally {
+                  setIsSendingResumeLink(false);
+                }
+              }}
+              className="space-y-4 py-2"
+            >
+              <div className="space-y-2">
+                <Label htmlFor="resumeEmail">Application Email Address *</Label>
+                <Input
+                  id="resumeEmail"
+                  type="email"
+                  required
+                  placeholder="name@example.com"
+                  value={resumeEmail}
+                  onChange={(e) => setResumeEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="resumeRegId">Registration ID or NIN (Optional)</Label>
+                <Input
+                  id="resumeRegId"
+                  placeholder="IPPIS-XXXX or 11-digit NIN"
+                  value={resumeRegistrationId}
+                  onChange={(e) => setResumeRegistrationId(e.target.value)}
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowResumeModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSendingResumeLink}
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white"
+                >
+                  {isSendingResumeLink ? "Sending link..." : "Send Continue Link"}
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <div className="bg-white p-3 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl shadow-sm border border-slate-100 w-full max-w-full overflow-hidden">
+        {/* Continue Link Banner */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4 p-3 rounded-lg border border-emerald-100 bg-emerald-50/60">
+          <div className="flex items-center gap-2 text-xs text-emerald-950">
+            <KeyRound className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>Already started an application? Each registration requires a private continue link.</span>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setResumeLinkSent(false);
+              setShowResumeModal(true);
+            }}
+            className="text-xs font-semibold border-emerald-600 text-emerald-800 hover:bg-emerald-100/80 h-7"
+          >
+            Request Continue Link
+          </Button>
+        </div>
+
       {error && (
         <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>
       )}

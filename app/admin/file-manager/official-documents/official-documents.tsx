@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import { useDeleteFile, useGetFiles, useUploadFile } from "@/services/hooks/file-manager/files"
 import { useGetFolders } from "@/services/hooks/file-manager/folders"
+import { MdaSelect } from "@/components/mda-select"
 
 type PreviewState = {
   fileId: string | null
@@ -64,6 +65,7 @@ export function OfficialDocuments() {
   const [isDraggingFile, setIsDraggingFile] = useState(false)
   const [preview, setPreview] = useState<PreviewState>({ fileId: null, error: false })
   const [deleteFileId, setDeleteFileId] = useState<string | null>(null)
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("")
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const { data: foldersResponse } = useGetFolders()
@@ -125,9 +127,11 @@ export function OfficialDocuments() {
       await uploadFileMutation.mutateAsync({
         file: selectedFile,
         folder_id: selectedFolderId === "root" ? null : selectedFolderId,
+        company_id: selectedCompanyId || null,
       })
       toast.success("Document uploaded successfully")
       setSelectedFile(null)
+      setSelectedCompanyId("")
       setIsUploadDialogOpen(false)
       await refetchFiles()
     } catch (error) {
@@ -193,6 +197,12 @@ export function OfficialDocuments() {
                   <DialogTitle>Upload Official Document</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
+                  <MdaSelect
+                    value={selectedCompanyId}
+                    onChange={setSelectedCompanyId}
+                    label="MDA Scope"
+                    placeholder="Shared with all MDAs (leave empty for shared)"
+                  />
                   <div className="space-y-2">
                     <Label htmlFor="doc-folder">Target Folder</Label>
                     <Select value={selectedFolderId} onValueChange={setSelectedFolderId}>

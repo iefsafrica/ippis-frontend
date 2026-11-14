@@ -28,6 +28,7 @@ import { ViewResignationDialog } from "./ViewResignationDialog"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { useAuth } from "@/lib/auth-context"
 import {
   Dialog,
   DialogContent,
@@ -285,6 +286,7 @@ function DisapproveConfirmationDialog({
 }
 
 export function ResignationsContent() {
+  const { user } = useAuth()
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
@@ -342,6 +344,17 @@ export function ResignationsContent() {
   const handleOpenApproveDialog = (id: number) => {
     const resignation = resignations.find((r: Resignation) => r.id === id)
     if (resignation) {
+      const isSelf = Boolean(
+        user && (
+          (resignation.employee_id && user.employee_id && String(resignation.employee_id) === String(user.employee_id)) ||
+          (resignation.employee_id && user.id && String(resignation.employee_id) === String(user.id)) ||
+          (resignation.employee_name && user.name && resignation.employee_name.trim().toLowerCase() === user.name.trim().toLowerCase())
+        )
+      )
+      if (isSelf) {
+        toast.error("Nobody can approve their own resignation.")
+        return
+      }
       setCurrentResignation(resignation)
       setIsApproveDialogOpen(true)
     } else {
@@ -352,6 +365,17 @@ export function ResignationsContent() {
   const handleOpenDisapproveDialog = (id: number) => {
     const resignation = resignations.find((r: Resignation) => r.id === id)
     if (resignation) {
+      const isSelf = Boolean(
+        user && (
+          (resignation.employee_id && user.employee_id && String(resignation.employee_id) === String(user.employee_id)) ||
+          (resignation.employee_id && user.id && String(resignation.employee_id) === String(user.id)) ||
+          (resignation.employee_name && user.name && resignation.employee_name.trim().toLowerCase() === user.name.trim().toLowerCase())
+        )
+      )
+      if (isSelf) {
+        toast.error("Nobody can disapprove their own resignation.")
+        return
+      }
       setCurrentResignation(resignation)
       setIsDisapproveDialogOpen(true)
     } else {
@@ -363,9 +387,9 @@ export function ResignationsContent() {
     if (!currentResignation) return
 
     try {
+      // Approvals use the signed-in user session; typed/hardcoded names are omitted
       const payload: ApproveResignationRequest = {
         id: currentResignation.id,
-        approved_by: "HR Manager",
       }
       await approveResignationMutation.mutateAsync(payload)
       toast.success("Resignation approved successfully")
@@ -381,10 +405,10 @@ export function ResignationsContent() {
     if (!currentResignation) return
 
     try {
+      // Disapprovals use the signed-in user session; typed/hardcoded names are omitted
       const payload: DisapproveResignationRequest = {
         id: currentResignation.id,
-        disapproved_by: "HR Manager",
-        reason: reason
+        reason: reason,
       }
       await disapproveResignationMutation.mutateAsync(payload)
       toast.success("Resignation disapproved successfully")
@@ -689,49 +713,87 @@ export function ResignationsContent() {
     {
       key: "actions",
       label: "Actions",
-      render: (_: any, row: any) => (
-        <div className="flex justify-end space-x-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => handleViewResignation(row.id)}
-            title="View Details"
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => handleEditResignation(row.id)}
-            title="Edit"
-            disabled={row.status !== "pending"}
-            className="text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          {row.status === "pending" && (
-            <>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handleOpenApproveDialog(row.id)}
-                title="Approve"
-                className="text-green-600 hover:text-green-800"
-              >
-                <CheckCircle className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handleOpenDisapproveDialog(row.id)}
-                title="Disapprove"
-                className="text-red-600 hover:text-red-800"
-              >
-                <XCircle className="h-4 w-4" />
-              </Button>
-            </>
-          )}
-          <Button
+      render: (_: any, row: any) => {
+        const isSelf = Boolean(
+          user && (
+            (row.employee_id && user.employee_id && String(row.employee_id) === String(user.employee_id)) ||
+            (row.employee_id && user.id && String(row.employee_id) === String(user.id)) ||
+            (row.employee_name && user.name && row.employee_name.trim().toLowerCase() === user.name.trim().toLowerCase())
+          )
+        )
+
+        return (
+          <div className="flex justify-end space-x-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => handleViewResignation(row.id)}
+              title="View Details"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => handleEditResignation(row.id)}
+              title="Edit"
+              disabled={row.status !== "pending"}
+              className="text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            {row.status === "pending" && (
+              <>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleOpenApproveDialog(row.id)}
+                          title={isSelf ? "Self-approval prohibited" : "Approve"}
+                          disabled={isSelf}
+                          className="text-green-600 hover:text-green-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    {isSelf && (
+                      <TooltipContent>
+                        <p className="text-xs">Nobody can approve their own resignation.</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleOpenDisapproveDialog(row.id)}
+                          title={isSelf ? "Self-disapproval prohibited" : "Disapprove"}
+                          disabled={isSelf}
+                          className="text-red-600 hover:text-red-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    {isSelf && (
+                      <TooltipContent>
+                        <p className="text-xs">Nobody can disapprove their own resignation.</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+              </>
+            )}
+            <Button
             variant="outline"
             size="icon"
             onClick={() => handleOpenDeleteDialog(row.id)}
@@ -742,8 +804,9 @@ export function ResignationsContent() {
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
-      ),
+      )
     },
+  },
   ]
 
   if (isLoadingResignations) {
